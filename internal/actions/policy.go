@@ -37,7 +37,7 @@ var policies = map[string]Policy{
 	"assistant_status":       {Chat: true, Read: true, Scope: SelectedNotebooks}, "save_assistant_settings": {},
 	"assistant_context": {Chat: true, Read: true, Scope: SelectedNotebooks}, "update_assistant_memory": {},
 	// Agent memory is not a chat tool. Direct messaging conversations recall and remember through
-	// the server (web/message_memory.go), which marks the run as it does for assistant_context.
+	// the server (messaginghttp/memory.go), which marks the run as it does for assistant_context.
 	"recall_memory": {}, "remember": {}, "confirm_memory": {},
 	// Task queues are personal and written only by task actions; chat reaches
 	// them through deterministic Slack commands and buttons, not tools.

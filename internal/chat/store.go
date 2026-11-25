@@ -845,3 +845,21 @@ func (s *Store) PersonalUsage(user string) (UsageSummary, error) {
 	summary.Total = aggregate.Usage()
 	return summary, nil
 }
+
+// AddCitations adds the citations run does not already cite, by URL, and
+// reports whether it added any.
+func AddCitations(run *Run, citations []Citation) bool {
+	seen := map[string]bool{}
+	for _, citation := range run.Citations {
+		seen[citation.URL] = true
+	}
+	added := false
+	for _, citation := range citations {
+		if !seen[citation.URL] {
+			run.Citations = append(run.Citations, citation)
+			seen[citation.URL] = true
+			added = true
+		}
+	}
+	return added
+}

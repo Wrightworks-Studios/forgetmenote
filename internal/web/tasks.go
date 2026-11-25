@@ -9,13 +9,15 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/taskqueue"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // initTasks binds task queues to this instance's access checks, messaging
 // clients, Slack app, data connections, reply reminder policy and origin. The
-// Slack app, the connections and the origin are read at each call.
+// messaging service, the Slack app, the connections and the origin are read at
+// each call, since messaging is created after task queues.
 func (s *Server) initTasks() error {
 	var err error
 	s.tasks, err = taskqueue.New(s.catalog, s.automations, taskqueue.Hooks{
@@ -24,11 +26,15 @@ func (s *Server) initTasks() error {
 			return !automated && auth.Global(ctx)
 		},
 		CheckAutomation: s.checkAutomationAuth,
-		Client:          s.messageClient,
-		SendDM: func(ctx context.Context, effect automation.Effect, t messaging.Transport, d messaging.Address, reply messaging.Reply) (bool, error) {
-			return s.sendOnce(ctx, effect, t, d, reply, dmSendTimeout, nil)
+		Client: func(id string) (messaging.Client, messaging.Transport, bool) {
+			return s.messaging.MessageClient(id)
 		},
-		Enqueue: s.enqueueMessage,
+		SendDM: func(ctx context.Context, effect automation.Effect, t messaging.Transport, d messaging.Address, reply messaging.Reply) (bool, error) {
+			return s.messaging.SendOnce(ctx, effect, t, d, reply, messaginghttp.DMSendTimeout, nil)
+		},
+		Enqueue: func(ctx context.Context, e messaging.Event) error {
+			return s.messaging.EnqueueMessage(ctx, e)
+		},
 		Permalink: func(ctx context.Context, channel, ts string) (string, error) {
 			return s.slack.Permalink(ctx, channel, ts)
 		},
@@ -59,19 +65,15 @@ func (s *Server) taskTools(server *mcp.Server) {
 	addManagementTool(s, server, "set_task_queues", "Enable or change task queues: client names the messaging client whose workspace members have queues, group limits the accounts that may use tasks, and revision is the current settings revision (0 to enable). Creates the system notebook task-queues the first time. Administrator only.", false, s.tasks.SetSettingsAction)
 }
 
-// slackCommands checks a /task or /tasks slash command, which Slack signs as it
-// signs interactions, and its workspace, then hands it to task queues.
-func (s *Server) slackCommands(w http.ResponseWriter, r *http.Request) {
-	body, ok := s.slackRequest(w, r)
-	if !ok {
-		return
-	}
+// slackCommands checks the workspace of a /task or /tasks slash command, whose
+// body slackRequest verified, then hands it to task queues.
+func (s *Server) slackCommands(w http.ResponseWriter, r *http.Request, body []byte) {
 	form, err := url.ParseQuery(string(body))
 	if err != nil {
 		http.Error(w, "Invalid command", http.StatusBadRequest)
 		return
 	}
-	if !s.slackWorkspace(w, form.Get("team_id")) {
+	if !s.messaging.SlackWorkspace(w, form.Get("team_id")) {
 		return
 	}
 	s.tasks.SlackCommand(w, r, form)

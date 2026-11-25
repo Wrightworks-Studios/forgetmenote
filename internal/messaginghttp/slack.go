@@ -1,154 +1,23 @@
-package web
+package messaginghttp
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"forgetmenote/internal/durable"
-	"forgetmenote/internal/jsonfile"
-	"io"
+	"forgetmenote/internal/webcore"
 	"net/http"
 	"net/url"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
 	"forgetmenote/internal/automation"
-	"forgetmenote/internal/capacity"
 	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/messaging"
-	"forgetmenote/internal/outgoing"
 	"forgetmenote/internal/taskqueue"
 	"forgetmenote/internal/workspace"
 )
-
-type SlackChannel = messaging.Binding
-type SlackConfig = messaging.SlackConfig
-
-// An operator explicitly approves the audience for each shared destination.
-// Jobs can select these destinations, but cannot broaden their data scope.
-type SlackBroadcast = messaging.Broadcast
-type slackService struct {
-	config   SlackConfig
-	client   *http.Client
-	endpoint string
-	outgoing *outgoing.Mode
-}
-
-func (s *Server) ConfigureSlack(file string) error {
-	if err := s.privateRuntimeFile(file); err != nil {
-		return err
-	}
-	var cfg SlackConfig
-	if err := jsonfile.Load(file, 256<<10, &cfg); err != nil {
-		return errors.New("invalid Slack configuration")
-	}
-	return s.ConfigureSlackConfig(cfg)
-}
-func (s *Server) ConfigureSlackConfig(cfg messaging.SlackConfig) error {
-	if err := integrations.Check("slack"); err != nil {
-		return err
-	}
-	unlock, err := s.startupConfiguration()
-	if err != nil {
-		return err
-	}
-	defer unlock()
-
-	var e error
-	if cfg.Team == "" || len(cfg.Users) > 1000 || len(cfg.Channels)+len(cfg.Broadcasts)+len(cfg.KnowledgeChannels) > 128 || len(cfg.DirectMessages) > 1000 {
-		return errors.New("invalid Slack configuration")
-	}
-	files := []string{cfg.BotTokenFile}
-	if cfg.SigningSecretFile != "" || cfg.Members != nil || len(cfg.Channels)+len(cfg.DirectMessages)+len(cfg.KnowledgeChannels) > 0 {
-		files = append(files, cfg.SigningSecretFile)
-	}
-	for _, p := range files {
-		if e = s.privateRuntimeFile(p); e != nil {
-			return e
-		}
-	}
-	for id, b := range cfg.Broadcasts {
-		if !strings.HasPrefix(id, "C") || strings.ContainsAny(id, " \r\n/") || !b.AudienceApproved || b.Project == "" || len(b.Actors) == 0 || len(b.Actors) > 128 {
-			return errors.New("shared Slack destinations require an approved audience, notebook and allowed actors")
-		}
-	}
-	for id, project := range cfg.KnowledgeChannels {
-		if !strings.HasPrefix(id, "C") || project == "" || len(cfg.Users) == 0 {
-			return errors.New("knowledge channels require a notebook and mapped authors")
-		}
-	}
-	if e = (&slackService{config: cfg}).policy().Validate(); e != nil {
-		return e
-	}
-	if e = s.initAutomations(); e != nil {
-		return e
-	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = nil
-	s.slack = &slackService{config: cfg, outgoing: s.outgoing, endpoint: "https://slack.com/api/chat.postEphemeral", client: &http.Client{Transport: transport, Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
-	if s.messageClients == nil {
-		s.messageClients = map[string]messaging.Transport{}
-	}
-	s.messageClients["slack"] = s.slack
-	return nil
-}
-func (s *slackService) policy() messaging.Client {
-	return messaging.Client{Members: s.config.Members, Workspace: s.config.Team, Users: s.config.Users, Channels: s.config.Channels, DirectMessages: s.config.DirectMessages, KnowledgeChannels: s.config.KnowledgeChannels, Broadcasts: s.config.Broadcasts}
-}
-func runtimeSecret(file string) (string, error) {
-	value, err := durable.ReadSecret(file, 64<<10)
-	if errors.Is(err, durable.ErrOpen) {
-		return "", errors.New("runtime credential unavailable")
-	}
-	if err != nil {
-		return "", errors.New("invalid runtime credential")
-	}
-	return value, nil
-}
-
-// slackRequest returns the body of a request Slack signed within the last five
-// minutes, or writes the refusal.
-func (s *Server) slackRequest(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
-	if s.slack == nil || s.slack.config.SigningSecretFile == "" {
-		http.NotFound(w, r)
-		return nil, false
-	}
-	if r.Method != "POST" {
-		http.Error(w, "POST required", 405)
-		return nil, false
-	}
-	body, e := io.ReadAll(http.MaxBytesReader(w, r.Body, int64(capacity.SourceBytes.Limit())))
-	if e != nil {
-		http.Error(w, "Event too large", 413)
-		return nil, false
-	}
-	stamp := r.Header.Get("X-Slack-Request-Timestamp")
-	seconds, e := strconv.ParseInt(stamp, 10, 64)
-	if e != nil || time.Since(time.Unix(seconds, 0)) > 5*time.Minute || time.Until(time.Unix(seconds, 0)) > 5*time.Minute {
-		http.Error(w, "Invalid signature", 401)
-		return nil, false
-	}
-	secret, e := runtimeSecret(s.slack.config.SigningSecretFile)
-	if e != nil {
-		http.Error(w, "Slack unavailable", 503)
-		return nil, false
-	}
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte("v0:" + stamp + ":"))
-	mac.Write(body)
-	if !hmac.Equal([]byte("v0="+hex.EncodeToString(mac.Sum(nil))), []byte(r.Header.Get("X-Slack-Signature"))) {
-		http.Error(w, "Invalid signature", 401)
-		return nil, false
-	}
-	return body, true
-}
 
 // slackEventUser is an event's user: an ID in message events, and a whole user
 // object in member events.
@@ -170,28 +39,29 @@ func (u *slackEventUser) UnmarshalJSON(raw []byte) error {
 	return err
 }
 
-// slackWorkspace reports whether a signed request comes from the workspace
+// SlackWorkspace reports whether a signed request comes from the workspace
 // the enabled Slack client serves, or writes the refusal. Every request it
 // admits leads to a reply or an action in Slack, so a paused instance admits
 // none.
-func (s *Server) slackWorkspace(w http.ResponseWriter, team string) bool {
+func (s *Service) SlackWorkspace(w http.ResponseWriter, team string) bool {
 	if err := s.outgoing.Check(); err != nil {
-		fail(w, err)
+		webcore.Fail(w, err)
 		return false
 	}
-	policy, _, enabled := s.messageClient("slack")
-	if !enabled || team != policy.Workspace || team != s.slack.config.Team {
+	policy, _, enabled := s.MessageClient("slack")
+	mounted, ok := s.hooks.SlackPolicy()
+	if !enabled || !ok || team != policy.Workspace || team != mounted.Workspace {
 		http.Error(w, "Unknown workspace", http.StatusForbidden)
 		return false
 	}
 	return true
 }
 
-func (s *Server) slackEvents(w http.ResponseWriter, r *http.Request) {
-	body, ok := s.slackRequest(w, r)
-	if !ok {
-		return
-	}
+// SlackEvents serves the Slack app's events: messages and mentions the
+// assistant answers, knowledge channel messages and member changes. Web
+// verifies the request's signature and timestamp before it calls this with the
+// verified body.
+func (s *Service) SlackEvents(w http.ResponseWriter, r *http.Request, body []byte) {
 	var event struct {
 		Type      string `json:"type"`
 		Team      string `json:"team_id"`
@@ -215,21 +85,19 @@ func (s *Server) slackEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if event.Type == "url_verification" {
-		jsonResponse(w, map[string]string{"challenge": event.Challenge})
+		webcore.JSON(w, map[string]string{"challenge": event.Challenge})
 		return
 	}
-	if !s.slackWorkspace(w, event.Team) {
+	if !s.SlackWorkspace(w, event.Team) {
 		return
 	}
-	policy, _, _ := s.messageClient("slack")
+	policy, _, _ := s.MessageClient("slack")
 	if event.Type == "event_callback" && (event.Event.Type == "team_join" || event.Event.Type == "user_change") {
-		member, active, err := s.slack.EventMember(event.Event.User.Raw)
-		if err != nil {
+		if err := s.hooks.SlackMemberEvent(event.ID, event.Event.User.Raw); err != nil {
 			http.Error(w, "Invalid member event", http.StatusBadRequest)
 			return
 		}
-		s.observeMemberChange("slack", event.ID, member, active)
-		jsonResponse(w, map[string]bool{"ok": true})
+		webcore.JSON(w, map[string]bool{"ok": true})
 		return
 	}
 	direct := event.Event.Type == "message" && event.Event.ChannelType == "im" && strings.HasPrefix(event.Event.Channel, "D")
@@ -248,7 +116,7 @@ func (s *Server) slackEvents(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, spec := range s.automations.Definitions.Specs() {
-			if spec.Disabled || s.automationPolicy(spec) != nil || spec.Trigger == nil || spec.Trigger.Kind != "slack.knowledge" || spec.Trigger.Channel != event.Event.Channel || spec.Project != project {
+			if spec.Disabled || s.hooks.AutomationPolicy(spec) != nil || spec.Trigger == nil || spec.Trigger.Kind != "slack.knowledge" || spec.Trigger.Channel != event.Event.Channel || spec.Project != project {
 				continue
 			}
 			if _, err := s.automations.Queue.ObserveEvent(spec, automation.Event{ID: event.ID, Actor: actor, Epoch: s.catalog.Epoch(actor), Text: event.Event.Text, At: time.Now()}, time.Now()); err != nil {
@@ -259,7 +127,7 @@ func (s *Server) slackEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	ignoredSubtype := event.Event.Subtype != "" && !(event.Event.Subtype == "file_share" && len(event.Event.Files) > 0)
 	if event.Type != "event_callback" || event.Event.Type != "app_mention" && !direct || event.Event.BotID != "" || ignoredSubtype {
-		jsonResponse(w, map[string]bool{"ok": true})
+		webcore.JSON(w, map[string]bool{"ok": true})
 		return
 	}
 	if event.ID == "" || len(event.ID) > 128 || event.Event.TS == "" {
@@ -269,7 +137,7 @@ func (s *Server) slackEvents(w http.ResponseWriter, r *http.Request) {
 	// Preserve deduplication for events queued by the previous Slack-only handler.
 	legacyID := automation.Hash([]string{"slack-" + automation.Hash(event.ID)[:32], event.ID})
 	if _, err := s.automations.Queue.Get(legacyID); err == nil {
-		jsonResponse(w, map[string]bool{"ok": true})
+		webcore.JSON(w, map[string]bool{"ok": true})
 		return
 	} else if !errors.Is(err, os.ErrNotExist) {
 		http.Error(w, "Event queue unavailable", http.StatusServiceUnavailable)
@@ -283,24 +151,22 @@ func (s *Server) slackEvents(w http.ResponseWriter, r *http.Request) {
 		thread = ""
 	}
 	address := messaging.Address{Client: "slack", Workspace: event.Team, Channel: event.Event.Channel, Thread: thread, User: event.Event.User.ID, Message: event.Event.TS, Direct: direct, Files: event.Event.Files}
-	err := s.enqueueMessage(r.Context(), messaging.Event{ID: event.ID, Text: event.Event.Text, Address: address})
+	err := s.EnqueueMessage(r.Context(), messaging.Event{ID: event.ID, Text: event.Event.Text, Address: address})
 	// Otherwise a person or conversation without access gets no answer at all.
 	// The notice reveals only that the bot is present, which Slack already shows.
 	if errors.Is(err, workspace.ErrForbidden) && s.unavailableNotice(r.Context(), address) == nil {
 		err = nil
 	}
-	respond(w, map[string]bool{"ok": true}, err)
+	webcore.Respond(w, map[string]bool{"ok": true}, err)
 }
 
-// slackInteractions accepts a pressed confirmation button as the same request
+// SlackInteractions accepts a pressed confirmation button as the same request
 // as the clicking user replying "confirm CODE" or "cancel CODE" in the thread
 // that proposed it. The queued request rechecks everything a typed reply would,
-// including that the clicking user asked for the change.
-func (s *Server) slackInteractions(w http.ResponseWriter, r *http.Request) {
-	body, ok := s.slackRequest(w, r)
-	if !ok {
-		return
-	}
+// including that the clicking user asked for the change. Web verifies the
+// request's signature and timestamp before it calls this with the verified
+// body.
+func (s *Service) SlackInteractions(w http.ResponseWriter, r *http.Request, body []byte) {
 	form, err := url.ParseQuery(string(body))
 	var click struct {
 		Type      string              `json:"type"`
@@ -345,7 +211,7 @@ func (s *Server) slackInteractions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid interaction", 400)
 		return
 	}
-	if !s.slackWorkspace(w, click.Team.ID) {
+	if !s.SlackWorkspace(w, click.Team.ID) {
 		return
 	}
 	team, user := click.Team.ID, click.User.ID
@@ -437,21 +303,21 @@ func (s *Server) slackInteractions(w http.ResponseWriter, r *http.Request) {
 	address := messaging.Address{Client: "slack", Workspace: click.Team.ID, Channel: click.Channel.ID, Thread: value.Thread, User: click.User.ID, Direct: strings.HasPrefix(click.Channel.ID, "D")}
 	// Pressing the same button again is the same request.
 	id := "slack-button-" + automation.Hash([]string{click.Channel.ID, click.Container.MessageTS, click.Actions[0].ActionID, click.User.ID})[:32]
-	if err := s.enqueueMessage(r.Context(), messaging.Event{ID: id, Text: command + " " + value.Code, Address: address}); err != nil {
-		fail(w, err)
+	if err := s.EnqueueMessage(r.Context(), messaging.Event{ID: id, Text: command + " " + value.Code, Address: address}); err != nil {
+		webcore.Fail(w, err)
 		return
 	}
 	// The buttons are gone once pressed; a failure here only leaves them shown.
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	if err := s.slack.Respond(ctx, click.ResponseURL, done); err != nil {
-		s.logAutomationError("Slack button response", err)
+	if err := s.hooks.SlackRespond(ctx, click.ResponseURL, done); err != nil {
+		s.automations.Report("Slack button response", err)
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) unavailableNotice(ctx context.Context, d messaging.Address) error {
-	_, transport, ok := s.messageClient("slack")
+func (s *Service) unavailableNotice(ctx context.Context, d messaging.Address) error {
+	_, transport, ok := s.MessageClient("slack")
 	if !ok || !messaging.ValidID(d.User) || !messaging.ValidID(d.Channel) {
 		return workspace.ErrForbidden
 	}
@@ -460,24 +326,27 @@ func (s *Server) unavailableNotice(ctx context.Context, d messaging.Address) err
 	d.Files = nil
 	return transport.Send(ctx, d, messaging.Reply{Text: "I'm not set up to answer you here yet. Ask an administrator to enable this conversation or link your account."})
 }
-func (s *Server) deliverSlack(ctx context.Context, r *automation.Run, save func() error, d automation.Delivery) error {
-	policy, transport, ok := s.messageClient("slack")
+
+// DeliverSlack sends an automation's result to a Slack destination, checking a
+// shared channel's approved audience first.
+func (s *Service) DeliverSlack(ctx context.Context, r *automation.Run, save func() error, d automation.Delivery) error {
+	policy, transport, ok := s.MessageClient("slack")
 	if !ok {
 		return workspace.ErrForbidden
 	}
 	if d.Shared {
-		if err := sharedAudience(policy, d.Channel, r); err != nil {
+		if err := SharedAudience(policy, d.Channel, r); err != nil {
 			return err
 		}
 	}
-	return s.sendMessage(ctx, transport, messageAddress(d), messaging.Reply{Text: r.Answer, Artifacts: r.Artifacts}, r, save)
+	return s.sendMessage(ctx, transport, MessageAddress(d), messaging.Reply{Text: r.Answer, Artifacts: r.Artifacts}, r, save)
 }
 
-// sharedAudience checks that a channel's approved broadcast may receive
+// SharedAudience checks that a channel's approved broadcast may receive
 // everything the run can read or has read: its notebooks, connections,
 // receipts and citations. A job selects the channel; only the broadcast
 // approves who sees the result.
-func sharedAudience(policy messaging.Client, channel string, r *automation.Run) error {
+func SharedAudience(policy messaging.Client, channel string, r *automation.Run) error {
 	b, ok := policy.Broadcasts[channel]
 	if !ok || !b.AudienceApproved || b.Project != r.Spec.Project || !slices.Contains(b.Actors, r.Spec.Actor) {
 		return workspace.ErrForbidden

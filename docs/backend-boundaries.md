@@ -115,8 +115,8 @@ filenames and section-specific size limits remain supported.
 `confirm_memory` actions, the Markdown memory format, memory search and its
 per-process vectors, the memory instructions connected agents receive, and
 the memory a direct message reads and writes. Web registers the actions
-through the shared action dispatcher and decides whose memory a direct message
-uses, which is the messaging link. The required hooks bind the
+through the shared action dispatcher, and `internal/messaginghttp` decides whose
+memory a direct message uses, which is the messaging link. The required hooks bind the
 personal-credential check, client notebook access, Jev and its authorization,
 the chat embedding policy and the origin, each read at each call.
 
@@ -131,6 +131,25 @@ call. A run reaches notebooks only through the catalog, so it rechecks its
 owner's access there. Its tests run on a real catalog, database and search
 indexes without the instance's guard, so they cover Jev's behaviour; who may
 use Jev is tested in web through the real routes.
+
+`internal/messaginghttp` owns conversations in external chat clients: the
+Slack app's events and interactions, the assistant runs a message starts, their
+replies and sends, file artifacts and data write proposals with their
+confirmation. Each run re-resolves the client's policy, the destination's
+binding and the actor's notebook access in the catalog before provider calls,
+tool calls and delivery. Web keeps the Slack app's configuration, its transport
+(and the `fmn_omit_slack` split) and the MCP tools that configure chat clients.
+It keeps `slackApp`, the one gate every Slack app request passes: `slackRequest`
+checks the signature and timestamp before any handler reads the body. And it
+keeps what binds a messaging user to an account: account links
+(`message_link.go`) and email pairing (`message_pairing.go`). The required
+hooks bind automation policy and identity, the answer a run gives, the chat
+store and source checks, the personal assistant's message policy, linked owner
+and memory capture, link commands and member events, data access, the origin,
+the transports and the Slack app, each read at each call. Messaging's tests
+stay in web, since a message reaches automation and chat; the few exports only
+tests use are in `testexports.go`, and a boundary test fails on any production
+reference to them.
 
 `internal/citationchecks` owns citation-check sidecars, bounded queue/read
 admission, worker cancellation and shutdown. Pending check identity is durable

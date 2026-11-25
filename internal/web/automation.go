@@ -117,7 +117,7 @@ func (s *Server) checkAutomationAuth(ctx context.Context) error {
 		}
 	}
 	if a.Spec.Kind == "assistant" {
-		if err := s.checkMessageSpec(a.Spec); err != nil {
+		if err := s.messaging.CheckMessageSpec(a.Spec); err != nil {
 			return err
 		}
 	}
@@ -224,7 +224,7 @@ func (s *Server) runAutomation(ctx context.Context, r *automation.Run, save func
 	case "digest":
 		err = s.answerDigest(ctx, r, save)
 	case "assistant":
-		return s.runMessageAutomation(ctx, r, save)
+		return s.messaging.RunMessageAutomation(ctx, r, save)
 	default:
 		return errors.New("unsupported automation kind")
 	}
@@ -482,9 +482,9 @@ func (s *Server) notifyAutomation(ctx context.Context, r *automation.Run, save f
 		}
 	}
 	if r.Spec.NotifyChannel != "" {
-		return s.deliverSlack(ctx, r, save, automation.Delivery{Channel: r.Spec.NotifyChannel, Shared: true})
+		return s.messaging.DeliverSlack(ctx, r, save, automation.Delivery{Channel: r.Spec.NotifyChannel, Shared: true})
 	}
-	policy, _, enabled := s.messageClient("slack")
+	policy, _, enabled := s.messaging.MessageClient("slack")
 	if !enabled {
 		return workspace.ErrForbidden
 	}
@@ -515,7 +515,7 @@ func (s *Server) notifyAutomation(ctx context.Context, r *automation.Run, save f
 	if e = s.checkAutomationEvidence(recipientCtx, r, true); e != nil {
 		return e
 	}
-	return s.deliverSlack(ctx, r, save, automation.Delivery{Channel: r.Spec.NotifySlackUser, SlackUser: r.Spec.NotifySlackUser, Direct: true})
+	return s.messaging.DeliverSlack(ctx, r, save, automation.Delivery{Channel: r.Spec.NotifySlackUser, SlackUser: r.Spec.NotifySlackUser, Direct: true})
 }
 func (s *Server) publishAutomation(ctx context.Context, r *automation.Run) error {
 	if r.DryRun {

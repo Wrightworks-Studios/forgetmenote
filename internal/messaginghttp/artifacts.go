@@ -1,4 +1,4 @@
-package web
+package messaginghttp
 
 import (
 	"bytes"
@@ -14,10 +14,15 @@ import (
 	"io"
 )
 
-func resultArtifactTool() chat.Tool {
+// ResultArtifactTool is the chat tool that attaches a file built from a data
+// operation's result to a message reply.
+func ResultArtifactTool() chat.Tool {
 	return chat.Tool{Name: "create_result_artifact", Description: "Attach a CSV, XLSX workbook, JSON export or bar/line SVG chart using an existing complete data-operation receipt. Never supply values. Tables may be an array of objects, rows of objects, or columns with array rows. A successful code operation may print one such JSON table to stdout; keep separate exports in separate results. For charts select exact x/y column names; for other formats leave x/y empty. Files are sent with the final answer. Receipt IDs are also available from retained previous results. Charts reflect returned data, not semantic certification.", Schema: json.RawMessage(`{"type":"object","properties":{"receipt":{"type":"string"},"format":{"type":"string","enum":["csv","xlsx","json","bar","line"]},"x":{"type":"string"},"y":{"type":"string"},"title":{"type":"string"}},"required":["receipt","format"],"additionalProperties":false}`)}
 }
-func (s *Server) messageArtifact(ctx context.Context, r *automation.Run, raw json.RawMessage) (json.RawMessage, error) {
+
+// MessageArtifact renders the file a run asked for from a complete result the
+// run retained and may still disclose, and attaches it to the reply.
+func (s *Service) MessageArtifact(ctx context.Context, r *automation.Run, raw json.RawMessage) (json.RawMessage, error) {
 	if r.Spec.Delivery == nil || !r.Spec.Delivery.Direct && !r.Spec.Delivery.Shared {
 		return nil, errors.New("file replies require a DM or approved shared channel")
 	}
@@ -31,7 +36,7 @@ func (s *Server) messageArtifact(ctx context.Context, r *automation.Run, raw jso
 		if result.Receipt.ID != in.Receipt {
 			continue
 		}
-		if !s.dataAllowed(ctx, result.Receipt.Connection, result.Receipt.Operation) {
+		if !s.hooks.DataAllowed(ctx, result.Receipt.Connection, result.Receipt.Operation) {
 			return nil, workspace.ErrForbidden
 		}
 		if !result.Receipt.Complete {
@@ -58,7 +63,10 @@ func (s *Server) messageArtifact(ctx context.Context, r *automation.Run, raw jso
 	}
 	return nil, errors.New("receipt is not in this conversation; call a data operation first")
 }
-func retainMessageResult(r *automation.Run, result connectors.Result) {
+
+// RetainMessageResult keeps a data operation's result with the run, within the
+// run's state limit, so artifacts and follow-ups can use it.
+func RetainMessageResult(r *automation.Run, result connectors.Result) {
 	if result.Receipt.ID == "" {
 		return
 	}

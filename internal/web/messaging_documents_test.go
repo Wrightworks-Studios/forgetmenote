@@ -48,7 +48,7 @@ func TestMessagingCarriesAttachedDocumentsIntoLaterTurns(t *testing.T) {
 	ask := func(id, text string) {
 		t.Helper()
 		event := messaging.Event{ID: id, Text: text, Address: messaging.Address{Client: "other-chat", Workspace: "workspace", Channel: "room", Thread: "thread-one", User: "external-alice", Message: id}}
-		if err := app.enqueueMessage(t.Context(), event); err != nil {
+		if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			t.Fatal(err)
 		}
 		if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {

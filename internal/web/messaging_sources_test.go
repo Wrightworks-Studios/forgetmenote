@@ -11,6 +11,7 @@ import (
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -49,7 +50,7 @@ func TestMessagingRevalidatesEarlierAnswerBeforeFollowup(t *testing.T) {
 				t.Fatal(err)
 			}
 			d := messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", Thread: "1.2", User: "U123"}
-			owner, binding := messageConversation(app.slack.policy(), app.slack.config.Channels["C123"], d, "alice")
+			owner, binding := messaginghttp.MessageConversation(app.slack.policy(), app.slack.config.Channels["C123"], d, "alice")
 			c, err := app.chat.Store.OpenBound(owner, "default", binding, chat.Options{Mode: "ask", Connection: "local", Model: "synthetic"})
 			if err != nil {
 				t.Fatal(err)

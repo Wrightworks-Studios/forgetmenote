@@ -66,7 +66,7 @@ func (s *Server) messageLinkAddress(token string) (messaging.Address, error) {
 		return messaging.Address{}, webcore.Error{Status: 403, Code: "expired", Message: "This link has expired. Send link in a direct message for a new one."}
 	}
 	d := messaging.Address{Client: claim.Client, Workspace: claim.Workspace, User: claim.User, Channel: claim.Channel, Direct: true}
-	c, _, ok := s.messageClient(d.Client)
+	c, _, ok := s.messaging.MessageClient(d.Client)
 	if !ok || c.Workspace != d.Workspace || c.Members == nil {
 		return messaging.Address{}, workspace.ErrForbidden
 	}
@@ -88,6 +88,18 @@ func (s *Server) accountLabel(subject string) string {
 		return identity.Name
 	}
 	return subject
+}
+
+// linkCommandReply answers `link` or `unlink` in a direct, unshared
+// conversation that has no answer yet: only the messaging user sees that
+// reply, so only there may it carry a link. ok is false for any other message.
+func (s *Server) linkCommandReply(r *automation.Run, c messaging.Client, d messaging.Address) (string, bool, error) {
+	command := messageLinkCommand(r.Spec.Instruction)
+	if command == "" || !d.Direct || d.Shared || r.Answer != "" {
+		return "", false, nil
+	}
+	text, err := s.messageLinkReply(r, c, d, command)
+	return text, true, err
 }
 
 // messageLinkReply answers `link` and `unlink` without the model. The reply is
@@ -179,7 +191,7 @@ func (s *Server) messageLinkRoutes() {
 }
 
 func (s *Server) notifyMessageLink(ctx context.Context, d messaging.Address, user string) {
-	_, transport, ok := s.messageClient(d.Client)
+	_, transport, ok := s.messaging.MessageClient(d.Client)
 	if !ok {
 		return
 	}

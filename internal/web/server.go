@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"forgetmenote/internal/jev"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/quicknotes"
 	"forgetmenote/internal/reposource"
 	"html/template"
@@ -76,6 +77,7 @@ type Server struct {
 	automations          *automationService
 	python               *automation.Python
 	slack                *slackService
+	messaging            *messaginghttp.Service
 	tasks                *taskqueue.Service
 	// messageClients are the configured messaging transports, by client ID.
 	messageClients map[string]messaging.Transport
@@ -290,6 +292,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 		return nil, err
 	}
 	if err = s.initTasks(); err != nil {
+		return nil, err
+	}
+	if err = s.initMessaging(); err != nil {
 		return nil, err
 	}
 	if err = s.initDataOperations(); err != nil {
@@ -542,12 +547,8 @@ func (s *Server) serveHeadless(w http.ResponseWriter, r *http.Request, target re
 // or bearer check.
 func (s *Server) serveIntegration(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch {
-	case path == "/integrations/slack/events":
-		s.slackEvents(w, r)
-	case path == "/integrations/slack/interactions":
-		s.slackInteractions(w, r)
-	case path == "/integrations/slack/commands":
-		s.slackCommands(w, r)
+	case path == "/integrations/slack/events" || path == "/integrations/slack/interactions" || path == "/integrations/slack/commands":
+		s.slackApp(w, r, path)
 	case strings.HasPrefix(path, "/internal/backups/v1/"):
 		s.backupWorkerHTTP(w, r)
 	case path == "/repository/github/webhook":

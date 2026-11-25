@@ -7,6 +7,7 @@ import (
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,7 +33,7 @@ func TestMessagingRecoversNewArtifactReceiptFromCommittedConversation(t *testing
 	}
 	resultRaw, _ := json.Marshal(fresh)
 	artifactRaw, _ := json.Marshal(a)
-	owner, binding := messageConversation(app.slack.policy(), b, d, "alice")
+	owner, binding := messaginghttp.MessageConversation(app.slack.policy(), b, d, "alice")
 	c, err := app.chat.Store.OpenBound(owner, "default", binding, chat.Options{Mode: "ask", Connection: "local", Model: "synthetic"})
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +117,7 @@ func TestMessagingExportsSourceResultsAndReusesThemOnFollowup(t *testing.T) {
 	var first automation.Run
 	for i, prompt := range []string{"Export the query as CSV.", "Now export the same result as a workbook."} {
 		event := messaging.Event{ID: prompt, Text: prompt, Address: messaging.Address{Client: "fixture", Workspace: "team", Channel: "dm", User: "user", Direct: true}}
-		if err := app.enqueueMessage(t.Context(), event); err != nil {
+		if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
@@ -144,12 +145,12 @@ func TestMessagingExportsSourceResultsAndReusesThemOnFollowup(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, raw := range []string{`{"receipt":"forged","format":"csv"}`, `{"receipt":"` + receipt + `","format":"csv","rows":[[999]]}`} {
-		if _, err := app.messageArtifact(ctx, &first, json.RawMessage(raw)); err == nil {
+		if _, err := app.messaging.MessageArtifact(ctx, &first, json.RawMessage(raw)); err == nil {
 			t.Fatal("accepted fabricated export", raw)
 		}
 	}
 	first.ChatResults[0].Receipt.Complete = false
-	if _, err := app.messageArtifact(ctx, &first, json.RawMessage(`{"receipt":"`+receipt+`","format":"csv"}`)); err == nil {
+	if _, err := app.messaging.MessageArtifact(ctx, &first, json.RawMessage(`{"receipt":"`+receipt+`","format":"csv"}`)); err == nil {
 		t.Fatal("exported incomplete result")
 	}
 	first.ChatResults[0].Receipt.Complete = true
@@ -161,7 +162,7 @@ func TestMessagingExportsSourceResultsAndReusesThemOnFollowup(t *testing.T) {
 	if _, err := app.catalog.SetConnectionAccess(catalog.Bootstrap, grant); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.messageArtifact(ctx, &first, json.RawMessage(`{"receipt":"`+receipt+`","format":"csv"}`)); err == nil {
+	if _, err := app.messaging.MessageArtifact(ctx, &first, json.RawMessage(`{"receipt":"`+receipt+`","format":"csv"}`)); err == nil {
 		t.Fatal("export survived source permission revocation")
 	}
 }
