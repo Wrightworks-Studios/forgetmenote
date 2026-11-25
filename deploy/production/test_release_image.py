@@ -12,7 +12,7 @@ import unittest
 
 
 SCRIPT = Path(__file__).with_name("release_image.py")
-REGISTRY = "ghcr.io/pleish/forgetmenote"
+REGISTRY = "ghcr.io/example-owner/forgetmenote"
 ECR = "123456789012.dkr.ecr.us-east-1.amazonaws.com/forgetmenote"
 DIGEST = "sha256:" + "a" * 64
 IMAGE_ID = "sha256:" + "b" * 64
@@ -47,12 +47,12 @@ if tool == "gh":
     elif args[0] == "api":
         path = args[3]
         if path == "user":
-            print('{"login":"pleish"}')
-        elif path == "users/pleish":
+            print('{"login":"example-owner"}')
+        elif path == "users/example-owner":
             print('{"type":"User"}')
-        elif path.startswith("users/pleish/packages?"):
+        elif path.startswith("users/example-owner/packages?"):
             print('[]')
-        elif path == "users/pleish/packages/container/forgetmenote":
+        elif path == "users/example-owner/packages/container/forgetmenote":
             visibility = os.environ.get("VISIBILITY", "private")
             if os.environ.get("PUBLIC_AFTER_CHECKS") and (root / "checked").exists():
                 visibility = "public"
@@ -76,10 +76,10 @@ elif tool == "docker":
     elif "inspect" in args:
         digest = os.environ.get("PUSHED_DIGEST", "sha256:" + "a" * 64)
         print(json.dumps([{"Os": "linux", "Architecture": os.environ.get("IMAGE_ARCH", "amd64"),
-                           "RepoDigests": [os.environ.get("PUSHED_REPOSITORY", "ghcr.io/pleish/forgetmenote") + "@" + digest],
+                           "RepoDigests": [os.environ.get("PUSHED_REPOSITORY", "ghcr.io/example-owner/forgetmenote") + "@" + digest],
                            "Config": {"Labels": {
                                "org.opencontainers.image.revision": os.environ["FIXTURE_REVISION"],
-                               "org.opencontainers.image.source": "https://github.com/pleish/forgetmenote"}}}]))
+                               "org.opencontainers.image.source": "https://github.com/example-owner/forgetmenote"}}}]))
     elif args == ["context", "show"]:
         print("desktop-linux")
     elif "push" in args:
@@ -155,7 +155,7 @@ class ReleaseTests(unittest.TestCase):
         self.git("init", "-b", "main")
         self.git("config", "user.name", "Release fixture")
         self.git("config", "user.email", "fixture@localhost")
-        self.git("remote", "add", "origin", "git@github.com:pleish/forgetmenote.git")
+        self.git("remote", "add", "origin", "git@github.com:example-owner/forgetmenote.git")
         self.git("add", ".")
         self.git("commit", "-m", "Synthetic release")
         self.revision = self.git("rev-parse", "HEAD").stdout.strip()
@@ -602,7 +602,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(build["source"], "committed source\n")
         self.assertFalse(build["ignored_file_present"])
         self.assertIn("linux/amd64", build["args"])
-        self.assertIn("org.opencontainers.image.source=https://github.com/pleish/forgetmenote", build["args"])
+        self.assertIn("org.opencontainers.image.source=https://github.com/example-owner/forgetmenote", build["args"])
         self.assertTrue(any(c["tool"] == "make" and "check-browser" in c["args"] for c in calls))
         self.assertEqual(sum(c["tool"] == "go" and "-json" in c["args"] and "-race" in c["args"] and c['args'][0] == 'test' for c in calls), 6)
         smoke = next(c for c in calls if c["tool"] == "make" and "smoke-totp" in c["args"])
