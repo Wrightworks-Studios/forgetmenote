@@ -332,5 +332,4 @@ in a 55.3 MB unstripped binary; this excludes shared dependencies and is not a
 counterfactual stripped-image saving. Splitting those small Go adapters would add packaging paths without removing the image's dominant local
 parser/runtime dependencies; measure the checked image and binary before adding
 a second runtime variant. Fonts and assets remain embedded, with license notices
-computed from the actual production bundle. Historical brand-study font copies
-reuse those assets; the used Young Serif study font remains.
+computed from the actual production bundle.

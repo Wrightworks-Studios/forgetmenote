@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// NotebookOptions configures F2. Zero fields take the bake-off defaults.
+// NotebookOptions configures F2. Zero fields take the benchmark defaults.
 type NotebookOptions struct {
 	Seed          uint64
 	Notes         int // live notes at the end; notes in Trash come on top
@@ -23,7 +23,7 @@ type NotebookOptions struct {
 	MaxAssetBytes int
 }
 
-// The bake-off's F2 shape.
+// F2's benchmark shape.
 const (
 	DefaultNotebookNotes     = 2000
 	DefaultNotebookAssets    = 200

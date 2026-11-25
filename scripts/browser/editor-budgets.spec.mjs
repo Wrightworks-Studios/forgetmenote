@@ -1,4 +1,4 @@
-// Storage v2 browser budgets (design §13, bake-off §4) on the real app and the
+// The browser's storage budgets (docs/architecture.md) on the real app and the
 // whole F1 manuscript: opening it, keystroke to paint in the middle of the
 // book in Visual (the live preview over the whole note) and Source,
 // unthrottled and at 4× CPU throttle (and in Visual on a 53 KB note, for
@@ -10,7 +10,6 @@
 // panel case asserts its budget), so it runs only when
 // FMN_BROWSER_BUDGETS names the JSON file the numbers go to. F1 is read from
 // FMN_FIXTURE_CACHE, as internal/benchfixture reads it.
-// docs/design/storage-v2-results-store.md has the method and the results.
 import {test, expect} from '@playwright/test';
 import {createHash} from 'node:crypto';
 import {readFileSync, writeFileSync} from 'node:fs';

@@ -61,7 +61,7 @@ type Limits struct {
 // checking a history takes time in proportion to it. On a slow disk F2's
 // 952 MB bundle (20,000 revisions) took 28 s to fetch and 8 s to check, and
 // its import twice failed, most likely because the check ran out of the 90 s
-// that bounded every bundle before (docs/design/storage-v2-results-store.md).
+// that bounded every bundle before.
 // Its check now has about 9 minutes; the notebook import around the check has
 // a limit of its own (workspace.ImportBundleDB), as a caller's ctx may.
 var (

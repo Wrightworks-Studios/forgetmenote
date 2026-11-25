@@ -52,4 +52,4 @@ Start with the [application README](../README.md), [editing guide](editor.md) or
 | [Notebooks and people](workspaces.md) | User and operator |
 | [Writing tools](writing.md) | User and operator |
 
-[Brand studies](brand-study/) are design research. ForgetMeNote is licensed under the [Functional Source License](../LICENSE.md).
+ForgetMeNote is licensed under the [Functional Source License](../LICENSE.md).
