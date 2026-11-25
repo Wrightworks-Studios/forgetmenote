@@ -16,6 +16,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/taskqueue"
 )
 
 // effectStates lists the states of the effects recorded in scope.
@@ -165,10 +166,10 @@ func TestARefusedReminderIsSentAgainAndABrokenRecordIsNoReminder(t *testing.T) {
 	f := newTaskFixture(t)
 	app := f.app
 	now := time.Date(2026, 11, 17, 16, 30, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{}}}
 	bob := taskClients(t, app, "bob")[0]
-	added := decodeTask[taskView](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Renew the parking permit"}, false))
+	added := decodeTask[taskqueue.View](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Renew the parking permit"}, false))
 	person := added.Owner.ID
 	spec := automation.Spec{ID: "task-reminder", Kind: "native", Actor: f.service, Project: "default", TimeoutSeconds: 60, Native: &automation.NativeTask{Task: "task-reminder", Client: "slack"}}
 	remind := func(id string) (reminderReport, []map[string]any) {

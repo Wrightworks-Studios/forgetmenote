@@ -16,6 +16,7 @@ import (
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/taskqueue"
 	"forgetmenote/internal/workspace"
 )
 
@@ -283,8 +284,8 @@ func (s *Server) messageCommandReply(ctx context.Context, r *automation.Run, rou
 		text, err := s.messageLinkReply(r, route.client, d, command)
 		return messaging.Reply{Text: text}, true, err
 	}
-	if taskCommand(r.Spec.Instruction) && r.Answer == "" && !r.GenerationStarted {
-		return s.taskCommandReply(ctx, r, d)
+	if taskqueue.Command(r.Spec.Instruction) && r.Answer == "" && !r.GenerationStarted {
+		return s.tasks.CommandReply(ctx, r, d)
 	}
 	return messaging.Reply{}, false, nil
 }

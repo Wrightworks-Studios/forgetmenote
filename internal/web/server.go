@@ -47,6 +47,7 @@ import (
 	"forgetmenote/internal/search"
 	"forgetmenote/internal/sourcehttp"
 	"forgetmenote/internal/sources"
+	"forgetmenote/internal/taskqueue"
 	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 )
@@ -73,10 +74,8 @@ type Server struct {
 	automations          *automationService
 	python               *automation.Python
 	slack                *slackService
-	// taskClock replaces the time task queues read, in tests.
-	taskClock func() time.Time
-	// memberNames are the task workspace's member names, for task messages.
-	memberNames    memberNameCache
+	tasks                *taskqueue.Service
+	// messageClients are the configured messaging transports, by client ID.
 	messageClients map[string]messaging.Transport
 	headless       bool
 	outgoing       *outgoing.Mode
@@ -281,6 +280,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 		return nil, err
 	}
 	if err = s.initAutomations(); err != nil {
+		return nil, err
+	}
+	if err = s.initTasks(); err != nil {
 		return nil, err
 	}
 	if err = s.initDataOperations(); err != nil {

@@ -1,4 +1,4 @@
-package web
+package taskqueue
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/tasks"
 	"forgetmenote/internal/workspace"
@@ -28,10 +29,10 @@ import (
 // holidays read from the calendar connections the job names. People who turned
 // reply reminders on also see the Slack messages waiting on their reply.
 const (
-	taskSnoozeAction        = "task_snooze"
-	taskNotApplicableAction = "task_not_applicable"
-	taskNotApplicableView   = "task_not_applicable"
-	taskReplyDismissAction  = "task_reply_dismiss"
+	SnoozeAction        = "task_snooze"
+	NotApplicableAction = "task_not_applicable"
+	NotApplicableView   = "task_not_applicable"
+	ReplyDismissAction  = "task_reply_dismiss"
 
 	taskReminderHour = 9
 	// A run that missed nine still reminds within this many hours.
@@ -62,7 +63,7 @@ var (
 // taskReminder returns the transport that lists and messages the members of
 // the client task queues use. The job runs as that client's members actor, so
 // the administrator who configured the client decides who it reaches.
-func (s *Server) taskReminder(spec automation.Spec) (messaging.Transport, error) {
+func (s *Service) Reminder(spec automation.Spec) (messaging.Transport, error) {
 	settings, _, err := s.taskQueues()
 	if err != nil {
 		return nil, err
@@ -70,7 +71,7 @@ func (s *Server) taskReminder(spec automation.Spec) (messaging.Transport, error)
 	if spec.Native == nil || spec.Native.Client != settings.Client {
 		return nil, errors.New("task-reminder names the messaging client task queues use")
 	}
-	c, transport, ok := s.messageClient(settings.Client)
+	c, transport, ok := s.hooks.Client(settings.Client)
 	if !ok {
 		return nil, errors.New("the messaging client is not configured or is disabled")
 	}
@@ -87,11 +88,11 @@ func (s *Server) taskReminder(spec automation.Spec) (messaging.Transport, error)
 		return nil, fmt.Errorf("task-reminder reads holidays from at most %d calendar connections", taskHolidayCalendars)
 	}
 	for _, id := range spec.Connections {
-		info, ok := s.dataConnections.Info(id)
+		info, ok := s.hooks.DataConnections().Info(id)
 		if ok && info.Kind != "calendar" {
 			return nil, errors.New("task-reminder reads holidays from a calendar connection")
 		}
-		if _, configured := s.dataConnections.ConfiguredOperation(id, "events"); ok && (!configured || !s.catalog.ConnectionAllowed(spec.Actor, id, "events")) {
+		if _, configured := s.hooks.DataConnections().ConfiguredOperation(id, "events"); ok && (!configured || !s.catalog.ConnectionAllowed(spec.Actor, id, "events")) {
 			return nil, fmt.Errorf("%w: the reminder's actor needs the calendar's events operation", workspace.ErrForbidden)
 		}
 	}
@@ -102,7 +103,7 @@ func (s *Server) taskReminder(spec automation.Spec) (messaging.Transport, error)
 // the days of each all-day event whose title begins with one of the holiday
 // titles. A job that names no calendar has none. A calendar that cannot be
 // read adds no holidays and is named in the error; the others still count.
-func (s *Server) taskHolidays(ctx context.Context, spec automation.Spec, titles []string, now time.Time) (map[string]bool, error) {
+func (s *Service) taskHolidays(ctx context.Context, spec automation.Spec, titles []string, now time.Time) (map[string]bool, error) {
 	holidays := map[string]bool{}
 	if len(titles) == 0 {
 		titles = defaultHolidayTitles
@@ -122,11 +123,11 @@ func (s *Server) taskHolidays(ctx context.Context, spec automation.Spec, titles 
 }
 
 // readHolidays adds the holidays on one calendar connection between two dates.
-func (s *Server) readHolidays(ctx context.Context, id string, holiday *regexp.Regexp, from, to time.Time, holidays map[string]bool) error {
+func (s *Service) readHolidays(ctx context.Context, id string, holiday *regexp.Regexp, from, to time.Time, holidays map[string]bool) error {
 	args := map[string]any{"from": from.Format(time.DateOnly), "to": to.Format(time.DateOnly)}
 	days := map[string]bool{}
 	for range 10 {
-		result, err := s.dataExecute(ctx, dataCall{Connection: id, Operation: "events", Arguments: maps.Clone(args)})
+		result, err := s.hooks.DataCall(ctx, dataops.Call{Connection: id, Operation: "events", Arguments: maps.Clone(args)})
 		if err != nil {
 			return err
 		}
@@ -191,9 +192,9 @@ func phraseMatcher(phrases []string, leading bool) *regexp.Regexp {
 // runTaskReminder sends today's reminders that are due. A dry run reports who
 // would be reminded now. Each person is reminded at most once a day, and the
 // report names people by person ID only.
-func (s *Server) runTaskReminder(ctx context.Context, r *automation.Run) (map[string]any, automation.Incident, error) {
+func (s *Service) RunReminder(ctx context.Context, r *automation.Run) (map[string]any, automation.Incident, error) {
 	incident := automation.Incident{Severity: "warning", Summary: "Task reminders could not all be sent"}
-	transport, err := s.taskReminder(r.Spec)
+	transport, err := s.Reminder(r.Spec)
 	if err != nil {
 		return nil, incident, err
 	}
@@ -211,12 +212,12 @@ func (s *Server) runTaskReminder(ctx context.Context, r *automation.Run) (map[st
 	for _, m := range members {
 		byUser[m.User] = m
 	}
-	book, err := readTaskBook(ctx, store)
+	book, err := ReadBook(ctx, store)
 	if err != nil {
 		return nil, incident, err
 	}
 	if !r.DryRun {
-		if err = s.checkAutomationAuth(ctx); err != nil {
+		if err = s.hooks.CheckAutomation(ctx); err != nil {
 			return nil, incident, err
 		}
 	}
@@ -243,9 +244,9 @@ func (s *Server) runTaskReminder(ctx context.Context, r *automation.Run) (map[st
 	if err != nil {
 		return nil, incident, err
 	}
-	kept := readReminderState(state.Data)
+	kept := ReadReminderState(state.Data)
 	if kept.expire(now) && !r.DryRun {
-		if err = s.changeReminderState(r.Spec, now, nil); err != nil {
+		if err = s.ChangeReminderState(r.Spec, now, nil); err != nil {
 			s.logAutomationError("Task reminder replies", err)
 		}
 	}
@@ -254,7 +255,7 @@ func (s *Server) runTaskReminder(ctx context.Context, r *automation.Run) (map[st
 	remindedOn := map[string]string{}
 	// Everyone with a task, and everyone who turned reply reminders on.
 	people := map[string]bool{}
-	for person, q := range book.queues {
+	for person, q := range book.Queues {
 		people[person] = len(q.Tasks) > 0
 	}
 	replies := map[string]bool{}
@@ -267,8 +268,8 @@ func (s *Server) runTaskReminder(ctx context.Context, r *automation.Run) (map[st
 		if !people[person] {
 			continue
 		}
-		q := book.queues[person]
-		owner := s.taskPersonView(person, taskCaller{})
+		q := book.Queues[person]
+		owner := s.personView(person, Caller{})
 		m, ok := byUser[owner.SlackUser]
 		if owner.SlackUser == "" || !ok {
 			skipped["noMember"]++
@@ -352,7 +353,7 @@ func (s *Server) runTaskReminder(ctx context.Context, r *automation.Run) (map[st
 			// With no tasks due, an empty list or a busy Slack sends nothing.
 			if len(due) == 0 && (busy || waiting.err == nil && len(waiting.messages) == 0 && waiting.unchecked == 0) {
 				if !busy {
-					if err := s.changeReminderState(r.Spec, now, func(st reminderState) { st.Checked[person] = date }); err != nil {
+					if err := s.ChangeReminderState(r.Spec, now, func(st ReminderState) { st.Checked[person] = date }); err != nil {
 						s.logAutomationError("Task reminder replies", err)
 					}
 				}
@@ -370,7 +371,7 @@ func (s *Server) runTaskReminder(ctx context.Context, r *automation.Run) (map[st
 		if check {
 			reply = s.taskWaitingReply(reply, waiting, local.Location(), byUser)
 		}
-		sent, err := s.sendOnce(ctx, automation.Effect{Scope: scope, Action: date, InputHash: automation.Hash([]string{person, date}), Actor: person}, transport, address, reply, dmSendTimeout, nil)
+		sent, err := s.hooks.SendDM(ctx, automation.Effect{Scope: scope, Action: date, InputHash: automation.Hash([]string{person, date}), Actor: person}, transport, address, reply)
 		if err != nil {
 			s.logAutomationError("Task reminder", err)
 		}
@@ -385,7 +386,7 @@ func (s *Server) runTaskReminder(ctx context.Context, r *automation.Run) (map[st
 	}
 	// A lost record only lists more tasks as arrived in the next reminder.
 	if len(remindedOn) > 0 {
-		if err = s.changeReminderState(r.Spec, now, func(st reminderState) { maps.Copy(st.Reminded, remindedOn) }); err != nil {
+		if err = s.ChangeReminderState(r.Spec, now, func(st ReminderState) { maps.Copy(st.Reminded, remindedOn) }); err != nil {
 			s.logAutomationError("Task reminder", err)
 		}
 	}
@@ -438,11 +439,11 @@ func taskArrivals(lastReminded string, q tasks.Queue, day time.Time, working fun
 // taskReminderReply lists the most pressing tasks, each with Done, Snooze and
 // Not applicable buttons, then any that arrived since the last reminder and
 // are not among them.
-func (s *Server) taskReminderReply(person string, due []tasks.Reminder, day, since time.Time, arrived []tasks.Task) messaging.Reply {
+func (s *Service) taskReminderReply(person string, due []tasks.Reminder, day, since time.Time, arrived []tasks.Task) messaging.Reply {
 	if len(due) == 0 {
 		return messaging.Reply{}
 	}
-	caller := taskCaller{Person: catalog.TaskPerson{ID: person}}
+	caller := Caller{Person: catalog.TaskPerson{ID: person}}
 	shown := due[:min(len(due), taskReminderShown)]
 	text := "Your tasks for " + day.Format("Monday, January 2") + ":"
 	if len(due) > len(shown) {
@@ -454,7 +455,7 @@ func (s *Server) taskReminderReply(person string, due []tasks.Reminder, day, sin
 	reply := messaging.Reply{Text: text}
 	until := day.AddDate(0, 0, 7).Format(time.DateOnly)
 	for _, r := range shown {
-		view := s.taskView(r.Task, person, caller)
+		view := s.view(r.Task, person, caller)
 		value := func(until string) string {
 			raw, _ := json.Marshal(taskButtonValue{Task: r.Task.ID, Revision: r.Task.Revision, Until: until})
 			return string(raw)
@@ -468,9 +469,9 @@ func (s *Server) taskReminderReply(person string, due []tasks.Reminder, day, sin
 		}
 		line := "• " + mrkdwnEscape.Replace(r.Task.Text) + " _(" + mrkdwnEscape.Replace(strings.Join(details, ", ")) + ")_" + taskSourceSuffix(view)
 		reply.Sections = append(reply.Sections, messaging.Section{Text: line, Buttons: []messaging.Button{
-			{Action: taskDoneAction, Label: "Done", Value: value(""), Style: "primary"},
-			{Action: taskSnoozeAction, Label: "Snooze a week", Value: value(until)},
-			{Action: taskNotApplicableAction, Label: "Not applicable", Value: value("")},
+			{Action: DoneAction, Label: "Done", Value: value(""), Style: "primary"},
+			{Action: SnoozeAction, Label: "Snooze a week", Value: value(until)},
+			{Action: NotApplicableAction, Label: "Not applicable", Value: value("")},
 		}})
 	}
 	rest := slices.DeleteFunc(slices.Clone(arrived), func(t tasks.Task) bool {
@@ -481,7 +482,7 @@ func (s *Server) taskReminderReply(person string, due []tasks.Reminder, day, sin
 	}
 	for _, t := range rest[:min(len(rest), taskArrivalsShown)] {
 		line := "• " + mrkdwnEscape.Replace(t.Text)
-		if view := s.taskView(t, person, caller); !view.Requester.You {
+		if view := s.view(t, person, caller); !view.Requester.You {
 			line += " _(from " + mrkdwnEscape.Replace(taskName(view.Requester)) + ")_"
 		}
 		reply.Sections = append(reply.Sections, messaging.Section{Text: line})
@@ -507,12 +508,12 @@ var errReplySlack = errors.New("connect Slack on your account page")
 // until today began, so each has had a working morning to be answered, less
 // any they dismissed. The grant must be the member the reminder goes to, in
 // the task workspace.
-func (s *Server) taskWaitingFor(ctx context.Context, user, member, workspaceID string, local time.Time, working func(time.Time) bool, dismissed func(channel, ts string) bool) taskWaiting {
-	account, err := s.replyAuthority(user)
+func (s *Service) taskWaitingFor(ctx context.Context, user, member, workspaceID string, local time.Time, working func(time.Time) bool, dismissed func(channel, ts string) bool) taskWaiting {
+	account, err := s.hooks.ReplyAuthority(user)
 	if err != nil {
 		return taskWaiting{err: err}
 	}
-	connections, err := s.personalConnections.List(account.ID)
+	connections, err := s.hooks.PersonalConnections().List(account.ID)
 	if err != nil {
 		return taskWaiting{err: err}
 	}
@@ -533,11 +534,11 @@ func (s *Server) taskWaitingFor(ctx context.Context, user, member, workspaceID s
 			n++
 		}
 	}
-	messages, unchecked, err := s.personalConnections.SlackWaitingFor(ctx, account.ID, connections[i].Generation, from, to, dismissed, func(ctx context.Context) error {
-		if _, err := s.replyAuthority(user); err != nil {
+	messages, unchecked, err := s.hooks.PersonalConnections().SlackWaitingFor(ctx, account.ID, connections[i].Generation, from, to, dismissed, func(ctx context.Context) error {
+		if _, err := s.hooks.ReplyAuthority(user); err != nil {
 			return err
 		}
-		return s.checkAutomationAuth(ctx)
+		return s.hooks.CheckAutomation(ctx)
 	})
 	return taskWaiting{messages: messages, unchecked: unchecked, err: err}
 }
@@ -545,13 +546,13 @@ func (s *Server) taskWaitingFor(ctx context.Context, user, member, workspaceID s
 // taskWaitingReply adds the messages waiting on the person's reply to their
 // reminder: where and from whom, linked to Slack, never what they say. Authors
 // are named, not mentioned, since the transport never sends mentions.
-func (s *Server) taskWaitingReply(reply messaging.Reply, waiting taskWaiting, loc *time.Location, members map[string]messaging.Member) messaging.Reply {
+func (s *Service) taskWaitingReply(reply messaging.Reply, waiting taskWaiting, loc *time.Location, members map[string]messaging.Member) messaging.Reply {
 	sections := []messaging.Section{}
 	switch {
 	case errors.Is(waiting.err, connectors.ErrProviderBusy):
 		sections = append(sections, messaging.Section{Text: "_Slack was busy, so messages waiting on your reply are not listed today._"})
 	case waiting.err != nil:
-		sections = append(sections, messaging.Section{Text: "_I couldn't check Slack for messages waiting on your reply. Reconnect Slack on <" + s.origin + "/account/assistant|your account page>, or turn reply reminders off there._"})
+		sections = append(sections, messaging.Section{Text: "_I couldn't check Slack for messages waiting on your reply. Reconnect Slack on <" + s.hooks.Origin() + "/account/assistant|your account page>, or turn reply reminders off there._"})
 	case len(waiting.messages) > 0 || waiting.unchecked > 0:
 		sections = append(sections, messaging.Section{Text: "Waiting on your reply:"})
 		for _, m := range waiting.messages {
@@ -570,7 +571,7 @@ func (s *Server) taskWaitingReply(reply messaging.Reply, waiting taskWaiting, lo
 			section := messaging.Section{Text: line + ", " + m.Sent.In(loc).Format("Mon Jan 2 3:04 PM")}
 			value := taskReplyButton{Channel: m.Channel, TS: m.TS}
 			if raw, _ := json.Marshal(value); value.valid() {
-				section.Buttons = []messaging.Button{{Action: taskReplyDismissAction, Label: "Dismiss", Value: string(raw)}}
+				section.Buttons = []messaging.Button{{Action: ReplyDismissAction, Label: "Dismiss", Value: string(raw)}}
 			}
 			sections = append(sections, section)
 		}
@@ -603,21 +604,21 @@ func replyDismissal(person, channel, ts string) string {
 	return automation.Hash([]string{"task-reply-dismissed", person, channel, ts})
 }
 
-// reminderState is what the reminder job keeps: for reply reminders, the date
+// ReminderState is what the reminder job keeps: for reply reminders, the date
 // each dismissal expires, by key, and the local day each person's Slack was
 // last searched with nothing to send, by person ID; and the local day each
 // person was last reminded, by person ID. All expire, so nothing builds up per
 // message or per day.
-type reminderState struct {
+type ReminderState struct {
 	Dismissed map[string]string `json:"dismissed"`
 	Checked   map[string]string `json:"checked"`
 	Reminded  map[string]string `json:"reminded"`
 }
 
-func readReminderState(raw json.RawMessage) reminderState {
-	var st reminderState
+func ReadReminderState(raw json.RawMessage) ReminderState {
+	var st ReminderState
 	if json.Unmarshal(raw, &st) != nil {
-		st = reminderState{}
+		st = ReminderState{}
 	}
 	if st.Dismissed == nil {
 		st.Dismissed = map[string]string{}
@@ -635,7 +636,7 @@ func readReminderState(raw json.RawMessage) reminderState {
 // everywhere and reminders older than taskArrivals looks back, and reports
 // whether it dropped any. A local date is at most a day behind UTC, so a mark
 // older than yesterday in UTC is for a past day.
-func (st reminderState) expire(now time.Time) bool {
+func (st ReminderState) expire(now time.Time) bool {
 	today, yesterday := now.UTC().Format(time.DateOnly), now.UTC().AddDate(0, 0, -1).Format(time.DateOnly)
 	lastMonth := now.UTC().AddDate(0, -1, -1).Format(time.DateOnly)
 	n := len(st.Dismissed) + len(st.Checked) + len(st.Reminded)
@@ -647,13 +648,13 @@ func (st reminderState) expire(now time.Time) bool {
 
 // changeReminderState drops the expired entries, then applies change when it is
 // set, and keeps the rest of the job's state.
-func (s *Server) changeReminderState(spec automation.Spec, now time.Time, change func(reminderState)) error {
+func (s *Service) ChangeReminderState(spec automation.Spec, now time.Time, change func(ReminderState)) error {
 	_, err := s.automations.Queue.ChangeJobState(spec, func(raw json.RawMessage) (json.RawMessage, error) {
 		state := map[string]json.RawMessage{}
 		if err := json.Unmarshal(raw, &state); err != nil {
 			return nil, err
 		}
-		st := readReminderState(raw)
+		st := ReadReminderState(raw)
 		st.expire(now)
 		if change != nil {
 			change(st)
@@ -673,7 +674,7 @@ func (s *Server) changeReminderState(spec automation.Spec, now time.Time, change
 // changes only the presser's own list, keeps the dismissal for
 // taskReplyDismissDays, and answers beside the reminder so the rest of it
 // stays.
-func (s *Server) slackReplyDismiss(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, raw, responseURL string) {
+func (s *Service) SlackReplyDismiss(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, raw, responseURL string) {
 	var value taskReplyButton
 	if json.Unmarshal([]byte(raw), &value) != nil || !value.valid() {
 		http.Error(w, "Invalid interaction", http.StatusBadRequest)
@@ -697,14 +698,14 @@ func (s *Server) slackReplyDismiss(w http.ResponseWriter, r *http.Request, setti
 			break
 		}
 		key, now := replyDismissal(caller.Person.ID, value.Channel, value.TS), s.taskTime()
-		if e := s.changeReminderState(spec, now, func(st reminderState) {
+		if e := s.ChangeReminderState(spec, now, func(st ReminderState) {
 			st.Dismissed[key] = now.AddDate(0, 0, taskReplyDismissDays).Format(time.DateOnly)
 		}); e != nil {
 			s.logAutomationError("Slack reply dismiss", e)
 			text = "I couldn't dismiss that just now; try again in a moment."
 		}
 	}
-	if err := s.slack.RespondAside(ctx, responseURL, text); err != nil {
+	if err := s.hooks.RespondAside(ctx, responseURL, text); err != nil {
 		s.logAutomationError("Slack reply dismiss response", err)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -712,7 +713,7 @@ func (s *Server) slackReplyDismiss(w http.ResponseWriter, r *http.Request, setti
 
 // taskReminderSpecs are the enabled task-reminder jobs for a client, each of
 // which keeps its own dismissals.
-func (s *Server) taskReminderSpecs(client string) []automation.Spec {
+func (s *Service) taskReminderSpecs(client string) []automation.Spec {
 	out := []automation.Spec{}
 	for _, spec := range s.automations.Definitions.Specs() {
 		if !spec.Disabled && spec.Native != nil && spec.Native.Task == "task-reminder" && spec.Native.Client == client {

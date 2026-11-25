@@ -24,6 +24,7 @@ import (
 	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/outgoing"
+	"forgetmenote/internal/taskqueue"
 	"forgetmenote/internal/workspace"
 )
 
@@ -351,7 +352,7 @@ func (s *Server) slackInteractions(w http.ResponseWriter, r *http.Request) {
 	// A task interaction comes from a member of the workspace task queues
 	// serve; taskSettings returns their settings, or writes the refusal.
 	taskSettings := func() (catalog.TaskQueues, bool) {
-		settings, on := s.slackTaskQueues(team)
+		settings, on := s.tasks.SlackQueues(team)
 		switch {
 		case !messaging.ValidID(user):
 			http.Error(w, "Invalid interaction", http.StatusBadRequest)
@@ -363,31 +364,31 @@ func (s *Server) slackInteractions(w http.ResponseWriter, r *http.Request) {
 		return settings, false
 	}
 	switch {
-	case click.Type == "view_submission" && click.View.CallbackID == taskNotApplicableView:
+	case click.Type == "view_submission" && click.View.CallbackID == taskqueue.NotApplicableView:
 		if settings, ok := taskSettings(); ok {
 			// Submitting the same modal again is the same request.
 			press := "slack-view-" + automation.Hash([]string{click.View.ID, click.View.PrivateMetadata, user})[:32]
-			s.slackTaskReason(w, r, settings, user, click.View.PrivateMetadata, click.View.State.Values["reason"]["reason"].Value, press)
+			s.tasks.SlackReason(w, r, settings, user, click.View.PrivateMetadata, click.View.State.Values["reason"]["reason"].Value, press)
 		}
 		return
-	case click.Type == "view_submission" && click.View.CallbackID == taskAddView:
+	case click.Type == "view_submission" && click.View.CallbackID == taskqueue.AddView:
 		if settings, ok := taskSettings(); ok {
 			values := click.View.State.Values
-			form := taskInput{People: values["people"]["people"].SelectedUsers, Text: values["text"]["text"].Value, Due: values["due"]["due"].SelectedDate, Priority: values["priority"]["priority"].SelectedOption.Value, Source: values["link"]["link"].Value}
+			form := taskqueue.Input{People: values["people"]["people"].SelectedUsers, Text: values["text"]["text"].Value, Due: values["due"]["due"].SelectedDate, Priority: values["priority"]["priority"].SelectedOption.Value, Source: values["link"]["link"].Value}
 			everyone := len(values["everyone"]["everyone"].SelectedOptions) == 1 && values["everyone"]["everyone"].SelectedOptions[0].Value == "everyone"
 			// Submitting the same form again is the same request.
-			s.slackTaskAdd(w, r, settings, user, form, values["channels"]["channels"].SelectedConversations, everyone, "slack-view-"+automation.Hash([]string{click.View.ID, user})[:32])
+			s.tasks.SlackAdd(w, r, settings, user, form, values["channels"]["channels"].SelectedConversations, everyone, "slack-view-"+automation.Hash([]string{click.View.ID, user})[:32])
 		}
 		return
-	case click.Type == "view_submission" && click.View.CallbackID == taskConfirmView:
+	case click.Type == "view_submission" && click.View.CallbackID == taskqueue.ConfirmView:
 		if settings, ok := taskSettings(); ok {
 			// The form keeps its view ID when it asks to confirm, so the request
 			// keeps the operation it had.
-			s.slackTaskConfirmForm(w, r, settings, user, click.View.PrivateMetadata, "slack-view-"+automation.Hash([]string{click.View.ID, user})[:32])
+			s.tasks.SlackConfirmForm(w, r, settings, user, click.View.PrivateMetadata, "slack-view-"+automation.Hash([]string{click.View.ID, user})[:32])
 		}
 		return
-	case click.Type == "message_action" && click.CallbackID == taskShortcut:
-		s.slackTaskShortcut(w, r, team, user, click.Channel.ID, click.Message.TS, click.Message.Text, click.TriggerID, click.ResponseURL)
+	case click.Type == "message_action" && click.CallbackID == taskqueue.Shortcut:
+		s.tasks.SlackShortcut(w, r, team, user, click.Channel.ID, click.Message.TS, click.Message.Text, click.TriggerID, click.ResponseURL)
 		return
 	case click.Type != "block_actions":
 		// Slack reads nothing from the acknowledgement of a button press.
@@ -397,24 +398,24 @@ func (s *Server) slackInteractions(w http.ResponseWriter, r *http.Request) {
 	if len(click.Actions) == 1 {
 		action, raw := click.Actions[0].ActionID, click.Actions[0].Value
 		switch action {
-		case taskDoneAction, taskSnoozeAction:
+		case taskqueue.DoneAction, taskqueue.SnoozeAction:
 			if settings, ok := taskSettings(); ok {
 				// Pressing the same button again is the same request.
 				press := "slack-button-" + automation.Hash([]string{click.Channel.ID, click.Container.MessageTS, action, raw, user})[:32]
-				s.slackTaskButton(w, r, settings, user, action, raw, click.ResponseURL, press)
+				s.tasks.SlackButton(w, r, settings, user, action, raw, click.ResponseURL, press)
 			}
 			return
-		case taskConfirmAction, taskCancelAction:
+		case taskqueue.ConfirmAction, taskqueue.CancelAction:
 			if settings, ok := taskSettings(); ok {
-				s.slackTaskConfirm(w, r, settings, user, action, raw, click.ResponseURL)
+				s.tasks.SlackConfirm(w, r, settings, user, action, raw, click.ResponseURL)
 			}
 			return
-		case taskNotApplicableAction:
-			s.slackTaskReasonModal(w, r, raw, click.TriggerID)
+		case taskqueue.NotApplicableAction:
+			s.tasks.SlackReasonModal(w, r, raw, click.TriggerID)
 			return
-		case taskReplyDismissAction:
+		case taskqueue.ReplyDismissAction:
 			if settings, ok := taskSettings(); ok {
-				s.slackReplyDismiss(w, r, settings, user, raw, click.ResponseURL)
+				s.tasks.SlackReplyDismiss(w, r, settings, user, raw, click.ResponseURL)
 			}
 			return
 		}

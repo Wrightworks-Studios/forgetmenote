@@ -1,4 +1,4 @@
-package web
+package taskqueue
 
 import (
 	"context"
@@ -39,29 +39,17 @@ func taskHelpReply(text string) string {
 	return "I couldn't add that: name each person with a mention, then say what to do.\n\n" + taskHelp
 }
 
-// slackCommands answers the /task and /tasks slash commands, which Slack signs
-// as it signs interactions and waits three seconds for: `help` with the cheat
-// sheet; /tasks with the member's own list, which only they see; /task with
-// the task form, the text filled in.
-func (s *Server) slackCommands(w http.ResponseWriter, r *http.Request) {
-	body, ok := s.slackRequest(w, r)
-	if !ok {
-		return
-	}
-	form, err := url.ParseQuery(string(body))
-	if err != nil {
-		http.Error(w, "Invalid command", http.StatusBadRequest)
-		return
-	}
+// SlackCommand answers the /task and /tasks slash commands, which Slack waits
+// three seconds for, once the instance has checked Slack's signature and the
+// workspace: `help` with the cheat sheet; /tasks with the member's own list,
+// which only they see; /task with the task form, the text filled in.
+func (s *Service) SlackCommand(w http.ResponseWriter, r *http.Request, form url.Values) {
 	team, user, trigger := form.Get("team_id"), form.Get("user_id"), form.Get("trigger_id")
-	if !s.slackWorkspace(w, team) {
-		return
-	}
 	if !messaging.ValidID(user) || trigger == "" || len(trigger) > 256 {
 		http.Error(w, "Invalid command", http.StatusBadRequest)
 		return
 	}
-	settings, on := s.slackTaskQueues(team)
+	settings, on := s.SlackQueues(team)
 	text := strings.Join(strings.Fields(form.Get("text")), " ")
 	word := strings.ToLower(strings.TrimRight(text, ".!?"))
 	switch {
@@ -77,7 +65,7 @@ func (s *Server) slackCommands(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2500*time.Millisecond)
 	defer cancel()
-	if err := s.slack.OpenView(ctx, trigger, taskAddForm(user, text, "")); err != nil {
+	if err := s.hooks.OpenView(ctx, trigger, taskAddForm(user, text, "")); err != nil {
 		s.logAutomationError("Slack task form", err)
 		slackEphemeral(w, "I couldn't open the task form just now. Try again, or send me `task @person what to do`.")
 		return
@@ -87,7 +75,7 @@ func (s *Server) slackCommands(w http.ResponseWriter, r *http.Request) {
 
 // slackTaskList answers a list command with the member's queue, a Done button
 // beside each task, and the tasks they gave, as the `tasks` message does.
-func (s *Server) slackTaskList(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user string) {
+func (s *Service) slackTaskList(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user string) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2500*time.Millisecond)
 	defer cancel()
 	reply := messaging.Reply{}
@@ -98,27 +86,27 @@ func (s *Server) slackTaskList(w http.ResponseWriter, r *http.Request, settings 
 	} else if err != nil {
 		s.logAutomationError("Slack task list", err)
 		reply.Text = "I couldn't read your tasks just now; try again in a moment."
-	} else if list, err := s.listTasks(ctx, caller); err != nil {
+	} else if list, err := s.List(ctx, caller); err != nil {
 		s.logAutomationError("Slack task list", err)
 		reply.Text = "I couldn't read your tasks just now; try again in a moment."
 	} else {
 		reply = s.taskListReply(list)
 	}
-	jsonResponse(w, messaging.SlackCommandReply(reply, "_The list goes on: send me `tasks` in a direct message to see all of it._"))
+	webcore.JSON(w, messaging.SlackCommandReply(reply, "_The list goes on: send me `tasks` in a direct message to see all of it._"))
 }
 
 // slackTaskShortcut answers the Create task message shortcut with the task
 // form, its text from the message and the message linked. A message the app
 // cannot see opens the form unlinked.
-func (s *Server) slackTaskShortcut(w http.ResponseWriter, r *http.Request, team, user, channel, ts, text, trigger, responseURL string) {
+func (s *Service) SlackShortcut(w http.ResponseWriter, r *http.Request, team, user, channel, ts, text, trigger, responseURL string) {
 	if !messaging.ValidID(user) || trigger == "" || len(trigger) > 256 || len(text) > 40000 {
 		http.Error(w, "Invalid interaction", http.StatusBadRequest)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2500*time.Millisecond)
 	defer cancel()
-	if _, on := s.slackTaskQueues(team); !on {
-		if err := s.slack.RespondAside(ctx, responseURL, "Tasks are not turned on in this workspace."); err != nil {
+	if _, on := s.SlackQueues(team); !on {
+		if err := s.hooks.RespondAside(ctx, responseURL, "Tasks are not turned on in this workspace."); err != nil {
 			s.logAutomationError("Slack task shortcut", err)
 		}
 		w.WriteHeader(http.StatusOK)
@@ -129,7 +117,7 @@ func (s *Server) slackTaskShortcut(w http.ResponseWriter, r *http.Request, team,
 	names, stop := context.WithTimeout(ctx, 800*time.Millisecond)
 	text = s.slackPlainText(names, text)
 	stop()
-	if err := s.slack.OpenView(ctx, trigger, taskAddForm(user, text, link)); err != nil {
+	if err := s.hooks.OpenView(ctx, trigger, taskAddForm(user, text, link)); err != nil {
 		s.logAutomationError("Slack task shortcut", err)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -137,7 +125,7 @@ func (s *Server) slackTaskShortcut(w http.ResponseWriter, r *http.Request, team,
 
 // slackEphemeral answers a slash command with a message only its sender sees.
 func slackEphemeral(w http.ResponseWriter, text string) {
-	jsonResponse(w, map[string]string{"response_type": "ephemeral", "text": text})
+	webcore.JSON(w, map[string]string{"response_type": "ephemeral", "text": text})
 }
 
 // taskAddForm is the /task form. It starts with the member who opened it, the
@@ -158,11 +146,11 @@ func taskAddForm(user, text, link string) map[string]any {
 		linkInput["initial_value"] = link
 	}
 	return map[string]any{
-		"type": "modal", "callback_id": taskAddView,
+		"type": "modal", "callback_id": AddView,
 		"title": plain("New task"), "submit": plain("Add task"), "close": plain("Cancel"),
 		"blocks": []map[string]any{
 			{"type": "input", "block_id": "people", "optional": true, "label": plain("People"), "hint": plain("Each person gets their own copy and closes it themselves."),
-				"element": map[string]any{"type": "multi_users_select", "action_id": "people", "initial_users": []string{user}, "max_selected_items": taskPeopleLimit}},
+				"element": map[string]any{"type": "multi_users_select", "action_id": "people", "initial_users": []string{user}, "max_selected_items": PeopleLimit}},
 			{"type": "input", "block_id": "channels", "optional": true, "label": plain("Channels"), "hint": plain("Everyone else in each channel gets a copy. You must be in it, and I must be in a private one."),
 				"element": map[string]any{"type": "multi_conversations_select", "action_id": "channels", "max_selected_items": taskFormChannels, "filter": map[string]any{"include": []string{"public", "private"}, "exclude_bot_users": true}}},
 			{"type": "input", "block_id": "everyone", "optional": true, "label": plain("Everyone"),
@@ -185,14 +173,14 @@ const taskFormChannels = 5
 // is confirmed in a direct message. The work outlives Slack's three seconds,
 // so a slow submission is still added once, and submitting the same form again
 // finds it. A form for more than taskConfirmAbove people asks first.
-func (s *Server) slackTaskAdd(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user string, in taskInput, channels []string, everyone bool, operation string) {
+func (s *Service) SlackAdd(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user string, in Input, channels []string, everyone bool, operation string) {
 	in.Text = strings.TrimSpace(in.Text)
 	problems := map[string]string{}
 	switch {
 	case len(in.People) == 0 && len(channels) == 0 && !everyone:
 		problems["people"] = "Choose people, a channel or everyone."
-	case len(in.People) > taskPeopleLimit:
-		problems["people"] = "Choose at most " + strconv.Itoa(taskPeopleLimit) + " people."
+	case len(in.People) > PeopleLimit:
+		problems["people"] = "Choose at most " + strconv.Itoa(PeopleLimit) + " people."
 	case len(channels) > taskFormChannels:
 		problems["channels"] = "Choose at most " + strconv.Itoa(taskFormChannels) + " channels."
 	}
@@ -225,8 +213,8 @@ func (s *Server) slackTaskAdd(w http.ResponseWriter, r *http.Request, settings c
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 30*time.Second)
 	defer cancel()
-	var caller taskCaller
-	var views []taskView
+	var caller Caller
+	var views []View
 	if len(problems) == 0 {
 		var input webcore.Error
 		var confirm taskConfirmation
@@ -240,7 +228,7 @@ func (s *Server) slackTaskAdd(w http.ResponseWriter, r *http.Request, settings c
 			problems["people"] = "Only members of this workspace can give tasks."
 		case errors.As(err, &confirm):
 			if view, ok := taskConfirmForm(confirm, user, in); ok {
-				jsonResponse(w, map[string]any{"response_action": "update", "view": view})
+				webcore.JSON(w, map[string]any{"response_action": "update", "view": view})
 				return
 			}
 			problems["text"] = "Shorten the task to give this many people a copy."
@@ -252,33 +240,33 @@ func (s *Server) slackTaskAdd(w http.ResponseWriter, r *http.Request, settings c
 		}
 	}
 	if len(problems) > 0 {
-		jsonResponse(w, map[string]any{"response_action": "errors", "errors": problems})
+		webcore.JSON(w, map[string]any{"response_action": "errors", "errors": problems})
 		return
 	}
-	if _, transport, ok := s.messageClient(settings.Client); ok {
+	if _, transport, ok := s.hooks.Client(settings.Client); ok {
 		effect := automation.Effect{Scope: automation.Hash([]string{"task-added", operation}), Action: automation.Hash([]string{"added", operation}), Actor: caller.Person.ID}
 		s.sendTaskDM(ctx, settings, transport, "Task confirmation", effect, user, messaging.Reply{Text: taskAddedText(views)})
 	}
-	jsonResponse(w, map[string]string{"response_action": "clear"})
+	webcore.JSON(w, map[string]string{"response_action": "clear"})
 }
 
 // taskConfirmRequest is what a confirmation form carries back: who asked,
 // the request, and how many copies it gives.
 type taskConfirmRequest struct {
-	User  string    `json:"user"`
-	Count int       `json:"count"`
-	Input taskInput `json:"input"`
+	User  string `json:"user"`
+	Count int    `json:"count"`
+	Input Input  `json:"input"`
 }
 
 // taskConfirmForm asks to confirm a form giving many people a copy. ok is false
 // when the request is too long for Slack to carry back.
-func taskConfirmForm(c taskConfirmation, user string, in taskInput) (map[string]any, bool) {
+func taskConfirmForm(c taskConfirmation, user string, in Input) (map[string]any, bool) {
 	raw, err := json.Marshal(taskConfirmRequest{User: user, Count: c.Count, Input: in})
 	if err != nil || len(raw) > 3000 {
 		return nil, false
 	}
 	return map[string]any{
-		"type": "modal", "callback_id": taskConfirmView, "private_metadata": string(raw),
+		"type": "modal", "callback_id": ConfirmView, "private_metadata": string(raw),
 		"title":  map[string]string{"type": "plain_text", "text": "Confirm task"},
 		"submit": map[string]string{"type": "plain_text", "text": "Give " + strconv.Itoa(c.Count) + " copies"},
 		"close":  map[string]string{"type": "plain_text", "text": "Cancel"},
@@ -288,7 +276,7 @@ func taskConfirmForm(c taskConfirmation, user string, in taskInput) (map[string]
 
 // slackTaskConfirmForm adds a confirmed form's copies in the background, as
 // the member who asked, and confirms them in a direct message when done.
-func (s *Server) slackTaskConfirmForm(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, raw, operation string) {
+func (s *Service) SlackConfirmForm(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, raw, operation string) {
 	var request taskConfirmRequest
 	if json.Unmarshal([]byte(raw), &request) != nil {
 		http.Error(w, "Invalid interaction", http.StatusBadRequest)
@@ -309,7 +297,7 @@ func (s *Server) slackTaskConfirmForm(w http.ResponseWriter, r *http.Request, se
 			text = "I couldn't start that just now; open the form and try again."
 		}
 	}
-	jsonResponse(w, map[string]any{"response_action": "update", "view": map[string]any{
+	webcore.JSON(w, map[string]any{"response_action": "update", "view": map[string]any{
 		"type": "modal", "title": map[string]string{"type": "plain_text", "text": "New task"},
 		"close":  map[string]string{"type": "plain_text", "text": "Close"},
 		"blocks": []map[string]any{{"type": "section", "text": map[string]string{"type": "plain_text", "text": text}}},
@@ -327,7 +315,7 @@ func taskSentence(message string) string {
 }
 
 // taskAddedText confirms added tasks to their requester.
-func taskAddedText(views []taskView) string {
+func taskAddedText(views []View) string {
 	view, ids := views[0], []string{}
 	reply := ""
 	switch {
