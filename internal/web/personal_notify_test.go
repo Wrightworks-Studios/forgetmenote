@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -98,6 +99,71 @@ func TestPersonalNotificationsRecoverAcceptedPrivateDelivery(t *testing.T) {
 	state.Drafts["three"] = personalDraft{ID: "three", State: "ready", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}}
 	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); err != nil || sent != 1 {
 		t.Fatal("disconnected Slack received a notification", err)
+	}
+}
+
+// The worker rechecks the run's authority right before it sends a Slack
+// notification. If the instance turns personal assistants off while the worker
+// looks up the person in Slack, nothing is sent.
+func TestPersonalNotificationsStopWhenAssistantsAreTurnedOff(t *testing.T) {
+	app, _ := fixture(t)
+	configureSlackFixture(t, app)
+	if _, err := app.catalog.SetAssistantPolicy(catalog.Bootstrap, catalog.AssistantPolicy{Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := app.catalog.SaveAssistant("alice", catalog.AssistantSettings{Enabled: true, ExternalProcessing: true, Notifications: true, TimeZone: "UTC", Features: []string{"slack", "briefing"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectPersonalProviderFixture(t, app, "alice", "slack", func(r *http.Request) string {
+		switch r.URL.Path {
+		case "/api/oauth.v2.access":
+			return `{"ok":true,"team":{"id":"T123"},"authed_user":{"id":"U123","token_type":"user","access_token":"fixture-user","scope":"im:history,chat:write"}}`
+		case "/api/auth.test":
+			return `{"ok":true,"user_id":"U123","team_id":"T123"}`
+		default:
+			t.Errorf("unexpected personal Slack call %s", r.URL.Path)
+			return `{}`
+		}
+	})
+	var sent, lookups atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/users.info":
+			lookups.Add(1)
+			policy := app.catalog.AssistantPolicy()
+			policy.Enabled = false
+			if _, err := app.catalog.SetAssistantPolicy(catalog.Bootstrap, policy); err != nil {
+				t.Error(err)
+			}
+			w.Write([]byte(`{"ok":true,"user":{"id":"U123","team_id":"T123","deleted":false,"is_bot":false}}`))
+		case "/chat.postMessage":
+			sent.Add(1)
+			w.Write([]byte(`{"ok":true,"ts":"1.1"}`))
+		default:
+			t.Errorf("unexpected bot call %s", r.URL.Path)
+			w.Write([]byte(`{"ok":false}`))
+		}
+	}))
+	defer upstream.Close()
+	app.slack.endpoint = upstream.URL
+	spec, err := app.personalSpec("alice", settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := app.automationContext(t.Context(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := personalState{Drafts: map[string]personalDraft{
+		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}},
+	}}
+	err = app.notifyPersonal(ctx, &automation.Run{Spec: spec}, &state, func() error { return nil })
+	if lookups.Load() != 1 {
+		t.Fatal("the worker did not look up alice in Slack", err)
+	}
+	if err == nil || sent.Load() != 0 || state.Drafts["one"].Notified {
+		t.Fatalf("notified alice after the instance turned assistants off: sends=%d err=%v", sent.Load(), err)
 	}
 }
 
