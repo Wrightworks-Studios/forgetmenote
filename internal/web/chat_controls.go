@@ -212,7 +212,7 @@ func operationID(runID string, round int, callID string) string {
 	return runID + "-" + strconv.Itoa(round) + "-" + chat.Hash([]byte(callID))[:16]
 }
 
-func (s *Server) prepareChatOperation(ctx context.Context, a runAuth, id, runID string, call chat.ToolCall, canonical json.RawMessage) error {
+func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, canonical json.RawMessage) error {
 	c, err := s.chat.Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return err
@@ -396,12 +396,12 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 		chatFail(w, err)
 		return
 	}
-	ctx, err = withChatRunScope(ctx, c, *run)
+	ctx, err = chat.WithRunScope(ctx, c, *run)
 	if err != nil {
 		chatFail(w, err)
 		return
 	}
-	ctx = withChatApproval(ctx)
+	ctx = chat.WithApproval(ctx)
 	if op.Name == "research_fetch" {
 		if err = s.executeApprovedResearch(ctx, auth, c.ID, run.ID, *op, connection); err != nil {
 			s.chatTerminal(auth, c.ID, run.ID, "interrupted", err)

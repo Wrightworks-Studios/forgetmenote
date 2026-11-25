@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 	"log/slog"
@@ -18,7 +19,7 @@ func chatToolDiagnostic(run, name string, err error) {
 		switch {
 		case errors.Is(err, connectors.ErrSchemaChanged):
 			category = "schema_changed"
-		case errors.Is(err, workspace.ErrForbidden), errors.Is(err, errOutsideChatCorpus):
+		case errors.Is(err, workspace.ErrForbidden), errors.Is(err, chat.ErrOutsideCorpus):
 			category = "access_denied"
 		case errors.Is(err, connectors.ErrQuery):
 			category = "query_rejected"

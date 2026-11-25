@@ -181,7 +181,7 @@ func (s *Server) personalChatContext(ctx context.Context) (string, error) {
 	if !s.catalog.Interactive(subject(ctx)) {
 		return "", nil
 	}
-	if auth, ok := ctx.Value(automationKey{}).(automationAuth); ok && auth.Spec.Delivery != nil && !auth.Spec.Delivery.Direct {
+	if auth, ok := automation.IdentityFrom(ctx); ok && auth.Spec.Delivery != nil && !auth.Spec.Delivery.Direct {
 		return "", nil
 	}
 	settings, err := s.catalog.Assistant(subject(ctx))

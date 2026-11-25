@@ -17,7 +17,7 @@ type reviewDependencyFixture struct {
 	store        *workspace.Store
 	conversation string
 	run          string
-	auth         runAuth
+	auth         chat.RunAuth
 	connection   chat.Connection
 }
 
@@ -49,7 +49,7 @@ func newReviewDependencyFixture(t *testing.T, handlers ...http.HandlerFunc) revi
 	}); err != nil {
 		t.Fatal(err)
 	}
-	return reviewDependencyFixture{app, store, c.ID, runID, runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}, app.chat.Config.Connections[0]}
+	return reviewDependencyFixture{app, store, c.ID, runID, chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}, app.chat.Config.Connections[0]}
 }
 
 func (f reviewDependencyFixture) read(t *testing.T) chat.Run {

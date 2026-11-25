@@ -91,9 +91,9 @@ func TestUnclassifiedRegisteredActionCannotEnterChat(t *testing.T) {
 		}
 	}
 	ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-	ctx = context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Run: chat.Run{Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}}}})
+	ctx = chat.WithScope(ctx, &chat.RunScope{Run: chat.Run{Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}}}})
 	_, err := app.dispatchAction(ctx, "default", "future_action", json.RawMessage(`{}`))
-	if !errors.Is(err, errOutsideChatCorpus) || called {
+	if !errors.Is(err, chat.ErrOutsideCorpus) || called {
 		t.Fatalf("unclassified action dispatched: called=%v err=%v", called, err)
 	}
 }

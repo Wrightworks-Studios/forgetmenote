@@ -10,6 +10,7 @@ import (
 
 	"forgetmenote/internal/agentmemory"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 )
 
 // slackMemoryRequests records what each model request offered and contained.
@@ -117,7 +118,7 @@ func TestSlackDirectMessagesUseAndKeepThePersonsMemory(t *testing.T) {
 	for _, c := range conversations {
 		if c.Title == "Slack conversation" {
 			conversation, err := app.chat.Store.Read("alice", "default", c.ID)
-			marked = err == nil && chatPersonalContext(conversation)
+			marked = err == nil && chat.PersonalContext(conversation)
 		}
 	}
 	if !marked {

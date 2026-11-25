@@ -18,7 +18,7 @@ import (
 // terminal diagnostic reports.
 type chatRunner struct {
 	s          *Server
-	auth       runAuth
+	auth       chat.RunAuth
 	id, runID  string
 	connection chat.Connection
 	access     *chatRunAccess
@@ -85,7 +85,7 @@ func (r *chatRunner) prepare(ctx context.Context) (context.Context, func(), *cha
 		return ctx, stop, nil, err
 	}
 	// A failed scope returns no context; report the failure with the run's own.
-	scoped, err := withChatRunScope(ctx, c, *run)
+	scoped, err := chat.WithRunScope(ctx, c, *run)
 	if err != nil {
 		return ctx, stop, nil, err
 	}

@@ -304,7 +304,7 @@ func (s *Server) answerMessage(ctx context.Context, r *automation.Run, save func
 	if model == "" {
 		model = connection.DefaultModel
 	}
-	options := chat.Options{Mode: "ask", Connection: connection.ID, Model: model, Corpus: chatScopeFrom(ctx).Run.Options.Corpus}
+	options := chat.Options{Mode: "ask", Connection: connection.ID, Model: model, Corpus: chat.RunScopeFrom(ctx).Run.Options.Corpus}
 	conversation, err := s.chat.Store.OpenBound(owner, r.Spec.Project, binding, options)
 	if err != nil {
 		return err
@@ -360,7 +360,7 @@ func (s *Server) messageHistory(ctx context.Context, r *automation.Run, conversa
 			continue
 		}
 		if turn.Role == "assistant" && len(turn.Citations) > 0 {
-			prior := chatScopeFrom(ctx).Run
+			prior := chat.RunScopeFrom(ctx).Run
 			prior.Citations = turn.Citations
 			if err := s.validateChatSources(ctx, prior, true); err != nil {
 				// Old answer dependencies must not pin a new question to

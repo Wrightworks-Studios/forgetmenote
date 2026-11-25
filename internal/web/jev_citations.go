@@ -75,7 +75,7 @@ func (s *Server) jevCitations(w http.ResponseWriter, r *http.Request) {
 		check.State = "incomplete"
 		check.Message = "The check was interrupted. Check again to continue with a fresh evaluation."
 	}
-	ctx, err := withChatRunScope(r.Context(), c, *run)
+	ctx, err := chat.WithRunScope(r.Context(), c, *run)
 	if err != nil {
 		chatFail(w, err)
 		return
@@ -102,7 +102,7 @@ func (s *Server) jevCitations(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, check)
 }
 
-func (s *Server) startCitationCheck(auth runAuth, id, runID string, explicit bool) error {
+func (s *Server) startCitationCheck(auth chat.RunAuth, id, runID string, explicit bool) error {
 	judge, localOnly := s.jevConfigured()
 	if judge == nil || localOnly {
 		if explicit {
@@ -141,7 +141,7 @@ func (s *Server) startCitationCheck(auth runAuth, id, runID string, explicit boo
 	})
 }
 
-func (s *Server) prepareCitationCheck(ctx context.Context, auth runAuth, id, runID, checkID string, judge *decision.Service) {
+func (s *Server) prepareCitationCheck(ctx context.Context, auth chat.RunAuth, id, runID, checkID string, judge *decision.Service) {
 	// Admission precedes every retained conversation, scope and claim preparation.
 	if s.checkRun(auth) != nil || s.jevAuthorized(ctx, auth.User, auth.Project, "citations", judge) != nil {
 		return
@@ -219,7 +219,7 @@ func (s *Server) citationEvidence(ctx context.Context, user, project string, evi
 	// Canonical notebook evidence is pinned to its own notebook, whose changes
 	// are not covered by the conversation notebook's fingerprint.
 	if evidence.Project != "" {
-		scope := chatScopeFrom(ctx)
+		scope := chat.RunScopeFrom(ctx)
 		if scope == nil {
 			return doc, chat.ErrCorpus
 		}
@@ -244,7 +244,7 @@ func (s *Server) citationEvidence(ctx context.Context, user, project string, evi
 				}
 			}
 			if !eligible {
-				return doc, errOutsideChatCorpus
+				return doc, chat.ErrOutsideCorpus
 			}
 		}
 	}
@@ -337,9 +337,9 @@ func prepareProposalQuotes(ctx context.Context, run chat.Run, project string) (m
 	return edits, ctx.Err()
 }
 
-func (s *Server) runCitationCheck(ctx context.Context, auth runAuth, c chat.Conversation, run chat.Run, turn chat.Turn, check jevCitationCheck, judge *decision.Service) {
+func (s *Server) runCitationCheck(ctx context.Context, auth chat.RunAuth, c chat.Conversation, run chat.Run, turn chat.Turn, check jevCitationCheck, judge *decision.Service) {
 	var err error
-	ctx, err = withChatRunScope(ctx, c, run)
+	ctx, err = chat.WithRunScope(ctx, c, run)
 	if err != nil {
 		return
 	}

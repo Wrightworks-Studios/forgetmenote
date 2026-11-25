@@ -53,7 +53,7 @@ func (s *Server) ConfigureDataConnectionsConfig(cfg connectors.Config) error {
 	return nil
 }
 func (s *Server) dataAllowed(ctx context.Context, id, operation string) bool {
-	if a, ok := ctx.Value(automationKey{}).(automationAuth); ok {
+	if a, ok := automation.IdentityFrom(ctx); ok {
 		if !slices.Contains(a.Spec.Connections, id) {
 			return false
 		}
@@ -90,13 +90,13 @@ func (s *Server) dataAllowed(ctx context.Context, id, operation string) bool {
 			return false
 		}
 	}
-	a, automated := ctx.Value(automationKey{}).(automationAuth)
+	a, automated := automation.IdentityFrom(ctx)
 	if info.CodeOnly && !(automated && a.Spec.Kind == "script" && a.Spec.Script != nil) {
 		return false
 	}
 	if !info.ExternalProcessing {
 		trustedScript, _ := ctx.Value(scriptHostContextKey{}).(bool)
-		if chatScopeFrom(ctx) != nil && !(info.CodeOnly && automated && a.Spec.Kind == "script" && a.Spec.Script != nil && trustedScript) {
+		if chat.RunScopeFrom(ctx) != nil && !(info.CodeOnly && automated && a.Spec.Kind == "script" && a.Spec.Script != nil && trustedScript) {
 			return false
 		}
 		if automated && a.Spec.UsesAI() && !(a.Spec.Script != nil && info.CodeOnly) {
@@ -155,7 +155,7 @@ func (s *Server) dataTools(ctx context.Context, id string) ([]connectors.Operati
 	}
 	// A chat run never executes a write; it proposes one for its requester to
 	// confirm, so it lists the writes its grants allow.
-	a, automated := ctx.Value(automationKey{}).(automationAuth)
+	a, automated := automation.IdentityFrom(ctx)
 	proposes := automated && proposesWrites(a.Spec)
 	out := []connectors.Operation{}
 	for _, op := range ops {
@@ -179,7 +179,7 @@ func (s *Server) initDataOperations() error {
 		Manager: func() *connectors.Manager { return s.dataConnections },
 		Allowed: s.dataAllowed,
 		WriteAllowed: func(ctx context.Context, in dataCall) bool {
-			return s.hasScope(ctx, "data:write") && chatScopeFrom(ctx) == nil || confirmedDataWrite(ctx, in)
+			return s.hasScope(ctx, "data:write") && chat.RunScopeFrom(ctx) == nil || confirmedDataWrite(ctx, in)
 		},
 		ReadProfile: func(ctx context.Context, in dataCall) error {
 			store, err := s.clientAccess(ctx, subject(ctx), in.Project, "read")
@@ -202,7 +202,7 @@ func (s *Server) initDataOperations() error {
 // Routing is exact and deterministic. Only operator-configured maintenance can
 // write; callers cannot choose its actor, checks, provider or acceptance criteria.
 func (s *Server) observeRecipeUsage(ctx context.Context, in dataCall, receipt connectors.Receipt, callErr error, elapsed time.Duration) {
-	if s.automations == nil || in.ProfilePath == "" || ctx.Value(automationKey{}) != nil {
+	if _, automated := automation.IdentityFrom(ctx); s.automations == nil || in.ProfilePath == "" || automated {
 		return
 	}
 	for _, spec := range s.automations.Definitions.Specs() {

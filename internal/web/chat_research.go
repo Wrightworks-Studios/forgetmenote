@@ -18,7 +18,7 @@ type researchRequest struct {
 	count        int
 }
 
-func (s *Server) researchRequest(a runAuth, id, runID string, call chat.ToolCall) (researchRequest, error) {
+func (s *Server) researchRequest(a chat.RunAuth, id, runID string, call chat.ToolCall) (researchRequest, error) {
 	c, err := s.chat.Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return researchRequest{}, err
@@ -84,7 +84,7 @@ func researchURLProvided(c chat.Conversation, run chat.Run, target string) bool 
 	return false
 }
 
-func (s *Server) executeResearchTool(ctx context.Context, a runAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
+func (s *Server) executeResearchTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
 	in, err := s.researchRequest(a, id, runID, call)
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func (s *Server) executeResearchTool(ctx context.Context, a runAuth, id, runID s
 
 // executeApprovedResearch fetches the exact URL the person approved. Like an
 // approved notebook control, the run then waits for explicit continuation.
-func (s *Server) executeApprovedResearch(ctx context.Context, a runAuth, id, runID string, op chat.Operation, connection chat.Connection) error {
+func (s *Server) executeApprovedResearch(ctx context.Context, a chat.RunAuth, id, runID string, op chat.Operation, connection chat.Connection) error {
 	call := chat.ToolCall{ID: op.ToolCallID, Name: op.Name, Arguments: op.Arguments}
 	in, err := s.researchRequest(a, id, runID, call)
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *Server) executeApprovedResearch(ctx context.Context, a runAuth, id, run
 	return s.performResearch(ctx, a, id, runID, op.ID, call, in, connection, true)
 }
 
-func (s *Server) performResearch(ctx context.Context, a runAuth, id, runID, key string, call chat.ToolCall, in researchRequest, connection chat.Connection, approved bool) error {
+func (s *Server) performResearch(ctx context.Context, a chat.RunAuth, id, runID, key string, call chat.ToolCall, in researchRequest, connection chat.Connection, approved bool) error {
 	cfg, research, query, sourceURL := in.snapshot.Config, in.snapshot.Research, in.query, in.url
 	// Persist attempts before crossing the network, including interrupted requests.
 	err := s.chatRunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {

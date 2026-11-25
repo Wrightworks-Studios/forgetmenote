@@ -15,23 +15,6 @@ import (
 
 var errChatPersonalApproval = errors.New("a change carrying personal assistant context needs your approval in this notebook")
 
-// chatPersonalContext reports whether any run in the conversation carried the
-// person's assistant memory or agent memory, or read their connected accounts.
-// Retained answers and transcript excerpts carry that context into later runs.
-func chatPersonalContext(c chat.Conversation) bool {
-	for _, run := range c.Runs {
-		if run.PersonalConsent != "" {
-			return true
-		}
-		for _, op := range run.Operations {
-			if name := actions.LegacyName(op.Name); name == "read_personal_source" || name == "assistant_context" || name == "recall_memory" || name == "remember" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // chatReadOnly refuses notebook changes from a run whose corpus reaches another
 // notebook. Such a change is not offered for approval.
 func chatReadOnly(project string, run chat.Run) error {
@@ -58,12 +41,12 @@ func (s *Server) chatPersonalApproval(user, project string, personal bool) bool 
 
 func (s *Server) guardChatAction(ctx context.Context, project, name string, raw json.RawMessage) (context.Context, error) {
 	name = actions.LegacyName(name)
-	scope := chatScopeFrom(ctx)
+	scope := chat.RunScopeFrom(ctx)
 	if scope == nil {
 		return ctx, nil
 	}
 	if !s.actions[name].Policy.ChatAvailable() {
-		return ctx, errOutsideChatCorpus
+		return ctx, chat.ErrOutsideCorpus
 	}
 
 	if p := s.actions[name].Policy; p.Scope == selectedDocument || p.Scope == selectedNotebooks {
@@ -75,23 +58,23 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 			Project, Source, Revision, Path string
 		}
 		if json.Unmarshal(raw, &in) != nil {
-			return ctx, errOutsideChatCorpus
+			return ctx, chat.ErrOutsideCorpus
 		}
 		if err := s.checkSourceChatScope(ctx, in.Project); err != nil {
 			return ctx, err
 		}
 		if s.repositories == nil {
-			return ctx, errOutsideChatCorpus
+			return ctx, chat.ErrOutsideCorpus
 		}
 		state, err := s.repositories.Status(in.Project)
 		if err != nil {
 			return ctx, err
 		}
 		if !state.Connected || !state.IndexConfig.ExternalProcessing || state.ID != scope.Run.Options.Corpus.SourceBindings[in.Project] {
-			return ctx, errOutsideChatCorpus
+			return ctx, chat.ErrOutsideCorpus
 		}
 		if in.Source != "" && in.Source != state.ID || in.Revision != "" && in.Revision != state.Downloaded {
-			return ctx, errOutsideChatCorpus
+			return ctx, chat.ErrOutsideCorpus
 		}
 		if s.actions[name].Policy.SourceContent {
 			return ctx, s.repositories.AuthorizeProcessing(ctx, in.Project, state.ID, state.Downloaded, []string{in.Path})
@@ -102,7 +85,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 		if err := chatReadOnly(scope.Project, scope.Run); err != nil {
 			return ctx, err
 		}
-		if !scope.Approved && s.chatPersonalApproval(subject(ctx), scope.Project, scope.Personal) {
+		if !scope.Approved() && s.chatPersonalApproval(subject(ctx), scope.Project, scope.Personal) {
 			return ctx, errChatPersonalApproval
 		}
 	}
@@ -134,7 +117,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 	ctx = workspace.WithMutationScope(ctx, mutation)
 	current := func(path string, allowNew bool) error {
 		if path == "" || path == "AGENTS.md" || workspace.IsTrash(path) || !strings.HasSuffix(path, ".md") {
-			return errOutsideChatCorpus
+			return chat.ErrOutsideCorpus
 		}
 		doc, e := store.KnowledgeRead(ctx, path, "")
 		if errors.Is(e, os.ErrNotExist) && allowNew {
@@ -145,7 +128,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 		}
 		metadata, e := workspace.ParseMetadata(doc.Content)
 		if e != nil || scope.Content.Tier(metadata) < 0 {
-			return errOutsideChatCorpus
+			return chat.ErrOutsideCorpus
 		}
 		return nil
 	}
@@ -154,7 +137,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 		err = current(in.Path, false)
 	case "note_history":
 		if !scope.Run.Options.Corpus.History {
-			err = errOutsideChatCorpus
+			err = chat.ErrOutsideCorpus
 		} else {
 			err = current(in.Path, false)
 		}
@@ -179,7 +162,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 				if ref.Path != "" {
 					proofScope := *scope
 					proofScope.Origin.Attachments = nil
-					doc, e := readChatNote(context.WithValue(ctx, chatScopeKey{}, &proofScope), store, ref.Path, ref.Revision)
+					doc, e := readChatNote(chat.WithScope(ctx, &proofScope), store, ref.Path, ref.Revision)
 					err = e
 					if err != nil {
 						break
@@ -197,7 +180,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 			var proposals []knowledge.Proposal
 			proposals, err = withEngine(s, ctx, store, func(e *knowledge.Engine) ([]knowledge.Proposal, error) { return e.Proposals(ctx) })
 			if err == nil {
-				err = errOutsideChatCorpus
+				err = chat.ErrOutsideCorpus
 				for _, proposal := range proposals {
 					if proposal.ID == in.ID {
 						err = validateChatProposal(ctx, store, proposal, scope.Content)
@@ -206,7 +189,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 				}
 			}
 		} else {
-			err = errOutsideChatCorpus
+			err = chat.ErrOutsideCorpus
 		}
 	case "archive_source":
 		if in.Path != "" {
@@ -231,14 +214,14 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 		if err == nil {
 			for _, file := range snapshot.Files {
 				if strings.Contains(file.Content, in.Path) && scope.Content.Tier(file.Metadata) < 0 {
-					err = errOutsideChatCorpus
+					err = chat.ErrOutsideCorpus
 					break
 				}
 			}
 		}
 	case "complete_workflow":
 		if scope.Run.Options.Review && (scope.Run.Review == nil || scope.Run.Review.CorpusID != scope.Run.Options.Corpus.ID()) {
-			err = errOutsideChatCorpus
+			err = chat.ErrOutsideCorpus
 		}
 	}
 	return ctx, err
@@ -252,7 +235,7 @@ func validateChatProposal(ctx context.Context, store *workspace.Store, proposal 
 		if before := proposal.Before[edit.Path]; before != "" {
 			metadata, err := workspace.ParseMetadata([]byte(before))
 			if err != nil || scope.Tier(metadata) < 0 {
-				return errOutsideChatCorpus
+				return chat.ErrOutsideCorpus
 			}
 		}
 	}

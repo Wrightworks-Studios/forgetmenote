@@ -86,7 +86,7 @@ func (s *Server) chatDiagnostic(stage, id string, run chat.Run, fit chatContextF
 // of the run's own conversation: while a run is unfinished its owner can start
 // no other conversation, and recovery skips the runs of a live gateway. Only a
 // deliberate pause for confirmation outlives the runner.
-func (s *Server) recoverChatRun(auth runAuth, id, runID string) {
+func (s *Server) recoverChatRun(auth chat.RunAuth, id, runID string) {
 	panicked := recover() != nil
 	// A panic value or stack can contain arbitrary notebook/provider content.
 	// Persist a generic terminal outcome and let ordinary structural logging cover it.

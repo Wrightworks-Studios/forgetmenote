@@ -24,21 +24,15 @@ type chatSubmission struct {
 	Options      chat.Options      `json:"options"`
 	Attachments  []chat.Attachment `json:"attachments,omitempty"`
 }
-type chatAuthContextKey struct{}
 
-type runAuth struct {
-	User, Project, Session string
-	Epoch                  uint64
-}
-
-func (s *Server) chatRunAuth(r *http.Request, c chat.Conversation) runAuth {
-	a := runAuth{User: c.Owner, Project: c.Project, Epoch: s.catalog.Epoch(c.Owner)}
+func (s *Server) chatRunAuth(r *http.Request, c chat.Conversation) chat.RunAuth {
+	a := chat.RunAuth{User: c.Owner, Project: c.Project, Epoch: s.catalog.Epoch(c.Owner)}
 	if token, ok := sessionToken(r); ok {
 		a.Session = digest(token)
 	}
 	return a
 }
-func (s *Server) checkRun(a runAuth) error {
+func (s *Server) checkRun(a chat.RunAuth) error {
 	if !s.catalog.ValidSession(a.User, a.Epoch) {
 		return workspace.ErrForbidden
 	}
@@ -51,13 +45,13 @@ func (s *Server) checkRun(a runAuth) error {
 	_, err := s.catalog.Access(a.User, a.Project, "read")
 	return err
 }
-func (s *Server) runContext(a runAuth) (context.Context, error) {
+func (s *Server) runContext(a chat.RunAuth) (context.Context, error) {
 	account, err := s.catalog.Account(a.User)
 	if err != nil {
 		return nil, err
 	}
 	ctx := context.WithValue(context.Background(), identityKey{}, a.User)
-	ctx = context.WithValue(ctx, chatAuthContextKey{}, a)
+	ctx = chat.WithRunAuth(ctx, a)
 	return attribution.WithSource(ctx, account.Identity(), "chat", "embedded"), s.checkRun(a)
 }
 func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +176,7 @@ func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
 	go s.executeChat(ctx, cancel, auth, c.ID, run.ID, connection)
 	jsonResponse(w, map[string]any{"chat": c.ID, "run": run.ID, "state": "queued"})
 }
-func (s *Server) chatRunUpdate(a runAuth, id, runID string, fn func(*chat.Conversation, *chat.Run) error) error {
+func (s *Server) chatRunUpdate(a chat.RunAuth, id, runID string, fn func(*chat.Conversation, *chat.Run) error) error {
 	return s.chat.Store.Update(a.User, a.Project, id, func(c *chat.Conversation) error {
 		run := c.Run(runID)
 		if run == nil {
@@ -192,7 +186,7 @@ func (s *Server) chatRunUpdate(a runAuth, id, runID string, fn func(*chat.Conver
 		return fn(c, run)
 	})
 }
-func (s *Server) chatTerminal(a runAuth, id, runID, state string, cause error, fits ...chatContextFit) {
+func (s *Server) chatTerminal(a chat.RunAuth, id, runID, state string, cause error, fits ...chatContextFit) {
 	if state == "completed" {
 		// Persist the pending check before clients can observe completion.
 		// The checker independently requires operator enablement, personal remote
@@ -206,7 +200,7 @@ var errChatSettled = errors.New("chat run already settled")
 
 // settleChatRun records a terminal state, unless unsettled reports that the
 // saved run no longer needs one; that decision and the write are one update.
-func (s *Server) settleChatRun(a runAuth, id, runID, state string, cause error, unsettled func(chat.Run) bool, fits ...chatContextFit) {
+func (s *Server) settleChatRun(a chat.RunAuth, id, runID, state string, cause error, unsettled func(chat.Run) bool, fits ...chatContextFit) {
 	message := ""
 	if cause != nil {
 		message = cause.Error()
@@ -244,7 +238,7 @@ func (s *Server) settleChatRun(a runAuth, id, runID, state string, cause error, 
 	}
 	s.chatDiagnostic("terminal", id, diagnostic, fit, category, err == nil)
 }
-func (s *Server) failChatRun(ctx context.Context, auth runAuth, id, runID string, err error, fit chatContextFit) {
+func (s *Server) failChatRun(ctx context.Context, auth chat.RunAuth, id, runID string, err error, fit chatContextFit) {
 	state := "failed"
 	if errors.Is(err, chatRoundBudget) || errors.Is(err, chatToolBudget) || errors.Is(err, chatResearchBudget) {
 		state = "interrupted"
@@ -306,7 +300,7 @@ func (a *chatRunAccess) get() chat.Run {
 // monitorChatAccess cancels ctx with the failure once the run may no longer
 // use its session, notebooks, consent or cited evidence. ctx must carry the
 // run's scope, which bounds the data grants a chat may use.
-func (s *Server) monitorChatAccess(ctx context.Context, auth runAuth, access *chatRunAccess) (context.Context, func()) {
+func (s *Server) monitorChatAccess(ctx context.Context, auth chat.RunAuth, access *chatRunAccess) (context.Context, func()) {
 	var checked time.Time
 	return webcore.MonitorAccess(ctx, func(ctx context.Context) error {
 		// Check on the first poll within one poll of the interval.
@@ -337,7 +331,7 @@ func chatAccessFailure(ctx context.Context) error {
 // watchChatCancel stops a run when a cancellation is requested on another
 // gateway, as a local request cancels it directly. It reads the transcript only
 // when the conversation's version changes.
-func (s *Server) watchChatCancel(ctx context.Context, cancel context.CancelFunc, auth runAuth, id, runID string) {
+func (s *Server) watchChatCancel(ctx context.Context, cancel context.CancelFunc, auth chat.RunAuth, id, runID string) {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	seen := s.chat.Store.Generation(auth.User, id)
@@ -364,7 +358,7 @@ func (s *Server) watchChatCancel(ctx context.Context, cancel context.CancelFunc,
 // executeChat runs an admitted chat run until it is terminal or waits for a
 // confirmation. Each round loads the run, fits one model request, streams it,
 // persists the answer and then executes the tool calls it made.
-func (s *Server) executeChat(ctx context.Context, cancel context.CancelFunc, auth runAuth, id, runID string, connection chat.Connection) {
+func (s *Server) executeChat(ctx context.Context, cancel context.CancelFunc, auth chat.RunAuth, id, runID string, connection chat.Connection) {
 	defer func() {
 		cancel()
 		s.chat.Finish(runID, connection.ID)
@@ -387,7 +381,7 @@ var errChatConfirmation = errors.New("action needs explicit confirmation")
 // executeChatTool executes one of the model's tool calls. Passage search and
 // action discovery run within the run; research, notebook actions and a
 // review's workflow checkpoint have their own executors.
-func (s *Server) executeChatTool(ctx context.Context, a runAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
+func (s *Server) executeChatTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -402,7 +396,7 @@ func (s *Server) executeChatTool(ctx context.Context, a runAuth, id, runID strin
 	if run == nil {
 		return chat.ErrNotFound
 	}
-	ctx, err = withChatRunScope(ctx, c, *run)
+	ctx, err = chat.WithRunScope(ctx, c, *run)
 	if err != nil {
 		return err
 	}
@@ -471,7 +465,7 @@ func chatToolReplayed(run chat.Run, call chat.ToolCall) bool {
 // complete inventory at an unchanged snapshot, with arguments matching it. It
 // reports handled when it executed, deferred or refused the call itself;
 // otherwise it returns the run as it now stands.
-func (s *Server) gateReviewWorkflow(ctx context.Context, a runAuth, id string, run *chat.Run, call chat.ToolCall, connection chat.Connection) (*chat.Run, bool, error) {
+func (s *Server) gateReviewWorkflow(ctx context.Context, a chat.RunAuth, id string, run *chat.Run, call chat.ToolCall, connection chat.Connection) (*chat.Run, bool, error) {
 	reconcile, err := s.reconcileReviewWorkflow(ctx, a, run, call)
 	if err != nil {
 		return run, true, err
@@ -520,7 +514,7 @@ func (s *Server) gateReviewWorkflow(ctx context.Context, a runAuth, id string, r
 // searchChatPassages retrieves passages for the model's query and cites them,
 // pinned to their committed references. A failed retrieval is the call's
 // result, not the run's failure.
-func (s *Server) searchChatPassages(ctx context.Context, a runAuth, id string, run chat.Run, call chat.ToolCall, connection chat.Connection) (json.RawMessage, []chat.Citation, error) {
+func (s *Server) searchChatPassages(ctx context.Context, a chat.RunAuth, id string, run chat.Run, call chat.ToolCall, connection chat.Connection) (json.RawMessage, []chat.Citation, error) {
 	var in struct {
 		Text  string `json:"text"`
 		Scope string `json:"scope"`
@@ -554,7 +548,7 @@ func (s *Server) searchChatPassages(ctx context.Context, a runAuth, id string, r
 // discoverChatActions returns the schemas of up to three named actions the
 // run's mode allows. Discovery cannot grant action authority; the run keeps
 // offering the discovered tools, up to twelve.
-func (s *Server) discoverChatActions(a runAuth, id string, run chat.Run, call chat.ToolCall) (json.RawMessage, error) {
+func (s *Server) discoverChatActions(a chat.RunAuth, id string, run chat.Run, call chat.ToolCall) (json.RawMessage, error) {
 	var in struct {
 		Names []string `json:"names"`
 	}
@@ -596,7 +590,7 @@ func pendingToolCalls(messages []chat.Message) []chat.ToolCall {
 	}
 	return pending
 }
-func (s *Server) executeNotebookTool(ctx context.Context, a runAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
+func (s *Server) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
 	c, err := s.chat.Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return err
@@ -605,7 +599,7 @@ func (s *Server) executeNotebookTool(ctx context.Context, a runAuth, id, runID s
 	if run == nil {
 		return chat.ErrNotFound
 	}
-	ctx, err = withChatRunScope(ctx, c, *run)
+	ctx, err = chat.WithRunScope(ctx, c, *run)
 	if err != nil {
 		return err
 	}
@@ -631,7 +625,7 @@ func (s *Server) executeNotebookTool(ctx context.Context, a runAuth, id, runID s
 			return workspace.ErrForbidden
 		}
 		if approved {
-			ctx = withChatApproval(ctx)
+			ctx = chat.WithApproval(ctx)
 		}
 		if prior.State == "completed" {
 			return s.chatRunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
@@ -676,11 +670,11 @@ func (s *Server) executeNotebookTool(ctx context.Context, a runAuth, id, runID s
 		// Mutations still require preflight before a durable operation is prepared;
 		// a change carrying personal context is preflighted as the approved
 		// operation it must become.
-		personal := !p.Read && s.chatPersonalApproval(a.User, a.Project, chatScopeFrom(ctx).Personal)
+		personal := !p.Read && s.chatPersonalApproval(a.User, a.Project, chat.RunScopeFrom(ctx).Personal)
 		if !p.Read {
 			preflight := ctx
 			if personal {
-				preflight = withChatApproval(ctx)
+				preflight = chat.WithApproval(ctx)
 			}
 			if _, err = s.guardChatAction(preflight, a.Project, name, canonical); err != nil {
 				return err

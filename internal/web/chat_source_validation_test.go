@@ -51,11 +51,11 @@ func TestChatSourceValidationRereadsOtherNotebookCitations(t *testing.T) {
 	}
 	run := chat.Run{ID: chat.NewID(), Options: chat.Options{Mode: "ask", Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude", NoteProjects: []string{"other"}}}, Citations: citations}
 	conversation.Turns = append(conversation.Turns, chat.Turn{ID: chat.NewID(), RunID: run.ID, Role: "user", Content: "Synthetic question"})
-	base, err := app.runContext(runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")})
+	base, err := app.runContext(chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	scoped, err := withChatRunScope(base, conversation, run)
+	scoped, err := chat.WithRunScope(base, conversation, run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestChatSourceValidationRereadsOtherNotebookCitations(t *testing.T) {
 	}
 	history := run
 	history.Options.Corpus = &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude", History: true, NoteProjects: []string{"other"}}
-	if scoped, err = withChatRunScope(base, conversation, history); err != nil {
+	if scoped, err = chat.WithRunScope(base, conversation, history); err != nil {
 		t.Fatal(err)
 	}
 	if err = app.validateChatSources(scoped, history, false); err != nil {
@@ -87,10 +87,10 @@ func TestChatSourceValidationRereadsOtherNotebookCitations(t *testing.T) {
 	revise("---\nfmn-container: draft\n---\n# Note 3\nDraft.")
 	current := run
 	current.Citations = []chat.Citation{cite("notes/n3.md")}
-	if scoped, err = withChatRunScope(base, conversation, current); err != nil {
+	if scoped, err = chat.WithRunScope(base, conversation, current); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.validateChatSources(scoped, current, false); !errors.Is(err, errOutsideChatCorpus) {
+	if err = app.validateChatSources(scoped, current, false); !errors.Is(err, chat.ErrOutsideCorpus) {
 		t.Fatalf("note outside the corpus accepted: %v", err)
 	}
 }

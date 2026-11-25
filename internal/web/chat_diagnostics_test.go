@@ -123,7 +123,7 @@ func TestChatPanicPersistsOnePrivateSafeTerminal(t *testing.T) {
 		t.Fatal(err)
 	}
 	func() {
-		defer app.recoverChatRun(runAuth{User: "alice", Project: "default"}, c.ID, run.ID)
+		defer app.recoverChatRun(chat.RunAuth{User: "alice", Project: "default"}, c.ID, run.ID)
 		panic("PRIVATE_SYNTHETIC_PANIC_NOTE_SECRET")
 	}()
 	response := proxyCall(app, "alice", "GET", "/p/default/api/chat/"+c.ID, "")
@@ -199,7 +199,7 @@ func assertChatFailureOutcome(t *testing.T, failure error, state, category strin
 	if err := app.chat.Store.Update("alice", "default", c.ID, func(saved *chat.Conversation) error { saved.Runs = append(saved.Runs, run); return nil }); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	app.failChatRun(t.Context(), auth, c.ID, run.ID, failure, chatContextFit{})
 	response := proxyCall(app, "alice", "GET", "/p/default/api/chat/"+c.ID, "")
 	var public chat.Conversation

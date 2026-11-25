@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/attribution"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
@@ -18,12 +19,6 @@ import (
 )
 
 type automationService = automation.Runtime
-type automationKey struct{}
-type automationAuth struct {
-	Spec                            automation.Spec
-	Account                         string
-	Epoch, ProjectEpoch, Generation uint64
-}
 
 type recipeFailure struct{ error }
 
@@ -98,17 +93,17 @@ func (s *Server) automationContext(ctx context.Context, spec automation.Spec) (c
 	if _, e = s.catalog.Access(spec.Actor, spec.Project, "read"); e != nil {
 		return ctx, e
 	}
-	a := automationAuth{spec, account.ID, s.catalog.Epoch(spec.Actor), s.catalog.ProjectAccessEpoch(spec.Actor, spec.Project), s.catalog.Authority(spec.Project).Generation}
+	a := automation.Identity{Spec: spec, Account: account.ID, Epoch: s.catalog.Epoch(spec.Actor), ProjectEpoch: s.catalog.ProjectAccessEpoch(spec.Actor, spec.Project), Generation: s.catalog.Authority(spec.Project).Generation}
 	ctx = attribution.WithSource(ctx, account.Identity(), "automation", spec.ID)
 	ctx = context.WithValue(ctx, identityKey{}, spec.Actor)
-	ctx = context.WithValue(ctx, automationKey{}, a)
+	ctx = automation.WithIdentity(ctx, a)
 	ctx = context.WithValue(ctx, scopeKey{}, "notes:read data:read")
-	ctx = context.WithValue(ctx, apiContextKey{}, true)
+	ctx = auth.WithAPI(ctx)
 	ctx = workspace.WithAuthority(ctx, a.Generation)
 	return ctx, nil
 }
 func (s *Server) checkAutomationAuth(ctx context.Context) error {
-	a, ok := ctx.Value(automationKey{}).(automationAuth)
+	a, ok := automation.IdentityFrom(ctx)
 	if !ok {
 		return nil
 	}
@@ -509,7 +504,7 @@ func (s *Server) notifyAutomation(ctx context.Context, r *automation.Run, save f
 	recipient.Actor = actor
 	recipient.Connections = c.Connections
 	recipient.ReadProjects = c.ReadProjects
-	recipientCtx, e := s.automationContext(context.WithValue(ctx, chatScopeKey{}, (*chatRunScope)(nil)), recipient)
+	recipientCtx, e := s.automationContext(chat.WithoutRunScope(ctx), recipient)
 	if e != nil {
 		return e
 	}
@@ -530,7 +525,10 @@ func (s *Server) publishAutomation(ctx context.Context, r *automation.Run) error
 	if e := s.checkAutomationEvidence(ctx, r, true); e != nil {
 		return e
 	}
-	a := ctx.Value(automationKey{}).(automationAuth)
+	a, ok := automation.IdentityFrom(ctx)
+	if !ok {
+		return workspace.ErrForbidden
+	}
 	p := r.Publication
 	r.Result = p.Content
 	id := "automation-" + r.ID

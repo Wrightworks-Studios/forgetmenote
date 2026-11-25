@@ -186,7 +186,10 @@ func (s *Server) runDriveSync(ctx context.Context, r *automation.Run, save func(
 				if old.Path == "" {
 					dest = &policy.Destination
 				}
-				auth := ctx.Value(automationKey{}).(automationAuth)
+				auth, ok := automation.IdentityFrom(ctx)
+				if !ok {
+					return workspace.ErrForbidden
+				}
 				err = s.catalog.WithProjectAuthority(auth.Spec.Actor, auth.Spec.Project, auth.Account, "edit", auth.Epoch, auth.ProjectEpoch, func(st *workspace.Store) error {
 					var e error
 					imported, e = st.ImportSource(ctx, capture, old.Path, old.Revision, file.Name, dest)

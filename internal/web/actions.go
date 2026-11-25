@@ -244,7 +244,7 @@ func (s *Server) dispatchAction(ctx context.Context, project, name string, args 
 // dispatchActionOutcome is for private receipt recording. Its callers must check
 // current authorization again before disclosing the result or continuing work.
 func (s *Server) dispatchActionOutcome(ctx context.Context, project, name string, args json.RawMessage) (out json.RawMessage, callErr error) {
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		if _, known := s.actions[name]; known {
 			defer func() { chatToolDiagnostic(scope.Run.ID, name, callErr) }()
 		}

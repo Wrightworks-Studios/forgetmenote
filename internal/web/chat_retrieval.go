@@ -31,7 +31,7 @@ func (s *Server) chatRetrieve(ctx context.Context, id string, run chat.Run, engi
 	defer func() {
 		s.chatRetrievalDiagnostic(id, run, connection, result.RetrievalResult, err, initial, queries, time.Since(started))
 	}()
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		judge, localOnly := s.jevConfigured()
 		if judge != nil && !localOnly {
 			prefs, prefErr := s.decisionPreferences(scope.Owner)
@@ -43,7 +43,7 @@ func (s *Server) chatRetrieve(ctx context.Context, id string, run chat.Run, engi
 				if accountErr != nil {
 					return result, accountErr
 				}
-				auth, hasAuth := ctx.Value(chatAuthContextKey{}).(runAuth)
+				auth, hasAuth := chat.RunAuthFrom(ctx)
 				query.Jev = &knowledge.JevRanking{Service: judge, Scope: decision.Scope{Actor: account.ID, Notebook: scope.Project, Feature: "rerank", Run: run.ID, Chat: id, Operation: "retrieval"}, Check: func(checkCtx context.Context) error {
 					if hasAuth {
 						if err := s.checkRun(auth); err != nil {

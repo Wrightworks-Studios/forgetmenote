@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -46,7 +47,7 @@ func (s *Server) commentModerator(ctx context.Context, project string, deleting 
 }
 
 func (s *Server) listComments(ctx context.Context, store *workspace.Store, in commentsInput) (webcore.DiscussionOutput, error) {
-	if chatScopeFrom(ctx) != nil {
+	if chat.RunScopeFrom(ctx) != nil {
 		v, err := scopedChatDiscussion(ctx, store, in.Path)
 		return s.presentDiscussion(ctx, in.Project, v, err)
 	}

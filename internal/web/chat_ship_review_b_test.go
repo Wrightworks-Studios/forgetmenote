@@ -82,7 +82,7 @@ func TestShipBReviewComparisonChangeInvalidatesCachedAnalysis(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	conn := app.chat.Config.Connections[0]
 	if _, err = app.prepareChatReview(t.Context(), auth, c.ID, runID, conn); err != nil {
 		t.Fatal(err)

@@ -91,7 +91,7 @@ func (s *Server) initialChatMessages(ctx context.Context, c chat.Conversation, r
 	// Later messages must never become input under the older action authorization.
 	c.Turns = c.Turns[:origin+1]
 	var scopeErr error
-	ctx, scopeErr = withChatRunScope(ctx, c, run)
+	ctx, scopeErr = chat.WithRunScope(ctx, c, run)
 	if scopeErr != nil {
 		return nil, nil, chat.Memory{}, scopeErr
 	}
