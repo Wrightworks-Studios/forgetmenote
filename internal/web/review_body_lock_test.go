@@ -45,8 +45,8 @@ func testSlowReviewBody(t *testing.T, requestPath string) {
 	}
 	if strings.Contains(requestPath, "{job}") {
 		id := digest("slow-client-control")
-		job := jevJob{Version: 2, ID: id, Owner: "alice", AccountID: "account", Project: "default", RequestHash: "request", Inventory: "inventory", Model: "model", State: "paused", Notes: []jevJobNote{}, Work: []jevJobWork{}, Organization: &organizationRun{}}
-		if err := app.jevState.write(jobName(id), job); err != nil {
+		job := map[string]any{"version": 2, "id": id, "owner": "alice", "accountId": "account", "project": "default", "requestHash": "request", "inventory": "inventory", "model": "model", "state": "paused", "notes": []any{}, "work": []any{}, "organization": map[string]any{}}
+		if err := app.jev.Records().Write("jobs/"+id+".json", job); err != nil {
 			t.Fatal(err)
 		}
 		requestPath = strings.Replace(requestPath, "{job}", id, 1)

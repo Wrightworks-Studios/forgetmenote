@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/search"
@@ -143,7 +144,7 @@ func (s *Server) syncInstanceAI(ctx context.Context) {
 		if store, err := s.catalog.Access(catalog.Bootstrap, project.ID, "read"); err == nil {
 			_ = s.indexes.Register(ctx, store)
 			if policy.Reviews && project.Ordinary() {
-				_ = s.prepareInstanceReview(ctx, project.ID)
+				_ = s.jev.PrepareInstanceReview(ctx, project.ID)
 			}
 		}
 	}
@@ -175,43 +176,6 @@ func (s *Server) rejectNotebookAI(w http.ResponseWriter) bool {
 	return false
 }
 
-func (s *Server) decisionPreferences(user string) (jevPreferences, error) {
+func (s *Server) decisionPreferences(user string) (decision.Preferences, error) {
 	return s.decisions.Preferences(user)
-}
-func (s *Server) prepareInstanceReview(ctx context.Context, project string) error {
-	settings, err := s.loadJevNotebook(project)
-	if err != nil {
-		return err
-	}
-	if settings.AutoChecks && settings.EnabledBy == catalog.Bootstrap {
-		return nil
-	}
-	store, err := s.catalog.Access(catalog.Bootstrap, project, "owner")
-	if err != nil {
-		return err
-	}
-	snapshot, err := store.SnapshotScoped(ctx, "", jevActiveScope())
-	if err != nil {
-		return err
-	}
-	account, err := s.catalog.Account(catalog.Bootstrap)
-	if err != nil {
-		return err
-	}
-	s.jevState.mu.Lock()
-	defer s.jevState.mu.Unlock()
-	// Change the current record so concurrent organization updates survive.
-	_, err = s.jevState.updateNotebook(project, func(settings *jevNotebookSettings, _ bool) error {
-		if settings.AutoChecks && settings.EnabledBy == catalog.Bootstrap {
-			return nil
-		}
-		settings.AutoChecks, settings.EnabledBy, settings.AccountID = true, catalog.Bootstrap, account.ID
-		settings.Baseline, settings.BaselineRevision = map[string]string{}, snapshot.Revision
-		for _, file := range snapshot.Files {
-			settings.Baseline[file.Path] = file.Hash
-		}
-		settings.Observed, settings.ObservedAt = nil, ""
-		return nil
-	})
-	return err
 }

@@ -1,8 +1,9 @@
-package web
+package jev
 
 import (
 	"context"
 	"errors"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/decision"
 	"os"
@@ -34,7 +35,7 @@ func (j *jevState) organizationConsentGeneration(user string) (uint64, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	var record jevUserSettings
-	err := j.read("users/"+digest(user)+".json", &record)
+	err := j.read("users/"+auth.Digest(user)+".json", &record)
 	if errors.Is(err, os.ErrNotExist) {
 		return 0, nil
 	}
@@ -56,7 +57,8 @@ type jevNotebookSettings struct {
 	AccountID        string            `json:"accountId,omitempty"`
 }
 
-func (s *Server) initJev() error {
+// initState opens the records and starts the state a restart replaces.
+func (s *Service) initState() error {
 	records, err := decision.OpenRecords(s.db)
 	if err != nil {
 		return err
@@ -94,7 +96,7 @@ func (j *jevState) preferences(user string) (jevPreferences, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	var record jevUserSettings
-	err := j.read("users/"+digest(user)+".json", &record)
+	err := j.read("users/"+auth.Digest(user)+".json", &record)
 	if errors.Is(err, os.ErrNotExist) {
 		return jevPreferences{Rerank: true, Citations: true}, nil
 	}

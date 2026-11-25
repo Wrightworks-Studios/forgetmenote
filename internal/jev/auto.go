@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"context"
@@ -11,7 +11,9 @@ import (
 	"time"
 )
 
-func (s *Server) startJevScheduler(ctx context.Context) {
+// StartScheduler starts the one gateway duty that launches queued and
+// automatic reviews and applies retention, until Close.
+func (s *Service) StartScheduler(ctx context.Context) {
 	s.jevState.mu.Lock()
 	if s.jevState.closed {
 		s.jevState.mu.Unlock()
@@ -38,7 +40,7 @@ func (s *Server) startJevScheduler(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case now := <-ticker.C:
-					s.syncInstanceAI(s.jevState.ctx)
+					s.hooks.SyncInstanceAI(s.jevState.ctx)
 					if now.Sub(pruned) >= jevPruneEvery {
 						s.maintainJevJobs(now)
 						pruned = now
@@ -55,9 +57,9 @@ func (s *Server) startJevScheduler(ctx context.Context) {
 // the inventory, and enabling does not launch an initial broad review. The
 // instance policy reviews only ordinary notebooks: memory, for one, rewrites
 // its whole file on every remember and reviews each new item itself.
-func (s *Server) scanJevAutomatic(ctx context.Context, now time.Time) {
+func (s *Service) scanJevAutomatic(ctx context.Context, now time.Time) {
 	s.scanOrganizationAutomatic(ctx, now)
-	judge, localOnly := s.jevConfigured()
+	judge, localOnly := s.hooks.Judge()
 	if judge == nil || localOnly || ctx.Err() != nil {
 		return
 	}
@@ -66,7 +68,7 @@ func (s *Server) scanJevAutomatic(ctx context.Context, now time.Time) {
 			if !policy.Reviews || !project.Ordinary() {
 				continue
 			}
-			if err := s.prepareInstanceReview(ctx, project.ID); err != nil {
+			if err := s.PrepareInstanceReview(ctx, project.ID); err != nil {
 				continue
 			}
 		}
@@ -78,10 +80,10 @@ func (s *Server) scanJevAutomatic(ctx context.Context, now time.Time) {
 		if err != nil || account.ID != settings.AccountID {
 			continue
 		}
-		if s.inboxAIAllowed(settings.EnabledBy, project) != nil {
+		if s.hooks.InboxAIAllowed(settings.EnabledBy, project) != nil {
 			continue
 		}
-		if err = s.jevAuthorized(ctx, settings.EnabledBy, project.ID, "consistency", judge); err != nil {
+		if err = s.hooks.Authorize(ctx, settings.EnabledBy, project.ID, "consistency", judge); err != nil {
 			continue
 		}
 		store, err := s.catalog.Access(settings.EnabledBy, project.ID, "owner")
@@ -126,7 +128,7 @@ func (s *Server) scanJevAutomatic(ctx context.Context, now time.Time) {
 			s.saveJevAutoObservation(settings)
 			continue
 		}
-		input := jevJobInput{Kind: "consistency", OperationID: "automatic-" + jevInventory(snapshot)}
+		input := JobInput{Kind: "consistency", OperationID: "automatic-" + jevInventory(snapshot)}
 		job, err := s.createJevJob(ctx, settings.EnabledBy, project.ID, input, true, changed, known)
 		if err != nil {
 			continue
@@ -142,7 +144,7 @@ func (s *Server) scanJevAutomatic(ctx context.Context, now time.Time) {
 	}
 }
 
-func (s *Server) saveJevAutoObservation(settings jevNotebookSettings) error {
+func (s *Service) saveJevAutoObservation(settings jevNotebookSettings) error {
 	s.jevState.mu.Lock()
 	defer s.jevState.mu.Unlock()
 	_, err := s.jevState.updateNotebook(settings.Notebook, func(current *jevNotebookSettings, _ bool) error {
@@ -207,4 +209,45 @@ func jevPassageChanges(ctx context.Context, store *workspace.Store, snapshot wor
 		}
 	}
 	return known, false, nil
+}
+
+// PrepareInstanceReview turns on automatic review of a notebook under the
+// instance AI policy, with its current notes as the baseline. A notebook the
+// policy already reviews is left as it is.
+func (s *Service) PrepareInstanceReview(ctx context.Context, project string) error {
+	settings, err := s.loadJevNotebook(project)
+	if err != nil {
+		return err
+	}
+	if settings.AutoChecks && settings.EnabledBy == catalog.Bootstrap {
+		return nil
+	}
+	store, err := s.catalog.Access(catalog.Bootstrap, project, "owner")
+	if err != nil {
+		return err
+	}
+	snapshot, err := store.SnapshotScoped(ctx, "", jevActiveScope())
+	if err != nil {
+		return err
+	}
+	account, err := s.catalog.Account(catalog.Bootstrap)
+	if err != nil {
+		return err
+	}
+	s.jevState.mu.Lock()
+	defer s.jevState.mu.Unlock()
+	// Change the current record so concurrent organization updates survive.
+	_, err = s.jevState.updateNotebook(project, func(settings *jevNotebookSettings, _ bool) error {
+		if settings.AutoChecks && settings.EnabledBy == catalog.Bootstrap {
+			return nil
+		}
+		settings.AutoChecks, settings.EnabledBy, settings.AccountID = true, catalog.Bootstrap, account.ID
+		settings.Baseline, settings.BaselineRevision = map[string]string{}, snapshot.Revision
+		for _, file := range snapshot.Files {
+			settings.Baseline[file.Path] = file.Hash
+		}
+		settings.Observed, settings.ObservedAt = nil, ""
+		return nil
+	})
+	return err
 }

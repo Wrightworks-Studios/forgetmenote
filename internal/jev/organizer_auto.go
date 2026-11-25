@@ -1,8 +1,9 @@
-package web
+package jev
 
 import (
 	"context"
 	"encoding/json"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/decision"
 	"os"
@@ -10,8 +11,8 @@ import (
 	"time"
 )
 
-func (s *Server) scanOrganizationAutomatic(ctx context.Context, now time.Time) {
-	judge, localOnly := s.jevConfigured()
+func (s *Service) scanOrganizationAutomatic(ctx context.Context, now time.Time) {
+	judge, localOnly := s.hooks.Judge()
 	if judge == nil || localOnly || ctx.Err() != nil {
 		return
 	}
@@ -22,7 +23,7 @@ func (s *Server) scanOrganizationAutomatic(ctx context.Context, now time.Time) {
 		s.scanOrganizationNotebook(ctx, p.ID, now)
 	}
 }
-func (s *Server) scanOrganizationNotebook(ctx context.Context, project string, now time.Time) {
+func (s *Service) scanOrganizationNotebook(ctx context.Context, project string, now time.Time) {
 	s.jevState.organizationMu.Lock()
 	defer s.jevState.organizationMu.Unlock()
 	settings, err := s.loadJevNotebook(project)
@@ -37,8 +38,8 @@ func (s *Server) scanOrganizationNotebook(ctx context.Context, project string, n
 	if s.catalog.ProjectAccessEpoch(o.Owner, project) != o.ProjectEpoch {
 		return
 	}
-	judge, _ := s.jevConfigured()
-	if err = s.jevAuthorized(ctx, o.Owner, project, "organization", judge); err != nil {
+	judge, _ := s.hooks.Judge()
+	if err = s.hooks.Authorize(ctx, o.Owner, project, "organization", judge); err != nil {
 		return
 	}
 	account, err := s.catalog.Account(o.Owner)
@@ -100,7 +101,7 @@ func (s *Server) scanOrganizationNotebook(ctx context.Context, project string, n
 	// The snapshot and generation make scheduling idempotent even if saving the
 	// observation fails. A committed organizer action advances only its own paths.
 	key, _ := json.Marshal([]any{o.Generation, current})
-	input := jevJobInput{Kind: "organize", OperationID: "automatic-organize-" + digest(string(key)), Organization: &organizationInput{Mode: "apply", Scope: "all", Policy: o.Policy}}
+	input := JobInput{Kind: "organize", OperationID: "automatic-organize-" + auth.Digest(string(key)), Organization: &organizationInput{Mode: "apply", Scope: "all", Policy: o.Policy}}
 	job, err := s.createOrganizationJob(ctx, o.Owner, project, input, true, changed)
 	if err != nil {
 		return
@@ -121,7 +122,7 @@ func (s *Server) scanOrganizationNotebook(ctx context.Context, project string, n
 // Consume exactly the pinned target evidence, including non-mutating outcomes.
 // Refreshing from HEAD here would hide user edits made while the run was active.
 // Callers hold organizationMu through this checkpoint and terminal job state.
-func (s *Server) recordOrganizationCompletion(job jevJob) error {
+func (s *Service) recordOrganizationCompletion(job jevJob) error {
 	if !job.Automatic {
 		return nil
 	}

@@ -1,15 +1,14 @@
-package web
+package jev
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/pg/pgtest"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -30,26 +29,7 @@ func TestJevReviewRestartResumesDurableCheckpointAndUnknownCost(t *testing.T) {
 		t.Fatal(paused)
 	}
 	first := paused["results"].([]any)[0].(map[string]any)["id"]
-	raw, err := json.Marshal(app.chat.Config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	configPath := filepath.Join(t.TempDir(), "restart.json")
-	if err = os.WriteFile(configPath, raw, 0600); err != nil {
-		t.Fatal(err)
-	}
-	app.Close()
-	reopened, err := New(app.catalog, app.db, app.data, "http://localhost", testToken)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(reopened.Close)
-	if err = reopened.ConfigureProxy(proxyTestSecret, []string{"127.0.0.1/32"}); err != nil {
-		t.Fatal(err)
-	}
-	if err = reopened.ConfigureChat(configPath); err != nil {
-		t.Fatal(err)
-	}
+	reopened := reopen(t, app)
 	w := proxyCall(reopened, "alice", "GET", "/p/default/api/jev/jobs/"+id, "")
 	var restored map[string]any
 	json.Unmarshal(w.Body.Bytes(), &restored)
@@ -62,7 +42,7 @@ func TestJevReviewRestartResumesDurableCheckpointAndUnknownCost(t *testing.T) {
 	if job := waitReview(t, reopened, id); job["state"] != "completed" {
 		t.Fatal(job)
 	}
-	records, err := reopened.chat.JevLedger.Records()
+	records, err := usageLedger(t, reopened).Records()
 	if err != nil || len(records) != 4 || records[1].Status != "unknown" {
 		t.Fatalf("restart lost attempted usage: %+v %v", records, err)
 	}
@@ -102,7 +82,7 @@ func TestJevReviewCancellationRetainsInFlightUsageAndNoFindings(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	records, err := app.chat.JevLedger.Records()
+	records, err := usageLedger(t, app).Records()
 	if err != nil || len(records) != 1 || records[0].Status == "reserved" {
 		t.Fatal(records, err)
 	}
@@ -121,11 +101,8 @@ func TestJevReviewCancelledOnAnotherGatewaySurvivesACheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	other := gatewayOf(t, app)
-	if err := other.ConfigureProxy(proxyTestSecret, []string{"127.0.0.1/32"}); err != nil {
-		t.Fatal(err)
-	}
 	now := chat.Now()
-	job := jevJob{Version: 2, ID: digest("checkpoint"), RequestHash: digest("request"), Project: "default", Owner: "alice", AccountID: "account", Kind: "consistency", State: "running", Inventory: "inventory", Model: "synthetic", Notes: []jevJobNote{}, Work: []jevJobWork{{Kind: "consistency", Passages: []string{}}, {Kind: "consistency", Passages: []string{}}}, Total: 2, Remaining: 2, CreatedAt: now, UpdatedAt: now}
+	job := jevJob{Version: 2, ID: auth.Digest("checkpoint"), RequestHash: auth.Digest("request"), Project: "default", Owner: "alice", AccountID: "account", Kind: "consistency", State: "running", Inventory: "inventory", Model: "synthetic", Notes: []jevJobNote{}, Work: []jevJobWork{{Kind: "consistency", Passages: []string{}}, {Kind: "consistency", Passages: []string{}}}, Total: 2, Remaining: 2, CreatedAt: now, UpdatedAt: now}
 	if err := app.jevState.write(jobName(job.ID), job); err != nil {
 		t.Fatal(err)
 	}

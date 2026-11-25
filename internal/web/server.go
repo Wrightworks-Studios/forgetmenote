@@ -9,6 +9,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"errors"
+	"forgetmenote/internal/jev"
 	"forgetmenote/internal/quicknotes"
 	"forgetmenote/internal/reposource"
 	"html/template"
@@ -89,7 +90,7 @@ type Server struct {
 	backups             *backupService
 	quicknotes          *quicknotes.Service
 	citations           *citationchecks.Runtime
-	jevState            *jevState
+	jev                 *jev.Service
 	decisions           *decision.Policy
 	chat                *chatService
 	actions             actions.Registry
@@ -281,7 +282,7 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initJev(); err != nil {
 		return nil, err
 	}
-	s.decisions = decision.NewPolicy(projects, s.jevConfigured, s.jevState.preferences)
+	s.decisions = decision.NewPolicy(projects, s.jevConfigured, s.jev.StoredPreferences)
 	if err = s.initMemory(); err != nil {
 		return nil, err
 	}

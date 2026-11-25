@@ -279,7 +279,7 @@ func TestPurgePlanCountsOnlyRecordsQuotingWhatTheNotebookHolds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jevState.records.Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "The PIN is 7391"}); err != nil {
+	if err := app.jev.Records().Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "The PIN is 7391"}); err != nil {
 		t.Fatal(err)
 	}
 	prepare := func(scope workspace.PurgeScope) webPurgePlan {

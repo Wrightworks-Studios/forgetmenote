@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func TestJevR1AuditPreparationRejectsBeforeCartesianAllocation(t *testing.T) {
 	if _, err = store.Save(context.Background(), "destination.md", []byte(destination.String()), "", "alice"); err != nil {
 		t.Fatal(err)
 	}
-	body, _ := json.Marshal(jevJobInput{Kind: "audit", OperationID: "large", Sources: []jevSourceSelection{{Path: src.Path, Revision: src.Revision}}, Destinations: []string{"destination.md"}})
+	body, _ := json.Marshal(JobInput{Kind: "audit", OperationID: "large", Sources: []jevSourceSelection{{Path: src.Path, Revision: src.Revision}}, Destinations: []string{"destination.md"}})
 	runtime.GC()
 	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
@@ -42,7 +42,7 @@ func TestJevR1AuditPreparationRejectsBeforeCartesianAllocation(t *testing.T) {
 	if !strings.Contains(w.Body.String(), "smaller source or destination selection") {
 		t.Fatalf("oversized audit did not explain storage boundary: %d %s", w.Code, w.Body.String())
 	}
-	records, _ := app.chat.JevLedger.Records()
+	records, _ := usageLedger(t, app).Records()
 	if len(records) != 0 {
 		t.Fatal("preflight spent provider usage")
 	}
@@ -55,7 +55,7 @@ func TestJevR1AuditDuplicateSelectionsDoNotMultiplyCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, _ := json.Marshal(jevJobInput{Kind: "audit", OperationID: "duplicates", Sources: []jevSourceSelection{{Path: src.Path, Revision: src.Revision}, {Path: src.Path}, {Path: src.Path, Revision: src.Revision}}, Destinations: []string{"b.md", "b.md"}})
+	body, _ := json.Marshal(JobInput{Kind: "audit", OperationID: "duplicates", Sources: []jevSourceSelection{{Path: src.Path, Revision: src.Revision}, {Path: src.Path}, {Path: src.Path, Revision: src.Revision}}, Destinations: []string{"b.md", "b.md"}})
 	w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs", string(body))
 	var job map[string]any
 	json.Unmarshal(w.Body.Bytes(), &job)
@@ -68,14 +68,11 @@ func TestJevR1CancelledAuditPreparationDoesNotCreateCheckpoint(t *testing.T) {
 	app := reviewFixture(t, syntheticReviewAnswer)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	request := httptest.NewRequest("POST", app.origin+"/p/default/api/jev/jobs", strings.NewReader(`{"kind":"audit","operationId":"cancel-prepare","sources":[{"path":"a.md"}],"destinations":["b.md"]}`)).WithContext(ctx)
-	request.RemoteAddr = "127.0.0.1:1234"
-	request.Header.Set("Remote-User", "alice")
-	request.Header.Set("X-ForgetMeNote-Proxy-Secret", proxyTestSecret)
-	request.Header.Set("Origin", app.origin)
+	request := httptest.NewRequest("POST", "http://localhost/p/default/api/jev/jobs", strings.NewReader(`{"kind":"audit","operationId":"cancel-prepare","sources":[{"path":"a.md"}],"destinations":["b.md"]}`)).WithContext(ctx)
+	request.Header.Set(testUserHeader, "alice")
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
-	app.ServeHTTP(response, request)
+	instanceOf(t, app).mux.ServeHTTP(response, request)
 	if response.Code == 200 {
 		t.Fatal("cancelled preparation created durable work", response.Body.String())
 	}
@@ -85,7 +82,7 @@ func TestJevR1CancelledAuditPreparationDoesNotCreateCheckpoint(t *testing.T) {
 	if err != nil || len(ids) != 0 {
 		t.Fatal(ids, err)
 	}
-	records, err := app.chat.JevLedger.Records()
+	records, err := usageLedger(t, app).Records()
 	if err != nil || len(records) != 0 {
 		t.Fatal(records, err)
 	}

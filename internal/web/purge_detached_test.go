@@ -57,7 +57,7 @@ func quotedPurgeSecret(t *testing.T, app *Server, store *workspace.Store, path s
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jevState.records.Write("jobs/"+strings.Repeat("d", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "Found:\nThe staging key is " + secret + "."}); err != nil {
+	if err := app.jev.Records().Write("jobs/"+strings.Repeat("d", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "Found:\nThe staging key is " + secret + "."}); err != nil {
 		t.Fatal(err)
 	}
 	return secret, conversation

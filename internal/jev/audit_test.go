@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"context"
@@ -53,7 +53,7 @@ func TestJevExtractionAuditCoversAllSelectedDestinations(t *testing.T) {
 		}
 		destinations = append(destinations, path)
 	}
-	body, _ := json.Marshal(jevJobInput{Kind: "audit", OperationID: "audit-all", Sources: []jevSourceSelection{{Path: source.Path, Revision: source.Revision}}, Destinations: destinations})
+	body, _ := json.Marshal(JobInput{Kind: "audit", OperationID: "audit-all", Sources: []jevSourceSelection{{Path: source.Path, Revision: source.Revision}}, Destinations: destinations})
 	id := startReview(t, app, string(body))
 	job := waitReview(t, app, id)
 	if job["state"] != "completed" {

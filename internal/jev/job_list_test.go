@@ -1,9 +1,10 @@
-package web
+package jev
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/pg"
@@ -24,11 +25,11 @@ func syntheticJevJob(state string) jevJob {
 
 // storeJevJobs stores n copies of job under new IDs in one statement and
 // returns their IDs; the i-th was last updated at at(i).
-func storeJevJobs(t *testing.T, app *Server, n int, job jevJob, at func(i int) time.Time) []string {
+func storeJevJobs(t *testing.T, app *Service, n int, job jevJob, at func(i int) time.Time) []string {
 	t.Helper()
 	ids, names, bodies := make([]string, n), make([]string, n), make([]string, n)
 	for i := range n {
-		job.ID = digest(fmt.Sprint(t.Name(), job.State, time.Now().UnixNano(), i))
+		job.ID = auth.Digest(fmt.Sprint(t.Name(), job.State, time.Now().UnixNano(), i))
 		job.UpdatedAt = at(i).UTC().Format(time.RFC3339Nano)
 		raw, err := json.Marshal(job)
 		if err != nil {
@@ -42,7 +43,7 @@ func storeJevJobs(t *testing.T, app *Server, n int, job jevJob, at func(i int) t
 	return ids
 }
 
-func storedJevNames(t *testing.T, app *Server) map[string]bool {
+func storedJevNames(t *testing.T, app *Service) map[string]bool {
 	t.Helper()
 	names, err := app.jevState.records.List("", 100000)
 	if err != nil {
@@ -59,7 +60,7 @@ func storedJevNames(t *testing.T, app *Server) map[string]bool {
 // retention holds, do not hide a queued job from the queue.
 func TestJevQueuedJobLaunchesPastTheJobLimit(t *testing.T) {
 	app := reviewFixture(t, syntheticReviewAnswer)
-	queued, err := app.createJevJob(context.Background(), "alice", "default", jevJobInput{Kind: "consistency", OperationID: "behind-history"}, false, nil, nil)
+	queued, err := app.createJevJob(context.Background(), "alice", "default", JobInput{Kind: "consistency", OperationID: "behind-history"}, false, nil, nil)
 	if err != nil || queued.State != "queued" {
 		t.Fatal(queued.State, err)
 	}
@@ -85,7 +86,7 @@ func (q *jevRecordQueries) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQu
 func (q *jevRecordQueries) take() int { return int(q.n.Swap(0)) }
 
 // traceJevRecords counts the statements Jev's records issue from now on.
-func traceJevRecords(t *testing.T, app *Server) *jevRecordQueries {
+func traceJevRecords(t *testing.T, app *Service) *jevRecordQueries {
 	t.Helper()
 	queries := &jevRecordQueries{}
 	config := app.db.Pool.Config()

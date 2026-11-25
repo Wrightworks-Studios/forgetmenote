@@ -24,17 +24,13 @@ func (s *Server) initPurge() error {
 			return s.chat.Store.RedactProject(ctx, project, redact, write)
 		},
 		RedactJevRecords: func(ctx context.Context, notebook string, redact func([]byte) ([]byte, bool, error), write bool) (int, error) {
-			if s.jevState == nil || s.jevState.records == nil {
+			if s.jev == nil {
 				return 0, nil
 			}
-			return s.jevState.records.RedactNotebook(ctx, notebook, redact, write)
+			return s.jev.RedactRecords(ctx, notebook, redact, write)
 		},
 		OwnsJevJob: func(job, user string) bool {
-			if s.jevState == nil || s.jevState.records == nil {
-				return false
-			}
-			found, err := s.jevState.records.ListMatching(jobName(job), map[string]any{"owner": user}, 1)
-			return err == nil && len(found) > 0
+			return s.jev != nil && s.jev.OwnsJob(job, user)
 		},
 		KnowledgeHolds: func(ctx context.Context, store *workspace.Store, redact func([]byte) ([]byte, bool, error)) (int, error) {
 			return withEngine(s, ctx, store, func(e *knowledge.Engine) (int, error) {

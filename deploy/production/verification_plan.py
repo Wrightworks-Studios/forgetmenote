@@ -100,7 +100,7 @@ FEATURES = {
                    ['settings-layout', 'reading-room', 'visual-polish', 'notebook-creation']),
     'chat': (['internal/chat/', 'internal/web/chat*.go', 'internal/web/ui/chat.mjs'],
              ['chat', 'chat-controls', 'chat-readable', 'chat-corpus', 'chat-corpus-settings', 'website-capture']),
-    'decisions': (['internal/decision/', 'internal/web/jev*.go', 'internal/web/ui/jev.mjs'],
+    'decisions': (['internal/decision/', 'internal/jev/', 'internal/web/jev*.go', 'internal/web/ui/jev.mjs'],
                   ['jev', 'jev-integration']),
     'sources': (['internal/sources/', 'internal/web/sources*.go', 'internal/web/ui/sources.mjs'],
                 ['editor-creation', 'editor-notebooks', 'notebook-documents']),
@@ -181,7 +181,7 @@ IDENTITY = (r'^internal/auth/', r'^internal/catalog/', r'^internal/backups/', r'
             'auth', 'oidc', 'login', 'session', 'password', 'proxy')
 SLOW_CONTAINERS = {
     'source': (r'^internal/sources/', r'^internal/reposource/', r'^internal/sourcehttp/', r'^scripts/source_smoke\.py$'),
-    'jev': (r'^internal/decision/', r'^internal/web/jev', r'^scripts/jev_smoke\.py$'),
+    'jev': (r'^internal/decision/', r'^internal/jev/', r'^internal/web/jev', r'^scripts/jev_smoke\.py$'),
     'oidc': IDENTITY,
     'totp': IDENTITY,
 }

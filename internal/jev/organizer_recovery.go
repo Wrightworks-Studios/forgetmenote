@@ -1,10 +1,11 @@
-package web
+package jev
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/workspace"
 )
@@ -12,7 +13,7 @@ import (
 // Reconstruct only an already committed action. Reading activity can repair its
 // sidecar after a crash even when the original grant was revoked; it never calls
 // a provider or writes notebook content. Inference/mutation still require a grant.
-func (s *Server) reconcileOrganizationReceipt(ctx context.Context, store *workspace.Store, id string) (jevJob, error) {
+func (s *Service) reconcileOrganizationReceipt(ctx context.Context, store *workspace.Store, id string) (jevJob, error) {
 	s.jevState.organizationMu.Lock()
 	defer s.jevState.organizationMu.Unlock()
 	s.jevState.mu.Lock()
@@ -39,7 +40,7 @@ func (s *Server) reconcileOrganizationReceipt(ctx context.Context, store *worksp
 	if err = s.advanceOrganization(ctx, &job, a); err != nil {
 		return job, err
 	}
-	record := jevJobResult{ID: digest(job.ID + fmt.Sprint(job.Cursor)), Kind: job.Work[job.Cursor].Kind, Title: a.Kind + ": " + a.Path, Summary: a.Reason, Status: a.Status, Evidence: organizationEvidenceForAction(a), Details: organizationDetails(*a)}
+	record := jevJobResult{ID: auth.Digest(job.ID + fmt.Sprint(job.Cursor)), Kind: job.Work[job.Cursor].Kind, Title: a.Kind + ": " + a.Path, Summary: a.Reason, Status: a.Status, Evidence: organizationEvidenceForAction(a), Details: organizationDetails(*a)}
 	if err = s.saveOrganizationResult(job, job.Cursor, nil, record); err != nil {
 		return job, err
 	}

@@ -36,14 +36,14 @@ func TestJevAuditNotificationValidatesEvidenceBeyondVisiblePreview(t *testing.T)
 		}
 		paths = append(paths, path)
 	}
-	body, _ := json.Marshal(jevJobInput{Kind: "audit", OperationID: "preview", Sources: []jevSourceSelection{{Path: source.Path, Revision: source.Revision}}, Destinations: paths})
+	body, _ := json.Marshal(map[string]any{"kind": "audit", "operationId": "preview", "sources": []map[string]string{{"path": source.Path, "revision": source.Revision}}, "destinations": paths})
 	id := startReview(t, app, string(body))
 	job := waitReview(t, app, id)
 	if job["state"] != "completed" {
 		t.Fatal(job)
 	}
 	var result struct {
-		Items []jevNotification `json:"items"`
+		Items []jevNotificationItem `json:"items"`
 	}
 	w := proxyCall(app, "alice", "GET", "/api/notifications", "")
 	json.Unmarshal(w.Body.Bytes(), &result)

@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"forgetmenote/internal/decision"

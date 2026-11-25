@@ -376,7 +376,6 @@ func TestPausedInstanceRunsNoJevReview(t *testing.T) {
 	if w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs", `{"kind":"consistency","operationId":"rehearsal"}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
 		t.Fatalf("paused review start: %d %s", w.Code, w.Body)
 	}
-	app.launchNextJevJob()
 	if calls.Load() != 0 {
 		t.Fatalf("Jev called %d times", calls.Load())
 	}

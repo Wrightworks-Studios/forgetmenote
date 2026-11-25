@@ -1,12 +1,14 @@
-package web
+package jev
 
 import (
 	"encoding/json"
 	"errors"
 	"forgetmenote/internal/attribution"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 	"net/http"
 	"slices"
@@ -14,24 +16,24 @@ import (
 	"strings"
 )
 
-func (s *Server) organizationRoutes() {
-	s.handleProject("GET /api/jev/organization", "read", s.organizationSettingsHTTP)
-	s.handleProject("POST /api/jev/organization", "owner", s.organizationSettingsHTTP)
-	s.handleProject("POST /api/jev/jobs/{job}/organization/{action}", "owner", s.organizationControl)
+func (s *Service) organizationRoutes(project func(pattern, role string, handler http.HandlerFunc)) {
+	project("GET /api/jev/organization", "read", s.organizationSettingsHTTP)
+	project("POST /api/jev/organization", "owner", s.organizationSettingsHTTP)
+	project("POST /api/jev/jobs/{job}/organization/{action}", "owner", s.organizationControl)
 }
-func (s *Server) organizationSettingsHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" && s.rejectNotebookAI(w) {
+func (s *Service) organizationSettingsHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" && s.hooks.RejectNotebookAI(w) {
 		return
 	}
-	user, err := s.interactiveIdentity(r)
+	user, err := s.hooks.Identity(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	project := projectID(r.Context())
+	project := webcore.NotebookID(r.Context())
 	store, err := s.organizationNotebook(user, project, "read")
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	var input struct {
@@ -41,65 +43,65 @@ func (s *Server) organizationSettingsHTTP(w http.ResponseWriter, r *http.Request
 	}
 	if r.Method == "POST" {
 		if _, err = s.catalog.Access(user, project, "owner"); err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
-		if !decode(w, r, &input) {
+		if !webcore.Decode(w, r, &input) {
 			return
 		}
 	}
 	s.jevState.organizationMu.Lock()
 	defer s.jevState.organizationMu.Unlock()
-	if current, e := s.interactiveIdentity(r); e != nil || current != user {
-		chatFail(w, workspace.ErrForbidden)
+	if current, e := s.hooks.Identity(r); e != nil || current != user {
+		webcore.Fail(w, workspace.ErrForbidden)
 		return
 	}
-	if r.Method == "POST" && s.rejectNotebookAI(w) {
+	if r.Method == "POST" && s.hooks.RejectNotebookAI(w) {
 		return
 	}
 	record, err := s.loadJevNotebook(project)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	snapshot, err := store.SnapshotScoped(r.Context(), "", jevActiveScope())
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	_, ownerErr := s.catalog.Access(user, project, "owner")
 	if record.Organization == nil {
 		record.Organization = &organizationSettings{Baseline: map[string]string{}, Suppressed: map[string]string{}}
 	}
-	judge, localOnly := s.jevConfigured()
+	judge, localOnly := s.hooks.Judge()
 	if r.Method == "POST" {
 		if ownerErr != nil {
-			chatFail(w, ownerErr)
+			webcore.Fail(w, ownerErr)
 			return
 		}
 		if input.Generation != record.Organization.Generation {
-			chatFail(w, workspace.ErrConflict)
+			webcore.Fail(w, workspace.ErrConflict)
 			return
 		}
 		if input.Enabled {
-			if err = s.jevAuthorized(r.Context(), user, project, "organization", judge); err != nil {
-				chatFail(w, err)
+			if err = s.hooks.Authorize(r.Context(), user, project, "organization", judge); err != nil {
+				webcore.Fail(w, err)
 				return
 			}
 			input.Policy, err = normalizeOrganizationPolicy(input.Policy, snapshot)
 			if err != nil {
-				chatFail(w, err)
+				webcore.Fail(w, err)
 				return
 			}
 		}
 		account, e := s.catalog.Account(user)
 		if e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		consent, e := s.jevState.organizationConsentGeneration(user)
 		if e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		accessEpoch, projectEpoch := s.catalog.Epoch(user), s.catalog.ProjectAccessEpoch(user, project)
@@ -127,11 +129,11 @@ func (s *Server) organizationSettingsHTTP(w http.ResponseWriter, r *http.Request
 			return nil
 		})
 		if err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
 		if err = s.invalidateOrganizationJobs(func(job jevJob) bool { return job.Automatic && job.Project == project }); err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
 	}
@@ -145,9 +147,9 @@ func (s *Server) organizationSettingsHTTP(w http.ResponseWriter, r *http.Request
 			}
 		}
 	}
-	prefs, e := s.decisionPreferences(user)
+	prefs, e := s.hooks.Preferences(user)
 	if e != nil {
-		chatFail(w, e)
+		webcore.Fail(w, e)
 		return
 	}
 	if policy, managed := s.catalog.AISettings(); managed {
@@ -155,14 +157,14 @@ func (s *Server) organizationSettingsHTTP(w http.ResponseWriter, r *http.Request
 	}
 	o := record.Organization
 	public := map[string]any{"enabled": o.Enabled, "generation": o.Generation, "policy": o.Policy, "owner": o.Owner}
-	jsonResponse(w, map[string]any{"available": judge != nil && !localOnly, "localOnly": localOnly, "consent": prefs.Consent, "canManage": ownerErr == nil, "settings": public, "folders": organizationFolders(snapshot), "notes": notes, "tags": tags})
+	webcore.JSON(w, map[string]any{"available": judge != nil && !localOnly, "localOnly": localOnly, "consent": prefs.Consent, "canManage": ownerErr == nil, "settings": public, "folders": organizationFolders(snapshot), "notes": notes, "tags": tags})
 }
 
 // Called with organizationMu held: invalidate the old grant and stop its worker.
 // Organization jobs are created under organizationMu too, so none appears on
 // this gateway after the listing; each one listed live is rechecked as it is
 // cancelled.
-func (s *Server) invalidateOrganizationJobs(matches func(jevJob) bool) error {
+func (s *Service) invalidateOrganizationJobs(matches func(jevJob) bool) error {
 	jobs, err := s.jevState.jobs(map[string]any{"organization": map[string]any{}})
 	if err != nil {
 		return err
@@ -191,7 +193,7 @@ func (s *Server) invalidateOrganizationJobs(matches func(jevJob) bool) error {
 	}
 	return nil
 }
-func (s *Server) recordOrganizationBaseline(project string, result *workspace.OrganizationResult) error {
+func (s *Service) recordOrganizationBaseline(project string, result *workspace.OrganizationResult) error {
 	if result == nil {
 		return nil
 	}
@@ -220,7 +222,7 @@ func (s *Server) recordOrganizationBaseline(project string, result *workspace.Or
 	})
 	return err
 }
-func (s *Server) suppressOrganization(project, reason string, keys ...string) error {
+func (s *Service) suppressOrganization(project, reason string, keys ...string) error {
 	if len(keys) == 0 {
 		return nil
 	}
@@ -260,9 +262,9 @@ func actionFromResult(result jevJobResult) (organizationAction, error) {
 // result it read passes that result as prior, and the write succeeds only over
 // it, so a change made through another gateway meanwhile is refused rather
 // than overwritten.
-func (s *Server) saveOrganizationResult(job jevJob, index int, prior *jevJobResult, result jevJobResult) error {
+func (s *Service) saveOrganizationResult(job jevJob, index int, prior *jevJobResult, result jevJobResult) error {
 	raw, _ := json.Marshal(result)
-	next := jevResultRecord{Version: 1, Job: job.ID, Index: index, Hash: digest(string(raw)), Result: result}
+	next := jevResultRecord{Version: 1, Job: job.ID, Index: index, Hash: auth.Digest(string(raw)), Result: result}
 	s.jevState.mu.Lock()
 	defer s.jevState.mu.Unlock()
 	if prior == nil {
@@ -271,61 +273,61 @@ func (s *Server) saveOrganizationResult(job jevJob, index int, prior *jevJobResu
 	read, _ := json.Marshal(*prior)
 	var record jevResultRecord
 	return s.jevState.update(resultName(job.ID, index), &record, func(found bool) error {
-		if !found || record.Hash != digest(string(read)) {
+		if !found || record.Hash != auth.Digest(string(read)) {
 			return workspace.ErrConflict
 		}
 		record = next
 		return nil
 	})
 }
-func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
-	user, err := s.interactiveIdentity(r)
+func (s *Service) organizationControl(w http.ResponseWriter, r *http.Request) {
+	user, err := s.hooks.Identity(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	var input struct {
 		Index *int `json:"index"`
 	}
-	if !decode(w, r, &input) {
+	if !webcore.Decode(w, r, &input) {
 		return
 	}
 	s.jevState.organizationMu.Lock()
 	defer s.jevState.organizationMu.Unlock()
-	if current, e := s.interactiveIdentity(r); e != nil || current != user {
-		chatFail(w, workspace.ErrForbidden)
+	if current, e := s.hooks.Identity(r); e != nil || current != user {
+		webcore.Fail(w, workspace.ErrForbidden)
 		return
 	}
 	s.jevState.mu.Lock()
 	job, err := s.jevState.readJob(r.PathValue("job"))
 	active := s.jevState.active["job:"+job.ID] != nil
 	s.jevState.mu.Unlock()
-	if err != nil || job.Project != projectID(r.Context()) || job.Organization == nil {
-		chatFail(w, chat.ErrNotFound)
+	if err != nil || job.Project != webcore.NotebookID(r.Context()) || job.Organization == nil {
+		webcore.Fail(w, chat.ErrNotFound)
 		return
 	}
 	if active || job.State == "queued" {
-		chatFail(w, errors.New("cancel or finish organization before Undo or dismissal"))
+		webcore.Fail(w, errors.New("cancel or finish organization before Undo or dismissal"))
 		return
 	}
 	store, err := s.organizationNotebook(user, job.Project, "owner")
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	account, err := s.catalog.Account(user)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	ctx := attribution.WithSource(r.Context(), account.Identity(), "jev", "organizer-undo")
 	command := r.PathValue("action")
 	if command != "undo" && command != "dismiss" {
-		chatFail(w, decision.ErrInvalid)
+		webcore.Fail(w, decision.ErrInvalid)
 		return
 	}
 	if input.Index != nil && (*input.Index < 0 || *input.Index >= job.Cursor) {
-		chatFail(w, decision.ErrInvalid)
+		webcore.Fail(w, decision.ErrInvalid)
 		return
 	}
 	outcomes := []map[string]any{}
@@ -344,18 +346,18 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 	for index := job.Cursor - 1; index >= 0; index-- {
 		record, e := s.readJevResult(job, index)
 		if e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		prior := record
 		a, e := actionFromResult(record)
 		if e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		if a.UndoRevision != "" && a.Undo != nil {
 			if e := rememberUndo(a); e != nil {
-				chatFail(w, e)
+				webcore.Fail(w, e)
 				return
 			}
 			continue
@@ -370,7 +372,7 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 			}
 			if a.Key != "" {
 				if e = s.suppressOrganization(job.Project, "dismissed", a.Key); e != nil {
-					chatFail(w, e)
+					webcore.Fail(w, e)
 					return
 				}
 			}
@@ -378,7 +380,7 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 			record.Status = a.Status
 			record.Details = organizationDetails(a)
 			if e = s.saveOrganizationResult(job, index, &prior, record); e != nil {
-				chatFail(w, e)
+				webcore.Fail(w, e)
 				return
 			}
 			continue
@@ -387,14 +389,14 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if e = s.suppressOrganization(job.Project, "undone", a.Key); e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		if a.Undo == nil {
 			a.Undo = &workspace.OrganizationUndo{ID: job.ID + ":" + strconv.Itoa(index), Action: *a.Request, Actor: job.AccountID, Executor: account.ID, Revision: a.Result.Revision}
 			record.Details = organizationDetails(a)
 			if e = s.saveOrganizationResult(job, index, &prior, record); e != nil {
-				chatFail(w, e)
+				webcore.Fail(w, e)
 				return
 			}
 			prior = record
@@ -429,15 +431,15 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 		record.Status = "undone"
 		record.Details = organizationDetails(a)
 		if e = s.recordOrganizationBaseline(job.Project, &restored); e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		if e = s.saveOrganizationResult(job, index, &prior, record); e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		if e := rememberUndo(a); e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		outcomes = append(outcomes, map[string]any{"index": index, "revision": restored.Revision})
@@ -448,7 +450,7 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 	if command == "undo" {
 		snapshot, e := store.SnapshotScoped(ctx, "", jevActiveScope())
 		if e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		restoredJob := job
@@ -458,7 +460,7 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 		restoredJob.Notes = []jevJobNote{}
 		locks, e := store.Locks(ctx, "")
 		if e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		evidence := map[string]knowledge.JudgmentEvidence{}
@@ -493,12 +495,12 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 		for i := 0; i < job.Cursor; i++ {
 			record, e := s.readJevResult(job, i)
 			if e != nil {
-				chatFail(w, e)
+				webcore.Fail(w, e)
 				return
 			}
 			a, e := actionFromResult(record)
 			if e != nil {
-				chatFail(w, e)
+				webcore.Fail(w, e)
 				return
 			}
 			if a.Status != "undone" {
@@ -509,17 +511,17 @@ func (s *Server) organizationControl(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if e = s.suppressOrganization(job.Project, "undone", keys...); e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 	}
-	jsonResponse(w, map[string]any{"outcomes": outcomes})
+	webcore.JSON(w, map[string]any{"outcomes": outcomes})
 }
 
 // updateOrganization changes a notebook's current organization settings
 // while holding their record, so a baseline, suppression or setting changed
 // through another gateway is kept.
-func (s *Server) updateOrganization(project string, change func(*organizationSettings) error) (jevNotebookSettings, error) {
+func (s *Service) updateOrganization(project string, change func(*organizationSettings) error) (jevNotebookSettings, error) {
 	s.jevState.mu.Lock()
 	defer s.jevState.mu.Unlock()
 	return s.jevState.updateNotebook(project, func(record *jevNotebookSettings, _ bool) error {
