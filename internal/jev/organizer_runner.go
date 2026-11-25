@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"forgetmenote/internal/attribution"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
@@ -38,7 +39,7 @@ func organizationCurrentPath(job jevJob, p string) string {
 	}
 	return p
 }
-func (s *Server) organizationEvidence(ctx context.Context, store *workspace.Store, job jevJob, p string) (knowledge.JudgmentEvidence, error) {
+func (s *Service) organizationEvidence(ctx context.Context, store *workspace.Store, job jevJob, p string) (knowledge.JudgmentEvidence, error) {
 	p = organizationCurrentPath(job, p)
 	for _, note := range job.Notes {
 		if note.Path == p {
@@ -58,7 +59,7 @@ func (s *Server) organizationEvidence(ctx context.Context, store *workspace.Stor
 	}
 	return knowledge.JudgmentEvidence{}, errors.New("note was removed by an earlier action")
 }
-func (s *Server) prepareOrganizationAction(ctx context.Context, store *workspace.Store, job jevJob, action *organizationAction) (decision.Request, []knowledge.JudgmentEvidence, error) {
+func (s *Service) prepareOrganizationAction(ctx context.Context, store *workspace.Store, job jevJob, action *organizationAction) (decision.Request, []knowledge.JudgmentEvidence, error) {
 	question, evidence, err := organizationRequest(job, action, func(p string) (knowledge.JudgmentEvidence, error) {
 		return s.organizationEvidence(ctx, store, job, p)
 	})
@@ -144,7 +145,7 @@ func organizationRequest(job jevJob, action *organizationAction, read func(strin
 		keySources = append(keySources, source.Path+"\x00"+source.Hash)
 	}
 	key, _ := json.Marshal([]any{action.Kind, source.Path, request.Target, keySources, action.Vocabulary, policy.Folders})
-	action.Key = digest(string(key))
+	action.Key = auth.Digest(string(key))
 	action.Request = &request
 	return question, evidence, nil
 }
@@ -164,9 +165,9 @@ func organizationEvidenceForAction(a *organizationAction) []knowledge.JudgmentEv
 // runOrganizationJob advances job by a bounded batch. Every return leaves it
 // settled with a message (paused, queued for the next batch or completed) or
 // cancelled through another path; a save that fails pauses it instead.
-func (s *Server) runOrganizationJob(ctx context.Context, job jevJob) {
+func (s *Service) runOrganizationJob(ctx context.Context, job jevJob) {
 	pause := func(message string) { job.State = "paused"; job.Message = message; s.settleJevJob(&job) }
-	judge, _ := s.jevConfigured()
+	judge, _ := s.hooks.Judge()
 	account, err := s.catalog.Account(job.Owner)
 	if err != nil {
 		pause("The account that started this organization is unavailable.")
@@ -323,7 +324,7 @@ func (s *Server) runOrganizationJob(ctx context.Context, job jevJob) {
 		if a.Reason == "" {
 			a.Reason = organizationExplanation(a.Kind, a.Status)
 		}
-		record := jevJobResult{ID: digest(job.ID + fmt.Sprint(job.Cursor)), Kind: work.Kind, Title: strings.Title(a.Kind) + ": " + a.Path, Summary: a.Reason, Status: a.Status, Evidence: organizationEvidenceForAction(a), Details: organizationDetails(*a)}
+		record := jevJobResult{ID: auth.Digest(job.ID + fmt.Sprint(job.Cursor)), Kind: work.Kind, Title: strings.Title(a.Kind) + ": " + a.Path, Summary: a.Reason, Status: a.Status, Evidence: organizationEvidenceForAction(a), Details: organizationDetails(*a)}
 		if err = s.writeJevResult(job, record); err != nil {
 			s.jevState.organizationMu.Unlock()
 			// ErrInvalid: cancelled, or another run moved this job on.
@@ -358,7 +359,7 @@ func (s *Server) runOrganizationJob(ctx context.Context, job jevJob) {
 	}
 	s.settleJevJob(&job)
 }
-func (s *Server) selectOrganizationAction(job *jevJob, a *organizationAction) {
+func (s *Service) selectOrganizationAction(job *jevJob, a *organizationAction) {
 	policy := job.Organization.Input.Policy
 	a.Status = "suggested"
 	a.Reason = "Uncertain judgment or action threshold not met. No change applied."
@@ -412,7 +413,7 @@ func (s *Server) selectOrganizationAction(job *jevJob, a *organizationAction) {
 	a.Status = "eligible"
 	a.Reason = ""
 }
-func (s *Server) advanceOrganization(ctx context.Context, job *jevJob, a *organizationAction) error {
+func (s *Service) advanceOrganization(ctx context.Context, job *jevJob, a *organizationAction) error {
 	// Consume the exact committed output, never refresh a stale judgment from HEAD.
 	for _, f := range a.Result.Files {
 		if !strings.HasSuffix(f.Path, ".md") || workspace.IsTrash(f.Path) || strings.HasPrefix(f.Path, "comments/") {

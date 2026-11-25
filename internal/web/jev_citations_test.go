@@ -197,7 +197,7 @@ func TestJevCitationCheckUsesExplicitConsentAndPrivateSidecar(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if err := app.jevState.records.Read(citationRecordName("alice", c.ID), new(any)); !os.IsNotExist(err) {
+	if err := app.jev.Records().Read(citationRecordName("alice", c.ID), new(any)); !os.IsNotExist(err) {
 		t.Fatal("deleted chat retained private claim sidecar", err)
 	}
 	records, err := app.chat.JevLedger.Records()
@@ -246,7 +246,7 @@ func TestJevAutomaticCitationCompletionRequiresAllConsentGates(t *testing.T) {
 				})
 			}
 			c, path := citationConversation(t, app, "Every batch requires cooling before packing. [Process](SOURCE)")
-			body, _ := json.Marshal(jevPreferences{Consent: test.consent, Rerank: true, Citations: test.citations})
+			body, _ := json.Marshal(decision.Preferences{Consent: test.consent, Rerank: true, Citations: test.citations})
 			if w := proxyCall(app, "alice", "POST", "/api/jev/settings", string(body)); w.Code != 200 {
 				t.Fatal(w.Code, w.Body.String())
 			}

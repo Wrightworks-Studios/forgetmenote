@@ -57,10 +57,10 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 	quote("reader", "The key "+secret+" and my bank PIN is 7391")
 	for i, owner := range []string{"keeper", "reader"} {
 		job := strings.Repeat(string(rune('a'+i)), 64)
-		if err := app.jevState.records.Write("jobs/"+job+".json", map[string]any{"version": 2, "project": "default", "owner": owner, "message": "Checked " + secret}); err != nil {
+		if err := app.jev.Records().Write("jobs/"+job+".json", map[string]any{"version": 2, "project": "default", "owner": owner, "message": "Checked " + secret}); err != nil {
 			t.Fatal(err)
 		}
-		if err := app.jevState.records.Write("results/"+job+"-00000001.json", map[string]any{"version": 1, "job": job, "quote": secret}); err != nil {
+		if err := app.jev.Records().Write("results/"+job+"-00000001.json", map[string]any{"version": 1, "job": job, "quote": secret}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -239,10 +239,10 @@ func TestAnOwnerIsToldWithoutANumberThatRecordsCouldNotBeRedacted(t *testing.T) 
 	told("the Owner listing receipts", listed("keeper"), numberless, "1 chat transcripts")
 	told("the Admin listing receipts", listed("admin"), "1 chat transcripts cannot be redacted", numberless)
 
-	if err := app.jevState.records.Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "owner": "reader"}); err != nil {
+	if err := app.jev.Records().Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "owner": "reader"}); err != nil {
 		t.Fatal(err)
 	}
-	_, refused := app.jevState.records.RedactNotebook(ctx, "default", func([]byte) ([]byte, bool, error) { return nil, false, errors.New("refused") }, false)
+	_, refused := app.jev.Records().RedactNotebook(ctx, "default", func([]byte) ([]byte, bool, error) { return nil, false, errors.New("refused") }, false)
 	if refused == nil {
 		t.Fatal("a Jev record the redaction refuses is not reported")
 	}

@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ const (
 // held removes nothing another gateway still needs. Seeing only some finished
 // jobs, when more are stored than one listing reads, still removes only jobs
 // the complete rule would: each has jevKeptJobs newer ones or is too old.
-func (s *Server) pruneJevJobs(now time.Time) (int, error) {
+func (s *Service) pruneJevJobs(now time.Time) (int, error) {
 	cutoff := now.Add(-jevJobRetention)
 	removed := 0
 	for {
@@ -59,7 +59,7 @@ func (s *Server) pruneJevJobs(now time.Time) (int, error) {
 }
 
 // maintainJevJobs runs retention for the scheduler and logs its outcome.
-func (s *Server) maintainJevJobs(now time.Time) {
+func (s *Service) maintainJevJobs(now time.Time) {
 	removed, err := s.pruneJevJobs(now)
 	if err != nil {
 		slog.Warn("jev job retention stopped", "removed", removed, "error", err)
@@ -70,7 +70,7 @@ func (s *Server) maintainJevJobs(now time.Time) {
 
 // roomForJevJob applies retention when jevJobLimit jobs are stored, so only
 // jobs that can still run refuse a new one; the insert checks the count again.
-func (s *Server) roomForJevJob() error {
+func (s *Service) roomForJevJob() error {
 	ids, err := s.jevState.jobIDs()
 	if err == nil && len(ids) < jevJobLimit {
 		return nil

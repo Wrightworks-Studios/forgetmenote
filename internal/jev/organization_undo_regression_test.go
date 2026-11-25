@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/attribution"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/notestore"
 	"forgetmenote/internal/workspace"
@@ -28,7 +29,7 @@ func TestOrganizerUndoLargeRunIgnoresUnrelatedLaterReceipts(t *testing.T) {
 		files[i] = notestore.FileChange{Path: paths[i], Content: []byte("# Workshop\nCalibrate the clock.\n")}
 	}
 	commitElsewhere(t, app, store, notestore.ChangeSet{Subject: "Synthetic large run", Author: fixtureAuthor, Files: files})
-	job, err := app.createOrganizationJob(ctx, "alice", "default", jevJobInput{Kind: "organize", OperationID: "large-undo", Organization: &organizationInput{Mode: "apply", Scope: "selected", Paths: paths, Policy: organizationPolicy{Tags: true, Vocabulary: []string{"workshop"}}}}, false, nil)
+	job, err := app.createOrganizationJob(ctx, "alice", "default", JobInput{Kind: "organize", OperationID: "large-undo", Organization: &organizationInput{Mode: "apply", Scope: "selected", Paths: paths, Policy: organizationPolicy{Tags: true, Vocabulary: []string{"workshop"}}}}, false, nil)
 	if err != nil || job.Total != 1002 {
 		t.Fatal("large run must be admitted", job.Total, err)
 	}
@@ -48,7 +49,7 @@ func TestOrganizerUndoLargeRunIgnoresUnrelatedLaterReceipts(t *testing.T) {
 	}
 	first.Result = &result
 	first.Status = "applied"
-	record := jevJobResult{ID: digest(job.ID + "0"), Kind: job.Work[0].Kind, Status: "applied", Evidence: evidence, Details: organizationDetails(first)}
+	record := jevJobResult{ID: auth.Digest(job.ID + "0"), Kind: job.Work[0].Kind, Status: "applied", Evidence: evidence, Details: organizationDetails(first)}
 	if err = app.saveOrganizationResult(job, 0, nil, record); err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func TestOrganizerUndoLargeRunIgnoresUnrelatedLaterReceipts(t *testing.T) {
 		action.Result = &workspace.OrganizationResult{Revision: result.Revision, Files: []workspace.OrganizationFile{{Path: action.Path}}}
 		action.Undo = &workspace.OrganizationUndo{ID: action.Request.ID, Action: *action.Request, Actor: account.ID, Executor: account.ID, Revision: result.Revision}
 		action.UndoRevision = result.Revision
-		record = jevJobResult{ID: digest(job.ID + fmt.Sprint(i)), Kind: job.Work[i].Kind, Status: "undone", Evidence: []knowledge.JudgmentEvidence{{Path: action.Path}}, Details: organizationDetails(action)}
+		record = jevJobResult{ID: auth.Digest(job.ID + fmt.Sprint(i)), Kind: job.Work[i].Kind, Status: "undone", Evidence: []knowledge.JudgmentEvidence{{Path: action.Path}}, Details: organizationDetails(action)}
 		if err = app.saveOrganizationResult(job, i, nil, record); err != nil {
 			t.Fatal(err)
 		}

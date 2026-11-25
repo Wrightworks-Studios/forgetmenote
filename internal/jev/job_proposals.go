@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func (s *Server) jevOrganizationProposal(ctx context.Context, job *jevJob, work *jevJobWork, evidence []knowledge.JudgmentEvidence, tags []string, judge *decision.Service) (string, error) {
+func (s *Service) jevOrganizationProposal(ctx context.Context, job *jevJob, work *jevJobWork, evidence []knowledge.JudgmentEvidence, tags []string, judge *decision.Service) (string, error) {
 	if len(evidence) == 0 {
 		return "", nil
 	}

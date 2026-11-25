@@ -1,9 +1,8 @@
-package web
+package jev
 
 import (
 	"context"
 	"fmt"
-	"forgetmenote/internal/catalog"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -18,7 +17,7 @@ var jevWriteFailures atomic.Int32
 // failJevRecordWrites makes Postgres refuse every insert and update of Jev's
 // records in app's org whose new row meets condition, until the returned
 // function runs or the test ends.
-func failJevRecordWrites(t *testing.T, app *Server, condition string) func() {
+func failJevRecordWrites(t *testing.T, app *Service, condition string) func() {
 	t.Helper()
 	name := fmt.Sprintf("fail_jev_%s_%d", strings.ReplaceAll(app.db.Org, "-", "_"), jevWriteFailures.Add(1))
 	ctx := context.Background()
@@ -41,7 +40,7 @@ func failJevRecordWrites(t *testing.T, app *Server, condition string) func() {
 }
 
 // runJevJobToRest launches the job and waits until its runner has returned.
-func runJevJobToRest(t *testing.T, app *Server, id string, explicit bool) jevJob {
+func runJevJobToRest(t *testing.T, app *Service, id string, explicit bool) jevJob {
 	t.Helper()
 	app.launchJevJob(id, explicit)
 	for deadline := time.Now().Add(30 * time.Second); app.jevState.running()[id]; time.Sleep(20 * time.Millisecond) {
@@ -56,28 +55,8 @@ func runJevJobToRest(t *testing.T, app *Server, id string, explicit bool) jevJob
 	return job
 }
 
-func organizerTagInput(operation, mode string) jevJobInput {
-	return jevJobInput{Kind: "organize", OperationID: operation, Organization: &organizationInput{Mode: mode, Scope: "selected", Paths: []string{"a.md"}, Policy: organizationPolicy{Tags: true, Vocabulary: []string{"workshop"}}}}
-}
-
-// A run that cannot start, here because the notebook was withdrawn after the
-// job was queued, stops paused with a message rather than staying running.
-func TestOrganizerRunWithoutNotebookAccessPausesWithMessage(t *testing.T) {
-	app := reviewFixture(t, syntheticOrganizationAnswer)
-	job, err := app.createOrganizationJob(context.Background(), "alice", "default", organizerTagInput("withdrawn", "preview"), false, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = app.catalog.Member(catalog.Bootstrap, "default", "bob", "owner"); err != nil {
-		t.Fatal(err)
-	}
-	if err = app.catalog.Member(catalog.Bootstrap, "default", "alice", "read"); err != nil {
-		t.Fatal(err)
-	}
-	stored := runJevJobToRest(t, app, job.ID, false)
-	if stored.State != "paused" || stored.Message != "Notebook permission is unavailable." {
-		t.Fatalf("the run ended %q: %q", stored.State, stored.Message)
-	}
+func organizerTagInput(operation, mode string) JobInput {
+	return JobInput{Kind: "organize", OperationID: operation, Organization: &organizationInput{Mode: mode, Scope: "selected", Paths: []string{"a.md"}, Policy: organizationPolicy{Tags: true, Vocabulary: []string{"workshop"}}}}
 }
 
 // When an applied action's result cannot be saved the run pauses with a

@@ -1,10 +1,11 @@
-package web
+package jev
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
@@ -71,7 +72,7 @@ type organizationAction struct {
 	UndoRevision string                        `json:"undoRevision,omitempty"`
 }
 
-func (s *Server) organizationNotebook(user, project, role string) (*workspace.Store, error) {
+func (s *Service) organizationNotebook(user, project, role string) (*workspace.Store, error) {
 	for _, p := range s.catalog.List(user) {
 		if p.ID == project && p.ProtectedInbox != "" {
 			return nil, workspace.ErrForbidden
@@ -142,7 +143,7 @@ func normalizeOrganizationPolicy(p organizationPolicy, snapshot workspace.Snapsh
 	}
 	return p, nil
 }
-func (s *Server) createOrganizationJob(ctx context.Context, user, project string, input jevJobInput, automatic bool, changed map[string]bool) (jevJob, error) {
+func (s *Service) createOrganizationJob(ctx context.Context, user, project string, input JobInput, automatic bool, changed map[string]bool) (jevJob, error) {
 	empty := jevJob{}
 	if input.Organization == nil || input.OperationID == "" || len(input.OperationID) > 128 || len(input.Sources) > 0 || len(input.Tags) > 0 || len(input.Destinations) > 0 {
 		return empty, decision.ErrInvalid
@@ -159,8 +160,8 @@ func (s *Server) createOrganizationJob(ctx context.Context, user, project string
 	if err != nil {
 		return empty, err
 	}
-	judge, _ := s.jevConfigured()
-	if err = s.jevAuthorized(ctx, user, project, "organization", judge); err != nil {
+	judge, _ := s.hooks.Judge()
+	if err = s.hooks.Authorize(ctx, user, project, "organization", judge); err != nil {
 		return empty, err
 	}
 	account, err := s.catalog.Account(user)
@@ -168,8 +169,8 @@ func (s *Server) createOrganizationJob(ctx context.Context, user, project string
 		return empty, err
 	}
 	raw, _ := json.Marshal(input)
-	requestHash := digest(string(raw))
-	id := digest(account.ID + "\x00" + project + "\x00" + input.OperationID)
+	requestHash := auth.Digest(string(raw))
+	id := auth.Digest(account.ID + "\x00" + project + "\x00" + input.OperationID)
 	s.jevState.mu.Lock()
 	prior, err := s.jevState.readJob(id)
 	s.jevState.mu.Unlock()
@@ -347,11 +348,11 @@ func (s *Server) createOrganizationJob(ctx context.Context, user, project string
 	}
 	return job, nil
 }
-func (s *Server) checkOrganizationJob(ctx context.Context, job jevJob, judge *decision.Service) error {
+func (s *Service) checkOrganizationJob(ctx context.Context, job jevJob, judge *decision.Service) error {
 	if job.Organization == nil {
 		return decision.ErrInvalid
 	}
-	if err := s.jevAuthorized(ctx, job.Owner, job.Project, "organization", judge); err != nil {
+	if err := s.hooks.Authorize(ctx, job.Owner, job.Project, "organization", judge); err != nil {
 		return err
 	}
 	consent, err := s.jevState.organizationConsentGeneration(job.Owner)

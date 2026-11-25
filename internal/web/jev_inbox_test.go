@@ -49,19 +49,15 @@ func TestProtectedInboxAIStaysWithItsConsentingOwner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	app.jevState.mu.Lock()
-	err = app.jevState.write("notebooks/"+digest(inbox.ID)+".json", jevNotebookSettings{Version: 1, Notebook: inbox.ID, AutoChecks: true, EnabledBy: "admin", AccountID: admin.ID, Baseline: map[string]string{}})
-	app.jevState.mu.Unlock()
+	err = writeJevSettings(app, inbox.ID, "admin", admin.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
-	app.scanJevAutomatic(context.Background(), now)
-	app.scanJevAutomatic(context.Background(), now.Add(3*time.Minute))
+	app.jev.ScanAutomatic(context.Background(), now)
+	app.jev.ScanAutomatic(context.Background(), now.Add(3*time.Minute))
 	time.Sleep(500 * time.Millisecond)
-	app.jevState.mu.Lock()
-	ids, _ := app.jevState.jobIDs()
-	app.jevState.mu.Unlock()
+	ids, _ := app.jev.JobIDs()
 	if calls.Load() != 0 || len(ids) != 0 {
 		t.Errorf("automatic checks processed another person's Inbox: calls=%d jobs=%d", calls.Load(), len(ids))
 	}
@@ -84,9 +80,7 @@ func TestProtectedInboxAIStaysWithItsConsentingOwner(t *testing.T) {
 	if w := proxyCall(app, "bob", "POST", "/p/"+inbox.ID+"/api/jev/jobs", `{"kind":"consistency","operationId":"owner-review"}`); w.Code == 200 {
 		t.Errorf("owner started a Jev review of the Inbox without cloud consent: %d %s", w.Code, w.Body)
 	}
-	app.jevState.mu.Lock()
-	ids, _ = app.jevState.jobIDs()
-	app.jevState.mu.Unlock()
+	ids, _ = app.jev.JobIDs()
 	if calls.Load() != 0 || len(ids) != 0 {
 		t.Errorf("explicit Jev work processed the Inbox without its owner's consent: calls=%d jobs=%d", calls.Load(), len(ids))
 	}

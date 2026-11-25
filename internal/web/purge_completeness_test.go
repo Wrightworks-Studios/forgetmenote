@@ -154,13 +154,13 @@ func TestPurgeLeavesNoDerivedCopyOfARedactedSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 	job := strings.Repeat("a", 64)
-	if err := app.jevState.records.Write("jobs/"+job+".json", map[string]any{"version": 2, "project": "default", "message": "Checked " + secret}); err != nil {
+	if err := app.jev.Records().Write("jobs/"+job+".json", map[string]any{"version": 2, "project": "default", "message": "Checked " + secret}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jevState.records.Write("results/"+job+"-0001.json", map[string]any{"quote": secret}); err != nil {
+	if err := app.jev.Records().Write("results/"+job+"-0001.json", map[string]any{"quote": secret}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jevState.records.Write("jobs/"+strings.Repeat("b", 64)+".json", map[string]any{"version": 2, "project": "elsewhere", "message": "Not this notebook"}); err != nil {
+	if err := app.jev.Records().Write("jobs/"+strings.Repeat("b", 64)+".json", map[string]any{"version": 2, "project": "elsewhere", "message": "Not this notebook"}); err != nil {
 		t.Fatal(err)
 	}
 	// A private chat of another notebook that drew on this one.
@@ -274,7 +274,7 @@ func TestPurgeLeavesNoDerivedCopyOfARedactedSecret(t *testing.T) {
 		t.Fatalf("the checkpoint after the purge: %+v", checkpoints)
 	}
 	var other map[string]any
-	if err := app.jevState.records.Read("jobs/"+strings.Repeat("b", 64)+".json", &other); err != nil || other["message"] != "Not this notebook" {
+	if err := app.jev.Records().Read("jobs/"+strings.Repeat("b", 64)+".json", &other); err != nil || other["message"] != "Not this notebook" {
 		t.Fatalf("another notebook's Jev record changed: %v %v", other, err)
 	}
 	// The index is derived again from the purged notebook.

@@ -1,6 +1,7 @@
-package web
+package jev
 
 import (
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/knowledge"
 	"sort"
 )
@@ -33,7 +34,7 @@ func jevJobResults(job jevJob) []jevJobResult {
 	for _, id := range order {
 		parts := groups[id]
 		result := parts[0]
-		result.ID = digest(job.ID + "\x00" + id)
+		result.ID = auth.Digest(job.ID + "\x00" + id)
 		result.Complete = len(parts) == expected[id]
 		result.Compared = 0
 		result.Evidence = []knowledge.JudgmentEvidence{}

@@ -153,7 +153,7 @@ func TestPreparePurgeGivesAgentsNoCountsOfRecordsOutsideTheNotebook(t *testing.T
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jevState.records.Write("jobs/"+strings.Repeat("d", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "remember that my bank PIN is 7391, my card ends 4242"}); err != nil {
+	if err := app.jev.Records().Write("jobs/"+strings.Repeat("d", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "remember that my bank PIN is 7391, my card ends 4242"}); err != nil {
 		t.Fatal(err)
 	}
 	sessions := purgeAgents(t, app, "notes:read notes:write notes:manage", "keeper", catalog.Bootstrap)

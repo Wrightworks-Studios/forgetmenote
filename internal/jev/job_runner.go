@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"forgetmenote/internal/attribution"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
@@ -14,11 +15,11 @@ import (
 	"strings"
 )
 
-func (s *Server) checkJevJob(ctx context.Context, job jevJob, judge *decision.Service) error {
+func (s *Service) checkJevJob(ctx context.Context, job jevJob, judge *decision.Service) error {
 	if job.Organization != nil {
 		return s.checkOrganizationJob(ctx, job, judge)
 	}
-	if err := s.jevAuthorized(ctx, job.Owner, job.Project, job.Kind, judge); err != nil {
+	if err := s.hooks.Authorize(ctx, job.Owner, job.Project, job.Kind, judge); err != nil {
 		return err
 	}
 	if job.Model != judge.Model() {
@@ -64,7 +65,7 @@ func (s *Server) checkJevJob(ctx context.Context, job jevJob, judge *decision.Se
 	return nil
 }
 
-func (s *Server) runJevJob(ctx context.Context, job jevJob) {
+func (s *Service) runJevJob(ctx context.Context, job jevJob) {
 	if job.Organization != nil {
 		s.runOrganizationJob(ctx, job)
 		return
@@ -74,7 +75,7 @@ func (s *Server) runJevJob(ctx context.Context, job jevJob) {
 		job.Message = message
 		s.settleJevJob(&job)
 	}
-	judge, _ := s.jevConfigured()
+	judge, _ := s.hooks.Judge()
 	if err := s.checkJevJob(ctx, job, judge); err != nil {
 		pause("Access, consent, settings or source content changed. Review current sources before continuing.")
 		return
@@ -162,7 +163,7 @@ func (s *Server) runJevJob(ctx context.Context, job jevJob) {
 			pause("Sources changed before publication; start a fresh review.")
 			return
 		}
-		result := jevJobResult{ID: digest(job.ID + fmt.Sprint(job.Cursor)), Kind: work.Kind, Status: work.Verdict, Evidence: evidence}
+		result := jevJobResult{ID: auth.Digest(job.ID + fmt.Sprint(job.Cursor)), Kind: work.Kind, Status: work.Verdict, Evidence: evidence}
 		switch work.Kind {
 		case "consistency":
 			result.Title = "Consistency: " + work.Verdict
@@ -237,7 +238,7 @@ func (s *Server) runJevJob(ctx context.Context, job jevJob) {
 	s.settleJevJob(&job)
 }
 
-func (s *Server) publishJevFinding(ctx context.Context, job *jevJob, work *jevJobWork, evidence []knowledge.JudgmentEvidence, judge *decision.Service) (workspace.ReviewFinding, error) {
+func (s *Service) publishJevFinding(ctx context.Context, job *jevJob, work *jevJobWork, evidence []knowledge.JudgmentEvidence, judge *decision.Service) (workspace.ReviewFinding, error) {
 	store, err := s.catalog.Access(job.Owner, job.Project, "comment")
 	if err != nil {
 		return workspace.ReviewFinding{}, err
@@ -248,7 +249,7 @@ func (s *Server) publishJevFinding(ctx context.Context, job *jevJob, work *jevJo
 	}
 	sort.Strings(ids)
 	raw, _ := json.Marshal(ids)
-	key := "jev-consistency-" + digest(string(raw))
+	key := "jev-consistency-" + auth.Digest(string(raw))
 	findings, err := store.Findings(ctx)
 	if err != nil {
 		return workspace.ReviewFinding{}, err

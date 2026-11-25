@@ -41,8 +41,8 @@ func (s *Server) ConfigureAIConfig(cfg *chat.Config, judge *decision.Config) err
 }
 func (s *Server) chatConfigurationHooks() chat.ConfigurationHooks {
 	hooks := chat.ConfigurationHooks{Installed: func(previous, current *decision.Service, localOnly bool) error {
-		if previous != nil && s.jevState != nil {
-			if err := s.invalidateOrganizationJobs(func(jevJob) bool { return true }); err != nil {
+		if previous != nil && s.jev != nil {
+			if err := s.jev.InvalidateOrganizationJobs(); err != nil {
 				return err
 			}
 		}
@@ -51,8 +51,8 @@ func (s *Server) chatConfigurationHooks() chat.ConfigurationHooks {
 		}
 		return s.refreshChatEmbeddingPolicy()
 	}}
-	if s.jevState != nil {
-		hooks.Guard = func() func() { s.jevState.organizationMu.Lock(); return s.jevState.organizationMu.Unlock }
+	if s.jev != nil {
+		hooks.Guard = s.jev.OrganizationGuard
 	}
 	return hooks
 }

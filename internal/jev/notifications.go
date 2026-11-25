@@ -1,11 +1,13 @@
-package web
+package jev
 
 import (
 	"context"
 	"errors"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 	"net/http"
 	"os"
@@ -33,7 +35,7 @@ type jevReadState struct {
 	Read      map[string]bool `json:"read"`
 }
 
-func readStateName(account string) string { return "notifications/" + digest(account) + ".json" }
+func readStateName(account string) string { return "notifications/" + auth.Digest(account) + ".json" }
 func newReadState(account string) jevReadState {
 	return jevReadState{Version: 1, AccountID: account, Read: map[string]bool{}}
 }
@@ -41,7 +43,7 @@ func validReadState(account string, state jevReadState) bool {
 	return state.Version == 1 && state.AccountID == account && state.Read != nil && len(state.Read) <= 10000
 }
 
-func (s *Server) notificationReadState(account string) (jevReadState, error) {
+func (s *Service) notificationReadState(account string) (jevReadState, error) {
 	var state jevReadState
 	err := s.jevState.read(readStateName(account), &state)
 	if errors.Is(err, os.ErrNotExist) {
@@ -53,7 +55,7 @@ func (s *Server) notificationReadState(account string) (jevReadState, error) {
 	return state, nil
 }
 
-func (s *Server) notifications(ctx context.Context, user string) ([]jevNotification, error) {
+func (s *Service) notifications(ctx context.Context, user string) ([]jevNotification, error) {
 	account, err := s.catalog.Account(user)
 	if err != nil || !s.catalog.Enabled(user) {
 		return nil, workspace.ErrForbidden
@@ -162,7 +164,7 @@ func (s *Server) notifications(ctx context.Context, user string) ([]jevNotificat
 					if !ok || finding.Comment.Resolved || finding.Comment.Finding.Stale {
 						continue
 					}
-					id = digest(job.Project + "\x00" + result.FindingID)
+					id = auth.Digest(job.Project + "\x00" + result.FindingID)
 				}
 				notification := jevNotification{ID: id, Project: job.Project, Job: job.ID, Kind: result.Kind, Title: result.Title, Summary: result.Summary, CreatedAt: job.CreatedAt, Read: readState.Read[id], FindingID: result.FindingID, FindingPath: result.FindingPath, ProposalID: result.ProposalID, Evidence: result.Evidence, Details: result.Details}
 				if previous, ok := items[id]; !ok || notification.CreatedAt > previous.CreatedAt {
@@ -175,13 +177,13 @@ func (s *Server) notifications(ctx context.Context, user string) ([]jevNotificat
 			}
 		}
 	}
-	if s.quicknotes != nil {
-		settings, e := s.quicknotes.Settings(user)
+	if notes := s.hooks.Quicknotes(); notes != nil {
+		settings, e := notes.Settings(user)
 		if e != nil {
 			return nil, e
 		}
 		if settings.NotifyDestination {
-			captures, e := s.quicknotes.List(ctx, user)
+			captures, e := notes.List(ctx, user)
 			if e != nil {
 				return nil, e
 			}
@@ -197,7 +199,7 @@ func (s *Server) notifications(ctx context.Context, user string) ([]jevNotificat
 				if e != nil || doc.Version != capture.Version || workspace.ContentHash(doc.Content) != capture.Hash {
 					continue
 				}
-				id := digest("quicknotes\x00" + account.ID + "\x00" + capture.ID + "\x00" + capture.Project + "\x00" + capture.Path)
+				id := auth.Digest("quicknotes\x00" + account.ID + "\x00" + capture.ID + "\x00" + capture.Project + "\x00" + capture.Path)
 				items[id] = jevNotification{ID: id, Project: capture.Project, Kind: "quicknotes", Title: "Quicknote filed", Summary: "Saved in " + capture.Project + " / " + capture.Path, CreatedAt: capture.CreatedAt, Read: readState.Read[id], Evidence: []knowledge.JudgmentEvidence{{Path: capture.Path, Revision: doc.Revision, Hash: capture.Hash, Text: capture.Excerpt, URL: evidenceURL(capture.Path, doc.Revision)}}}
 			}
 		}
@@ -217,15 +219,15 @@ func (s *Server) notifications(ctx context.Context, user string) ([]jevNotificat
 	return out, nil
 }
 
-func (s *Server) jevNotifications(w http.ResponseWriter, r *http.Request) {
-	user, err := s.interactiveIdentity(r)
+func (s *Service) jevNotifications(w http.ResponseWriter, r *http.Request) {
+	user, err := s.hooks.Identity(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	items, err := s.notifications(r.Context(), user)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	count := 0
@@ -236,7 +238,7 @@ func (s *Server) jevNotifications(w http.ResponseWriter, r *http.Request) {
 	}
 	offset, limit, err := jevPage(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	start, end := jevPageBounds(len(items), offset, limit)
@@ -244,28 +246,28 @@ func (s *Server) jevNotifications(w http.ResponseWriter, r *http.Request) {
 	if end < len(items) {
 		next = end
 	}
-	jsonResponse(w, map[string]any{"unreadCount": count, "items": items[start:end], "total": len(items), "offset": start, "next": next})
+	webcore.JSON(w, map[string]any{"unreadCount": count, "items": items[start:end], "total": len(items), "offset": start, "next": next})
 }
 
-func (s *Server) jevNotificationsRead(w http.ResponseWriter, r *http.Request) {
-	user, err := s.interactiveIdentity(r)
+func (s *Service) jevNotificationsRead(w http.ResponseWriter, r *http.Request) {
+	user, err := s.hooks.Identity(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	var input struct {
 		IDs []string `json:"ids"`
 	}
-	if !decode(w, r, &input) {
+	if !webcore.Decode(w, r, &input) {
 		return
 	}
 	if len(input.IDs) > 2000 {
-		chatFail(w, decision.ErrLimit)
+		webcore.Fail(w, decision.ErrLimit)
 		return
 	}
 	items, err := s.notifications(r.Context(), user)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	allowed := map[string]bool{}
@@ -274,13 +276,13 @@ func (s *Server) jevNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, id := range input.IDs {
 		if !allowed[id] {
-			chatFail(w, workspace.ErrForbidden)
+			webcore.Fail(w, workspace.ErrForbidden)
 			return
 		}
 	}
 	account, err := s.catalog.Account(user)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	s.jevState.mu.Lock()
@@ -299,8 +301,8 @@ func (s *Server) jevNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	})
 	s.jevState.mu.Unlock()
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	jsonResponse(w, map[string]bool{"ok": true})
+	webcore.JSON(w, map[string]bool{"ok": true})
 }

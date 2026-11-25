@@ -92,7 +92,7 @@ and must fit the operator's Jev limits (64 KiB/32 questions by default, with
 32 KiB for shared state plus any one question). Inputs are never silently truncated. Larger or uncertain
 cases become suggestions. Vocabularies are limited to 100 tags and divided into
 bounded independent judgments; there can be up to 32 approved destinations.
-Thresholds are explicit in `internal/web/organizer_runner.go`: tags 0.95 with
+Thresholds are explicit in `internal/jev/organizer_runner.go`: tags 0.95 with
 no-match below 0.05, links 0.95, moves 0.98 and duplicates 0.995. Choice actions also
 require confidence at least 0.9 and a margin of 0.5. These are conservative initial
 policy values, not calibrated correctness probabilities.

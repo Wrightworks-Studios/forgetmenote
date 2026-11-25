@@ -1,8 +1,9 @@
-package web
+package jev
 
 import (
 	"encoding/json"
 	"fmt"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/decision"
 	"net/http"
 	"strconv"
@@ -21,7 +22,7 @@ func resultName(job string, index int) string { return fmt.Sprintf("results/%s-%
 // jobResultsPrefix starts the names of every result of job, and of no other job's.
 func jobResultsPrefix(id string) string { return "results/" + id + "-" }
 
-func (s *Server) writeJevResult(job jevJob, result jevJobResult) error {
+func (s *Service) writeJevResult(job jevJob, result jevJobResult) error {
 	s.jevState.mu.Lock()
 	defer s.jevState.mu.Unlock()
 	current, err := s.jevState.readJob(job.ID)
@@ -32,10 +33,10 @@ func (s *Server) writeJevResult(job jevJob, result jevJobResult) error {
 		return decision.ErrInvalid
 	}
 	raw, _ := json.Marshal(result)
-	return s.jevState.write(resultName(job.ID, job.Cursor), jevResultRecord{Version: 1, Job: job.ID, Index: job.Cursor, Hash: digest(string(raw)), Result: result})
+	return s.jevState.write(resultName(job.ID, job.Cursor), jevResultRecord{Version: 1, Job: job.ID, Index: job.Cursor, Hash: auth.Digest(string(raw)), Result: result})
 }
 
-func (s *Server) readJevResult(job jevJob, index int) (jevJobResult, error) {
+func (s *Service) readJevResult(job jevJob, index int) (jevJobResult, error) {
 	var record jevResultRecord
 	if index < 0 || index >= job.Cursor {
 		return record.Result, decision.ErrInvalid
@@ -48,7 +49,7 @@ func (s *Server) readJevResult(job jevJob, index int) (jevJobResult, error) {
 
 func checkJevResult(job jevJob, index int, record jevResultRecord) (jevJobResult, error) {
 	raw, _ := json.Marshal(record.Result)
-	if record.Version != 1 || record.Job != job.ID || record.Index != index || record.Hash != digest(string(raw)) || record.Result.ID != digest(job.ID+fmt.Sprint(index)) || record.Result.Kind != job.Work[index].Kind || record.Result.Status == "" || len(record.Result.Evidence) == 0 {
+	if record.Version != 1 || record.Job != job.ID || record.Index != index || record.Hash != auth.Digest(string(raw)) || record.Result.ID != auth.Digest(job.ID+fmt.Sprint(index)) || record.Result.Kind != job.Work[index].Kind || record.Result.Status == "" || len(record.Result.Evidence) == 0 {
 		return record.Result, decision.ErrStorage
 	}
 	return record.Result, nil
@@ -56,7 +57,7 @@ func checkJevResult(job jevJob, index int, record jevResultRecord) (jevJobResult
 
 // readJevResults reads every result of job in one query. A result a runner
 // wrote before it could advance past it is not yet one of them.
-func (s *Server) readJevResults(job jevJob) ([]jevJobResult, error) {
+func (s *Service) readJevResults(job jevJob) ([]jevJobResult, error) {
 	results := make([]jevJobResult, job.Cursor)
 	if job.Cursor == 0 {
 		return results, nil
@@ -105,7 +106,7 @@ func jevPage(r *http.Request) (int, int, error) {
 
 // Results are individually durable before Cursor advances. Paging reads only the
 // requested results; an interrupted write cannot advertise nonexistent output.
-func (s *Server) jevResultPage(job jevJob, offset, limit int) ([]jevJobResult, int, error) {
+func (s *Service) jevResultPage(job jevJob, offset, limit int) ([]jevJobResult, int, error) {
 	return jevResultPageOf(job, offset, limit, func(index int) (jevJobResult, error) { return s.readJevResult(job, index) })
 }
 
@@ -153,7 +154,7 @@ func jevResultPageOf(job jevJob, offset, limit int, read func(int) (jevJobResult
 	return results, len(order), nil
 }
 
-func (s *Server) jevJobPage(job jevJob, offset, limit int) (map[string]any, error) {
+func (s *Service) jevJobPage(job jevJob, offset, limit int) (map[string]any, error) {
 	results, total, err := s.jevResultPage(job, offset, limit)
 	if err != nil {
 		return nil, err

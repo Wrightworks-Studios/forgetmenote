@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/jev"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/workspace"
@@ -243,7 +244,7 @@ func TestInstanceAIAutomaticReviewStartsFromBaselineAndStopsWhenDisabled(t *test
 		t.Fatal(err)
 	}
 	app.syncInstanceAI(context.Background())
-	settings, err := app.loadJevNotebook("default")
+	settings, err := storedJevSettings(app, "default")
 	if err != nil || !settings.AutoChecks || settings.EnabledBy != catalog.Bootstrap || len(settings.Baseline) != 2 {
 		t.Fatalf("missing instance baseline: %+v: %v", settings, err)
 	}
@@ -256,14 +257,12 @@ func TestInstanceAIAutomaticReviewStartsFromBaselineAndStopsWhenDisabled(t *test
 		t.Fatal(err)
 	}
 	now := time.Now()
-	app.scanJevAutomatic(context.Background(), now)
+	app.jev.ScanAutomatic(context.Background(), now)
 	if calls.Load() != 0 {
 		t.Fatal("review ignored debounce")
 	}
-	app.scanJevAutomatic(context.Background(), now.Add(3*time.Minute))
-	app.jevState.mu.Lock()
-	ids, err := app.jevState.jobIDs()
-	app.jevState.mu.Unlock()
+	app.jev.ScanAutomatic(context.Background(), now.Add(3*time.Minute))
+	ids, err := app.jev.JobIDs()
 	if err != nil || len(ids) != 1 {
 		t.Fatal(ids, err)
 	}
@@ -278,7 +277,7 @@ func TestInstanceAIAutomaticReviewStartsFromBaselineAndStopsWhenDisabled(t *test
 	if _, err = app.catalog.SetAISettings(catalog.Bootstrap, config); err != nil {
 		t.Fatal(err)
 	}
-	app.scanJevAutomatic(context.Background(), now.Add(10*time.Minute))
+	app.jev.ScanAutomatic(context.Background(), now.Add(10*time.Minute))
 	if calls.Load() != 2 {
 		t.Fatal("disabled reviews sent more content")
 	}
@@ -323,7 +322,7 @@ func TestInstanceAIAutomaticReviewLeavesPrivateMemoryAlone(t *testing.T) {
 	}
 	app.syncInstanceAI(t.Context())
 	for _, notebook := range []string{core.Notebook, project.Notebook} {
-		if settings, err := app.loadJevNotebook(notebook); err != nil || settings.AutoChecks {
+		if settings, err := storedJevSettings(app, notebook); err != nil || settings.AutoChecks {
 			t.Fatalf("the instance policy turned on reviews of private memory %s: %+v %v", notebook, settings, err)
 		}
 	}
@@ -342,45 +341,66 @@ func TestInstanceAIAutomaticReviewLeavesPrivateMemoryAlone(t *testing.T) {
 		}
 	}
 	now := time.Now()
-	app.scanJevAutomatic(t.Context(), now)
-	app.scanJevAutomatic(t.Context(), now.Add(3*time.Minute))
-	app.jevState.mu.Lock()
-	ids, err := app.jevState.jobIDs()
-	var job jevJob
+	app.jev.ScanAutomatic(t.Context(), now)
+	app.jev.ScanAutomatic(t.Context(), now.Add(3*time.Minute))
+	ids, err := app.jev.JobIDs()
+	var job map[string]any
 	if err == nil && len(ids) == 1 {
-		job, err = app.jevState.readJob(ids[0])
+		job, err = app.jev.ReadJob(ids[0])
 	}
-	app.jevState.mu.Unlock()
-	if err != nil || len(ids) != 1 || job.Project != "default" {
-		t.Fatalf("automatic reviews %v of %q: %v", ids, job.Project, err)
+	if err != nil || len(ids) != 1 || job["project"] != "default" {
+		t.Fatalf("automatic reviews %v of %q: %v", ids, job["project"], err)
 	}
-	for deadline := time.Now().Add(30 * time.Second); job.State != "completed" && time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
-		app.jevState.mu.Lock()
-		job, err = app.jevState.readJob(ids[0])
-		app.jevState.mu.Unlock()
-		if err != nil {
+	for deadline := time.Now().Add(30 * time.Second); job["state"] != "completed" && time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if job, err = app.jev.ReadJob(ids[0]); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if job.State != "completed" {
-		t.Fatalf("shared review: %s %s", job.State, job.Message)
+	if job["state"] != "completed" {
+		t.Fatalf("shared review: %s %s", job["state"], job["message"])
 	}
 
 	admin, err := app.catalog.Account(catalog.Bootstrap)
 	if err != nil {
 		t.Fatal(err)
 	}
-	app.jevState.mu.Lock()
-	err = app.jevState.write(jevNotebookName(core.Notebook), jevNotebookSettings{Version: 1, Notebook: core.Notebook, AutoChecks: true, EnabledBy: catalog.Bootstrap, AccountID: admin.ID, Baseline: map[string]string{}})
-	app.jevState.mu.Unlock()
-	if err != nil {
+	if err = writeJevSettings(app, core.Notebook, catalog.Bootstrap, admin.ID); err != nil {
 		t.Fatal(err)
 	}
 	before := calls.Load()
-	if _, err = app.createJevJob(t.Context(), catalog.Bootstrap, core.Notebook, jevJobInput{Kind: "consistency", OperationID: "automatic-earlier"}, true, map[string]bool{"memory.md": true}, nil); !errors.Is(err, workspace.ErrForbidden) {
+	if _, err = app.jev.CreateJob(t.Context(), catalog.Bootstrap, core.Notebook, jev.JobInput{Kind: "consistency", OperationID: "automatic-earlier"}, true, map[string]bool{"memory.md": true}, nil); !errors.Is(err, workspace.ErrForbidden) {
 		t.Fatalf("a retained setting started a memory review: %v", err)
 	}
 	if calls.Load() != before {
 		t.Fatal("memory reached Jev through a retained setting")
 	}
+}
+
+// jevSettings are the stored Jev settings of a notebook these tests read.
+type jevSettings struct {
+	AutoChecks bool              `json:"autoChecks"`
+	EnabledBy  string            `json:"enabledBy"`
+	Baseline   map[string]string `json:"baseline"`
+}
+
+// storedJevSettings reads a notebook's Jev settings; a notebook with none
+// stored has automatic review off.
+func storedJevSettings(app *Server, notebook string) (jevSettings, error) {
+	var stored map[string]any
+	err := app.jev.Records().Read(jev.NotebookName(notebook), &stored)
+	if errors.Is(err, os.ErrNotExist) {
+		return jevSettings{}, nil
+	}
+	if err != nil {
+		return jevSettings{}, err
+	}
+	raw, _ := json.Marshal(stored)
+	var settings jevSettings
+	return settings, json.Unmarshal(raw, &settings)
+}
+
+// writeJevSettings stores settings that turn on automatic review of a notebook
+// directly, as an earlier policy could have left them.
+func writeJevSettings(app *Server, notebook, enabledBy, accountID string) error {
+	return app.jev.Records().Write(jev.NotebookName(notebook), map[string]any{"version": 1, "notebook": notebook, "autoChecks": true, "enabledBy": enabledBy, "accountId": accountID, "baseline": map[string]string{}})
 }

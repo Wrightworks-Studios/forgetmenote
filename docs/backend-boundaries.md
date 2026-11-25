@@ -120,6 +120,18 @@ uses, which is the messaging link. The required hooks bind the
 personal-credential check, client notebook access, Jev and its authorization,
 the chat embedding policy and the origin, each read at each call.
 
+`internal/jev` owns Jev reviews and the organizer: review and organization
+jobs, their scheduler, runner, retention and results, notifications, and each
+person's and notebook's Jev settings. Web keeps the shared Jev admission, the
+protected Inbox consent check, the instance AI policy and the citation checks
+a chat run makes. The required hooks bind the browser identity, the instance
+AI refusal, the configured judge, that admission and the Inbox check, the
+policy's preferences, the instance AI sync and Quick Notes, each read at each
+call. A run reaches notebooks only through the catalog, so it rechecks its
+owner's access there. Its tests run on a real catalog, database and search
+indexes without the instance's guard, so they cover Jev's behaviour; who may
+use Jev is tested in web through the real routes.
+
 `internal/citationchecks` owns citation-check sidecars, bounded queue/read
 admission, worker cancellation and shutdown. Pending check identity is durable
 before work starts; publication checks the current check ID and cannot recreate a

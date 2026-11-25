@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/quicknotes"
 	"net/http"
 	"strings"
@@ -122,8 +123,8 @@ func TestJevNotificationReadStateAndAccessRemainPersonal(t *testing.T) {
 		t.Fatal(job)
 	}
 	var first struct {
-		Unread int               `json:"unreadCount"`
-		Items  []jevNotification `json:"items"`
+		Unread int                   `json:"unreadCount"`
+		Items  []jevNotificationItem `json:"items"`
 	}
 	w := proxyCall(app, "alice", "GET", "/api/notifications", "")
 	json.Unmarshal(w.Body.Bytes(), &first)
@@ -181,4 +182,10 @@ func TestQuicknotesFiledDestinationNotificationIsPrivateAndWithdrawnOnUndo(t *te
 	if strings.Contains(w.Body.String(), "Quicknote filed") {
 		t.Fatal("undo retained filing notification")
 	}
+}
+
+// jevNotificationItem is the part of a Jev notification these tests read.
+type jevNotificationItem struct {
+	ID       string                       `json:"id"`
+	Evidence []knowledge.JudgmentEvidence `json:"evidence"`
 }

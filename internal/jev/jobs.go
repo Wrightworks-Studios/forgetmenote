@@ -1,12 +1,14 @@
-package web
+package jev
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 	"log/slog"
 	"net/http"
@@ -25,7 +27,9 @@ type jevSourceSelection struct {
 	Path     string `json:"path"`
 	Revision string `json:"revision"`
 }
-type jevJobInput struct {
+
+// JobInput is the request for a review or organization job.
+type JobInput struct {
 	Organization *organizationInput   `json:"organization,omitempty"`
 	Kind         string               `json:"kind"`
 	OperationID  string               `json:"operationId"`
@@ -189,7 +193,7 @@ func (j *jevState) jobIDs() ([]string, error) {
 
 // saveJevJob checkpoints the runner's copy of its job unless the job was
 // cancelled, through any gateway, since the runner read it.
-func (s *Server) saveJevJob(job *jevJob) error {
+func (s *Service) saveJevJob(job *jevJob) error {
 	s.jevState.mu.Lock()
 	defer s.jevState.mu.Unlock()
 	_, err := s.jevState.updateJob(job.ID, func(current *jevJob) error {
@@ -210,7 +214,7 @@ func (s *Server) saveJevJob(job *jevJob) error {
 // runner set. A cancellation through any gateway has settled the job already.
 // When the save fails the job is paused with a message instead, so a run
 // never stays running; a job that cannot be saved at all is logged.
-func (s *Server) settleJevJob(job *jevJob) {
+func (s *Service) settleJevJob(job *jevJob) {
 	err := s.saveJevJob(job)
 	if err == nil || errors.Is(err, context.Canceled) {
 		return
@@ -229,7 +233,7 @@ func (s *Server) settleJevJob(job *jevJob) {
 // checkpointJevJob saves a runner's progress and reports whether the run may
 // go on. When it may not, the job is settled: cancelled through any gateway,
 // or paused because the checkpoint failed.
-func (s *Server) checkpointJevJob(job *jevJob) bool {
+func (s *Service) checkpointJevJob(job *jevJob) bool {
 	err := s.saveJevJob(job)
 	if err == nil {
 		return true
@@ -243,46 +247,46 @@ func (s *Server) checkpointJevJob(job *jevJob) bool {
 	return false
 }
 
-func (s *Server) jevJobRoutes() {
-	s.handleProject("POST /api/jev/jobs", "comment", s.jevJobCreate)
-	s.handleProject("GET /api/jev/jobs", "read", s.jevJobList)
-	s.handleProject("GET /api/jev/jobs/{job}", "read", s.jevJobGet)
-	s.handleProject("POST /api/jev/jobs/{job}/continue", "comment", s.jevJobControl)
-	s.handleProject("POST /api/jev/jobs/{job}/cancel", "comment", s.jevJobControl)
-	s.mux.HandleFunc("GET /api/notifications", s.jevNotifications)
-	s.mux.HandleFunc("POST /api/notifications/read", s.jevNotificationsRead)
+func (s *Service) jevJobRoutes(project func(pattern, role string, handler http.HandlerFunc), global func(pattern string, handler func(http.ResponseWriter, *http.Request))) {
+	project("POST /api/jev/jobs", "comment", s.jevJobCreate)
+	project("GET /api/jev/jobs", "read", s.jevJobList)
+	project("GET /api/jev/jobs/{job}", "read", s.jevJobGet)
+	project("POST /api/jev/jobs/{job}/continue", "comment", s.jevJobControl)
+	project("POST /api/jev/jobs/{job}/cancel", "comment", s.jevJobControl)
+	global("GET /api/notifications", s.jevNotifications)
+	global("POST /api/notifications/read", s.jevNotificationsRead)
 }
 
-func (s *Server) jevJobCreate(w http.ResponseWriter, r *http.Request) {
-	user, err := s.interactiveIdentity(r)
+func (s *Service) jevJobCreate(w http.ResponseWriter, r *http.Request) {
+	user, err := s.hooks.Identity(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	var input jevJobInput
-	if !decode(w, r, &input) {
+	var input JobInput
+	if !webcore.Decode(w, r, &input) {
 		return
 	}
 	if input.Kind == "organize" {
 		s.jevState.organizationMu.Lock()
 		defer s.jevState.organizationMu.Unlock()
 	}
-	job, err := s.createJevJob(r.Context(), user, projectID(r.Context()), input, false, nil, nil)
+	job, err := s.createJevJob(r.Context(), user, webcore.NotebookID(r.Context()), input, false, nil, nil)
 	if errors.Is(err, errJevAuditCapacity) {
 		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
 		return
 	}
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	s.launchJevJob(job.ID, false)
-	jsonResponse(w, publicJevJob(job))
+	webcore.JSON(w, publicJevJob(job))
 }
 
 // createJevJob prepares a review. changed, when set, limits it to those notes,
 // and known names the text hashes of passages already reviewed there.
-func (s *Server) createJevJob(ctx context.Context, user, project string, input jevJobInput, automatic bool, changed, known map[string]bool) (jevJob, error) {
+func (s *Service) createJevJob(ctx context.Context, user, project string, input JobInput, automatic bool, changed, known map[string]bool) (jevJob, error) {
 	var empty jevJob
 	// Reviews are paid background work, as the instance.
 	if err := s.outgoing.Check(); err != nil {
@@ -297,8 +301,8 @@ func (s *Server) createJevJob(ctx context.Context, user, project string, input j
 	if input.Kind != "consistency" && input.Kind != "audit" && input.Kind != "organization" || strings.TrimSpace(input.OperationID) == "" || len(input.OperationID) > 128 || len(input.Sources) > 100 || len(input.Destinations) > 100 || len(input.Tags) > 100 {
 		return empty, decision.ErrInvalid
 	}
-	judge, _ := s.jevConfigured()
-	if err := s.jevAuthorized(ctx, user, project, input.Kind, judge); err != nil {
+	judge, _ := s.hooks.Judge()
+	if err := s.hooks.Authorize(ctx, user, project, input.Kind, judge); err != nil {
 		return empty, err
 	}
 	store, err := s.catalog.Access(user, project, "comment")
@@ -310,8 +314,8 @@ func (s *Server) createJevJob(ctx context.Context, user, project string, input j
 		return empty, err
 	}
 	raw, _ := json.Marshal(input)
-	requestHash := digest(string(raw))
-	id := digest(account.ID + "\x00" + project + "\x00" + input.OperationID)
+	requestHash := auth.Digest(string(raw))
+	id := auth.Digest(account.ID + "\x00" + project + "\x00" + input.OperationID)
 	s.jevState.mu.Lock()
 	prior, err := s.jevState.readJob(id)
 	s.jevState.mu.Unlock()
@@ -383,7 +387,7 @@ func publicJevJob(job jevJob) map[string]any {
 
 // visibleJevJob shows a job as stored to user; active reports that a runner
 // on this gateway holds it.
-func (s *Server) visibleJevJob(ctx context.Context, user string, job jevJob, active bool) (jevJob, error) {
+func (s *Service) visibleJevJob(ctx context.Context, user string, job jevJob, active bool) (jevJob, error) {
 	if !s.catalog.Enabled(user) {
 		return job, workspace.ErrForbidden
 	}
@@ -439,79 +443,79 @@ func (s *Server) visibleJevJob(ctx context.Context, user string, job jevJob, act
 	return job, nil
 }
 
-func (s *Server) jevJobGet(w http.ResponseWriter, r *http.Request) {
-	user, err := s.interactiveIdentity(r)
+func (s *Service) jevJobGet(w http.ResponseWriter, r *http.Request) {
+	user, err := s.hooks.Identity(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	job, active, err := s.jevState.readJobAndRunner(r.PathValue("job"))
-	if err != nil || job.Project != projectID(r.Context()) {
-		chatFail(w, chat.ErrNotFound)
+	if err != nil || job.Project != webcore.NotebookID(r.Context()) {
+		webcore.Fail(w, chat.ErrNotFound)
 		return
 	}
 	job, err = s.visibleJevJob(r.Context(), user, job, active)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	offset, limit, err := jevPage(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	result, err := s.jevJobPage(job, offset, limit)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	jsonResponse(w, result)
+	webcore.JSON(w, result)
 }
 
-func (s *Server) jevJobList(w http.ResponseWriter, r *http.Request) {
-	user, err := s.interactiveIdentity(r)
+func (s *Service) jevJobList(w http.ResponseWriter, r *http.Request) {
+	user, err := s.hooks.Identity(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	jobs, active, err := s.jevState.jobsAndRunners(map[string]any{"project": projectID(r.Context())})
+	jobs, active, err := s.jevState.jobsAndRunners(map[string]any{"project": webcore.NotebookID(r.Context())})
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	result := []map[string]any{}
 	for _, job := range jobs {
 		job, err = s.visibleJevJob(r.Context(), user, job, active[job.ID])
 		if err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
 		result = append(result, publicJevJob(job))
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i]["updatedAt"].(string) > result[j]["updatedAt"].(string) })
-	jsonResponse(w, map[string]any{"jobs": result})
+	webcore.JSON(w, map[string]any{"jobs": result})
 }
 
-func (s *Server) jevJobControl(w http.ResponseWriter, r *http.Request) {
+func (s *Service) jevJobControl(w http.ResponseWriter, r *http.Request) {
 	s.jevState.organizationMu.Lock()
 	defer s.jevState.organizationMu.Unlock()
-	user, err := s.interactiveIdentity(r)
+	user, err := s.hooks.Identity(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	id := r.PathValue("job")
 	s.jevState.mu.Lock()
 	job, err := s.jevState.readJob(id)
-	if err != nil || job.Project != projectID(r.Context()) {
+	if err != nil || job.Project != webcore.NotebookID(r.Context()) {
 		s.jevState.mu.Unlock()
-		chatFail(w, chat.ErrNotFound)
+		webcore.Fail(w, chat.ErrNotFound)
 		return
 	}
 	if job.Owner != user {
 		if _, err = s.catalog.Access(user, job.Project, "owner"); err != nil {
 			s.jevState.mu.Unlock()
-			chatFail(w, workspace.ErrForbidden)
+			webcore.Fail(w, workspace.ErrForbidden)
 			return
 		}
 	}
@@ -529,31 +533,31 @@ func (s *Server) jevJobControl(w http.ResponseWriter, r *http.Request) {
 	}
 	s.jevState.mu.Unlock()
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	if !cancel {
 		if job.Cancelled {
-			chatFail(w, workspace.ErrConflict)
+			webcore.Fail(w, workspace.ErrConflict)
 			return
 		}
 		if err = s.outgoing.Check(); err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
-		judge, _ := s.jevConfigured()
+		judge, _ := s.hooks.Judge()
 		if err = s.checkJevJob(r.Context(), job, judge); err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
 		s.launchJevJob(id, true)
 	}
-	jsonResponse(w, publicJevJob(job))
+	webcore.JSON(w, publicJevJob(job))
 }
 
 // One durable review advances at a time. Provider concurrency alone would still
 // allow every queued review to load its full pinned source set into memory.
-func (s *Server) launchJevJob(id string, explicit bool) {
+func (s *Service) launchJevJob(id string, explicit bool) {
 	s.jevState.mu.Lock()
 	defer s.jevState.mu.Unlock()
 	if s.jevState.closed || s.jevState.active["job:"+id] != nil || s.outgoing.Paused() {
@@ -602,7 +606,7 @@ func (s *Server) launchJevJob(id string, explicit bool) {
 
 // launchNextJevJob starts the longest-waiting queued job unless one runs on
 // this gateway. It reads only queued jobs, so finished ones never hide them.
-func (s *Server) launchNextJevJob() {
+func (s *Service) launchNextJevJob() {
 	s.jevState.mu.Lock()
 	if s.jevState.closed {
 		s.jevState.mu.Unlock()

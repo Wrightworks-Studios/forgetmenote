@@ -1,4 +1,4 @@
-package web
+package jev
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func jevInventory(snapshot workspace.Snapshot) string {
 // jevPassageRunes is the passage size reviews split notes into.
 const jevPassageRunes = 1024
 
-func buildJevJob(ctx context.Context, store *workspace.Store, input jevJobInput, changed, known map[string]bool) (jevJob, error) {
+func buildJevJob(ctx context.Context, store *workspace.Store, input JobInput, changed, known map[string]bool) (jevJob, error) {
 	job := jevJob{Notes: []jevJobNote{}, Work: []jevJobWork{}}
 	snapshot, err := store.SnapshotScoped(ctx, "", jevActiveScope())
 	if err != nil {
