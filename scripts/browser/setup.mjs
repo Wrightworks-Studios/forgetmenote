@@ -13,7 +13,10 @@ export default async function setup() {
   let postgres;
   try {
     const binary = join(dir, 'app');
-    execFileSync('go', ['build', '-trimpath', '-o', binary, './cmd/forgetmenote'], {timeout: 60000});
+    // A change to a widely imported package recompiles most of the binary. On a
+    // 2-core runner shared with the image build and smokes, that can take more
+    // than a minute; the bound only stops a hung toolchain.
+    execFileSync('go', ['build', '-trimpath', '-o', binary, './cmd/forgetmenote'], {timeout: 600000});
     // Workers load playwright.config.mjs after setup, so the browser fixture sees it.
     const noNetlink = buildNoNetlink(dir);
     if (noNetlink) process.env.FMN_BROWSER_NO_NETLINK = noNetlink;
