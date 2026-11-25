@@ -67,7 +67,7 @@ func (s *Store) checkAuthority(ctx context.Context) error {
 	}
 	// Any gateway may have prepared or completed a handoff of the notebook
 	// since this one last looked.
-	if err := s.backend.(*dbNotebook).checkStoredAuthority(ctx); err != nil {
+	if err := s.backend.checkStoredAuthority(ctx); err != nil {
 		return err
 	}
 	if s.authority.Phase == "prepared" {

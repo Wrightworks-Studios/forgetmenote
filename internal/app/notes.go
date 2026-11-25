@@ -56,8 +56,7 @@ func (n *Notes) Close() {
 }
 
 // catalogNotebooks lists every notebook the catalog holds, so the export's
-// catch-up covers those not changed since this process started, such as
-// notebooks the cutover imported.
+// catch-up covers those not changed since this process started.
 func catalogNotebooks(c *catalog.Catalog) func(context.Context) ([]string, error) {
 	return func(context.Context) ([]string, error) {
 		var ids []string

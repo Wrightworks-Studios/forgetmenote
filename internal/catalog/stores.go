@@ -2,11 +2,14 @@ package catalog
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"forgetmenote/internal/blob"
 	"forgetmenote/internal/gitexport"
@@ -19,84 +22,37 @@ import (
 // The notes store holds every notebook's content and history; the catalog
 // lists the notebooks people can reach. A notebook's state directory,
 // DATA/projects/ID, keeps only what is derived from it, and its Root,
-// DATA/projects/ID/workspace, is a name, never a Git working tree. There the
-// previous release kept each notebook's repository, which the cutover
-// (forgetmenote admin storage import) copies into the notes store and leaves
-// as it is.
+// DATA/projects/ID/workspace, is a name, never a Git working tree.
 func (c *Catalog) stateDir(id string) string { return filepath.Join(c.data, "projects", id) }
 
 // openStore opens catalog notebook id from the notes store. A notebook the
-// store lacks is refused rather than replaced: one that is still a Git
-// repository names the import, and nothing converts or changes it here. So
-// is one whose storage import did not finish, or whose Git repository holds
-// commits the store lacks (checkImported).
+// store lacks is refused rather than replaced.
 func (c *Catalog) openStore(id string) (*workspace.Store, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), catalogTimeout)
 	defer cancel()
 	store, err := workspace.OpenDB(ctx, c.notes, id, c.stateDir(id), c.browseExcluded)
-	if err == nil {
-		if err = c.checkImported(ctx, id); err != nil {
-			store.Close()
-			return nil, err
-		}
-		return store, nil
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("notebook %s is in the catalog but not in the notes store; restore it from a backup: %w", id, err)
 	}
-	if !errors.Is(err, fs.ErrNotExist) {
-		return store, err
-	}
-	if repository, err := c.gitRepository(id); err != nil || repository != "" {
-		if err == nil {
-			err = fmt.Errorf("notebook %s is still the Git repository %s, which the notes store lacks: stop the instance and run `forgetmenote admin storage import` to copy it into the database (the repository is left as it is)", id, repository)
-		}
-		return nil, err
-	}
-	if owner, ok := c.state.RetiredOwners[id]; ok {
-		return nil, fmt.Errorf("notebook %s is on the notebook owner %s, which this release removed, and the notes store lacks it: stop the owner and every gateway, and run `forgetmenote admin storage import` on the owner's data directory to copy it into the database (deploy/production/storage-cutover.md)", id, owner)
-	}
-	return nil, fmt.Errorf("notebook %s is in the catalog but not in the notes store; restore it from a backup: %w", id, err)
+	return store, err
 }
 
-// checkImported refuses notebook id, which the notes store holds, while its
-// storage import has not finished (StorageImportUnfinished), and while the
-// Git repository the previous release kept it in is still there and its HEAD
-// is not in the notebook's history: the previous release committed to the
-// notebook after the cutover imported it, or the import stopped part way.
-// Served, the notebook would miss those commits, or be one no import
-// verified, and new revisions would build on that history. A HEAD a purge
-// rewrote counts as imported, as only a notebook served after the cutover is
-// purged. It reads the repository without running Git and never changes it.
-func (c *Catalog) checkImported(ctx context.Context, id string) error {
-	unfinished, err := StorageImportUnfinished(ctx, c.db, id)
-	if err != nil {
-		return err
+// StoredNotebooks lists the IDs of the notebooks the stored catalog has,
+// sorted, reading the document without the catalog's directory lock, which
+// a serving gateway holds.
+func StoredNotebooks(ctx context.Context, db *pg.DB) ([]string, error) {
+	version, body, err := db.ReadDocument(ctx, db.Pool, catalogKind, catalogID, -1)
+	if err != nil || version == 0 {
+		return nil, err
 	}
-	if unfinished {
-		return fmt.Errorf("notebook %s: its storage import did not finish: it stopped part way, or before it verified the notebook. Stop the instance and run `forgetmenote admin storage import` again, which resumes and verifies it (docs/storage-cutover.md)", id)
+	var envelope catalogEnvelope
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, err
 	}
-	gitDir, err := c.gitRepository(id)
-	if err != nil || gitDir == "" {
-		return err
+	if envelope.Version != catalogStorageVersion {
+		return nil, fmt.Errorf("unsupported catalog version %d", envelope.Version)
 	}
-	head, ok, err := repositoryHead(gitDir)
-	if err != nil {
-		return fmt.Errorf("notebook %s: cannot read the HEAD of the Git repository the previous release kept it in: %w", id, err)
-	}
-	if !ok {
-		return nil // a branch with no commit holds nothing the store lacks
-	}
-	nb := c.notes.Notebook(id)
-	if _, err = nb.Commit(ctx, head); !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-	if _, rewritten, err := nb.Rewritten(ctx, head); err != nil || rewritten {
-		return err
-	}
-	stored, err := nb.Head(ctx)
-	if err != nil {
-		return err
-	}
-	return fmt.Errorf("notebook %s is at %s in the notes store, but the Git repository %s the previous release kept it in is at %s, which the store lacks: the import stopped part way, or the previous release committed to the notebook after it was imported. Stop the instance and run `forgetmenote admin storage verify`; then run `forgetmenote admin storage import`, which resumes an import that stopped, or else restore the database from the dump taken at the freeze and import every notebook again (docs/storage-cutover.md)",
-		id, stored.Commit, gitDir, head)
+	return slices.Sorted(maps.Keys(envelope.Data.Projects)), nil
 }
 
 // createStore creates notebook id in the notes store for a catalog entry the
@@ -106,9 +62,6 @@ func (c *Catalog) checkImported(ctx context.Context, id string) error {
 // did not commit; it is adopted only while it has nothing but its first
 // commit, so no one receives content they never created or imported.
 func (c *Catalog) createStore(id string) (*workspace.Store, bool, error) {
-	if err := c.checkNoRepository(id); err != nil {
-		return nil, false, err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), catalogTimeout)
 	defer cancel()
 	store, err := workspace.CreateDB(ctx, c.notes, id, c.stateDir(id), c.browseExcluded)
@@ -207,28 +160,6 @@ func (c *Catalog) reserveNotebook(id string) (release func(), err error) {
 		return nil, fmt.Errorf("%w: notebook %s is being created or imported; choose a different ID, or try again shortly", workspace.ErrConflict, id)
 	}
 	return release, nil
-}
-
-// checkNoRepository refuses a new notebook id, created or imported, over the
-// Git repository the previous release left for that ID, which stays as it is.
-func (c *Catalog) checkNoRepository(id string) error {
-	repository, err := c.gitRepository(id)
-	if err == nil && repository != "" {
-		err = fmt.Errorf("%w: the Git repository %s of an earlier notebook %s is still there; import it with `forgetmenote admin storage import`, or move it away, before creating or importing a notebook with this ID", workspace.ErrConflict, repository, id)
-	}
-	return err
-}
-
-// gitRepository returns the Git directory the previous release kept notebook
-// id in under this data directory, or "" when there is none.
-func (c *Catalog) gitRepository(id string) (string, error) {
-	path := filepath.Join(c.stateDir(id), "workspace", ".git")
-	if _, err := os.Lstat(path); errors.Is(err, fs.ErrNotExist) {
-		return "", nil
-	} else if err != nil {
-		return "", err
-	}
-	return path, nil
 }
 
 // ownNotes is the notes store Open makes when no caller supplies one: the

@@ -30,7 +30,7 @@ import (
 // or delete a path with nil.
 func historyCommit(t testing.TB, ctx context.Context, s *Store, summary string, renames map[string]string, changes map[string][]byte) string {
 	t.Helper()
-	db := s.backend.(*dbNotebook)
+	db := s.backend
 	ctx = s.mutationContext(ctx)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -154,10 +154,9 @@ func mustHistory(t *testing.T, s *Store, ctx context.Context, path string) []Com
 	return h
 }
 
-// historyRepository is a notebook's Git repository as the previous release
-// left it, which the cutover imports: commit writes, removes and renames
-// files through Git at a fixed time, as that release or someone editing the
-// repository by hand did.
+// historyRepository is a Git repository a notebook is imported from: commit
+// writes, removes and renames files through Git at a fixed time, as an
+// earlier release or someone editing the repository by hand did.
 type historyRepository struct {
 	t    *testing.T
 	root string
@@ -498,61 +497,6 @@ func TestHistoryAnswersWhileACommitIsHeld(t *testing.T) {
 	release()
 	if err := <-saved; err != nil {
 		t.Fatal(err)
-	}
-}
-
-// WholeHistory lists every revision of a note that History lists only the
-// newest 50 of, following its moves; as of an earlier revision it lists the
-// history up to that revision, under the path the note had then, and so
-// does the notebook's. A revision that is not one of the notebook's is a
-// conflict, as in HistoryRevisions, and one that is no commit ID is refused.
-func TestWholeHistoryListsEveryRevisionAsOfARevision(t *testing.T) {
-	ctx := t.Context()
-	s := newTestStore(t)
-	var drafts []string
-	for i := range 60 {
-		drafts = append(drafts, historySave(t, ctx, s, "draft.md", fmt.Sprintf("# Draft\n\nVersion %d.\n", i)))
-	}
-	historySave(t, ctx, s, "other.md", "# Another note\n")
-	moved := historyCommit(t, ctx, s, `Move "draft.md" to "final.md"`, map[string]string{"final.md": "draft.md"}, nil)
-	last := historySave(t, ctx, s, "final.md", "# Final\n")
-
-	entries := func(list []Commit) []string {
-		var out []string
-		for _, c := range list {
-			out = append(out, c.Revision+" "+c.Path)
-		}
-		return out
-	}
-	want := []string{last + " final.md", moved + " final.md"}
-	for i := range drafts {
-		want = append(want, drafts[len(drafts)-1-i]+" draft.md")
-	}
-	listed := mustHistory(t, s, ctx, "final.md")
-	whole, err := s.WholeHistory(ctx, "final.md", "")
-	if err != nil || !slices.Equal(entries(whole), want) {
-		t.Fatalf("the whole history: %v\n%v", err, entries(whole))
-	}
-	if len(listed) != 50 || !slices.Equal(entries(listed), want[:50]) {
-		t.Fatalf("History lists %d entries, not the newest 50 of the whole history: %v", len(listed), entries(listed))
-	}
-	at, err := s.WholeHistory(ctx, "draft.md", drafts[59])
-	if err != nil || !slices.Equal(entries(at), want[2:]) {
-		t.Fatalf("the history as of the last draft: %v\n%v", err, entries(at))
-	}
-	notebook, err := s.WholeHistory(ctx, "", "")
-	if err != nil || len(notebook) < 63 || notebook[0].Revision != last {
-		t.Fatalf("the notebook's whole history: %v %d", err, len(notebook))
-	}
-	before, err := s.WholeHistory(ctx, "", moved)
-	if err != nil || len(before) != len(notebook)-1 || before[0].Revision != moved {
-		t.Fatalf("the notebook's whole history as of the move: %v %d", err, len(before))
-	}
-	if _, err := s.WholeHistory(ctx, "draft.md", strings.Repeat("ab", 20)); !errors.Is(err, ErrConflict) {
-		t.Fatal("an unknown revision:", err)
-	}
-	if _, err := s.WholeHistory(ctx, "draft.md", "HEAD"); !errors.Is(err, ErrForbidden) {
-		t.Fatal("a revision that is no commit ID:", err)
 	}
 }
 

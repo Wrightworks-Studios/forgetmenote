@@ -63,23 +63,16 @@ type catalogData struct {
 	InstanceLogo       []byte                       `json:"instanceLogo,omitempty"`
 	Transfers          map[string]AuthorityTransfer `json:"authorityTransfers,omitempty"`
 	ProjectAccessEpoch map[string]uint64            `json:"projectAccessEpoch,omitempty"`
-	// RetiredOwners is where a release with remote notebook owners recorded
-	// the notebooks they held. No notebook lives there now: the cutover
-	// imports each one from its owner's data directory into the notes store,
-	// which serves it from then on, and openStore names the owner of one the
-	// store lacks. The record stays as it is, so that release can still serve
-	// the instance until migrate -finish-rollout makes it refuse.
-	RetiredOwners   map[string]string          `json:"remoteProjects,omitempty"`
-	Passwords       map[string]LocalCredential `json:"passwords,omitempty"`
-	OIDC            []ExternalIdentity         `json:"oidc,omitempty"`
-	MessageLinks    []MessageLink              `json:"messageLinks,omitempty"`
-	MessageDeclines []MessageLinkDecline       `json:"messageLinkDeclines,omitempty"`
-	TaskQueues      *TaskQueues                `json:"taskQueues,omitempty"`
-	TaskPeople      []TaskPerson               `json:"taskPeople,omitempty"`
-	AccessEpoch     map[string]uint64          `json:"accessEpoch,omitempty"`
-	Accounts        map[string]Account         `json:"accounts,omitempty"`
-	Users           map[string]User            `json:"users"`
-	Projects        map[string]Project         `json:"projects"`
+	Passwords          map[string]LocalCredential   `json:"passwords,omitempty"`
+	OIDC               []ExternalIdentity           `json:"oidc,omitempty"`
+	MessageLinks       []MessageLink                `json:"messageLinks,omitempty"`
+	MessageDeclines    []MessageLinkDecline         `json:"messageLinkDeclines,omitempty"`
+	TaskQueues         *TaskQueues                  `json:"taskQueues,omitempty"`
+	TaskPeople         []TaskPerson                 `json:"taskPeople,omitempty"`
+	AccessEpoch        map[string]uint64            `json:"accessEpoch,omitempty"`
+	Accounts           map[string]Account           `json:"accounts,omitempty"`
+	Users              map[string]User              `json:"users"`
+	Projects           map[string]Project           `json:"projects"`
 }
 type Catalog struct {
 	activity       []Activity

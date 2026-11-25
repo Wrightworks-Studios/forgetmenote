@@ -7,7 +7,7 @@ SMOKE_IMAGE ?= forgetmenote:poc
 BACKUP_TEST_COMMAND ?= $(PYTHON) -m unittest discover -s deploy/git-backup
 export SMOKE_IMAGE
 
-.PHONY: setup-deps setup-browser operator-venv browser-summary ui-capture format-browser frontend test test-go test-frontend test-fixture test-python check check-fast check-release check-browser build build-clients smoke smoke-core smoke-headless smoke-source smoke-resource smoke-chat smoke-jev smoke-oidc smoke-totp smoke-cluster smoke-full smoke-rollback smoke-cutover test-python-host vet format
+.PHONY: setup-deps setup-browser operator-venv browser-summary ui-capture format-browser frontend test test-go test-frontend test-fixture test-python check check-fast check-release check-browser build build-clients smoke smoke-core smoke-headless smoke-source smoke-resource smoke-chat smoke-jev smoke-oidc smoke-totp smoke-cluster smoke-full test-python-host vet format
 
 # Install explicitly; focused checks reuse the existing toolchain and caches.
 setup-deps:
@@ -113,14 +113,6 @@ smoke-totp:
 
 smoke-cluster:
 	$(PYTHON) scripts/cluster_smoke.py
-
-# Not part of smoke-full: it needs the file-based release image pulled locally.
-smoke-rollback:
-	$(PYTHON) scripts/rollback_smoke.py
-
-# Not part of smoke-full either: it rehearses the cutover from that release.
-smoke-cutover:
-	$(PYTHON) scripts/cutover_smoke.py
 
 # Preserve sequential execution even if the caller uses make -j.
 smoke-full:

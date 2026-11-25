@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"forgetmenote/internal/blob"
-	"forgetmenote/internal/gitexport"
 	"forgetmenote/internal/gitobj"
 	"forgetmenote/internal/notestore"
 	"forgetmenote/internal/pg"
@@ -49,35 +47,6 @@ func testGit(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 	return strings.TrimSpace(string(out))
-}
-
-// gitNotebook leaves the working tree of a notebook the previous release kept
-// in Git under data, as a cutover finds it, and returns its HEAD.
-func gitNotebook(t *testing.T, data, id string) string {
-	t.Helper()
-	tree := filepath.Join(data, "projects", id, "workspace")
-	if err := os.MkdirAll(tree, 0700); err != nil {
-		t.Fatal(err)
-	}
-	testGit(t, tree, "init", "--quiet", "--initial-branch=main")
-	if err := os.WriteFile(filepath.Join(tree, "kept.md"), []byte("# Kept in Git\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	testGit(t, tree, "add", "kept.md")
-	testGit(t, tree, "commit", "--quiet", "-m", "Keep a note")
-	return testGit(t, tree, "rev-parse", "HEAD")
-}
-
-// gitUnchanged fails unless the Git notebook is still exactly as it was left.
-func gitUnchanged(t *testing.T, data, id, head string) {
-	t.Helper()
-	tree := filepath.Join(data, "projects", id, "workspace")
-	if got := testGit(t, tree, "rev-parse", "HEAD"); got != head {
-		t.Fatalf("the Git notebook moved from %s to %s", head, got)
-	}
-	if status := testGit(t, tree, "status", "--porcelain", "--untracked-files=all", "--ignored"); status != "" {
-		t.Fatalf("the Git notebook's working tree changed:\n%s", status)
-	}
 }
 
 // Every notebook the catalog creates lives in the notes store, never in a Git
@@ -126,57 +95,6 @@ func TestCatalogKeepsNotebooksInTheNotesStore(t *testing.T) {
 	}
 }
 
-// A catalog notebook still in the previous release's Git repository, which
-// the notes store lacks, stops the catalog from opening, with the command
-// that imports it. The catalog never converts or changes the repository; once
-// imported, it serves the notebook with the repository's history.
-func TestCatalogRefusesAGitNotebookTheNotesStoreLacks(t *testing.T) {
-	data := t.TempDir()
-	db := testDB(t, data)
-	c, err := Open(data, nil, db)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.Create(Bootstrap, "beta", "Beta")
-	c.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	notes := testNotes(t, data, db)
-	if err = notes.Delete(t.Context(), "beta"); err != nil {
-		t.Fatal(err)
-	}
-	head := gitNotebook(t, data, "beta")
-	if c, err = Open(data, nil, db); err == nil {
-		c.Close()
-		t.Fatal("the catalog opened without the Git notebook it lists")
-	}
-	if !strings.Contains(err.Error(), "beta") || !strings.Contains(err.Error(), "forgetmenote admin storage import") {
-		t.Fatalf("the refusal does not name the notebook and the import: %v", err)
-	}
-	gitUnchanged(t, data, "beta", head)
-	if _, err = notes.Notebook("beta").Head(t.Context()); !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("the refusal stored the notebook: %v", err)
-	}
-	// What the cutover's import does.
-	if _, err = gitexport.ImportGitDir(t.Context(), notes.Notebook("beta"), filepath.Join(data, "projects", "beta", "workspace", ".git")); err != nil {
-		t.Fatal(err)
-	}
-	c, err = Open(data, nil, db)
-	if err != nil {
-		t.Fatal("the imported notebook is still refused:", err)
-	}
-	defer c.Close()
-	store, err := c.Access(Bootstrap, "beta", "read")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status, err := store.Status(t.Context()); err != nil || status.Revision != head {
-		t.Fatalf("the imported notebook is at %+v, not at the repository's %s: %v", status, head, err)
-	}
-	gitUnchanged(t, data, "beta", head)
-}
-
 // A catalog notebook the notes store lacks, with no repository to import, is
 // refused rather than replaced by an empty notebook.
 func TestCatalogRefusesANotebookTheNotesStoreLacks(t *testing.T) {
@@ -200,85 +118,6 @@ func TestCatalogRefusesANotebookTheNotesStoreLacks(t *testing.T) {
 	if _, err = testNotes(t, data, db).Notebook("default").Head(t.Context()); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("the refusal created the notebook: %v", err)
 	}
-}
-
-// A notebook the previous release kept on a notebook owner process lives in
-// that owner's data directory, which no gateway of this release sees. The
-// catalog refuses it, naming the owner and the import, until the cutover has
-// imported it from there; then it serves it at the owner's head. The catalog
-// keeps the owner record, so the previous release can still serve the
-// instance until migrate -finish-rollout makes it refuse.
-func TestCatalogServesAnOwnerNotebookOnceImported(t *testing.T) {
-	data := t.TempDir()
-	db := testDB(t, data)
-	c, err := Open(data, nil, db)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.Create(Bootstrap, "beta", "Beta")
-	c.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	notes := testNotes(t, data, db)
-	if err = notes.Delete(t.Context(), "beta"); err != nil {
-		t.Fatal(err)
-	}
-	owner := t.TempDir()
-	head := gitNotebook(t, owner, "beta")
-	var envelope map[string]any
-	version, raw, err := db.ReadDocument(t.Context(), db.Pool, catalogKind, catalogID, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = json.Unmarshal(raw, &envelope); err != nil {
-		t.Fatal(err)
-	}
-	envelope["data"].(map[string]any)["remoteProjects"] = map[string]string{"beta": "pool"}
-	raw, _ = json.Marshal(envelope)
-	if _, err = db.WriteDocument(t.Context(), db.Pool, catalogKind, catalogID, version, raw); err != nil {
-		t.Fatal(err)
-	}
-	if c, err = Open(data, nil, db); err == nil {
-		c.Close()
-		t.Fatal("the catalog opened a notebook its owner holds and the notes store lacks")
-	}
-	for _, want := range []string{"beta", "pool", "forgetmenote admin storage import", "owner's data directory"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("the refusal does not say %q: %v", want, err)
-		}
-	}
-	// What the cutover's import does on the owner's data directory.
-	if _, err = gitexport.ImportGitDir(t.Context(), notes.Notebook("beta"), filepath.Join(owner, "projects", "beta", "workspace", ".git")); err != nil {
-		t.Fatal(err)
-	}
-	c, err = Open(data, nil, db)
-	if err != nil {
-		t.Fatal("the imported owner notebook is still refused:", err)
-	}
-	defer c.Close()
-	store, err := c.Access(Bootstrap, "beta", "read")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status, err := store.Status(t.Context()); err != nil || status.Revision != head {
-		t.Fatalf("the imported notebook is at %+v, not at the owner's %s: %v", status, head, err)
-	}
-	if err = c.Create(Bootstrap, "gamma", "Gamma"); err != nil {
-		t.Fatal(err)
-	}
-	var stored struct {
-		Data struct {
-			RemoteProjects map[string]string `json:"remoteProjects"`
-		} `json:"data"`
-	}
-	if err = json.Unmarshal([]byte(storedCatalog(t, c)), &stored); err != nil {
-		t.Fatal(err)
-	}
-	if stored.Data.RemoteProjects["beta"] != "pool" || len(stored.Data.RemoteProjects) != 1 {
-		t.Fatalf("a catalog change rewrote the owner record: %v", stored.Data.RemoteProjects)
-	}
-	gitUnchanged(t, owner, "beta", head)
 }
 
 // A creation the catalog fails to publish removes the new notebook and any
@@ -382,25 +221,6 @@ func TestCreationAdoptsOnlyAnEmptyUnpublishedNotebook(t *testing.T) {
 	}
 	if _, err = c.Access(Bootstrap, "empty", "edit"); err != nil {
 		t.Fatal(err)
-	}
-}
-
-// A Git repository the previous release left for an ID blocks creating a new
-// notebook over it, and stays as it was.
-func TestCreationRefusesAnUnimportedGitNotebook(t *testing.T) {
-	data := t.TempDir()
-	c, err := Open(data, nil, testDB(t, data))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	head := gitNotebook(t, data, "gamma")
-	if err = c.Create(Bootstrap, "gamma", "Gamma"); err == nil || !strings.Contains(err.Error(), "forgetmenote admin storage import") {
-		t.Fatalf("a creation went over a Git notebook: %v", err)
-	}
-	gitUnchanged(t, data, "gamma", head)
-	if _, err = c.notes.Notebook("gamma").Head(t.Context()); !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("the refused creation stored the notebook: %v", err)
 	}
 }
 

@@ -217,7 +217,7 @@ before the purge cannot be saved back.
   bundles taken before the purge still hold the content. Delete or re-take
   them according to your retention policy.
 - **Reach the previous release's files.** After the move to the database
-  ([storage cutover](storage-cutover.md)), each notebook's old Git working
+  (the storage v2 cutover), each notebook's old Git working
   tree and repository (`data/projects/NOTEBOOK/workspace` with its `.git`),
   its `collaboration/` and `captures/` and any `write-journal.json` stay in
   the data directory with the content from before the cutover. No purge

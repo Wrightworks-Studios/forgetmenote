@@ -37,18 +37,7 @@ const (
 )
 
 func (n *dbNotebook) History(ctx context.Context, path string) ([]Commit, error) {
-	return n.committedHistoryAt(ctx, path, "", nil, historyLimit)
-}
-
-// WholeHistory is the whole history of which History lists the newest 50, as
-// of revision, or of the head when revision is empty, for admin storage
-// check, which compares every entry with the repository's at the
-// repository's HEAD. No request lists a history whole.
-func (n *dbNotebook) WholeHistory(ctx context.Context, path, revision string) ([]Commit, error) {
-	if revision != "" && !revisionPattern.MatchString(revision) {
-		return nil, ErrForbidden
-	}
-	return n.committedHistoryAt(ctx, path, revision, nil, 0)
+	return n.committedHistoryAt(ctx, path, nil, historyLimit)
 }
 
 // HistoryScoped filters version-local postimages before the 50-result limit.
@@ -59,7 +48,7 @@ func (n *dbNotebook) HistoryScoped(ctx context.Context, path string, scope Conte
 	if path == "AGENTS.md" || IsTrash(path) || !strings.HasSuffix(path, ".md") {
 		return nil, ErrForbidden
 	}
-	return n.committedHistoryAt(ctx, path, "", &scope, historyLimit)
+	return n.committedHistoryAt(ctx, path, &scope, historyLimit)
 }
 
 // historyHead is head with its seq, which bounds every history query to the
@@ -78,9 +67,8 @@ func (n *dbNotebook) historyHead(ctx context.Context) (notestore.Head, error) {
 
 // committedHistoryAt fixes the head under mu,
 // walks immutable revisions without it, and checks authority and the path
-// again before returning. A revision, if given, takes the head's place; it
-// must be one of the notebook's. It lists at most limit revisions, all for 0.
-func (n *dbNotebook) committedHistoryAt(ctx context.Context, path, revision string, scope *ContentScope, limit int) ([]Commit, error) {
+// again before returning. It lists at most limit revisions, all for 0.
+func (n *dbNotebook) committedHistoryAt(ctx context.Context, path string, scope *ContentScope, limit int) ([]Commit, error) {
 	n.mu.Lock()
 	generation := n.authorityGeneration.Load()
 	if path != "" {
@@ -98,16 +86,6 @@ func (n *dbNotebook) committedHistoryAt(ctx context.Context, path, revision stri
 	n.mu.Unlock()
 	if err != nil {
 		return nil, err
-	}
-	if revision != "" {
-		seq, ok, err := n.historySeq(ctx, head, revision)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, ErrConflict
-		}
-		head = notestore.Head{Seq: seq}
 	}
 	var results []Commit
 	if path == "" {

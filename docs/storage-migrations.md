@@ -2,9 +2,9 @@
 
 Audience: instance operators. Take a completed, complete stopped-volume backup
 and protect the preceding image before this storage release. These changes are
-migrations, so a pending EBS snapshot is insufficient. Follow the existing
-[production recovery procedure](aws-recovery.md) and
-[complete restoration procedure](standalone.md#backup-and-full-restoration).
+migrations, so a pending EBS snapshot is insufficient. Follow the
+[complete restoration procedure](standalone.md#backup-and-full-restoration) and,
+for a hosted instance, its deployment repository's recovery runbook.
 
 ## Storage v2: notebook content in Postgres
 
@@ -19,18 +19,18 @@ next rewritten. These migrations only add tables and set how one of their
 columns is stored: `forgetmenote migrate` applies them, and until the cutover
 finishes a binary of the previous release still serves a database that has
 them, ignoring them, as the cutover's refusals need.
-Content moves only in the stopped [storage v2 cutover](storage-cutover.md):
-`forgetmenote admin storage import` stores each notebook's Git history in the
-database and blob store, every commit and tree byte for byte, and verifies it.
-The storage v2 release refuses to start while a notebook repository under
-`data/projects` has not been imported, or has commits its stored history lacks.
-Once the new release serves the imported notebooks,
+Content moved once, in the stopped storage v2 cutover: `forgetmenote admin
+storage import` stored each notebook's Git history in the database and blob
+store, every commit and tree byte for byte, and verified it. That import and its
+runbook are gone from this release, so an instance still keeping notebooks in
+Git upgrades through an earlier release that has them first. Once the new
+release serves the imported notebooks,
 `forgetmenote migrate -finish-rollout` raises the database's reader version to
 2, the version of this release: a binary of the previous release (reader
 version 1) then refuses the instance (`database requires reader version 2`)
 instead of serving the notebooks from their old repositories, where storage v2
 never looks. Restoring the database dump taken before the cutover restores
-reader version 1, which the [rollback](storage-cutover.md#rollback) relies on.
+reader version 1, which a rollback relies on.
 
 After the cutover:
 
@@ -50,9 +50,8 @@ After the cutover:
   `admin rollback-live-storage` are gone.
 
 Nothing writes storage v2 back into Git working trees. To return to the previous
-release, restore the backups taken at the cutover's freeze and start its image
-([rollback](storage-cutover.md#rollback)); revisions saved since then are in the
-exports and must be reconciled by hand.
+release, restore the backups taken at the cutover's freeze and start its image;
+revisions saved since then are in the exports and must be reconciled by hand.
 
 ## Catalog version 10
 
@@ -192,7 +191,7 @@ There is no materialization for an earlier image. `admin rollback-storage` and
 `admin rollback-semantic-storage` are retired, because a file-based release
 cannot read Postgres state, and `admin rollback-live-storage` is gone with the
 collaboration files it rewrote. Return to a release before storage v2 only by
-restoring the backups taken at the [cutover's freeze](storage-cutover.md#rollback);
+restoring the backups taken at the cutover's freeze;
 anything saved after the cutover must be reconciled by hand. Images older than
 version-8 notebook authority semantics need their own migration or a matching
 complete restore, as described in [collaboration](collaboration.md).

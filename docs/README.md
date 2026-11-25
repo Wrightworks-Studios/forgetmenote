@@ -10,7 +10,6 @@ Start with the [application README](../README.md), [editing guide](editor.md) or
 | [Authentication and account ownership](authentication.md) | Operator |
 | [Repository automation packages](automation-packages.md) | User and operator |
 | [Administrator automations](automations.md) | User and operator |
-| [AWS instance recovery](aws-recovery.md) | Operator |
 | [Backend request boundaries](backend-boundaries.md) | Developer |
 | [Git remotes, backup, and restore](backups.md) | Operator |
 | [Integrated notebook chat](chat.md) | User and operator |
@@ -38,11 +37,9 @@ Start with the [application README](../README.md), [editing guide](editor.md) or
 | [Production hardening and verification](production-readiness.md) | Operator |
 | [Inbox and Quick notes](quicknotes.md) | User and operator |
 | [Railway with an external OIDC provider](railway.md) | Operator |
-| [Upgrade from Gitnotes to ForgetMeNote](rebranding.md) | User and operator |
 | [Repository-connected notebooks](repository-notebooks.md) | User and operator |
 | [Archived sources](sources.md) | User and operator |
 | [Optional Authelia integration preset](standalone.md) | Operator |
-| [Storage v2 cutover](storage-cutover.md) | Operator |
 | [Storage versions, recovery and rollback](storage-migrations.md) | Operator |
 | [Task queues](tasks.md) | User and operator |
 | [Trash](trash.md) | User and operator |

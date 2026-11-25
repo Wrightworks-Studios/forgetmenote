@@ -25,7 +25,7 @@ func pendingLiveEdit(t *testing.T, s *Store, path string) {
 		t.Fatal(err)
 	}
 	s.mu.Lock()
-	pending := s.backend.(*dbNotebook).hasLivePending()
+	pending := s.backend.hasLivePending()
 	s.mu.Unlock()
 	if !pending {
 		t.Fatal("no live edit is pending")

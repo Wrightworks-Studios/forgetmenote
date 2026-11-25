@@ -311,8 +311,8 @@ No server backup can include edits that have not yet reached the server.
 
 Releases before storage v2 cannot read live documents from the database, and
 nothing writes them back into their collaboration files. Return to such a
-release only by restoring the backups taken at the
-[storage v2 cutover's freeze](storage-cutover.md#rollback). Anything saved or
+release only by restoring the backups taken at the storage v2 cutover's
+freeze. Anything saved or
 edited live since then is lost unless reconciled by hand from the exports, so
 checkpoint live notes first to get their edits into the exports.
 

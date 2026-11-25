@@ -3,9 +3,7 @@ package app
 import (
 	"context"
 	"errors"
-	"forgetmenote/internal/blob"
 	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/gitexport"
 	"forgetmenote/internal/instanceconfig"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/pg/pgtest"
@@ -182,64 +180,10 @@ func TestRuntimeExportsNotebooksForBackups(t *testing.T) {
 	projects.Close()
 }
 
-// A catalog notebook the previous release still keeps in Git, which the notes
-// store lacks, stops the runtime with the import to run; it never converts or
-// changes the repository, and leaves the data directory to the next process.
-func TestRuntimeRefusesNotebooksStillInGit(t *testing.T) {
-	data := t.TempDir()
-	db, prepare := databaseOf(t)
-	projects, err := catalog.Open(data, nil, prepare)
-	if err != nil {
-		t.Fatal(err)
-	}
-	projects.Close()
-	blobs, err := blob.OpenDir(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer blobs.Close()
-	notes, err := OpenNotes(t.Context(), prepare, blobs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer notes.Close()
-	if err = notes.Store.Delete(t.Context(), "default"); err != nil {
-		t.Fatal(err)
-	}
-	tree := filepath.Join(data, "projects", "default", "workspace")
-	if err = os.MkdirAll(tree, 0700); err != nil {
-		t.Fatal(err)
-	}
-	testGit(t, tree, "init", "--quiet", "--initial-branch=main")
-	testGit(t, tree, "commit", "--quiet", "--allow-empty", "-m", "Initialize notes notebook")
-	head := testGit(t, tree, "rev-parse", "HEAD")
-	runtime, err := Open(Options{Data: data, Origin: "http://localhost", Token: strings.Repeat("x", 32), Database: db})
-	if err == nil {
-		runtime.Close()
-		t.Fatal("the runtime served a catalog notebook kept only in Git")
-	}
-	db.Close()
-	if !strings.Contains(err.Error(), "forgetmenote admin storage import") {
-		t.Fatalf("the refusal does not name the import: %v", err)
-	}
-	if got := testGit(t, tree, "rev-parse", "HEAD"); got != head {
-		t.Fatal("the refusal changed the repository")
-	}
-	if status := testGit(t, tree, "status", "--porcelain", "--untracked-files=all", "--ignored"); status != "" {
-		t.Fatalf("the refusal changed the working tree:\n%s", status)
-	}
-	if _, err = notes.Store.Notebook("default").Head(t.Context()); !errors.Is(err, fs.ErrNotExist) {
-		t.Fatal("the refusal converted the notebook:", err)
-	}
-	if err = notes.Export(data, gitexport.Options{}); err != nil {
-		t.Fatal("the refused runtime kept the export:", err)
-	}
-}
-
 // Startup refuses configuration files inside a notebook directory, which a
 // notebook kept in the notes store does not have: configuration beside such
-// notebooks is accepted, and a file inside the directory the previous release
-// kept a notebook in is still refused.
+// notebooks is accepted, and a file inside a notebook's workspace directory
+// is still refused.
 func TestRuntimeConfigurationNeedsNoNotebookDirectory(t *testing.T) {
 	for _, inside := range []bool{false, true} {
 		opts := options(t)

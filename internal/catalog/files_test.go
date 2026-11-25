@@ -62,8 +62,8 @@ func importFiles(t *testing.T, db *pg.DB, data string) (filestate.Sum, error) {
 	return sum, err
 }
 
-// storeNotebooks puts empty notebooks ids into the notes store of data, as
-// the cutover's notebook import does after the catalog's.
+// storeNotebooks puts empty notebooks ids into the notes store of data,
+// beside a catalog that lists them.
 func storeNotebooks(t *testing.T, data string, db *pg.DB, ids ...string) {
 	t.Helper()
 	notes := testNotes(t, data, db)

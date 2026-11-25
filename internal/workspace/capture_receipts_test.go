@@ -46,7 +46,7 @@ func TestWritesReadOnlyTheReceiptsOfFilingsInFlight(t *testing.T) {
 	if _, err := source.CapturePrepare(ctx, in); err != nil {
 		t.Fatal(err)
 	}
-	n := source.backend.(*dbNotebook)
+	n := source.backend
 	n.mu.Lock()
 	records, err := n.captureReservations(ctx)
 	n.mu.Unlock()

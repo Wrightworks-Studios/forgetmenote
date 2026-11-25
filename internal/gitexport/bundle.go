@@ -124,7 +124,7 @@ func ImportBundle(ctx context.Context, nb *notestore.Notebook, r io.Reader, l Li
 	if err != nil {
 		return notestore.Head{}, err
 	}
-	head, err := importGitDir(ctx, nb, repo, l.ObjectBytes, l.Created, false)
+	head, err := importGitDir(ctx, nb, repo, l.ObjectBytes, l.Created)
 	if errors.Is(err, notestore.ErrInvalid) {
 		return head, fmt.Errorf("%w: %v", ErrBundle, err)
 	}

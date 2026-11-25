@@ -59,15 +59,14 @@ RUN apt-get update \
  && printf 'Poppler %s; Tesseract %s eng tessdata_fast %s sha256 %s; FFmpeg %s; libetonyek %s' \
       "${POPPLER_VERSION}" "${TESSERACT_VERSION}" "${TESSDATA_REVISION}" "${TESSDATA_SHA256}" "${FFMPEG_VERSION}" "${IWORK_VERSION}" \
       > /usr/share/forgetmenote/source-versions \
- && groupadd -g ${APP_GID} gitnotes && useradd -m -u ${APP_UID} -g gitnotes gitnotes \
- && mkdir /data && chown gitnotes:gitnotes /data
+ && groupadd -g ${APP_GID} forgetmenote && useradd -m -u ${APP_UID} -g forgetmenote forgetmenote \
+ && mkdir /data && chown forgetmenote:forgetmenote /data
 COPY --from=iwork /out/forgetmenote-iwork /usr/local/bin/forgetmenote-iwork
 COPY --chmod=755 deploy/git-backup/watcher.py /usr/local/bin/forgetmenote-backup
 COPY --from=build /out/forgetmenote /usr/local/bin/forgetmenote
-RUN ln -s /usr/local/bin/forgetmenote /usr/local/bin/gitnotes
-USER gitnotes:gitnotes
+USER forgetmenote:forgetmenote
 WORKDIR /data
-ENV DATA_DIR=/data HOME=/home/gitnotes AUTOMATION_PYTHON=/usr/local/bin/python3 \
+ENV DATA_DIR=/data HOME=/home/forgetmenote AUTOMATION_PYTHON=/usr/local/bin/python3 \
     OMP_NUM_THREADS=1 OMP_THREAD_LIMIT=1 PYTHONDONTWRITEBYTECODE=1
 EXPOSE 8080
 VOLUME /data

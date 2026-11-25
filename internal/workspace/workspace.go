@@ -103,7 +103,7 @@ type Status struct {
 }
 
 type Store struct {
-	backend             notebookBackend
+	backend             *dbNotebook
 	readOnly            atomic.Bool
 	authority           AuthorityState
 	authorityGeneration atomic.Uint64

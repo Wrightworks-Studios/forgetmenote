@@ -107,7 +107,7 @@ func TestReceiveAfterAnotherGatewaysAbortFails(t *testing.T) {
 	if !errors.Is(errReceive, ErrConflict) || abort.err != nil || abort.receipt.State != "canceled" {
 		t.Fatalf("receive: %v; abort: %+v", errReceive, abort)
 	}
-	stored, found, err := target.backend.(*dbNotebook).storedCapture(ctx, captureKey("capture-user", "receive", in.ID))
+	stored, found, err := target.backend.storedCapture(ctx, captureKey("capture-user", "receive", in.ID))
 	if err != nil || !found || stored.State != "canceled" {
 		t.Fatalf("the receive's receipt: %+v %v %v", stored, found, err)
 	}
