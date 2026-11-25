@@ -174,7 +174,10 @@ class ReleaseTests(unittest.TestCase):
                     "RELEASE_FIXTURE": str(self.root), "FIXTURE_REVISION": self.revision,
                     "XDG_CACHE_HOME": str(self.root / "cache"),
                     "DOCKER_CONFIG": str(docker_config)}
-        self.env.pop("GITHUB_ACTOR", None)
+        # The gate itself may run under these (GitHub Actions, the Check workflow);
+        # each test sets what it needs.
+        for inherited in ("GITHUB_ACTOR", "FMN_IMAGE_CACHE"):
+            self.env.pop(inherited, None)
 
     def git(self, *args):
         return subprocess.run(["git", "-C", str(self.repo), *args],
