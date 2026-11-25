@@ -80,64 +80,19 @@ made before it: database dumps, blob store and data directory copies, bundles an
 anything already pushed or downloaded still hold the purged content
 ([purge](purge.md)).
 
-### Storage v2 cutover
+### Rebuilding the Git exports
 
-The [storage v2 cutover](storage-cutover.md) runbook covers the freeze, the final
-backups, these commands and rollback. With the instance stopped, after the final
-backups, the cutover moves every notebook repository of the previous release
-into the configured database and blob store:
+With the instance stopped, `admin storage export` brings each notebook's Git
+export (`data/exports/ID.git`) up to its head, repacks it, checks it with `git
+fsck --strict` and verifies it against the notes store:
 
 ```sh
-forgetmenote admin storage import -data /data   # import and verify each notebook
-forgetmenote admin storage verify -data /data   # verify again at any time
-forgetmenote admin storage export -data /data   # write, repack and check the exports
-forgetmenote admin storage check -data /data    # once the new release started, before anyone writes
-forgetmenote admin storage retire -data /data -yes   # as soon as check passes, with the instance stopped
+forgetmenote admin storage export -data /data   # every notebook the catalog lists
+forgetmenote admin storage export -data /data -notebook ID -recreate
 ```
 
-Each prints one JSON line per notebook and fails if any notebook fails; add
-`-notebook ID` for one. Only `check` runs beside the serving release. The import
-refuses a running instance, a notebook with an interrupted write
-(`write-journal.json`), uncommitted files or live edits that are not checkpointed
-(recover or checkpoint them with the previous release first), and never imports
-over a notebook the store already has: one with the same head is
-verified again, any other is refused, unless its own import stopped part way
-(below). It imports the history of `HEAD` with every
-commit and tree byte for byte, notes keep their `fmn-id` identities, other files
-(and notes without one) keep theirs through every rename Git detects, and it
-lists any branch or tag whose commits `HEAD` does not contain, which stay only in
-the previous data directory. An import that fails removes what it stored, so it
-can run again. One that stopped without failing, killed, out of memory, cut off
-from the database or stopped with its host, left part of the notebook's history:
-the storage v2 release refuses to serve that notebook, and running the import
-again resumes it (`resumed`). Verification proves the stored head is `HEAD` and that the stored commits,
-trees and blobs are exactly those `HEAD` reaches; the export is verified the same
-way against the store.
-
-`check` proves the cutover succeeded, deterministically, for every notebook the
-catalog lists or `data/projects` holds: the store holds exactly the history of
-its repository's `HEAD`, the export's branch is that `HEAD` and passes `git fsck
---strict`, every file at `HEAD` reads through the server's read path as Git's
-bytes, and each note's history names the repository's commits
-([check](storage-cutover.md#4-start-the-new-release-and-check-it)). It only
-reads, so it runs beside the started release.
-
-`retire`, run as soon as `check` passes, removes each notebook's previous
-release files (the working tree with its `.git`, `collaboration/` and
-`captures/`) only with `-yes`, and only for a notebook whose store verifiably
-holds the repository's history: every commit of its `HEAD`, or the commit a
-recorded purge made of it, and `HEAD`'s tree. It keeps every file of a notebook
-that fails, whose repository has refs the import left out, or whose files hold
-work the history lacks
-([retire](storage-cutover.md#5-retire-the-previous-releases-files)). The
-freeze backups (the data directory archive and the per-notebook bundles) keep
-those files for a rollback.
-
-Live edits count as checkpointed when neither the note's collaboration snapshot
-(`data/projects/NOTEBOOK/collaboration/*.json`, in either the version 2 envelope
-or the older bare format) lists uncommitted updates nor its append log
-(`*.jsonl`) holds updates after the snapshot. A snapshot of an unknown version, or
-an append log the import cannot read, is refused like pending edits.
+It prints one JSON line per notebook and fails if any notebook fails. A serving
+gateway keeps its exports current by itself, so the command is for repair.
 
 `admin storage export` does not repair an export: one whose branch names history
 the notebook no longer has, or that fails `git fsck --strict`, fails the
@@ -207,20 +162,9 @@ tar -czf forgetmenote-instance.tar.gz data
 docker compose start forgetmenote
 ```
 
-After the storage v2 cutover, keep the cutover's freeze backups offline for as
-long as you might roll back ([storage v2 cutover](storage-cutover.md#rollback)):
-the data directory archive and the per-notebook bundles hold the previous
-release's notebook repositories (`data/projects/*/workspace` with their
-`.git`, `collaboration/` and `captures/`), which the cutover retires from the
-data directory as soon as its check passes. Storage v2 does not read them,
-beyond comparing each repository's `HEAD` when it starts, and they are not
-needed to restore it. They hold every notebook's content and history as it was
-at the cutover, which no [purge](purge.md) reaches: while they are still in the
-data directory, the `tar` above copies them into every backup, purged text
-included, and a purge's plan and receipt say so, until
-`forgetmenote admin storage retire -yes` removes them, as the
-[cutover](storage-cutover.md#5-retire-the-previous-releases-files) describes;
-backups taken after a purge then no longer hold what it removed.
+Backups taken before the storage v2 cutover hold the previous release's notebook
+repositories (`data/projects/*/workspace`), with every notebook's content and
+history as it was then, which no [purge](purge.md) reaches.
 
 Also preserve `.env`, `secrets/`, any `instance.json`, host backup credentials and scheduler configuration, and relevant SWAG configuration separately and securely. The backups contain authentication secrets and permission metadata; encrypt off-host copies. Git remotes and exports alone are not a full instance backup, and a remote on the same server is not disaster recovery.
 

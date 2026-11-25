@@ -30,7 +30,7 @@ var packTypes = map[string]byte{"commit": 1, "tree": 2, "blob": 3}
 // computes their deltas once the branch reaches them (repackDeltas). As
 // loose objects, each waiting for its own two fsyncs, writing F2's 20,000
 // revisions took 50 s to over 2 minutes on a busy disk, 67 s of an 87 s
-// purge rebuild (docs/design/storage-v2-results-store.md).
+// purge rebuild.
 func writePack(ctx context.Context, nb *notestore.Notebook, path string, after int64, commit func(id gitobj.ID, body []byte)) (gitobj.ID, error) {
 	dir := filepath.Join(path, "objects", "pack")
 	if err := durable.MkdirAll(dir, 0o755, nil); err != nil {

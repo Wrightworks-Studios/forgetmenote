@@ -204,7 +204,7 @@ func TestDatabaseSaveRefusesALockHeardAfterItsCheck(t *testing.T) {
 func TestDatabaseRevisionsCommitOnTheLockRulesTheyChecked(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
-	n := s.backend.(*dbNotebook)
+	n := s.backend
 	doc, err := s.Save(ctx, "notes/a.md", []byte("original"), "", "test")
 	if err != nil {
 		t.Fatal(err)

@@ -54,10 +54,15 @@ queues are not purged this way.
    - files that hold the text but are not text, which only purging them whole
      removes, and files or other notebooks that share content being erased
      and keep it;
-   - notes being edited live, which restart from the erased text;
+   - notes being edited live, which restart from the erased text, and how
+     many of them lose edits not yet saved;
    - how many references in your notes name a rewritten revision; they keep
      working (see below);
-   - whether the GitHub copy of the notebook will be force-pushed once;
+   - whether the GitHub copy of the notebook may be force-pushed once. The
+     Git export catches up with every new revision in the background, so the
+     plan says so whenever the purge rewrites a revision the export may hold
+     by the time the purge runs, even one written seconds ago, and the receipt
+     says whether the export actually held one;
    - how many private chat transcripts, Knowledge proposals and Jev records
      quoted the content; they are redacted by the system and nobody reads
      them, so the plan gives counts only. They are searched only for what the
@@ -90,10 +95,24 @@ queues are not purged this way.
    commit, and is redacted, key and all.
 4. Give a **reason** and confirm that you understand the purge cannot be
    undone, then choose **Erase permanently**. The confirmation is bound to
-   that exact plan: if the notebook changed since, you are asked to review
-   the plan again. Once confirmed, the purge runs to its end on the server
-   even when the page is closed or reloaded, or the operator command is
-   interrupted, and keeps its receipt all the same.
+   that exact plan: if the notebook changed since, or the content turned up
+   where the purge does not reach (another notebook, or the live edits of a
+   note outside the purge), you are asked to review the plan again. A purge
+   restarts the live documents of the notes being edited live that its plan
+   lists, and a purge of the history those of every note it covers, which
+   loses their edits not yet saved: if someone types into one of them
+   meanwhile, you are asked to review the plan again too, and the new plan
+   counts that note. A purge of the history also restarts a note someone
+   only opens for live editing meanwhile, which loses nothing, and the
+   receipt counts every note restarted. A plan that changes no revision,
+   because only live edits or only records outside the notebook hold the
+   text, restarts only the notes it lists: if someone opens another note it
+   covers for live editing, or types the text into one, meanwhile, you are
+   asked to review the plan again, as the purge would then also restart
+   that note and rebuild the notebook's indexes. Once confirmed, the purge
+   runs to its end on the server even when the page is closed or reloaded,
+   or the operator command is interrupted, and keeps its receipt all the
+   same.
 
 The reason must not quote the content being erased; a reason that does is
 refused, even when it quotes a single identifying word of an erased note,
@@ -151,8 +170,10 @@ One purge, holding the notebook's write lock:
    their clients start again as above.
 2. Deletes stored content that nothing uses any more.
 3. Restarts the live documents of affected notes from the erased text, as a
-   new live epoch with the old edit history deleted. The browser that ran the
-   purge reloads what it shows of the notebook.
+   new live epoch with the old edit history deleted: those it finds when it
+   runs, including a note only opened for live editing after the plan was
+   made.
+   The browser that ran the purge reloads what it shows of the notebook.
 4. Clears what was derived from the content on every gateway: what each
    gateway holds in memory of the old revisions and live documents, search
    passages, the keyword and semantic indexes, the semantic vectors, the
@@ -177,13 +198,15 @@ One purge, holding the notebook's write lock:
    download still being prepared when the purge rewrote the history is
    refused and asked to start again.
 6. Rebuilds the notebook's Git export and flags it, so the backup worker
-   force-pushes the GitHub copy once for that purge. It never force-pushes
-   otherwise.
-7. Keeps a **receipt**: who, when, the reason, the kind of purge and how much
-   it changed. Receipts never hold the erased content, the paths it removed or
-   the pattern. As in the plan, a receipt counts other people's records
-   outside the notebook only for an instance Admin: the Owner who ran the
-   purge sees the counts of their own, and another Owner none. Owners see a
+   force-pushes the GitHub copy once for that purge when the export held
+   revisions the purge rewrote. It never force-pushes otherwise.
+7. Keeps a **receipt**: who, when, the reason, the kind of purge, how much
+   it changed, how many notes being edited live it restarted, and whether
+   the next backup force-pushes the GitHub copy. Receipts never hold the
+   erased content, the paths it removed or the pattern. As in the plan, a
+   receipt counts other people's records outside the notebook only for an
+   instance Admin: the Owner who ran the purge sees the counts of their own,
+   and another Owner none. Owners see a
    notebook's receipts under **Earlier purges of this notebook** in the
    **Permanently erase** dialog, or with `GET /p/<notebook>/api/purge`, and
    operators with `forgetmenote admin purge list`. A purge that rewrote the
@@ -217,7 +240,7 @@ before the purge cannot be saved back.
   bundles taken before the purge still hold the content. Delete or re-take
   them according to your retention policy.
 - **Reach the previous release's files.** After the move to the database
-  ([storage cutover](storage-cutover.md)), each notebook's old Git working
+  (the storage v2 cutover), each notebook's old Git working
   tree and repository (`data/projects/NOTEBOOK/workspace` with its `.git`),
   its `collaboration/` and `captures/` and any `write-journal.json` stay in
   the data directory with the content from before the cutover. No purge
@@ -320,8 +343,9 @@ not do. Then:
 **After a purge**
 
 - Rotate any leaked secret.
-- The next backup force-pushes the notebook's GitHub copy once; check that it
-  ran (the purge flag in the export repository is cleared when it is pushed).
+- The next backup pushes the rebuilt export, force-pushing the notebook's
+  GitHub copy once when the receipt says so; check that it ran (the purge
+  flag in the export repository is cleared when it is pushed).
   If the export could not be rebuilt, the receipt says so and names the
   purge: stop the instance and run
   `forgetmenote admin purge rebuild -notebook NOTEBOOK -purge PURGE`, which

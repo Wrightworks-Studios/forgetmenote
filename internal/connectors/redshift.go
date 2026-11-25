@@ -1,3 +1,5 @@
+//go:build !fmn_omit_redshift
+
 package connectors
 
 import (
@@ -20,33 +22,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/redshiftdata/types"
 )
 
-// IAM credentials use the SDK's refreshable runtime chain (including pod roles).
-// SecretARN refers to an AWS-managed database credential, never its value.
-type RedshiftConfig struct {
-	Region        string   `json:"region"`
-	Database      string   `json:"database"`
-	Cluster       string   `json:"cluster,omitempty"`
-	Workgroup     string   `json:"workgroup,omitempty"`
-	DBUser        string   `json:"dbUser,omitempty"`
-	SecretARN     string   `json:"secretArn,omitempty"`
-	Schemas       []string `json:"schemas,omitempty"`
-	DeniedColumns []string `json:"deniedColumns,omitempty"`
-	MaxCells      int      `json:"maxCells,omitempty"`
-}
-
 var redshiftSQLState = regexp.MustCompile(`\b(42[0-9A-Z]{3}|22[0-9A-Z]{3})\b`)
 var redshiftSQLFailure = regexp.MustCompile(`(?im)^ERROR: (syntax error at or near|column .+ does not exist|relation .+ does not exist|schema .+ does not exist|operator does not exist|function .+ does not exist|invalid input syntax|division by zero)`)
 
-func redshiftOperation(op *Operation) error {
-	if err := postgresOperation(op); err != nil {
-		return err
-	}
-	if op.Name == "query" {
-		op.InputSchema = json.RawMessage(`{"type":"object","properties":{"sql":{"type":"string","minLength":1,"maxLength":65536},"params":{"type":"object","maxProperties":128,"additionalProperties":{"type":"string","minLength":1,"maxLength":65536}}},"required":["sql"],"additionalProperties":false}`)
-		op.Description = "Execute a bounded SELECT/WITH query using Redshift Data API. Bind values with :name and params {name: string}. Requires an independently read-only database identity."
-	}
-	return nil
-}
+// redshiftClient calls a redshift connection's Redshift Data API. A build with
+// the tag fmn_omit_redshift leaves Redshift connections out (redshift_omitted.go).
+type redshiftClient = *redshiftdata.Client
 
 type responseBoundTransport struct {
 	base  http.RoundTripper

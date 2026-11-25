@@ -224,7 +224,7 @@ func TestCaptureReservationHoldsAcrossGatewaysAndRestart(t *testing.T) {
 	if _, err = other.Save(ctx, "linking.md", []byte("[capture](capture.md)"), "", "user"); errorText(err) != "referenced note is being filed: "+ErrConflict.Error() {
 		t.Fatal("a new link escaped the reservation", err)
 	}
-	n := other.backend.(*dbNotebook)
+	n := other.backend
 	for _, rule := range []string{doc.Path, "capture.md"} {
 		n.mu.Lock()
 		lockErr := n.checkCaptureLock(ctx, rule)

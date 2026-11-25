@@ -13,6 +13,7 @@ import (
 )
 
 func TestSlackWaitingFindsWhatThePersonHasNotAnswered(t *testing.T) {
+	requireSlack(t)
 	var searches, reads atomic.Int32
 	var busy atomic.Bool
 	var scopes atomic.Value

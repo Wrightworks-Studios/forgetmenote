@@ -165,7 +165,7 @@ type droppedFile struct {
 }
 
 // Rewrite rebuilds the notebook's history from revision fromSeq to the head
-// with fn applied to every file version, for a purge (storage v2 design §11),
+// with fn applied to every file version, for a purge (docs/purge.md),
 // the one operation that changes history. Every rewritten commit keeps its
 // author, committer, times and message, with a "Gitnotes-Purge: <purge>"
 // trailer added and any signature dropped; its tree and parents are

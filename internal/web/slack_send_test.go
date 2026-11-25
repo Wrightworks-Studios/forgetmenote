@@ -1,3 +1,5 @@
+//go:build !fmn_omit_slack
+
 package web
 
 import (

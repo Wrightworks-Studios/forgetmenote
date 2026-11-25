@@ -206,7 +206,7 @@ func (h *HTTP) Formats(ctx context.Context, project string) []FormatView {
 	}
 	ocr, describe, transcribe := can(sources.Options{ExternalOCR: true}), can(sources.Options{DescribeImages: true}), can(sources.Options{Transcribe: true})
 	var out []FormatView
-	for _, format := range workspace.SourceFormats() {
+	for _, format := range sources.Formats() {
 		out = append(out, FormatView{SourceFormat: format, ExternalOCR: ocr && format.DescribeImages && format.Extensions[0] != ".pptx", HostedDescriptions: describe && format.DescribeImages, Transcription: transcribe && (strings.HasPrefix(format.MIME, "audio/") || strings.HasPrefix(format.MIME, "video/"))})
 	}
 	return out

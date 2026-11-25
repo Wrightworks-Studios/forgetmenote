@@ -80,7 +80,7 @@ func BenchmarkWorkspaceOperations(b *testing.B) {
 }
 
 // BenchmarkReadsF2 measures the reads of an F2-shaped notebook: the final
-// files of the bake-off's 2,000-note notebook, notes of 2 to 20 KiB in nested
+// files of F2's 2,000-note notebook, notes of 2 to 20 KiB in nested
 // folders, committed as one revision, with small images so the fixture stays
 // quick to build. The cold reads follow a restart; the others are warm.
 func BenchmarkReadsF2(b *testing.B) {

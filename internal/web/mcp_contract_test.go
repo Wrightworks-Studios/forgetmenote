@@ -1,6 +1,7 @@
 package web
 
-// MCP contract suite (storage v2 design §4.2).
+// MCP contract suite. MCP tool names, inputs, outputs and error classes are a
+// stable contract for the agents that call them: changes are additive only.
 //
 // TestMCPContract drives every MCP tool whose handler reads or writes notebook
 // storage through a real MCP SDK client against a real server, on a fixture
@@ -80,6 +81,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/sources"
 	"forgetmenote/internal/workspace"
 )
 
@@ -185,8 +187,8 @@ func TestMCPContractHelpers(t *testing.T) {
 
 // TestMCPContractCommitTimes checks the one spelling the goldens cannot: the
 // normalizer reads Git 2.54's "Z" and production Git's "+00:00" as one UTC
-// contract, and commit times must keep production's numeric offset (wave 2
-// plan §0.9).
+// contract, and commit times must keep production's numeric offset, +00:00
+// rather than Git 2.54's "Z", so production output does not change.
 func TestMCPContractCommitTimes(t *testing.T) {
 	t.Setenv("TZ", "UTC")
 	app, _ := fixture(t)
@@ -281,6 +283,10 @@ func contractClient(t *testing.T, app *Server, origin, user, scope string) *mcp.
 func (r *contractRun) scenario(name string, fn func(*contractScenario)) {
 	sc := &contractScenario{run: r, t: r.t, name: name, norm: newContractNormalizer(r), steps: []any{}}
 	fn(sc)
+	if sc.unrecorded {
+		r.written[name+".json"] = true
+		return
+	}
 	r.compare(name, sc.steps)
 }
 
@@ -476,6 +482,9 @@ type contractScenario struct {
 	name  string
 	norm  *contractNormalizer
 	steps []any
+	// unrecorded runs the steps without comparing them with the recording,
+	// which is the full build's.
+	unrecorded bool
 }
 
 // contractValue is a raw (unnormalized) tool result, for arguments of later steps.
@@ -1173,6 +1182,9 @@ func contractKnowledge(sc *contractScenario) {
 }
 
 func contractSources(sc *contractScenario) {
+	// A build that leaves out source integrations offers fewer formats than
+	// the recorded contract lists (docs/integrations.md).
+	sc.unrecorded = len(sources.Formats()) != len(workspace.SourceFormats())
 	sc.ok("admin", "supported source formats", "source_formats", contractArgs())
 	text := "Harbour log, morning watch.\nA large whale sighted off the quay.\n"
 	sc.run.literals[workspace.ContentHash([]byte(text))] = true
@@ -1343,9 +1355,8 @@ func contractBackup(sc *contractScenario) {
 // those operations; discussions and locks across moves; refusals of unknown
 // revisions and paths, with their /api/v1 error classes; derived reads at old
 // revisions; the 50-commit history limit and older revisions as bases; and
-// the export's commit objects and tree. They were recorded on the Git backend
-// at 3196c3e; docs/design/storage-v2-results-contract.md classifies each
-// difference storage v2 shows.
+// the export's commit objects and tree. They were first recorded on the Git
+// backend that the notes store replaced.
 
 const contractHistory = "contract-history"
 

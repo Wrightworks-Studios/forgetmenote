@@ -103,6 +103,7 @@ func submitHostedImage(t *testing.T, app *Server) string {
 	return out.Job.ID
 }
 func TestHostedSourceExplicitOCRReusesPaidResultAtSave(t *testing.T) {
+	requireLocalOCR(t) // its source is an image
 	var calls atomic.Int32
 	app, _ := hostedSourceFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
@@ -131,6 +132,7 @@ func TestHostedSourceExplicitOCRReusesPaidResultAtSave(t *testing.T) {
 
 }
 func TestHostedSourceRevokedPolicyRejectsAcceptance(t *testing.T) {
+	requireLocalOCR(t) // its source is an image
 	var app *Server
 	var calls atomic.Int32
 	app, _ = hostedSourceFixture(t, func(w http.ResponseWriter, r *http.Request) {
@@ -149,6 +151,7 @@ func TestHostedSourceRevokedPolicyRejectsAcceptance(t *testing.T) {
 	}
 }
 func TestHostedSourceUnknownRequestCannotResume(t *testing.T) {
+	requireLocalOCR(t) // its source is an image
 	var calls atomic.Int32
 	app, _ := hostedSourceFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
@@ -194,6 +197,7 @@ func TestHostedSourceLocalOnlyMakesNoCalls(t *testing.T) {
 	}
 }
 func TestHostedSourceInboxConsentGatesUploadAndAcceptance(t *testing.T) {
+	requireLocalOCR(t) // its source is an image
 	var app *Server
 	var calls atomic.Int32
 	app, _ = hostedSourceFixture(t, func(w http.ResponseWriter, r *http.Request) {

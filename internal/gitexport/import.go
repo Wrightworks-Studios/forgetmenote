@@ -36,29 +36,18 @@ var (
 // Git backend's history did.
 //
 // Other branches and tags are not imported. An import that fails leaves the
-// notebook with the commits imported so far; the caller deletes it, or
-// finishes it with ResumeGitDir.
+// notebook with the commits imported so far, for the caller to delete.
 func ImportGitDir(ctx context.Context, nb *notestore.Notebook, gitDir string) (notestore.Head, error) {
-	return importGitDir(ctx, nb, gitDir, maxImportObject, nil, false)
+	return importGitDir(ctx, nb, gitDir, maxImportObject, nil)
 }
 
-// ResumeGitDir finishes an ImportGitDir of gitDir into nb that stopped part
-// way, so nb holds the commits git log --reverse --topo-order HEAD lists
-// first and its head is one of them: it streams the same commits, and
-// ImportCommit skips those nb has. The caller checks that nb holds nothing
-// else. An import that fails again leaves what it stored, for the next
-// resume.
-func ResumeGitDir(ctx context.Context, nb *notestore.Notebook, gitDir string) (notestore.Head, error) {
-	return importGitDir(ctx, nb, gitDir, maxImportObject, nil, true)
-}
-
-// importGitDir imports HEAD's history in gitDir into nb, which must not exist
-// unless resume is set, and reads no object over objectLimit. It calls
+// importGitDir imports HEAD's history in gitDir into nb, which must not
+// exist, and reads no object over objectLimit. It calls
 // created, if set, with the incarnation of the notebook (see
 // notestore.Notebook.StoredIncarnation) once its first commit created it, so a
 // caller removes only what the import stored.
-func importGitDir(ctx context.Context, nb *notestore.Notebook, gitDir string, objectLimit int64, created func(incarnation int64), resume bool) (notestore.Head, error) {
-	if head, err := nb.Head(ctx); err == nil && !resume {
+func importGitDir(ctx context.Context, nb *notestore.Notebook, gitDir string, objectLimit int64, created func(incarnation int64)) (notestore.Head, error) {
+	if head, err := nb.Head(ctx); err == nil {
 		return notestore.Head{}, fmt.Errorf("notebook %s at %s: %w", nb.ID(), head.Commit, ErrNotEmpty)
 	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return notestore.Head{}, err
@@ -112,7 +101,7 @@ func importGitDir(ctx context.Context, nb *notestore.Notebook, gitDir string, ob
 		if head, err = nb.ImportCommit(ctx, raw, trees, blob, renames); err != nil {
 			return fmt.Errorf("import commit %s: %w", id, err)
 		}
-		if first && !resume {
+		if first {
 			first = false
 			// The notebook was empty when the import began, so its first
 			// commit creates it, unless someone created it meanwhile: then
@@ -147,13 +136,12 @@ func importGitDir(ctx context.Context, nb *notestore.Notebook, gitDir string, ob
 	return head, nil
 }
 
-// A Report counts what Verify or VerifyHeld compared.
+// A Report counts what Verify compared.
 type Report struct {
-	Head      gitobj.ID `json:"head"`
-	Commits   int       `json:"commits"`
-	Rewritten int       `json:"rewritten,omitempty"`
-	Trees     int       `json:"trees"`
-	Blobs     int       `json:"blobs"`
+	Head    gitobj.ID `json:"head"`
+	Commits int       `json:"commits"`
+	Trees   int       `json:"trees"`
+	Blobs   int       `json:"blobs"`
 }
 
 // Verify proves that nb holds exactly the history of HEAD in gitDir: its head
@@ -196,67 +184,6 @@ func Verify(ctx context.Context, nb *notestore.Notebook, gitDir string) (Report,
 		return rep, fmt.Errorf("%w: the notebook stores %s, which HEAD does not reach", ErrMismatch, id)
 	}
 	return rep, nil
-}
-
-// VerifyHeld proves that nb still holds the history of HEAD in gitDir, which
-// it was imported from, though it may have taken new revisions since: every
-// object nb stores hashes to its ID, every commit HEAD reaches is a commit of
-// nb or one a purge nb recorded rewrote, and nb stores HEAD's tree and
-// everything under it, unless a purge rewrote HEAD. Its report counts HEAD's
-// commits nb holds, those purges rewrote, and the trees and blobs of HEAD's
-// tree. A commit or object nb lacks is an ErrMismatch error naming it; a
-// notebook nb lacks is an fs.ErrNotExist error.
-func VerifyHeld(ctx context.Context, nb *notestore.Notebook, gitDir string) (Report, error) {
-	var rep Report
-	if _, err := nb.Head(ctx); err != nil {
-		return rep, err
-	}
-	want, err := revParse(ctx, gitDir, "HEAD")
-	if err != nil {
-		return rep, err
-	}
-	rep.Head = want
-	stored, err := storedObjects(ctx, nb, nil)
-	if err != nil {
-		return rep, err
-	}
-	rewritten, err := nb.RewrittenAll(ctx)
-	if err != nil {
-		return rep, err
-	}
-	err = streamGit(ctx, gitDir, importTimeout, func(line string) error {
-		id, err := gitobj.ParseID(line)
-		if err != nil {
-			return err
-		}
-		if _, ok := rewritten[id]; ok {
-			rep.Rewritten++
-		} else if stored[id] == "commit" {
-			rep.Commits++
-		} else {
-			return fmt.Errorf("%w: commit %s of Git HEAD's history is not in the notebook", ErrMismatch, id)
-		}
-		return nil
-	}, "rev-list", want.String())
-	if _, ok := rewritten[want]; ok || err != nil {
-		return rep, err
-	}
-	err = streamGit(ctx, gitDir, importTimeout, func(line string) error {
-		id, err := gitobj.ParseID(line)
-		if err != nil {
-			return err
-		}
-		switch stored[id] {
-		case "tree":
-			rep.Trees++
-		case "blob":
-			rep.Blobs++
-		default:
-			return fmt.Errorf("%w: Git object %s of HEAD's tree is not in the notebook", ErrMismatch, id)
-		}
-		return nil
-	}, "rev-list", "--objects", "--no-object-names", want.String()+"^{tree}")
-	return rep, err
 }
 
 // storedObjects returns the kind of every object nb stores by its ID, once

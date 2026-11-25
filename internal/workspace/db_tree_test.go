@@ -17,7 +17,7 @@ import (
 // store: existence, folders, ancestry, path versions, content and snapshots.
 func TestTreeTwinsReadTheCommittedNotebook(t *testing.T) {
 	s := newTestStoreExcluding(t, []string{"private"})
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	ctx := context.Background()
 	first := commitFixture(t, s,
 		fixture("b.md", "# B\n"),
@@ -93,7 +93,7 @@ func TestTreeTwinsReadTheCommittedNotebook(t *testing.T) {
 
 func TestSnapshotTwinsSelectVisibleNotesInPathOrder(t *testing.T) {
 	s := newTestStoreExcluding(t, []string{"private"})
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	ctx := context.Background()
 	first := commitFixture(t, s,
 		fixture("z.md", "# Z\n"),
@@ -160,7 +160,7 @@ func TestSnapshotTwinsSelectVisibleNotesInPathOrder(t *testing.T) {
 // The identity index rereads only notes whose content changed.
 func TestIdentityIndexRereadsOnlyChangedNotes(t *testing.T) {
 	s := newTestStore(t)
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	ctx := context.Background()
 	one, _ := WithNoteID([]byte("# One\n"), strings.Repeat("1", 32))
 	two, _ := WithNoteID([]byte("# Two\n"), strings.Repeat("2", 32))

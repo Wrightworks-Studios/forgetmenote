@@ -126,6 +126,7 @@ func TestOversizedHTMLTokenIsRejectedInEveryContainer(t *testing.T) {
 		}},
 	} {
 		t.Run(name, func(t *testing.T) {
+			skipOmitted(t, test.filename)
 			t.Setenv("FMN_LIMIT_SOURCE_TEXT_BYTES", strconv.Itoa(test.limit))
 			token := "<!--" + strings.Repeat("x", test.limit-4)
 			_, err := Prepare(t.Context(), test.filename, "", test.document(token))
@@ -167,6 +168,7 @@ func TestCancellationIsNeverARejection(t *testing.T) {
 	}
 	for filename, document := range documents {
 		t.Run(filename, func(t *testing.T) {
+			skipOmitted(t, filename)
 			whole := &lateCancel{Context: context.Background()}
 			if _, err := Prepare(whole, filename, "", document); err != nil {
 				t.Fatal(err)
@@ -299,6 +301,9 @@ func TestConverterRefusalIsARejection(t *testing.T) {
 func TestConverterFailureIsNotARejection(t *testing.T) {
 	notRejected := func(name string) {
 		t.Helper()
+		if formatIncluded(workspace.SourceFormatForName(name)) != nil {
+			return
+		}
 		if err := convert(t, name); err == nil || errors.Is(err, ErrRejected) {
 			t.Fatalf("%s: %v", name, err)
 		}

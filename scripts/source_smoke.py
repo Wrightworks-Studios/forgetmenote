@@ -61,6 +61,15 @@ def open_to_container(path):
         item.chmod(0o755 if item.is_dir() or item.stat().st_mode & 0o100 else 0o644)
 
 
+def every_integration(image):
+    """The release image is the default build, which includes every optional
+    integration (docs/integrations.md)."""
+    listed = subprocess.run(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none', '--read-only',
+                             image, 'integrations'], check=True, capture_output=True, text=True).stdout
+    states = [line.split('\t')[1] for line in listed.splitlines()]
+    assert states and set(states) == {'included'}, listed
+
+
 def offline_pdf_fixtures(image, *, full=True):
     """Exercise real native parsers in the final runtime, without networking.
 
@@ -121,6 +130,7 @@ def main():
     if profile not in ('full', 'routine'):
         raise ValueError('SMOKE_PROFILE must be full or routine')
     full = profile == 'full'
+    every_integration(image)
     ocr_fixtures = offline_pdf_fixtures(image, full=full)
     name = f'fmn-source-smoke-{os.getpid()}'
     volume = name + '-data'

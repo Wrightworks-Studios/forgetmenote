@@ -25,7 +25,7 @@ import (
 )
 
 // Purge permanently removes content from every version of a notebook kept in
-// the notes store (storage v2 design §11), the one authorized rewrite of
+// the notes store (docs/purge.md), the one authorized rewrite of
 // history: a whole note, chosen versions of one, or text redacted from
 // selected notes or the whole notebook. PreparePurge plans it without
 // changing anything, and ExecutePurge runs exactly that plan when given its
@@ -100,14 +100,25 @@ type PurgePlan struct {
 	Elsewhere    []PurgeOccurrence `json:"elsewhere"`
 	Unredactable []PurgeOccurrence `json:"unredactable"`
 	Shared       []PurgeOccurrence `json:"shared"`
-	// Live lists the live documents the purge resets.
+	// Live lists the live documents the purge resets, as the plan found
+	// them. Before a purge that rewrites revisions runs, someone may open a
+	// note in its scope, whose live document it resets too, so its
+	// confirmation binds only those holding edits not saved as a revision,
+	// which the reset discards (Bound); the result counts every one reset.
+	// A purge that rewrites no revision resets only the live documents it
+	// lists, so its confirmation binds them all, with whether they hold
+	// such edits.
 	Live []PurgeLive `json:"live"`
 	// ReferencesToRemap counts the references the notebook's current files
 	// make to revisions the purge rewrites, which resolve through the purge's
 	// mapping afterwards.
 	ReferencesToRemap int `json:"referencesToRemap"`
-	// ExportForcePush reports that the Git export holds revisions the purge
-	// rewrites, so the backup worker will replace the remote branch once.
+	// ExportForcePush reports that the Git export may hold revisions the
+	// purge rewrites by the time it runs, so the backup worker may replace
+	// the remote branch once. The export catches up with the notebook in the
+	// background, so a plan with an export says so whenever the purge
+	// rewrites a revision, whether or not the export has caught up yet; the
+	// result says whether it had (PurgeResult.ExportForcePush).
 	ExportForcePush bool `json:"exportForcePush"`
 	// Blocked says why the purge cannot run as planned.
 	Blocked      string `json:"blocked,omitempty"`
@@ -135,7 +146,7 @@ type PurgeOccurrence struct {
 }
 
 // A PurgeLive is a live document a purge resets. Pending means it holds
-// edits since its last snapshot, which the reset discards.
+// edits not saved as a revision, which the reset discards.
 type PurgeLive struct {
 	Path    string `json:"path"`
 	Pending bool   `json:"pending"`
@@ -148,8 +159,12 @@ type PurgeResult struct {
 	Rewritten int    `json:"rewritten"`
 	LiveReset int    `json:"liveReset"`
 	// Export reports that the Git export was rebuilt and flagged for the
-	// backup worker.
+	// backup worker. ExportForcePush reports that its flag lets the worker
+	// replace the remote branch once, as the export held revisions this
+	// purge, or an earlier one the worker has not pushed, rewrote; until the
+	// export is rebuilt, it is the plan's.
 	Export          bool `json:"export"`
+	ExportForcePush bool `json:"exportForcePush"`
 	RemovedVersions int  `json:"removedVersions"`
 	RemovedBlocks   int  `json:"removedBlocks"`
 }
@@ -183,19 +198,20 @@ const maxPlanVersions = 200
 
 // PreparePurge plans the purge scope describes on the notebook's current
 // head and returns the plan with its confirmation. It changes nothing.
-// export, when the instance has one, tells whether the Git export holds
-// revisions the purge would rewrite.
+// export, when the instance has one, is the Git export the purge rebuilds.
 func (s *Store) PreparePurge(ctx context.Context, scope PurgeScope, export *gitexport.Exporter) (PurgePlan, error) {
 	work, err := s.planPurge(ctx, scope, export)
 	return work.PurgePlan, err
 }
 
 // ExecutePurge runs plan, which PreparePurge returned with confirmation, as
-// actor for reason. It plans again and refuses unless that plan is the same,
-// so a notebook that changed since is ErrConflict. It rewrites the history,
-// resets the live documents the plan names, drops this store's caches of the
-// old content and, with export, rebuilds the notebook's Git export and flags
-// it for the backup worker. The rewrite commits only while the notebook's
+// actor for reason. It plans again and refuses unless that plan is the same
+// as far as a confirmation binds it (PurgePlan.Bound): a notebook that
+// changed since is ErrConflict, and any other difference
+// ErrPurgeConfirmation. It rewrites the history, resets the live documents
+// the plan it made again lists, drops this store's caches of the old
+// content and, with export, rebuilds the notebook's Git export and flags it
+// for the backup worker. The rewrite commits only while the notebook's
 // authority record is the one checked first, so a handoff another gateway
 // prepared or completed meanwhile refuses it as it refuses a save.
 func (s *Store) ExecutePurge(ctx context.Context, plan PurgePlan, confirmation, actor, reason string, export *gitexport.Exporter) (PurgeResult, error) {
@@ -217,7 +233,7 @@ func (s *Store) ExecutePurgeFenced(ctx context.Context, plan PurgePlan, confirma
 	err := s.checkAuthority(ctx)
 	// The rewrite's transaction checks again that the record checkAuthority
 	// read is still the notebook's, as applyChanges does.
-	authority := s.backend.(*dbNotebook).authorityVersion
+	authority := s.backend.authorityVersion
 	s.mu.Unlock()
 	if err != nil {
 		return PurgeResult{}, err
@@ -245,7 +261,7 @@ func (s *Store) ExecutePurgeFenced(ctx context.Context, plan PurgePlan, confirma
 	}
 	raw := make([]byte, 16)
 	rand.Read(raw)
-	result := PurgeResult{Purge: "purge-" + hex.EncodeToString(raw), Revision: work.Revision}
+	result := PurgeResult{Purge: "purge-" + hex.EncodeToString(raw), Revision: work.Revision, ExportForcePush: work.ExportForcePush}
 	var reset []string
 	var removalErr error
 	if work.fromSeq > 0 {
@@ -271,7 +287,7 @@ func (s *Store) ExecutePurgeFenced(ctx context.Context, plan PurgePlan, confirma
 	s.mu.Lock()
 	s.forgetPurged(work.paths)
 	if head, err := s.notes.Head(ctx); err == nil {
-		s.backend.(*dbNotebook).observe(head, true)
+		s.backend.observe(head, true)
 	}
 	s.mu.Unlock()
 	if export != nil && work.fromSeq > 0 {
@@ -282,6 +298,12 @@ func (s *Store) ExecutePurgeFenced(ctx context.Context, plan PurgePlan, confirma
 			return result, errors.Join(removalErr, fmt.Errorf("the notebook was purged, but rebuilding its Git export failed; run the export's Rebuild for purge %s again: %w", result.Purge, err))
 		}
 		result.Export = true
+		// The flag the rebuild wrote names the commits it replaces that the
+		// remote may hold. One the worker already spent may have replaced
+		// them, as may one that cannot be read.
+		if flag, ok, err := gitexport.ReadPurge(export.Path(s.notebook)); err == nil && ok && flag.Purge == result.Purge {
+			result.ExportForcePush = len(flag.Replaces) > 0
+		}
 	}
 	return result, removalErr
 }
@@ -294,7 +316,7 @@ func (s *Store) purgeRefusal(ctx context.Context, err error) error {
 	case errors.Is(err, notestore.ErrAuthorityChanged):
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		return s.backend.(*dbNotebook).authorityRefusal(ctx, err)
+		return s.backend.authorityRefusal(ctx, err)
 	case errors.Is(err, notestore.ErrConflict):
 		return fmt.Errorf("%w: %v", ErrConflict, err)
 	}
@@ -309,7 +331,7 @@ func (s *Store) forgetPurged(paths []string) {
 	s.identityHead, s.identityIDs, s.identityObjects = "", nil, nil
 	s.metadataHead, s.metadataObjects, s.metadataCache, s.metadataPaths = "", nil, nil, nil
 	s.trashRevision, s.trashCache, s.locksRevision = "", TrashIndex{}, ""
-	db := s.backend.(*dbNotebook)
+	db := s.backend
 	db.locksBlob, db.trashBlob = gitobj.ID{}, gitobj.ID{}
 	for _, p := range paths {
 		delete(s.live, p)
@@ -1079,8 +1101,10 @@ func (s *Store) planPurge(ctx context.Context, scope PurgeScope, export *gitexpo
 		if err != nil {
 			return purgeWork{}, err
 		}
+		// Edits not saved as a revision are the updates since the snapshot
+		// and, in a snapshot with no base revision, the snapshot's own.
 		path, _ := h.pathOf(entry)
-		w.Live = append(w.Live, PurgeLive{Path: path, Pending: len(st.Updates) > 0})
+		w.Live = append(w.Live, PurgeLive{Path: path, Pending: len(st.Updates) > 0 || st.Snapshot != nil && st.Base.IsZero()})
 	}
 	slices.SortStableFunc(w.Live, func(a, b PurgeLive) int { return strings.Compare(a.Path, b.Path) })
 	w.summary.Live = len(w.Live)
@@ -1090,16 +1114,11 @@ func (s *Store) planPurge(ctx context.Context, scope PurgeScope, export *gitexpo
 	for _, entry := range w.reset {
 		w.paths = append(w.paths, h.paths[entry]...)
 	}
-	if export != nil && w.fromSeq > 0 {
-		branch, err := export.Branch(s.notebook)
-		if err != nil {
-			return purgeWork{}, err
-		}
-		if !branch.IsZero() {
-			seq, known := h.seqs[branch]
-			w.ExportForcePush = !known || seq >= w.fromSeq
-		}
-	}
+	// The export catches up with the notebook in the background, so by the
+	// time the purge runs it may hold any revision the purge rewrites,
+	// whatever its branch names now: a plan that read the branch would change,
+	// and refuse its own confirmation, as the export caught up.
+	w.ExportForcePush = export != nil && w.fromSeq > 0
 	for _, list := range [][]PurgeOccurrence{w.Elsewhere, w.Unredactable, w.Shared} {
 		slices.SortStableFunc(list, func(a, b PurgeOccurrence) int {
 			if c := strings.Compare(a.Path, b.Path); c != 0 {
@@ -1122,21 +1141,44 @@ func (h *purgeHistory) commitAt(seq int64) string {
 }
 
 // confirmation binds a plan to its notebook, head, scope and everything it
-// reports, except how many live edits are pending, which changes while
-// people type.
+// reports, as Bound returns it.
 func (w *purgeWork) confirmation(notebook string) string {
-	plan := w.PurgePlan
-	plan.Confirmation = ""
-	plan.Live = slices.Clone(plan.Live)
-	for i := range plan.Live {
-		plan.Live[i].Pending = false
-	}
 	raw, _ := json.Marshal(struct {
 		Notebook string    `json:"notebook"`
 		Plan     PurgePlan `json:"plan"`
-	}{notebook, plan})
+	}{notebook, w.Bound()})
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
+}
+
+// Bound returns what a confirmation of p binds: all it reports but the
+// confirmation itself and, for a purge that rewrites revisions, the live
+// documents it resets that lose nothing. Such a purge (From) resets the
+// live documents of the notes it changes or finds holding its text,
+// including one someone opens before it runs, which loses nothing, as its
+// result counts; so only the live documents holding edits not saved as a
+// revision, which the reset discards, are bound, and a note in its scope
+// someone types into meanwhile means the plan must be reviewed again. A
+// purge that rewrites no revision changes the notebook only through the
+// live documents it lists, or not at all, so they are all bound, with
+// whether they hold edits not saved: a note it lists that someone types
+// into meanwhile, whose edits the reset would discard, means the plan must
+// be reviewed again too. What a purge leaves where it does not reach, such
+// as a live document outside its scope that holds the text (Elsewhere),
+// stays bound.
+func (p PurgePlan) Bound() PurgePlan {
+	p.Confirmation = ""
+	if p.From == "" {
+		return p
+	}
+	var pending []PurgeLive
+	for _, l := range p.Live {
+		if l.Pending {
+			pending = append(pending, l)
+		}
+	}
+	p.Live = pending
+	return p
 }
 
 // occurrences groups uses by entry into the occurrences a plan reports.
@@ -1662,10 +1704,16 @@ func (s *Store) planText(ctx context.Context, w *purgeWork, h *purgeHistory, sco
 		}
 		if inScope(entry) {
 			w.reset = append(w.reset, entry)
-		} else {
-			path, _ := h.pathOf(entry)
-			w.Elsewhere = append(w.Elsewhere, PurgeOccurrence{Path: path, Kind: "live"})
+			continue
 		}
+		// A note whose saved text holds it is listed by its versions
+		// already: its live document, which starts from that text when
+		// someone opens the note, tells nothing more.
+		path, current := h.pathOf(entry)
+		if _, saved := found[h.files[path].Blob]; current && saved {
+			continue
+		}
+		w.Elsewhere = append(w.Elsewhere, PurgeOccurrence{Path: path, Kind: "live"})
 	}
 	var entries []string
 	touched := map[string]bool{}

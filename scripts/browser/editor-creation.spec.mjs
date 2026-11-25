@@ -316,6 +316,40 @@ test('sidebar discloses search options and menus without losing search state or 
     .toBeLessThanOrEqual(390);
   await page.screenshot({path: test.info().outputPath('sidebar-options-mobile.png')});
 });
+test('an editor that loads late takes focus only if nobody moved it since Edit', async ({page}) => {
+  const path = 'late-focus/note.md',
+    content = '# Late focus\n\nThe editor arrives after a menu opens.\n';
+  await api('/p/default/api/note', {path, content, revision: ''});
+  await login(page);
+  // The editor's code waits until the case releases it, as on a slow connection.
+  const held = [];
+  await page.route(/\/source-editor-[^/]*\.js$/, route => held.push(route));
+  const releaseEditor = async () => {
+    await expect.poll(() => held.length).toBeGreaterThan(0);
+    for (const route of held.splice(0)) await route.continue();
+    await expectEditorText(page, content);
+  };
+  const startEditing = async () => {
+    await expect(page.locator('#mode')).toBeEnabled();
+    if (await page.locator('#editing').isHidden()) await page.locator('#mode').click();
+    await expect(page.locator('#editing')).toBeVisible();
+  };
+  await page.goto(origin + '/?project=default&note=' + encodeURIComponent(path));
+  await startEditing();
+  await page.locator('#note-details-toggle').click();
+  await expect(page.locator('#history-open')).toBeVisible();
+  await releaseEditor();
+  await expect(page.locator('#note-details-toggle')).toBeFocused();
+  await expect(page.locator('#history-open')).toBeVisible();
+
+  // Choosing a format meanwhile keeps focus with the editor.
+  await page.reload();
+  await startEditing();
+  await page.locator('#format-source').click();
+  await releaseEditor();
+  await expect(page.locator('#editing')).toHaveAttribute('data-format', 'source');
+  await expect(page.locator('#editor')).toBeFocused();
+});
 test('creation errors keep the current draft and mobile folder selection is keyboard accessible', async ({page}) => {
   await api('/p/default/api/note', {path: 'creation-safety/existing.md', content: '# Existing\n', revision: ''});
   await login(page);

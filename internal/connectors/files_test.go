@@ -33,7 +33,7 @@ func personalConfig(t *testing.T, key string) PersonalConfig {
 		t.Fatal(err)
 	}
 	app := &OAuthApplication{ClientID: "fixture", SecretFile: filepath.Join(dir, "secret")}
-	return PersonalConfig{Version: 1, KeyFile: filepath.Join(dir, "key"), Google: app, Slack: &OAuthApplication{ClientID: "fixture", SecretFile: app.SecretFile, Workspace: "T123"}}
+	return PersonalConfig{Version: 1, KeyFile: filepath.Join(dir, "key"), Google: app, Slack: personalSlackApp(&OAuthApplication{ClientID: "fixture", SecretFile: app.SecretFile, Workspace: "T123"})}
 }
 
 func personalReleaseA(t *testing.T) string {
@@ -107,6 +107,7 @@ func openPersonalFile(t *testing.T, config PersonalConfig, path string) []byte {
 // Each imported grant is a row of its own that the store opens, and the export
 // seals the document the file-based release sealed, under a new nonce.
 func TestPersonalFilesRoundTrip(t *testing.T) {
+	requireSlack(t) // the release holds a Slack grant
 	config := personalConfig(t, strings.Repeat("ba", 32))
 	files := PersonalFiles{Config: &config}
 	db := pgtest.Org(t)
@@ -171,6 +172,7 @@ func TestPersonalFilesReportIsKeyed(t *testing.T) {
 // A refresh in progress when the gateways stopped exports without its gateway,
 // and reads after the export as needing reauthorization.
 func TestPersonalExportDropsRefreshHolder(t *testing.T) {
+	requireSlack(t) // the release holds a Slack grant
 	config := personalConfig(t, strings.Repeat("ba", 32))
 	files := PersonalFiles{Config: &config}
 	db := pgtest.Org(t)

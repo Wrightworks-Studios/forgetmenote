@@ -1,5 +1,5 @@
-// Package benchfixture generates the storage v2 benchmark and bake-off
-// fixtures (storage-v2-bakeoff.md §2):
+// Package benchfixture generates the storage benchmark fixtures, on which the
+// performance budgets in docs/architecture.md are measured:
 //
 //   - F1, Novel: Moby-Dick as one 1.2 MB manuscript note, pinned by SHA-256;
 //   - F1h, NovelHistory: thousands of edits to F1 by three humans and two agents;
@@ -17,7 +17,7 @@
 // Containers that mount only the worktree can use the ignored .fixture-cache
 // directory at the repository root as the cache.
 //
-// Tests, benchmarks and the bake-off use this package; production code never
+// Tests and benchmarks use this package; production code never
 // imports it (TestNoProductionImports enforces this). It depends only on the
 // standard library so that any package's tests can use it without import
 // cycles; the notebook formats it writes are mirrored from internal/workspace

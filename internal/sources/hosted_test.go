@@ -55,6 +55,7 @@ func TestHostedPDFOCRPreservesPhysicalSelectionAndUnselectedPages(t *testing.T) 
 	}
 }
 func TestHostedImageInterpretationRemainsLabeledAndOptedIn(t *testing.T) {
+	requireOCR(t)
 	if _, err := exec.LookPath("tesseract"); err != nil {
 		t.Skip("requires Tesseract")
 	}

@@ -7,6 +7,20 @@ import (
 	"strings"
 )
 
+// IAM credentials use the SDK's refreshable runtime chain (including pod roles).
+// SecretARN refers to an AWS-managed database credential, never its value.
+type RedshiftConfig struct {
+	Region        string   `json:"region"`
+	Database      string   `json:"database"`
+	Cluster       string   `json:"cluster,omitempty"`
+	Workgroup     string   `json:"workgroup,omitempty"`
+	DBUser        string   `json:"dbUser,omitempty"`
+	SecretARN     string   `json:"secretArn,omitempty"`
+	Schemas       []string `json:"schemas,omitempty"`
+	DeniedColumns []string `json:"deniedColumns,omitempty"`
+	MaxCells      int      `json:"maxCells,omitempty"`
+}
+
 type sqlToken struct {
 	text               string
 	identifier, quoted bool

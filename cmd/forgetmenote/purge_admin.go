@@ -25,7 +25,7 @@ import (
 )
 
 // runPurgeAdmin lets an operator purge content from a notebook of the running
-// instance (storage v2 design §11) through its own purge routes, with the
+// instance (docs/purge.md) through its own purge routes, with the
 // instance access key in DATA/admin.token, so the process that serves the
 // notebook rewrites it, rebuilds its Git export and cleans what was derived
 // from it, exactly as the browser flow does:

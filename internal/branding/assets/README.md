@@ -1,6 +1,6 @@
 # ForgetMeNote identity
 
-The approved mark is **Open bloom**: five separated, softly notched blue petals (`#3299d6`) around a gold center (`#f0c43f`). The gaps between petals keep the flower recognizable at small sizes. `flower.svg` is the single vector source used by the site header, sign-in page, modern browser favicon, and raster exports below. Earlier explorations in `docs/brand-study/` are historical references.
+The approved mark is **Open bloom**: five separated, softly notched blue petals (`#3299d6`) around a gold center (`#f0c43f`). The gaps between petals keep the flower recognizable at small sizes. `flower.svg` is the single vector source used by the site header, sign-in page, modern browser favicon, and raster exports below.
 
 - `favicon.ico` contains transparent 16, 32, and 48 px versions for legacy browsers/bookmarks.
 - `apple-touch-icon.png` is 180 px with a dark `#111b27` background.

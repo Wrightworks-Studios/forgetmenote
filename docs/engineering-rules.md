@@ -35,7 +35,7 @@ Build a small, dependable, multi-user notes service. Read SKILL.md before implem
 - Explain non-obvious tradeoffs at their owner; avoid comments that repeat code and tests that repeat implementation.
 - New dependencies must solve a concrete current problem. Pin versions and record their purpose.
 - Do not deploy, publish, buy services, or send messages without user authorization.
-- Authorized Duplo deployments follow [deploying](../deploy/production/deploying.md) and the [AWS recovery runbook](aws-recovery.md): prepare recovery assets first, one stop/capture/update/start, the compatible fast path only for explicitly reviewed backward-compatible changes (unknown compatibility and migrations wait for a completed backup), a recent completed fallback and protected previous image, separate readiness and backup outcomes, preserved original failures, and no reuse of a capture after writes resumed. Those rules are mandatory.
+- Authorized hosted deployments follow the deployment repository's deployment and recovery runbooks: prepare recovery assets first, one stop/capture/update/start, the compatible fast path only for explicitly reviewed backward-compatible changes (unknown compatibility and migrations wait for a completed backup), a recent completed fallback and protected previous image, separate readiness and backup outcomes, preserved original failures, and no reuse of a capture after writes resumed. Those rules are mandatory.
 
 ## TypeSafe / Jev
 - Use the globally installed `typesafe-ai` skill when designing or implementing AI features in ForgetMeNote, including retrieval ranking, extraction, and citation verification. The upstream skill is at https://github.com/typesafe-ai/skills/blob/main/skills/typesafe-ai/SKILL.md.

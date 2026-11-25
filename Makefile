@@ -6,8 +6,12 @@ export BASE
 SMOKE_IMAGE ?= forgetmenote:poc
 BACKUP_TEST_COMMAND ?= $(PYTHON) -m unittest discover -s deploy/git-backup
 export SMOKE_IMAGE
+# Leaves out every optional integration (docs/integrations.md).
+CORE_TAGS := fmn_omit_postgres,fmn_omit_redshift,fmn_omit_outlook,fmn_omit_iwork,fmn_omit_ocr,fmn_omit_slack
+# The web cases that reach those integrations' owners.
+CORE_WEB_TESTS := Source|Hosted|Format|DataConnection|Integration|MCPContract|Slack|Personal|Messag
 
-.PHONY: setup-deps setup-browser operator-venv browser-summary ui-capture format-browser frontend test test-go test-frontend test-fixture test-python check check-fast check-release check-browser build build-clients smoke smoke-core smoke-headless smoke-source smoke-resource smoke-chat smoke-jev smoke-oidc smoke-totp smoke-cluster smoke-full smoke-rollback smoke-cutover test-python-host vet format
+.PHONY: setup-deps setup-browser operator-venv browser-summary ui-capture format-browser frontend test test-go test-frontend test-fixture test-python check check-fast check-core check-release check-browser build build-core build-clients smoke smoke-core smoke-headless smoke-source smoke-resource smoke-chat smoke-jev smoke-oidc smoke-totp smoke-cluster smoke-full test-python-host vet format
 
 # Install explicitly; focused checks reuse the existing toolchain and caches.
 setup-deps:
@@ -65,8 +69,15 @@ format:
 format-browser:
 	npx --no-install prettier --check scripts/browser
 
+# The build without optional integrations: every package and test compiles,
+# and the integrations' owners and their callers pass.
+check-core: frontend
+	go vet -tags $(CORE_TAGS) ./...
+	go test -race -count=1 -tags $(CORE_TAGS) ./internal/integrations ./internal/connectors ./internal/sources ./internal/messaging ./cmd/forgetmenote
+	go test -race -count=1 -tags $(CORE_TAGS) ./internal/web -run '$(CORE_WEB_TESTS)'
+
 # This is PR feedback, never a production release receipt.
-check-fast: test-frontend test-fixture test-python vet format format-browser
+check-fast: test-frontend test-fixture test-python vet format format-browser check-core
 	$(PYTHON) deploy/production/fast_check.py --jobs $(JOBS)
 
 check-release:
@@ -79,6 +90,9 @@ check-browser: frontend format-browser
 
 build: frontend
 	go build -trimpath -o bin/forgetmenote ./cmd/forgetmenote
+
+build-core: frontend
+	go build -trimpath -tags $(CORE_TAGS) -o bin/forgetmenote-core ./cmd/forgetmenote
 
 build-clients: frontend
 	@for platform in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do \
@@ -113,14 +127,6 @@ smoke-totp:
 
 smoke-cluster:
 	$(PYTHON) scripts/cluster_smoke.py
-
-# Not part of smoke-full: it needs the file-based release image pulled locally.
-smoke-rollback:
-	$(PYTHON) scripts/rollback_smoke.py
-
-# Not part of smoke-full either: it rehearses the cutover from that release.
-smoke-cutover:
-	$(PYTHON) scripts/cutover_smoke.py
 
 # Preserve sequential execution even if the caller uses make -j.
 smoke-full:

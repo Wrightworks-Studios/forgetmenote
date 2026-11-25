@@ -127,7 +127,7 @@ func Fetch(ctx context.Context, rawURL string) ([]byte, string, string, error) {
 	}
 	req.Header.Set("User-Agent", "ForgetMeNote/1.0 SourceCapture")
 	var accepted []string
-	for _, format := range workspace.SourceFormats() {
+	for _, format := range Formats() {
 		accepted = append(accepted, format.MIME)
 	}
 	req.Header.Set("Accept", strings.Join(accepted, ","))
@@ -214,6 +214,9 @@ func PrepareWithOptions(ctx context.Context, filename, originalURL string, data 
 		}
 		if format.MIME == "" || format.MIME == "application/pdf" {
 			return out, rejection("unsupported or invalid source format; use a supported original file rather than a viewer URL")
+		}
+		if err := formatIncluded(format); err != nil {
+			return out, err
 		}
 		if options.DescribeImages && !format.DescribeImages {
 			return out, rejection("image descriptions are available for PDFs, images, and PowerPoint files")
