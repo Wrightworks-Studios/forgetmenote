@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"forgetmenote/internal/purgehttp"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"forgetmenote/internal/catalog"
@@ -40,7 +41,7 @@ func TestPurgePlansOfOneNotebookNeverEndAnothersPlans(t *testing.T) {
 	savePurgeNote(t, store, "notes/keys.md", "# Keys\n\n"+secret+"\n", "")
 	sessions := purgeAgents(t, app, "notes:read notes:write notes:manage", "keeper", "mallory")
 	raw := actionCall(t, sessions[0], "prepare_purge", map[string]any{"project": "default", "kind": "text", "text": secret}, false)
-	var out preparePurgeOutput
+	var out purgehttp.AgentPlan
 	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +56,7 @@ func TestPurgePlansOfOneNotebookNeverEndAnothersPlans(t *testing.T) {
 		t.Fatalf("keeper opens the plan after another notebook's plans: HTTP %d %s", w.Code, w.Body)
 	}
 	var plans int
-	if err := app.db.Pool.QueryRow(context.Background(), `SELECT count(*) FROM pending_flows WHERE org = $1 AND kind = $2`, app.db.Org, purgeFlowKind("mine")).Scan(&plans); err != nil || plans != 64 {
+	if err := app.db.Pool.QueryRow(context.Background(), `SELECT count(*) FROM pending_flows WHERE org = $1 AND kind = $2`, app.db.Org, purgehttp.FlowKind("mine")).Scan(&plans); err != nil || plans != 64 {
 		t.Fatalf("one notebook keeps %d plans (%v), not its bound", plans, err)
 	}
 }
@@ -66,15 +67,15 @@ func TestPurgePlansOfOneNotebookNeverEndAnothersPlans(t *testing.T) {
 func TestPurgeScopesAreBounded(t *testing.T) {
 	app, store := fixture(t)
 	savePurgeNote(t, store, "notes/keys.md", "# Keys\n\nA key.\n", "")
-	paths := make([]string, maxPurgePaths+1)
+	paths := make([]string, purgehttp.MaxPaths+1)
 	for i := range paths {
 		paths[i] = fmt.Sprintf("notes/%d.md", i)
 	}
-	versions := make([]string, maxPurgePaths+1)
+	versions := make([]string, purgehttp.MaxPaths+1)
 	for i := range versions {
 		versions[i] = strings.Repeat("a", 40)
 	}
-	large := strings.Repeat("x", maxPurgeText+1)
+	large := strings.Repeat("x", purgehttp.MaxText+1)
 	scopes := []workspace.PurgeScope{
 		{Kind: workspace.PurgeText, Text: large},
 		{Kind: workspace.PurgeText, Pattern: large},
@@ -107,7 +108,7 @@ func TestPurgeScopesAreBounded(t *testing.T) {
 		t.Fatalf("%d plans stored (%v)", plans, err)
 	}
 	// At the bound, a scope is planned.
-	actionCall(t, session, "prepare_purge", map[string]any{"project": "default", "kind": "text", "text": strings.Repeat("x", maxPurgeText)}, false)
+	actionCall(t, session, "prepare_purge", map[string]any{"project": "default", "kind": "text", "text": strings.Repeat("x", purgehttp.MaxText)}, false)
 }
 
 // A plan an agent prepared holds the text to erase; once it expires, the

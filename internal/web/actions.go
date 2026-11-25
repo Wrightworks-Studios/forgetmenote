@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"forgetmenote/internal/actions"
+	"forgetmenote/internal/purgehttp"
 	"reflect"
 	"slices"
 	"sort"
@@ -134,7 +135,7 @@ func addAction[I, O any](s *Server, server *mcp.Server, tool *mcp.Tool, fn func(
 	original := fn
 	readOnly := tool.Annotations != nil && tool.Annotations.ReadOnlyHint
 	if readOnly {
-		original = withPurgedRevisions(s, original)
+		original = purgehttp.WithPurgedRevisions(s.toolStore, original)
 	}
 	required := clientActionScope(tool)
 	if len(scope) > 0 {

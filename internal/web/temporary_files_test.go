@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -200,7 +201,7 @@ func TestPurgeRemovesTheBundlesBeingPrepared(t *testing.T) {
 			}
 			type outcome struct {
 				code    int
-				receipt purgeReceipt
+				receipt purgehttp.Receipt
 				body    string
 			}
 			purged := make(chan outcome, 1)

@@ -44,6 +44,7 @@ import (
 	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/outgoing"
 	"forgetmenote/internal/pg"
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/search"
 	"forgetmenote/internal/sourcehttp"
 	"forgetmenote/internal/sources"
@@ -121,6 +122,7 @@ type Server struct {
 	passwords           passwordRequests
 	sourceJobs          *sources.Jobs
 	sourceHTTP          *sourcehttp.HTTP
+	purge               *purgehttp.Service
 	sourceWork          chan struct{}
 	rpcWork             chan struct{}
 	rpcReadWork         chan struct{}
@@ -254,6 +256,10 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 		return nil, errors.New("ForgetMeNote requires its Postgres database; see docs/postgres.md")
 	}
 	s.db = db
+	// The flow sweep the first export pass begins keeps purge receipts.
+	if err = s.initPurge(); err != nil {
+		return nil, err
+	}
 	// Exports another gateway left expire here too.
 	s.expireExports()
 	// Request windows are shared, so each limit holds for the instance.
@@ -379,7 +385,7 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	s.chatRoutes()
 	s.connectionRoutes()
 	s.authorityRoutes()
-	s.purgeRoutes()
+	s.purge.Register(s.handleProject)
 	s.instanceAdministrationRoutes()
 
 	s.mux.Handle("/mcp", s.mcpHandler())
@@ -855,7 +861,7 @@ func (s *Server) readNote(ctx context.Context, store *workspace.Store, in readNo
 	if !strings.HasSuffix(in.Path, ".md") {
 		return noteOutput{}, webcore.Invalid("notes are Markdown (.md) files; read media as an attachment")
 	}
-	v, err := pinnedRead(ctx, store, in.Path, in.Revision, func(revision string) (workspace.Document, error) {
+	v, err := purgehttp.PinnedRead(ctx, store, in.Path, in.Revision, func(revision string) (workspace.Document, error) {
 		return readChatNote(ctx, store, in.Path, revision)
 	})
 	return s.output(v), err
@@ -958,7 +964,7 @@ func (s *Server) upload(w http.ResponseWriter, r *http.Request) {
 func (s *Server) asset(w http.ResponseWriter, r *http.Request) {
 	path := r.PathValue("path")
 	store := projectStore(r.Context())
-	doc, err := pinnedRead(r.Context(), store, path, r.URL.Query().Get("revision"), func(revision string) (workspace.Document, error) {
+	doc, err := purgehttp.PinnedRead(r.Context(), store, path, r.URL.Query().Get("revision"), func(revision string) (workspace.Document, error) {
 		return store.Read(r.Context(), path, revision)
 	})
 	if err != nil {

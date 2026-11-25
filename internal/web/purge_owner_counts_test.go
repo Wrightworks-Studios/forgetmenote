@@ -10,6 +10,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -85,8 +86,8 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 		return plan
 	}
 	scope := workspace.PurgeScope{Kind: workspace.PurgeText, Text: secret}
-	own := purgeDerived{Chats: 1, Proposals: 1, JevRecords: 2, Own: true, Others: purgeOthersRedacted}
-	all := purgeDerived{Chats: 2, Proposals: 2, JevRecords: 4}
+	own := purgehttp.Derived{Chats: 1, Proposals: 1, JevRecords: 2, Own: true, Others: purgehttp.OthersRedacted}
+	all := purgehttp.Derived{Chats: 2, Proposals: 2, JevRecords: 4}
 	if got := prepare("keeper", map[string]any{"scope": scope}).Derived; got != own {
 		t.Errorf("the Owner's plan counts %+v, want %+v", got, own)
 	}
@@ -110,7 +111,7 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 			t.Errorf("%s's agent's plan counts records outside the notebook: %s", user, raw)
 		}
 		link, _ := url.Parse(out.ConfirmURL)
-		want := map[string]purgeDerived{"keeper": own, "admin": all}[user]
+		want := map[string]purgehttp.Derived{"keeper": own, "admin": all}[user]
 		if got := prepare(user, map[string]any{"token": link.Query().Get("purge")}).Derived; got != want {
 			t.Errorf("%s opens their agent's plan: counts %+v, want %+v", user, got, want)
 		}
@@ -118,7 +119,7 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 
 	// A guess that only another person's record holds is told apart from a
 	// wrong one by nothing.
-	var guesses []purgeDerived
+	var guesses []purgehttp.Derived
 	for _, pin := range []string{"7391", "7392"} {
 		savePurgeNote(t, store, "notes/scratch-"+pin+".md", "bank PIN is "+pin+"\n", "")
 		guesses = append(guesses, prepare("keeper", map[string]any{"scope": workspace.PurgeScope{Kind: workspace.PurgeText, Text: "bank PIN is " + pin, Paths: []string{"notes/scratch-" + pin + ".md"}}}).Derived)
@@ -132,7 +133,7 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 	plan := prepare("keeper", map[string]any{"scope": scope})
 	body, _ := json.Marshal(map[string]any{"scope": plan.Scope, "revision": plan.Revision, "confirmation": plan.Confirmation, "reason": "Leaked key"})
 	w := proxyCall(app, "keeper", "POST", "/p/default/api/purge/execute", string(body))
-	var receipt purgeReceipt
+	var receipt purgehttp.Receipt
 	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &receipt) != nil {
 		t.Fatalf("execute: HTTP %d %s", w.Code, w.Body)
 	}
@@ -144,11 +145,11 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 		+ (SELECT count(*) FROM jev_records WHERE position($1 IN body::text) > 0)`, secret).Scan(&left); err != nil || left != 0 {
 		t.Fatalf("%d records outside the notebook still quote the key (%v)", left, err)
 	}
-	listed := func(user string) purgeDerived {
+	listed := func(user string) purgehttp.Derived {
 		t.Helper()
 		w := proxyCall(app, user, "GET", "/p/default/api/purge", "")
 		var out struct {
-			Receipts []purgeReceipt `json:"receipts"`
+			Receipts []purgehttp.Receipt `json:"receipts"`
 		}
 		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil || len(out.Receipts) != 1 || out.Receipts[0].ActorDerived != nil {
 			t.Fatalf("%s lists receipts: HTTP %d %s", user, w.Code, w.Body)
@@ -158,7 +159,7 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 	if got := listed("keeper"); got != own {
 		t.Errorf("the Owner's listed receipt counts %+v, want %+v", got, own)
 	}
-	if got := listed("partner"); got != (purgeDerived{Withheld: true, Others: purgeOthersWithheld}) {
+	if got := listed("partner"); got != (purgehttp.Derived{Withheld: true, Others: purgehttp.OthersWithheld}) {
 		t.Errorf("another Owner's listed receipt counts %+v", got)
 	}
 	if got := listed("admin"); got.Chats != 2 || got.JevRecords != 4 || got.Proposals != 2 || got.Own || got.Withheld || got.Others != "" {
@@ -211,7 +212,7 @@ func TestAnOwnerIsToldWithoutANumberThatRecordsCouldNotBeRedacted(t *testing.T) 
 	}
 	body, _ := json.Marshal(map[string]any{"scope": plan.Scope, "revision": plan.Revision, "confirmation": plan.Confirmation, "reason": "Leaked key"})
 	w = proxyCall(app, "keeper", "POST", "/p/default/api/purge/execute", string(body))
-	var receipt purgeReceipt
+	var receipt purgehttp.Receipt
 	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &receipt) != nil {
 		t.Fatalf("execute: HTTP %d %s", w.Code, w.Body)
 	}
@@ -228,7 +229,7 @@ func TestAnOwnerIsToldWithoutANumberThatRecordsCouldNotBeRedacted(t *testing.T) 
 		t.Helper()
 		w := proxyCall(app, user, "GET", "/p/default/api/purge", "")
 		var out struct {
-			Receipts []purgeReceipt `json:"receipts"`
+			Receipts []purgehttp.Receipt `json:"receipts"`
 		}
 		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil || len(out.Receipts) != 1 {
 			t.Fatalf("%s lists receipts: HTTP %d %s", user, w.Code, w.Body)
@@ -245,7 +246,7 @@ func TestAnOwnerIsToldWithoutANumberThatRecordsCouldNotBeRedacted(t *testing.T) 
 	if refused == nil {
 		t.Fatal("a Jev record the redaction refuses is not reported")
 	}
-	jev := purgeReceipt{Actor: "keeper", Warnings: []string{"Some records outside the notebook could not be cleaned: Jev records: " + refused.Error()}}
-	told("the Owner, of Jev records", app.purgeReceiptFor("keeper", jev).Warnings, "some Jev records, perhaps other people's, cannot be redacted", "1 Jev records")
-	told("the Admin, of Jev records", app.purgeReceiptFor("admin", jev).Warnings, "1 Jev records cannot be redacted", "perhaps")
+	jev := purgehttp.Receipt{Actor: "keeper", Warnings: []string{"Some records outside the notebook could not be cleaned: Jev records: " + refused.Error()}}
+	told("the Owner, of Jev records", app.purge.ReceiptFor("keeper", jev).Warnings, "some Jev records, perhaps other people's, cannot be redacted", "1 Jev records")
+	told("the Admin, of Jev records", app.purge.ReceiptFor("admin", jev).Warnings, "1 Jev records cannot be redacted", "perhaps")
 }

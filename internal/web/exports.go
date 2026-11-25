@@ -134,7 +134,7 @@ func (s *Server) sweepFlows() {
 	defer cancel()
 	s.db.SweepFlows(ctx)
 	// And as often, a purge receipt the database refused is kept.
-	s.keepSpooledPurgeReceipts(ctx)
+	s.purge.KeepSpooledReceipts(ctx)
 	s.exports.mu.Lock()
 	defer s.exports.mu.Unlock()
 	if s.exports.sweep != nil {
@@ -401,4 +401,44 @@ func (r exportReader) ReadAt(p []byte, offset int64) (int, error) {
 		return read, errors.New("exports are unavailable; retry shortly")
 	}
 	return read, nil
+}
+
+// fenceExports ends every bundle export in progress, and keeps a new one
+// from recording itself until release runs; a purge holds it while it
+// rewrites a notebook's history. Each chunk an export serves is read only
+// while its row is there, and dropBundleExports removes a bundle after its
+// row, so no export serves a chunk of the notebook as it was once the
+// rewrite has committed. An export that made its bundle before the purge
+// and records it after finds the commits it names rewritten and ends itself
+// (beginExport).
+func (s *Server) fenceExports(ctx context.Context) (release func(), err error) {
+	if release, err = s.db.Exclusive(ctx, "exports"); err != nil {
+		return nil, fmt.Errorf("end the bundle exports in progress: %w", err)
+	}
+	if err = s.dropBundleExports(ctx); err != nil {
+		release()
+		return nil, fmt.Errorf("end the bundle exports in progress: %w", err)
+	}
+	return release, nil
+}
+
+// dropBundleExports ends every bundle export in progress, whose bundle holds
+// its notebook as it was; its client starts again. An export's row does not
+// name its notebook, so the instance's few are all ended.
+func (s *Server) dropBundleExports(ctx context.Context) error {
+	rows, err := s.db.Pool.Query(ctx, `DELETE FROM exports WHERE org = $1 RETURNING id`, s.db.Org)
+	if err != nil {
+		return err
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, id := range ids {
+		if err := s.blobs.Delete(ctx, exportKey(id)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }

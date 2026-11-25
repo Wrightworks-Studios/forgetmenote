@@ -1,4 +1,8 @@
-package web
+// Package purgehttp owns authorized purge: its browser routes, the plan an
+// agent prepares, running a confirmed plan, cleaning what quoted the purged
+// content outside the notebook, receipts, finishing purges that stopped, and
+// the guard that keeps reads pinned to rewritten revisions working.
+package purgehttp
 
 import (
 	"context"
@@ -19,12 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/durable"
-	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/notestore"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/webcore"
@@ -42,8 +43,8 @@ import (
 // content and keeps a receipt that names who, when, why and what kind of
 // purge, never the content.
 
-// purgeExposure is what every plan and receipt says purge cannot do.
-const purgeExposure = "A purge cannot undo exposure: rotate any leaked secret regardless; GitHub may keep cached views of old commits until GitHub Support clears them; downloads, earlier backups and pg_dump files taken before the purge still hold the content."
+// Exposure is what every plan and receipt says purge cannot do.
+const Exposure = "A purge cannot undo exposure: rotate any leaked secret regardless; GitHub may keep cached views of old commits until GitHub Support clears them; downloads, earlier backups and pg_dump files taken before the purge still hold the content."
 
 // purgePreviousRelease is what a plan and a receipt add while the previous
 // release's files for the notebook are still in the data directory
@@ -56,17 +57,18 @@ const purgePlanTTL = time.Hour
 // The largest purge scope: a text or pattern of 64 KiB, and 1,000 notes or
 // versions.
 const (
-	maxPurgeText  = 64 << 10
-	maxPurgePaths = 1000
+	MaxText  = 64 << 10
+	MaxPaths = 1000
 )
 
 // purgeWork bounds a confirmed purge, which runs to its end even when its
 // request ends; the operator command waits as long for its answer.
 const purgeWork = 30 * time.Minute
 
-const purgeReceiptKind = "purge-receipt"
+const ReceiptKind = "purge-receipt"
 
-var errPurgedVersion = webcore.Error{Status: http.StatusGone, Code: "purged", Message: "This version was permanently erased by a purge."}
+// ErrPurgedVersion refuses a read pinned to a version a purge removed.
+var ErrPurgedVersion = webcore.Error{Status: http.StatusGone, Code: "purged", Message: "This version was permanently erased by a purge."}
 
 type purgePrepareInput struct {
 	Scope workspace.PurgeScope `json:"scope"`
@@ -86,7 +88,7 @@ type purgeExecuteInput struct {
 	Operator string `json:"operator,omitempty"`
 }
 
-// purgeDerived counts what quoted the purged content outside the notebook,
+// Derived counts what quoted the purged content outside the notebook,
 // which a person's plan reports and a purge redacts without anyone reading
 // it. Those records are matched only against what the notebook holds
 // (PurgeQuotes), or, for an instance Admin in the browser, who may redact
@@ -102,7 +104,7 @@ type purgeExecuteInput struct {
 // (Own), and only that other people's are redacted too (Others), never how
 // many, or a dictionary of guesses written into a note would tell them
 // which their colleagues' private records hold.
-type purgeDerived struct {
+type Derived struct {
 	Chats       int `json:"chats"`
 	Proposals   int `json:"proposals"`
 	JevRecords  int `json:"jevRecords"`
@@ -124,16 +126,16 @@ type purgeDerived struct {
 // What a plan or receipt that counts only the caller's own records says of
 // everyone else's, and what a receipt of someone else's purge says.
 const (
-	purgeOthersRedacted = "Other people's private chat transcripts, Knowledge proposals and Jev records that quote it are redacted too; only an instance Admin is told how many."
-	purgeOthersWithheld = "Private chat transcripts, Knowledge proposals and Jev records that quoted it were redacted; only the person who ran this purge and instance Admins are told how many."
+	OthersRedacted = "Other people's private chat transcripts, Knowledge proposals and Jev records that quote it are redacted too; only an instance Admin is told how many."
+	OthersWithheld = "Private chat transcripts, Knowledge proposals and Jev records that quoted it were redacted; only the person who ran this purge and instance Admins are told how many."
 )
 
-// A purgePlanView is the workspace's plan with what the instance adds: the
+// A PlanView is the workspace's plan with what the instance adds: the
 // derived records that will be redacted, and what a purge cannot do.
-type purgePlanView struct {
+type PlanView struct {
 	workspace.PurgePlan
 	// Derived is absent from an agent's plan (RecordsCountedOnReview).
-	Derived *purgeDerived `json:"derived,omitempty"`
+	Derived *Derived `json:"derived,omitempty"`
 	// NotebookUnchanged reports a plan that finds the content only outside
 	// the notebook; running it redacts those records.
 	NotebookUnchanged bool   `json:"notebookUnchanged"`
@@ -151,9 +153,9 @@ type purgePlanView struct {
 	Warnings []string `json:"warnings,omitempty"`
 }
 
-// A purgeReceipt is what a purge kept of itself: never the content, the
+// A Receipt is what a purge kept of itself: never the content, the
 // paths it removed or the pattern.
-type purgeReceipt struct {
+type Receipt struct {
 	Purge         string `json:"purge"`
 	Notebook      string `json:"notebook"`
 	Actor         string `json:"actor"`
@@ -170,37 +172,37 @@ type purgeReceipt struct {
 	Rewritten     int    `json:"rewritten"`
 	// RemovedVersions and RemovedBlocks count what storage deleted. Content
 	// another notebook keeps stays stored, so only an instance Admin, who
-	// may read every notebook, sees them (purgeReceiptFor).
-	RemovedVersions   int          `json:"removedVersions"`
-	RemovedBlocks     int          `json:"removedBlocks,omitempty"`
-	LiveReset         int          `json:"liveReset"`
-	Export            bool         `json:"export"`
-	ExportForcePush   bool         `json:"exportForcePush"`
-	NotebookUnchanged bool         `json:"notebookUnchanged,omitempty"`
-	Derived           purgeDerived `json:"derived"`
+	// may read every notebook, sees them (ReceiptFor).
+	RemovedVersions   int     `json:"removedVersions"`
+	RemovedBlocks     int     `json:"removedBlocks,omitempty"`
+	LiveReset         int     `json:"liveReset"`
+	Export            bool    `json:"export"`
+	ExportForcePush   bool    `json:"exportForcePush"`
+	NotebookUnchanged bool    `json:"notebookUnchanged,omitempty"`
+	Derived           Derived `json:"derived"`
 	// ActorDerived, kept with a purge someone who is not an instance Admin
 	// ran, counts their own records, which their receipt shows them instead
-	// of Derived (purgeReceiptFor).
-	ActorDerived *purgeDerived `json:"actorDerived,omitempty"`
-	Warnings     []string      `json:"warnings,omitempty"`
-	Exposure     string        `json:"exposure"`
+	// of Derived (ReceiptFor).
+	ActorDerived *Derived `json:"actorDerived,omitempty"`
+	Warnings     []string `json:"warnings,omitempty"`
+	Exposure     string   `json:"exposure"`
 	// PreparedByAgent reports a plan an agent prepared (prepare_purge) that
 	// a person reviewed and ran.
 	PreparedByAgent bool `json:"preparedByAgent,omitempty"`
 	// Unfinished reports a purge that rewrote the notebook and has kept no
 	// receipt: it is still running, or the gateway running it stopped.
 	// Interrupted is the receipt a starting gateway kept of a purge that
-	// stopped, once it finished what it could (finishStoppedPurges). Their
+	// stopped, once it finished what it could (FinishStopped). Their
 	// warnings say what was not done and how to finish it.
 	Unfinished  bool `json:"unfinished,omitempty"`
 	Interrupted bool `json:"interrupted,omitempty"`
 }
 
-// purgeRunKey names the lock a purge of notebook holds, on whichever
+// RunKey names the lock a purge of notebook holds, on whichever
 // gateway runs it, from before it rewrites the history until it keeps its
 // receipt: a recorded purge without a receipt whose lock is free stopped
 // before it finished.
-func purgeRunKey(notebook string) string { return "purge-run " + notebook }
+func RunKey(notebook string) string { return "purge-run " + notebook }
 
 // purgeTarget is the notebook a purge request names, with who asks.
 type purgeTarget struct {
@@ -209,56 +211,58 @@ type purgeTarget struct {
 	user    string
 }
 
-func (s *Server) purgeRoutes() {
-	s.handleProject("POST /api/purge/prepare", "owner", func(w http.ResponseWriter, r *http.Request) {
+// Register adds the purge routes through register, which admits only the
+// notebook's Owner.
+func (s *Service) Register(register func(pattern, role string, handler http.HandlerFunc)) {
+	register("POST /api/purge/prepare", "owner", func(w http.ResponseWriter, r *http.Request) {
 		var in purgePrepareInput
-		if !decode(w, r, &in) {
+		if !webcore.Decode(w, r, &in) {
 			return
 		}
-		target, err := s.purgeTarget(r.Context(), projectID(r.Context()), projectStore(r.Context()))
+		target, err := s.purgeTarget(r.Context(), webcore.NotebookID(r.Context()), webcore.NotebookStore(r.Context()))
 		if err == nil {
 			in.Scope, err = s.purgeScope(r.Context(), target, in.Scope, in.Token)
 		}
-		var plan purgePlanView
+		var plan PlanView
 		if err == nil {
 			plan, err = s.preparePurge(r.Context(), target, in.Scope, false)
 		}
 		if err != nil {
-			fail(w, purgeError(err))
+			webcore.Fail(w, purgeError(err))
 			return
 		}
-		jsonResponse(w, plan)
+		webcore.JSON(w, plan)
 	})
-	s.handleProject("POST /api/purge/execute", "owner", func(w http.ResponseWriter, r *http.Request) {
+	register("POST /api/purge/execute", "owner", func(w http.ResponseWriter, r *http.Request) {
 		var in purgeExecuteInput
-		if !decode(w, r, &in) {
+		if !webcore.Decode(w, r, &in) {
 			return
 		}
-		target, err := s.purgeTarget(r.Context(), projectID(r.Context()), projectStore(r.Context()))
+		target, err := s.purgeTarget(r.Context(), webcore.NotebookID(r.Context()), webcore.NotebookStore(r.Context()))
 		if err == nil {
 			in.Scope, err = s.purgeScope(r.Context(), target, in.Scope, in.Token)
 		}
-		var receipt purgeReceipt
+		var receipt Receipt
 		if err == nil {
 			receipt, err = s.executePurge(r.Context(), target, in)
 		}
 		if err != nil {
-			fail(w, purgeError(err))
+			webcore.Fail(w, purgeError(err))
 			return
 		}
-		jsonResponse(w, receipt)
+		webcore.JSON(w, receipt)
 	})
-	s.handleProject("GET /api/purge", "owner", func(w http.ResponseWriter, r *http.Request) {
-		receipts, err := s.purgeReceipts(r.Context(), projectID(r.Context()))
+	register("GET /api/purge", "owner", func(w http.ResponseWriter, r *http.Request) {
+		receipts, err := s.Receipts(r.Context(), webcore.NotebookID(r.Context()))
 		for i := range receipts {
-			receipts[i] = s.purgeReceiptFor(subject(r.Context()), receipts[i])
+			receipts[i] = s.ReceiptFor(auth.Subject(r.Context()), receipts[i])
 		}
-		respond(w, map[string]any{"receipts": receipts}, err)
+		webcore.Respond(w, map[string]any{"receipts": receipts}, err)
 	})
 }
 
-// prepare_purge input: one purge scope, flattened for agents.
-type preparePurgeInput struct {
+// AgentInput is prepare_purge's input: one purge scope, flattened for agents.
+type AgentInput struct {
 	Project  string   `json:"project"`
 	Kind     string   `json:"kind" jsonschema:"note (a whole note), versions (chosen versions of one note) or text (an exact string or pattern)"`
 	Path     string   `json:"path,omitempty" jsonschema:"The note a note or versions purge removes"`
@@ -268,8 +272,9 @@ type preparePurgeInput struct {
 	Paths    []string `json:"paths,omitempty" jsonschema:"For kind text: the notes to redact; omit for the whole notebook"`
 }
 
-type preparePurgeOutput struct {
-	Plan purgePlanView `json:"plan"`
+// AgentPlan is the plan prepare_purge returns, with where a person runs it.
+type AgentPlan struct {
+	Plan PlanView `json:"plan"`
 	// ConfirmURL opens the plan in the browser, where a notebook Owner or an
 	// Admin reviews it, gives a reason and runs it.
 	ConfirmURL string `json:"confirmUrl"`
@@ -277,50 +282,47 @@ type preparePurgeOutput struct {
 	Message    string `json:"message"`
 }
 
-func (s *Server) purgeTools(server *mcp.Server) {
-	addAction(s, server, &mcp.Tool{Name: "prepare_purge", Description: "Prepare a plan to permanently erase content from every version of a notebook: a whole note, chosen versions of one, or an exact text or pattern (such as a leaked API key) from chosen notes or the whole notebook. Requires Owner or Admin. Changes nothing: it returns the plan (affected notes and versions, other places the text appears, references remapped, whether the GitHub copy is force-pushed) and a browser URL where a person reviews it, gives a reason and runs it. Agents cannot run a purge. Tell the user that a purge cannot undo exposure: rotate leaked secrets regardless."}, func(ctx context.Context, in preparePurgeInput) (preparePurgeOutput, error) {
-		store, err := s.toolStore(ctx, in.Project, "owner")
-		if err != nil {
-			return preparePurgeOutput{}, err
-		}
-		target, err := s.purgeTarget(ctx, in.Project, store)
-		if err != nil {
-			return preparePurgeOutput{}, err
-		}
-		scope := workspace.PurgeScope{Kind: in.Kind, Path: in.Path, Versions: in.Versions, Text: in.Text, Pattern: in.Pattern, Paths: in.Paths}
-		plan, err := s.preparePurge(ctx, target, scope, true)
-		if err != nil {
-			return preparePurgeOutput{}, purgeError(err)
-		}
-		token := RandomToken()
-		body, err := json.Marshal(struct {
-			Project string               `json:"project"`
-			Scope   workspace.PurgeScope `json:"scope"`
-		}{in.Project, scope})
-		if err != nil {
-			return preparePurgeOutput{}, err
-		}
-		if err := s.db.BeginFlow(ctx, purgeFlowKind(in.Project), token, target.user, body, purgePlanTTL, pg.FlowBound{Limit: 64, Evict: true}); err != nil {
-			return preparePurgeOutput{}, err
-		}
-		// The agent never holds what runs the plan.
-		plan.Confirmation = ""
-		plan.Scope.Text, plan.Scope.Pattern = "", ""
-		link := s.origin + "/?" + url.Values{"project": {in.Project}, "purge": {token}}.Encode()
-		return preparePurgeOutput{Plan: plan, ConfirmURL: link, Expires: time.Now().Add(purgePlanTTL).UTC().Format(time.RFC3339),
-			Message: "Nothing was erased. Give the user this URL: a notebook Owner or Admin must review the plan in the browser, give a reason and confirm it there. Private chats, Jev records and Knowledge proposals that quote the content are counted only when that person opens the plan. " + purgeExposure}, nil
-	}, "notes:manage")
+// PrepareForAgent plans a purge of the notebook an agent opened as its
+// Owner, store, and keeps the plan for a person to review in the browser. It
+// changes nothing, and the agent never gets what runs the plan.
+func (s *Service) PrepareForAgent(ctx context.Context, store *workspace.Store, in AgentInput) (AgentPlan, error) {
+	target, err := s.purgeTarget(ctx, in.Project, store)
+	if err != nil {
+		return AgentPlan{}, err
+	}
+	scope := workspace.PurgeScope{Kind: in.Kind, Path: in.Path, Versions: in.Versions, Text: in.Text, Pattern: in.Pattern, Paths: in.Paths}
+	plan, err := s.preparePurge(ctx, target, scope, true)
+	if err != nil {
+		return AgentPlan{}, purgeError(err)
+	}
+	token := auth.Token()
+	body, err := json.Marshal(struct {
+		Project string               `json:"project"`
+		Scope   workspace.PurgeScope `json:"scope"`
+	}{in.Project, scope})
+	if err != nil {
+		return AgentPlan{}, err
+	}
+	if err := s.db.BeginFlow(ctx, FlowKind(in.Project), token, target.user, body, purgePlanTTL, pg.FlowBound{Limit: 64, Evict: true}); err != nil {
+		return AgentPlan{}, err
+	}
+	// The agent never holds what runs the plan.
+	plan.Confirmation = ""
+	plan.Scope.Text, plan.Scope.Pattern = "", ""
+	link := s.hooks.Origin() + "/?" + url.Values{"project": {in.Project}, "purge": {token}}.Encode()
+	return AgentPlan{Plan: plan, ConfirmURL: link, Expires: time.Now().Add(purgePlanTTL).UTC().Format(time.RFC3339),
+		Message: "Nothing was erased. Give the user this URL: a notebook Owner or Admin must review the plan in the browser, give a reason and confirm it there. Private chats, Jev records and Knowledge proposals that quote the content are counted only when that person opens the plan. " + Exposure}, nil
 }
 
-// purgeFlowKind is the kind of the plans agents prepared for project. A
+// FlowKind is the kind of the plans agents prepared for project. A
 // notebook ID holds no '/', so each notebook's plans are their own group,
 // whose bound (prepare_purge) another notebook's agent cannot reach.
-func purgeFlowKind(project string) string { return "purge-plan-" + project }
+func FlowKind(project string) string { return "purge-plan-" + project }
 
 // purgeTarget checks that the notebook can be purged by who asks: a notebook
 // of notes kept in the database, which an Owner or Admin may edit.
-func (s *Server) purgeTarget(ctx context.Context, project string, store *workspace.Store) (purgeTarget, error) {
-	user := subject(ctx)
+func (s *Service) purgeTarget(ctx context.Context, project string, store *workspace.Store) (purgeTarget, error) {
+	user := auth.Subject(ctx)
 	if store == nil || project == "" {
 		return purgeTarget{}, workspace.ErrForbidden
 	}
@@ -337,11 +339,11 @@ func (s *Server) purgeTarget(ctx context.Context, project string, store *workspa
 
 // purgeScope returns the scope a request names: its own, or that of the plan
 // an agent prepared for this person under token.
-func (s *Server) purgeScope(ctx context.Context, target purgeTarget, scope workspace.PurgeScope, token string) (workspace.PurgeScope, error) {
+func (s *Service) purgeScope(ctx context.Context, target purgeTarget, scope workspace.PurgeScope, token string) (workspace.PurgeScope, error) {
 	if token == "" {
 		return scope, nil
 	}
-	raw, err := s.db.ReadFlow(ctx, purgeFlowKind(target.project), token)
+	raw, err := s.db.ReadFlow(ctx, FlowKind(target.project), token)
 	if errors.Is(err, pg.ErrNoFlow) {
 		return scope, webcore.Error{Status: http.StatusNotFound, Code: "not_found", Message: "This purge plan expired or was already used; prepare the purge again."}
 	}
@@ -361,8 +363,8 @@ func (s *Server) purgeScope(ctx context.Context, target purgeTarget, scope works
 // checkPurgeScope refuses a scope larger than a purge needs: a plan an
 // agent prepares is stored, scope and all, until it expires.
 func checkPurgeScope(scope workspace.PurgeScope) error {
-	if len(scope.Text) > maxPurgeText || len(scope.Pattern) > maxPurgeText || len(scope.Paths) > maxPurgePaths || len(scope.Versions) > maxPurgePaths {
-		return webcore.Error{Status: http.StatusRequestEntityTooLarge, Code: "too_large", Message: fmt.Sprintf("A purge's text or pattern is at most %d KiB, and it names at most %d notes or versions.", maxPurgeText>>10, maxPurgePaths)}
+	if len(scope.Text) > MaxText || len(scope.Pattern) > MaxText || len(scope.Paths) > MaxPaths || len(scope.Versions) > MaxPaths {
+		return webcore.Error{Status: http.StatusRequestEntityTooLarge, Code: "too_large", Message: fmt.Sprintf("A purge's text or pattern is at most %d KiB, and it names at most %d notes or versions.", MaxText>>10, MaxPaths)}
 	}
 	return nil
 }
@@ -382,16 +384,16 @@ func purgeError(err error) error {
 
 // preparePurge plans scope on the notebook and, for a person, counts what
 // quoted the purged content outside it; an agent's plan counts nothing there
-// (purgeDerived).
-func (s *Server) preparePurge(ctx context.Context, target purgeTarget, scope workspace.PurgeScope, agent bool) (purgePlanView, error) {
+// (Derived).
+func (s *Service) preparePurge(ctx context.Context, target purgeTarget, scope workspace.PurgeScope, agent bool) (PlanView, error) {
 	if err := checkPurgeScope(scope); err != nil {
-		return purgePlanView{}, err
+		return PlanView{}, err
 	}
 	plan, err := target.store.PreparePurge(ctx, scope, target.store.PurgeExporter())
 	if err != nil {
-		return purgePlanView{}, err
+		return PlanView{}, err
 	}
-	view := purgePlanView{PurgePlan: s.visiblePlan(ctx, target, plan), Exposure: purgeExposure, NotebookUnchanged: !purgeHeld(plan)}
+	view := PlanView{PurgePlan: s.visiblePlan(ctx, target, plan), Exposure: Exposure, NotebookUnchanged: !purgeHeld(plan)}
 	if previousReleaseFiles(target.store) {
 		view.Warnings = append(view.Warnings, purgePreviousRelease)
 	}
@@ -401,11 +403,11 @@ func (s *Server) preparePurge(ctx context.Context, target purgeTarget, scope wor
 	}
 	cleaner, quotes, err := s.purgeCleanerFor(ctx, target, plan)
 	if err != nil {
-		return purgePlanView{}, err
+		return PlanView{}, err
 	}
 	derived, err := s.purgeOwnRecords(ctx, target, cleaner)
 	if err != nil {
-		return purgePlanView{}, err
+		return PlanView{}, err
 	}
 	derived.Partial = quotes.Partial
 	view.Derived = &derived
@@ -415,16 +417,16 @@ func (s *Server) preparePurge(ctx context.Context, target purgeTarget, scope wor
 
 // purgeOwnRecords counts what quoted the purged content outside the
 // notebook as target's caller may be told: every record for an instance
-// Admin, and otherwise only the caller's own (purgeDerived).
-func (s *Server) purgeOwnRecords(ctx context.Context, target purgeTarget, cleaner *purgeCleaner) (purgeDerived, error) {
+// Admin, and otherwise only the caller's own (Derived).
+func (s *Service) purgeOwnRecords(ctx context.Context, target purgeTarget, cleaner *purgeCleaner) (Derived, error) {
 	if s.catalog.IsAdmin(target.user) {
-		return s.purgeDerivedRecords(ctx, target, cleaner, "", false, false)
+		return s.derivedRecords(ctx, target, cleaner, "", false, false)
 	}
 	own := *cleaner
 	own.owner = s.purgeRecordOwner(target.user)
-	derived, err := s.purgeDerivedRecords(ctx, target, &own, "", false, false)
+	derived, err := s.derivedRecords(ctx, target, &own, "", false, false)
 	if !cleaner.empty() {
-		derived.Own, derived.Others = true, purgeOthersRedacted
+		derived.Own, derived.Others = true, OthersRedacted
 	}
 	return derived, err
 }
@@ -433,7 +435,7 @@ func (s *Server) purgeOwnRecords(ctx context.Context, target purgeTarget, cleane
 // purge's clean-up reads it, is user's own: a chat transcript, Jev job or
 // citation check they own, a Knowledge proposal they made, a consumer
 // checkpoint of theirs, or a result of a Jev job of theirs.
-func (s *Server) purgeRecordOwner(user string) func(raw []byte) bool {
+func (s *Service) purgeRecordOwner(user string) func(raw []byte) bool {
 	jobs := map[string]bool{}
 	return func(raw []byte) bool {
 		var record struct {
@@ -448,13 +450,12 @@ func (s *Server) purgeRecordOwner(user string) func(raw []byte) bool {
 		if record.Owner != "" || record.Author != "" || record.User != "" {
 			return record.Owner == user || record.Author == user || record.User == user
 		}
-		if record.Job == "" || s.jevState == nil || s.jevState.records == nil {
+		if record.Job == "" {
 			return false
 		}
 		mine, known := jobs[record.Job]
 		if !known {
-			found, err := s.jevState.records.ListMatching(jobName(record.Job), map[string]any{"owner": user}, 1)
-			mine = err == nil && len(found) > 0
+			mine = s.hooks.OwnsJevJob(record.Job, user)
 			jobs[record.Job] = mine
 		}
 		return mine
@@ -485,17 +486,17 @@ func purgeHeld(plan workspace.PurgePlan) bool { return plan.From != "" || len(pl
 // they guess is not theirs to learn, and the purge keeps what other
 // notebooks use anyway. Its confirmation binds what it shows
 // (purgeConfirmation), never what it leaves out.
-func (s *Server) visiblePlan(ctx context.Context, target purgeTarget, plan workspace.PurgePlan) workspace.PurgePlan {
+func (s *Service) visiblePlan(ctx context.Context, target purgeTarget, plan workspace.PurgePlan) workspace.PurgePlan {
 	plan.Elsewhere, plan.Shared = s.visibleOccurrences(ctx, target.user, plan.Elsewhere), s.visibleOccurrences(ctx, target.user, plan.Shared)
 	plan.Confirmation = purgeConfirmation(target.project, plan)
 	return plan
 }
 
-func (s *Server) visibleOccurrences(ctx context.Context, user string, list []workspace.PurgeOccurrence) []workspace.PurgeOccurrence {
+func (s *Service) visibleOccurrences(ctx context.Context, user string, list []workspace.PurgeOccurrence) []workspace.PurgeOccurrence {
 	var out []workspace.PurgeOccurrence
 	for _, o := range list {
 		if o.Kind == "notebook" {
-			if _, err := s.catalog.Access(user, o.Path, "read"); err != nil || !s.clientProjectAllowed(ctx, o.Path) {
+			if _, err := s.catalog.Access(user, o.Path, "read"); err != nil || !s.hooks.ClientProjectAllowed(ctx, o.Path) {
 				continue
 			}
 		}
@@ -523,7 +524,7 @@ func purgeConfirmation(project string, plan workspace.PurgePlan) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// purgeReceiptFor returns receipt as user may see it. What storage deleted
+// ReceiptFor returns receipt as user may see it. What storage deleted
 // depends on what other notebooks keep, so only an instance Admin sees it;
 // anyone else is told the versions erased from this notebook.
 //
@@ -532,7 +533,7 @@ func purgeConfirmation(project string, plan workspace.PurgePlan) string {
 // records' counts (ActorDerived), and anyone else no counts. Its warnings
 // say without a number that records could not be redacted, which may be
 // other people's.
-func (s *Server) purgeReceiptFor(user string, receipt purgeReceipt) purgeReceipt {
+func (s *Service) ReceiptFor(user string, receipt Receipt) Receipt {
 	derived := receipt.ActorDerived
 	receipt.ActorDerived = nil
 	if s.catalog.IsAdmin(user) {
@@ -545,9 +546,9 @@ func (s *Server) purgeReceiptFor(user string, receipt purgeReceipt) purgeReceipt
 		receipt.Derived = *derived
 	case receipt.Unfinished || receipt.Interrupted:
 		// Its warnings say what may not have been redacted.
-		receipt.Derived = purgeDerived{Withheld: true}
+		receipt.Derived = Derived{Withheld: true}
 	default:
-		receipt.Derived = purgeDerived{Withheld: true, Others: purgeOthersWithheld}
+		receipt.Derived = Derived{Withheld: true, Others: OthersWithheld}
 	}
 	return receipt
 }
@@ -575,7 +576,7 @@ func withoutRecordCounts(warnings []string) []string {
 // (PurgeQuotes). An instance Admin, who may redact anyone's records, has a
 // text purge match its text or pattern itself. Only a person's plan and
 // purge use it.
-func (s *Server) purgeCleanerFor(ctx context.Context, target purgeTarget, plan workspace.PurgePlan) (*purgeCleaner, workspace.PurgeQuotes, error) {
+func (s *Service) purgeCleanerFor(ctx context.Context, target purgeTarget, plan workspace.PurgePlan) (*purgeCleaner, workspace.PurgeQuotes, error) {
 	if plan.Scope.Kind == workspace.PurgeText && s.catalog.IsAdmin(target.user) {
 		redactor, err := workspace.NewPurgeRedactor(plan.Scope)
 		if err != nil {
@@ -590,38 +591,32 @@ func (s *Server) purgeCleanerFor(ctx context.Context, target purgeTarget, plan w
 	return &purgeCleaner{text: quotes.Text, lines: quotes.Lines}, quotes, nil
 }
 
-// purgeDerivedRecords counts, or with write redacts, what quoted the purged
+// derivedRecords counts, or with write redacts, what quoted the purged
 // content outside the notebook: the private chat transcripts of the notebook
 // and of other notebooks that drew on it, its Jev records and its Knowledge
 // proposals. With write it also clears the notebook's search and semantic
 // index on every gateway after purge, and drops what held the content
 // before it: plans agents prepared, bundle exports in progress and the
 // bundles this gateway is preparing or sending.
-func (s *Server) purgeDerivedRecords(ctx context.Context, target purgeTarget, cleaner *purgeCleaner, purge string, write, index bool) (purgeDerived, error) {
-	var out purgeDerived
+func (s *Service) derivedRecords(ctx context.Context, target purgeTarget, cleaner *purgeCleaner, purge string, write, index bool) (Derived, error) {
+	var out Derived
 	var errs []error
 	if cleaner.empty() && !write {
 		return out, nil
 	}
-	if s.chat != nil && s.chat.Store != nil {
-		n, err := s.chat.Store.RedactProject(ctx, target.project, cleaner.document, write)
-		out.Chats = n
-		if err != nil {
-			errs = append(errs, fmt.Errorf("chat transcripts: %w", err))
-		}
+	n, err := s.hooks.RedactChats(ctx, target.project, cleaner.document, write)
+	out.Chats = n
+	if err != nil {
+		errs = append(errs, fmt.Errorf("chat transcripts: %w", err))
 	}
-	if s.jevState != nil && s.jevState.records != nil {
-		n, err := s.jevState.records.RedactNotebook(ctx, target.project, cleaner.document, write)
-		out.JevRecords = n
-		if err != nil {
-			errs = append(errs, fmt.Errorf("Jev records: %w", err))
-		}
+	n, err = s.hooks.RedactJevRecords(ctx, target.project, cleaner.document, write)
+	out.JevRecords = n
+	if err != nil {
+		errs = append(errs, fmt.Errorf("Jev records: %w", err))
 	}
 	if !write {
 		var err error
-		out.Proposals, err = withEngine(s, ctx, target.store, func(e *knowledge.Engine) (int, error) {
-			return e.PurgeHolds(ctx, cleaner.document)
-		})
+		out.Proposals, err = s.hooks.KnowledgeHolds(ctx, target.store, cleaner.document)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("Knowledge proposals: %w", err))
 		}
@@ -634,77 +629,37 @@ func (s *Server) purgeDerivedRecords(ctx context.Context, target purgeTarget, cl
 	}
 	// Plans an agent prepared for this notebook hold the scope, which may be
 	// the purged text.
-	if _, err := s.db.Pool.Exec(ctx, `DELETE FROM pending_flows WHERE org = $1 AND kind = $2`, s.db.Org, purgeFlowKind(target.project)); err != nil {
+	if _, err := s.db.Pool.Exec(ctx, `DELETE FROM pending_flows WHERE org = $1 AND kind = $2`, s.db.Org, FlowKind(target.project)); err != nil {
 		errs = append(errs, fmt.Errorf("prepared purge plans: %w", err))
 	}
-	if err := s.dropBundleExports(ctx); err != nil {
+	if err := s.hooks.DropBundleExports(ctx); err != nil {
 		errs = append(errs, fmt.Errorf("bundle exports in progress: %w", err))
 	}
-	if err := s.removeTemporaryBundles(); err != nil {
+	if err := s.hooks.RemoveTemporaryBundles(); err != nil {
 		errs = append(errs, fmt.Errorf("temporary bundles: %w", err))
 	}
 	return out, errors.Join(errs...)
-}
-
-// fenceExports ends every bundle export in progress, and keeps a new one
-// from recording itself until release runs; a purge holds it while it
-// rewrites a notebook's history. Each chunk an export serves is read only
-// while its row is there, and dropBundleExports removes a bundle after its
-// row, so no export serves a chunk of the notebook as it was once the
-// rewrite has committed. An export that made its bundle before the purge
-// and records it after finds the commits it names rewritten and ends itself
-// (beginExport).
-func (s *Server) fenceExports(ctx context.Context) (release func(), err error) {
-	if release, err = s.db.Exclusive(ctx, "exports"); err != nil {
-		return nil, fmt.Errorf("end the bundle exports in progress: %w", err)
-	}
-	if err = s.dropBundleExports(ctx); err != nil {
-		release()
-		return nil, fmt.Errorf("end the bundle exports in progress: %w", err)
-	}
-	return release, nil
-}
-
-// dropBundleExports ends every bundle export in progress, whose bundle holds
-// its notebook as it was; its client starts again. An export's row does not
-// name its notebook, so the instance's few are all ended.
-func (s *Server) dropBundleExports(ctx context.Context) error {
-	rows, err := s.db.Pool.Query(ctx, `DELETE FROM exports WHERE org = $1 RETURNING id`, s.db.Org)
-	if err != nil {
-		return err
-	}
-	ids, err := pgx.CollectRows(rows, pgx.RowTo[string])
-	if err != nil {
-		return err
-	}
-	var errs []error
-	for _, id := range ids {
-		if err := s.blobs.Delete(ctx, exportKey(id)); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errors.Join(errs...)
 }
 
 // executePurge runs the plan in confirms, then cleans the derived records and
 // keeps the receipt. The plan is made again first: it must still be the one
 // confirmed, and a note or versions purge reads the versions it removes for
 // the lines that quoted them elsewhere.
-func (s *Server) executePurge(ctx context.Context, target purgeTarget, in purgeExecuteInput) (purgeReceipt, error) {
+func (s *Service) executePurge(ctx context.Context, target purgeTarget, in purgeExecuteInput) (Receipt, error) {
 	if err := checkPurgeScope(in.Scope); err != nil {
-		return purgeReceipt{}, err
+		return Receipt{}, err
 	}
 	reason := strings.TrimSpace(in.Reason)
 	if reason == "" {
-		return purgeReceipt{}, webcore.Invalid("A purge needs a reason, which its receipt keeps.")
+		return Receipt{}, webcore.Invalid("A purge needs a reason, which its receipt keeps.")
 	}
 	if len(reason) > 1000 || strings.ContainsRune(reason, 0) {
-		return purgeReceipt{}, webcore.Invalid("The reason must be at most 1000 characters.")
+		return Receipt{}, webcore.Invalid("The reason must be at most 1000 characters.")
 	}
 	actor := target.user
 	if operator := strings.TrimSpace(in.Operator); operator != "" {
 		if !s.catalog.IsAdmin(actor) || len(operator) > 200 || strings.ContainsAny(operator, "\x00\n\r") {
-			return purgeReceipt{}, webcore.Invalid("Only the instance access key names an operator, in one line of at most 200 characters.")
+			return Receipt{}, webcore.Invalid("Only the instance access key names an operator, in one line of at most 200 characters.")
 		}
 		actor += " (operator: " + operator + ")"
 	}
@@ -713,35 +668,35 @@ func (s *Server) executePurge(ctx context.Context, target purgeTarget, in purgeE
 	plan, err := store.PreparePurge(ctx, in.Scope, export)
 	switch {
 	case err != nil:
-		return purgeReceipt{}, err
+		return Receipt{}, err
 	case plan.Revision != in.Revision:
-		return purgeReceipt{}, fmt.Errorf("%w: the notebook changed since the purge was planned; review the plan again", workspace.ErrConflict)
+		return Receipt{}, fmt.Errorf("%w: the notebook changed since the purge was planned; review the plan again", workspace.ErrConflict)
 	case in.Confirmation == "" || s.visiblePlan(ctx, target, plan).Confirmation != in.Confirmation:
-		return purgeReceipt{}, workspace.ErrPurgeConfirmation
+		return Receipt{}, workspace.ErrPurgeConfirmation
 	case plan.Blocked != "":
-		return purgeReceipt{}, fmt.Errorf("%w: %s", workspace.ErrPurgeBlocked, plan.Blocked)
+		return Receipt{}, fmt.Errorf("%w: %s", workspace.ErrPurgeBlocked, plan.Blocked)
 	}
 	held := purgeHeld(plan)
 	if !held && !s.catalog.IsAdmin(target.user) {
 		// Nothing in the notebook holds the content; what quoted it may. Only
 		// an Admin redacts other people's records of text the notebook does
 		// not hold.
-		return purgeReceipt{}, webcore.Error{Status: http.StatusForbidden, Code: "forbidden", Message: "Nothing in this notebook holds this content. Only an instance Admin can redact the records outside the notebook that quoted it."}
+		return Receipt{}, webcore.Error{Status: http.StatusForbidden, Code: "forbidden", Message: "Nothing in this notebook holds this content. Only an instance Admin can redact the records outside the notebook that quoted it."}
 	}
 	cleaner, quotes, err := s.purgeCleanerFor(ctx, target, plan)
 	if err != nil {
-		return purgeReceipt{}, err
+		return Receipt{}, err
 	}
 	if purgeReasonQuotes(reason, plan.Scope, quotes) {
-		return purgeReceipt{}, webcore.Invalid("The reason holds the content being purged, or a word or number that only it holds, such as a date, an ID or a key; say why without quoting it.")
+		return Receipt{}, webcore.Invalid("The reason holds the content being purged, or a word or number that only it holds, such as a date, an ID or a key; say why without quoting it.")
 	}
 	// Someone who is not an Admin is told only of their own records, which
 	// are counted now, while they still quote the content.
-	var own *purgeDerived
+	var own *Derived
 	if !s.catalog.IsAdmin(target.user) {
 		counted, err := s.purgeOwnRecords(ctx, target, cleaner)
 		if err != nil {
-			return purgeReceipt{}, err
+			return Receipt{}, err
 		}
 		counted.Partial = quotes.Partial
 		own = &counted
@@ -752,29 +707,29 @@ func (s *Server) executePurge(ctx context.Context, target purgeTarget, in purgeE
 	// note or versions purge cannot be planned again to clean them.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), purgeWork)
 	defer cancel()
-	receipt := purgeReceipt{Notebook: target.project, Actor: actor, Reason: reason, Kind: in.Scope.Kind, Pattern: in.Scope.Pattern != "",
+	receipt := Receipt{Notebook: target.project, Actor: actor, Reason: reason, Kind: in.Scope.Kind, Pattern: in.Scope.Pattern != "",
 		WholeNotebook: in.Scope.Kind == workspace.PurgeText && len(in.Scope.Paths) == 0, Notes: len(plan.Notes), Versions: plan.Versions,
-		Messages: plan.Messages, PreparedByAgent: in.Token != "", Exposure: purgeExposure, ActorDerived: own}
+		Messages: plan.Messages, PreparedByAgent: in.Token != "", Exposure: Exposure, ActorDerived: own}
 	if name, err := s.catalog.SubjectName(target.user); err == nil {
 		receipt.ActorName = name
 	}
 	var result workspace.PurgeResult
 	if !held {
-		found, err := s.purgeDerivedRecords(ctx, target, cleaner, "", false, false)
+		found, err := s.derivedRecords(ctx, target, cleaner, "", false, false)
 		if err != nil {
-			return purgeReceipt{}, err
+			return Receipt{}, err
 		}
 		if found.Chats+found.JevRecords+found.Proposals == 0 {
-			return purgeReceipt{}, fmt.Errorf("%w: nothing holds the content to purge", workspace.ErrPurgeInvalid)
+			return Receipt{}, fmt.Errorf("%w: nothing holds the content to purge", workspace.ErrPurgeInvalid)
 		}
-		result = workspace.PurgeResult{Purge: "purge-" + RandomToken()[:32], Revision: plan.Revision}
+		result = workspace.PurgeResult{Purge: "purge-" + auth.Token()[:32], Revision: plan.Revision}
 		receipt.NotebookUnchanged = true
 	} else {
 		// Held until the receipt is kept: a recorded purge without one whose
-		// lock is free stopped before it finished (finishStoppedPurges).
-		running, err := s.db.Exclusive(ctx, purgeRunKey(target.project))
+		// lock is free stopped before it finished (FinishStopped).
+		running, err := s.db.Exclusive(ctx, RunKey(target.project))
 		if err != nil {
-			return purgeReceipt{}, err
+			return Receipt{}, err
 		}
 		defer running()
 		// Bundle exports in progress hold the notebook as it is now: they end
@@ -782,7 +737,7 @@ func (s *Server) executePurge(ctx context.Context, target purgeTarget, in purgeE
 		// check, and none records itself meanwhile.
 		release := func() {}
 		fence := func(ctx context.Context) error {
-			end, err := s.fenceExports(ctx)
+			end, err := s.hooks.FenceExports(ctx)
 			if err == nil {
 				release = end
 			}
@@ -798,7 +753,7 @@ func (s *Server) executePurge(ctx context.Context, target purgeTarget, in purgeE
 		purging()
 		release()
 		if err != nil && result.Purge == "" {
-			return purgeReceipt{}, err
+			return Receipt{}, err
 		}
 		if err != nil {
 			// The history was rewritten; what failed after it is reported,
@@ -814,53 +769,53 @@ func (s *Server) executePurge(ctx context.Context, target purgeTarget, in purgeE
 	if previousReleaseFiles(store) {
 		receipt.Warnings = append(receipt.Warnings, purgePreviousRelease)
 	}
-	derived, err := s.purgeDerivedRecords(ctx, target, cleaner, result.Purge, true, !receipt.NotebookUnchanged)
+	derived, err := s.derivedRecords(ctx, target, cleaner, result.Purge, true, !receipt.NotebookUnchanged)
 	derived.Partial = quotes.Partial
 	receipt.Derived = derived
 	if err != nil {
 		receipt.Warnings = append(receipt.Warnings, "Some records outside the notebook could not be cleaned: "+err.Error())
 	}
-	if err := s.keepPurgeReceipt(ctx, receipt); err != nil {
+	if err := s.KeepReceipt(ctx, receipt); err != nil {
 		// The purge finished: until its receipt is kept, a gateway that
 		// starts would take it for one that stopped, and keep a receipt
 		// saying it did not redact what it did.
-		if spoolErr := s.spoolPurgeReceipt(receipt); spoolErr != nil {
+		if spoolErr := s.SpoolReceipt(receipt); spoolErr != nil {
 			receipt.Warnings = append(receipt.Warnings, "The purge receipt could not be kept: "+errors.Join(err, spoolErr).Error())
 		} else {
 			receipt.Warnings = append(receipt.Warnings, "The purge receipt could not be kept in the database yet ("+err.Error()+"); this gateway keeps it there once it can, at the latest when it next starts, and the purge is listed as unfinished until then.")
 		}
 	}
-	return s.purgeReceiptFor(target.user, receipt), nil
+	return s.ReceiptFor(target.user, receipt), nil
 }
 
-// purgeReceiptSpool is where a gateway keeps the receipts of purges that
+// ReceiptSpool is where a gateway keeps the receipts of purges that
 // finished whose receipt the database refused, until it takes them
-// (keepSpooledPurgeReceipts).
-func (s *Server) purgeReceiptSpool() string { return filepath.Join(s.data, "purge-receipts") }
+// (KeepSpooledReceipts).
+func (s *Service) ReceiptSpool() string { return filepath.Join(s.data, "purge-receipts") }
 
-func (s *Server) spooledPurgeReceiptPath(notebook, purge string) string {
+func (s *Service) SpooledReceiptPath(notebook, purge string) string {
 	sum := sha256.Sum256([]byte(notebook + "/" + purge))
-	return filepath.Join(s.purgeReceiptSpool(), hex.EncodeToString(sum[:])+".json")
+	return filepath.Join(s.ReceiptSpool(), hex.EncodeToString(sum[:])+".json")
 }
 
-// spoolPurgeReceipt keeps receipt in the gateway's data directory.
-func (s *Server) spoolPurgeReceipt(receipt purgeReceipt) error {
+// SpoolReceipt keeps receipt in the gateway's data directory.
+func (s *Service) SpoolReceipt(receipt Receipt) error {
 	raw, err := json.Marshal(receipt)
 	if err != nil {
 		return err
 	}
-	if err := durable.MkdirAll(s.purgeReceiptSpool(), 0o700, nil); err != nil {
+	if err := durable.MkdirAll(s.ReceiptSpool(), 0o700, nil); err != nil {
 		return err
 	}
-	return durable.WriteFile(s.spooledPurgeReceiptPath(receipt.Notebook, receipt.Purge), ".receipt-", raw, nil)
+	return durable.WriteFile(s.SpooledReceiptPath(receipt.Notebook, receipt.Purge), ".receipt-", raw, nil)
 }
 
-// keepSpooledPurgeReceipts keeps in the database the receipts this gateway
+// KeepSpooledReceipts keeps in the database the receipts this gateway
 // spooled, each in place of an interrupted receipt another gateway kept
 // meanwhile, and returns the purges whose receipt is still only spooled.
-func (s *Server) keepSpooledPurgeReceipts(ctx context.Context) map[string]bool {
+func (s *Service) KeepSpooledReceipts(ctx context.Context) map[string]bool {
 	waiting := map[string]bool{}
-	entries, err := os.ReadDir(s.purgeReceiptSpool())
+	entries, err := os.ReadDir(s.ReceiptSpool())
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			slog.Warn("reading the purge receipts not yet kept", "error", err)
@@ -871,20 +826,20 @@ func (s *Server) keepSpooledPurgeReceipts(ctx context.Context) map[string]bool {
 		if !strings.HasSuffix(entry.Name(), ".json") {
 			continue
 		}
-		path := filepath.Join(s.purgeReceiptSpool(), entry.Name())
+		path := filepath.Join(s.ReceiptSpool(), entry.Name())
 		raw, err := os.ReadFile(path)
-		var receipt purgeReceipt
-		if err != nil || json.Unmarshal(raw, &receipt) != nil || receipt.Notebook == "" || receipt.Purge == "" || path != s.spooledPurgeReceiptPath(receipt.Notebook, receipt.Purge) {
+		var receipt Receipt
+		if err != nil || json.Unmarshal(raw, &receipt) != nil || receipt.Notebook == "" || receipt.Purge == "" || path != s.SpooledReceiptPath(receipt.Notebook, receipt.Purge) {
 			slog.Warn("a purge receipt not yet kept cannot be read", "file", path, "error", err)
 			continue
 		}
-		err = s.keepPurgeReceipt(ctx, receipt)
+		err = s.KeepReceipt(ctx, receipt)
 		if errors.Is(err, pg.ErrConflict) {
 			// The database holds a receipt of the purge: its own, kept
 			// already, or an interrupted one, which keeping this one in its
 			// place lost to a concurrent write; that waits for the next
 			// sweep.
-			err = s.purgeReceiptFinal(ctx, receipt)
+			err = s.receiptFinal(ctx, receipt)
 		}
 		if err == nil {
 			err = os.Remove(path)
@@ -897,14 +852,14 @@ func (s *Server) keepSpooledPurgeReceipts(ctx context.Context) map[string]bool {
 	return waiting
 }
 
-// purgeReceiptFinal returns nil when the database holds a receipt of
+// receiptFinal returns nil when the database holds a receipt of
 // receipt's purge that is not an interrupted one.
-func (s *Server) purgeReceiptFinal(ctx context.Context, receipt purgeReceipt) error {
-	version, raw, err := s.db.ReadDocument(ctx, s.db.Pool, purgeReceiptKind, receipt.Notebook+"/"+receipt.Purge, -1)
+func (s *Service) receiptFinal(ctx context.Context, receipt Receipt) error {
+	version, raw, err := s.db.ReadDocument(ctx, s.db.Pool, ReceiptKind, receipt.Notebook+"/"+receipt.Purge, -1)
 	if err != nil {
 		return err
 	}
-	var kept purgeReceipt
+	var kept Receipt
 	if version == 0 || json.Unmarshal(raw, &kept) != nil || kept.Interrupted {
 		return fmt.Errorf("%w: the database holds no finished receipt of the purge yet", pg.ErrConflict)
 	}
@@ -925,7 +880,7 @@ func purgeReasonQuotes(reason string, scope workspace.PurgeScope, quotes workspa
 
 // purgeRemap returns what maps a revision the purge rewrote to the revision
 // that stands for it now, remembering each answer.
-func (s *Server) purgeRemap(ctx context.Context, store *workspace.Store) func(string) (string, bool) {
+func (s *Service) purgeRemap(ctx context.Context, store *workspace.Store) func(string) (string, bool) {
 	known := map[string]string{}
 	return func(revision string) (string, bool) {
 		if now, ok := known[revision]; ok {
@@ -940,9 +895,9 @@ func (s *Server) purgeRemap(ctx context.Context, store *workspace.Store) func(st
 	}
 }
 
-// keepPurgeReceipt stores receipt, which holds no purged content, for the
+// KeepReceipt stores receipt, which holds no purged content, for the
 // notebook's audit.
-func (s *Server) keepPurgeReceipt(ctx context.Context, receipt purgeReceipt) error {
+func (s *Service) KeepReceipt(ctx context.Context, receipt Receipt) error {
 	body, err := json.Marshal(receipt)
 	if err != nil {
 		return err
@@ -950,29 +905,29 @@ func (s *Server) keepPurgeReceipt(ctx context.Context, receipt purgeReceipt) err
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
 	id := receipt.Notebook + "/" + receipt.Purge
-	_, err = s.db.WriteDocument(ctx, s.db.Pool, purgeReceiptKind, id, 0, body)
+	_, err = s.db.WriteDocument(ctx, s.db.Pool, ReceiptKind, id, 0, body)
 	if errors.Is(err, pg.ErrConflict) && !receipt.Interrupted {
 		// A gateway that started while this purge ran took it for stopped,
 		// as when the connection holding its lock dropped; the purge's own
 		// receipt replaces the one that gateway kept.
-		version, raw, readErr := s.db.ReadDocument(ctx, s.db.Pool, purgeReceiptKind, id, -1)
-		var kept purgeReceipt
+		version, raw, readErr := s.db.ReadDocument(ctx, s.db.Pool, ReceiptKind, id, -1)
+		var kept Receipt
 		if readErr == nil && version > 0 && json.Unmarshal(raw, &kept) == nil && kept.Interrupted {
-			_, err = s.db.WriteDocument(ctx, s.db.Pool, purgeReceiptKind, id, version, body)
+			_, err = s.db.WriteDocument(ctx, s.db.Pool, ReceiptKind, id, version, body)
 		}
 	}
 	return err
 }
 
-// stoppedPurges lists the recorded purges of project, or of every notebook
+// StoppedPurges lists the recorded purges of project, or of every notebook
 // for "", that kept no receipt: each is still running, or stopped after it
 // rewrote the notebook, before it finished.
-func (s *Server) stoppedPurges(ctx context.Context, project string) ([]notestore.RecordedPurge, error) {
+func (s *Service) StoppedPurges(ctx context.Context, project string) ([]notestore.RecordedPurge, error) {
 	recorded, err := notestore.RecordedPurges(ctx, s.db, project)
 	if err != nil || len(recorded) == 0 {
 		return nil, err
 	}
-	ids, err := s.db.DocumentIDs(ctx, s.db.Pool, purgeReceiptKind)
+	ids, err := s.db.DocumentIDs(ctx, s.db.Pool, ReceiptKind)
 	if err != nil {
 		return nil, err
 	}
@@ -985,9 +940,9 @@ func (s *Server) stoppedPurges(ctx context.Context, project string) ([]notestore
 	return out, nil
 }
 
-// recordedPurgeReceipt is what the notebook recorded of purge p, as a
+// RecordedReceipt is what the notebook recorded of purge p, as a
 // receipt: who, when, why and what kind, without what it changed.
-func recordedPurgeReceipt(p notestore.RecordedPurge) purgeReceipt {
+func RecordedReceipt(p notestore.RecordedPurge) Receipt {
 	var scope struct {
 		Kind     string   `json:"kind"`
 		Pattern  bool     `json:"pattern"`
@@ -997,13 +952,13 @@ func recordedPurgeReceipt(p notestore.RecordedPurge) purgeReceipt {
 		Messages int      `json:"messages"`
 	}
 	json.Unmarshal(p.Scope, &scope)
-	return purgeReceipt{Purge: p.ID, Notebook: p.Notebook, Actor: p.Actor, Reason: p.Reason, Created: p.Created.UTC().Format(time.RFC3339),
-		Kind: scope.Kind, Pattern: scope.Pattern, WholeNotebook: scope.Notebook, Notes: len(scope.Entries), Versions: len(scope.Versions), Messages: scope.Messages, Exposure: purgeExposure}
+	return Receipt{Purge: p.ID, Notebook: p.Notebook, Actor: p.Actor, Reason: p.Reason, Created: p.Created.UTC().Format(time.RFC3339),
+		Kind: scope.Kind, Pattern: scope.Pattern, WholeNotebook: scope.Notebook, Notes: len(scope.Entries), Versions: len(scope.Versions), Messages: scope.Messages, Exposure: Exposure}
 }
 
-// stoppedPurgeWarnings says what purge p, which stopped after it rewrote
+// StoppedWarnings says what purge p, which stopped after it rewrote
 // the notebook, did not do that needs a person, and how to do it.
-func stoppedPurgeWarnings(p notestore.RecordedPurge) []string {
+func StoppedWarnings(p notestore.RecordedPurge) []string {
 	var out []string
 	if p.FromSeq > 0 {
 		out = append(out, fmt.Sprintf("Its Git export is rebuilt for this purge, and flagged so the backup worker replaces the GitHub copy once, the next time the gateway that runs the export exports the notebook (within five minutes); with the instance stopped, `forgetmenote admin purge rebuild -notebook %s -purge %s` does it.", p.Notebook, p.ID))
@@ -1011,7 +966,7 @@ func stoppedPurgeWarnings(p notestore.RecordedPurge) []string {
 	return append(out, "The private chat transcripts, Knowledge proposals and Jev records that quoted the erased content may not have been redacted. An instance Admin can redact them by purging the erased text, or each erased line of a note or versions purge, as text: a plan that finds it only outside the notebook redacts it there.")
 }
 
-// finishStoppedPurges finishes what it can of each purge that rewrote a
+// FinishStopped finishes what it can of each purge that rewrote a
 // notebook and stopped before it kept its receipt, as when the gateway
 // running it stopped. What needs no erased content runs again: the
 // notebook's search and Knowledge indexes are reset on every gateway, and
@@ -1024,11 +979,11 @@ func stoppedPurgeWarnings(p notestore.RecordedPurge) []string {
 // A purge that finished but whose receipt the database refused kept it in
 // this gateway's data directory: it is kept first, and such a purge is not
 // taken for stopped.
-func (s *Server) finishStoppedPurges(ctx context.Context) {
+func (s *Service) FinishStopped(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	spooled := s.keepSpooledPurgeReceipts(ctx)
-	stopped, err := s.stoppedPurges(ctx, "")
+	spooled := s.KeepSpooledReceipts(ctx)
+	stopped, err := s.StoppedPurges(ctx, "")
 	if err != nil {
 		slog.Warn("listing purges that stopped before they finished", "error", err)
 		return
@@ -1040,14 +995,14 @@ func (s *Server) finishStoppedPurges(ctx context.Context) {
 		}
 	}
 	for _, notebook := range slices.Sorted(maps.Keys(byNotebook)) {
-		if err := s.finishStoppedPurgesOf(ctx, notebook, byNotebook[notebook]); err != nil {
+		if err := s.finishStoppedOf(ctx, notebook, byNotebook[notebook]); err != nil {
 			slog.Warn("finishing purges that stopped before they finished", "notebook", notebook, "error", err)
 		}
 	}
 }
 
-func (s *Server) finishStoppedPurgesOf(ctx context.Context, notebook string, purges []notestore.RecordedPurge) error {
-	release, free, err := s.db.TryExclusive(ctx, purgeRunKey(notebook))
+func (s *Service) finishStoppedOf(ctx context.Context, notebook string, purges []notestore.RecordedPurge) error {
+	release, free, err := s.db.TryExclusive(ctx, RunKey(notebook))
 	if err != nil || !free {
 		return err
 	}
@@ -1059,7 +1014,7 @@ func (s *Server) finishStoppedPurgesOf(ctx context.Context, notebook string, pur
 	keep := func(raw []byte) ([]byte, bool, error) { return raw, false, nil }
 	for _, p := range purges {
 		// It may have kept its receipt since it was listed.
-		if version, _, err := s.db.ReadDocument(ctx, s.db.Pool, purgeReceiptKind, notebook+"/"+p.ID, -1); err != nil || version > 0 {
+		if version, _, err := s.db.ReadDocument(ctx, s.db.Pool, ReceiptKind, notebook+"/"+p.ID, -1); err != nil || version > 0 {
 			if err != nil {
 				return err
 			}
@@ -1068,57 +1023,57 @@ func (s *Server) finishStoppedPurgesOf(ctx context.Context, notebook string, pur
 		if _, err := s.indexes.Purged(ctx, store, p.ID, keep, true); err != nil {
 			return err
 		}
-		if _, err := s.db.Pool.Exec(ctx, `DELETE FROM pending_flows WHERE org = $1 AND kind = $2`, s.db.Org, purgeFlowKind(notebook)); err != nil {
+		if _, err := s.db.Pool.Exec(ctx, `DELETE FROM pending_flows WHERE org = $1 AND kind = $2`, s.db.Org, FlowKind(notebook)); err != nil {
 			return err
 		}
-		if err := errors.Join(s.dropBundleExports(ctx), s.removeTemporaryBundles()); err != nil {
+		if err := errors.Join(s.hooks.DropBundleExports(ctx), s.hooks.RemoveTemporaryBundles()); err != nil {
 			return err
 		}
-		receipt := recordedPurgeReceipt(p)
+		receipt := RecordedReceipt(p)
 		receipt.Interrupted = true
-		receipt.Warnings = append([]string{"This purge stopped after it rewrote the notebook, before it finished. A gateway that started since reset the notebook's search and Knowledge indexes on every gateway, and ended the plans agents prepared for it and the bundle exports in progress."}, stoppedPurgeWarnings(p)...)
+		receipt.Warnings = append([]string{"This purge stopped after it rewrote the notebook, before it finished. A gateway that started since reset the notebook's search and Knowledge indexes on every gateway, and ended the plans agents prepared for it and the bundle exports in progress."}, StoppedWarnings(p)...)
 		if previousReleaseFiles(store) {
 			receipt.Warnings = append(receipt.Warnings, purgePreviousRelease)
 		}
-		if err := s.keepPurgeReceipt(ctx, receipt); err != nil {
+		if err := s.KeepReceipt(ctx, receipt); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// purgeReceipts lists the notebook's purge receipts, newest first, with an
+// Receipts lists the notebook's purge receipts, newest first, with an
 // unfinished entry for each purge that kept none.
-func (s *Server) purgeReceipts(ctx context.Context, project string) ([]purgeReceipt, error) {
-	ids, err := s.db.DocumentIDs(ctx, s.db.Pool, purgeReceiptKind)
+func (s *Service) Receipts(ctx context.Context, project string) ([]Receipt, error) {
+	ids, err := s.db.DocumentIDs(ctx, s.db.Pool, ReceiptKind)
 	if err != nil {
 		return nil, err
 	}
-	receipts := []purgeReceipt{}
+	receipts := []Receipt{}
 	for _, id := range ids {
 		if !strings.HasPrefix(id, project+"/") {
 			continue
 		}
-		version, raw, err := s.db.ReadDocument(ctx, s.db.Pool, purgeReceiptKind, id, -1)
+		version, raw, err := s.db.ReadDocument(ctx, s.db.Pool, ReceiptKind, id, -1)
 		if err != nil {
 			return nil, err
 		}
-		var receipt purgeReceipt
+		var receipt Receipt
 		if version == 0 || json.Unmarshal(raw, &receipt) != nil {
 			continue
 		}
 		receipts = append(receipts, receipt)
 	}
-	stopped, err := s.stoppedPurges(ctx, project)
+	stopped, err := s.StoppedPurges(ctx, project)
 	if err != nil {
 		return nil, err
 	}
 	for _, p := range stopped {
-		receipt := recordedPurgeReceipt(p)
+		receipt := RecordedReceipt(p)
 		receipt.Unfinished = true
-		receipt.Warnings = append([]string{"This purge rewrote the notebook and has kept no receipt: it is still running, or the gateway running it stopped before it finished. A gateway that starts finishes what it can and keeps its receipt."}, stoppedPurgeWarnings(p)...)
+		receipt.Warnings = append([]string{"This purge rewrote the notebook and has kept no receipt: it is still running, or the gateway running it stopped before it finished. A gateway that starts finishes what it can and keeps its receipt."}, StoppedWarnings(p)...)
 		receipts = append(receipts, receipt)
 	}
-	slices.SortFunc(receipts, func(a, b purgeReceipt) int { return strings.Compare(b.Created+b.Purge, a.Created+a.Purge) })
+	slices.SortFunc(receipts, func(a, b Receipt) int { return strings.Compare(b.Created+b.Purge, a.Created+a.Purge) })
 	return receipts, nil
 }

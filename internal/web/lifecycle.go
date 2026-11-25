@@ -51,7 +51,7 @@ func (s *Server) Start(ctx context.Context) error {
 	if s.chat != nil {
 		s.chat.StartRecovery()
 	}
-	s.finishStoppedPurges(ctx)
+	s.purge.FinishStopped(ctx)
 	return nil
 }
 

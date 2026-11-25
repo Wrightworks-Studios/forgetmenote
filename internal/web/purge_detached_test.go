@@ -12,6 +12,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -110,7 +111,7 @@ func TestPurgeWhoseRequestEndsAfterTheRewriteStillCleansUp(t *testing.T) {
 			r.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			endOnRewrite(t, func() { app.ServeHTTP(w, r) }, cancel)
-			var receipt purgeReceipt
+			var receipt purgehttp.Receipt
 			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &receipt) != nil || len(receipt.Warnings) > 0 || receipt.Derived.Chats != 1 || receipt.Derived.JevRecords != 1 {
 				t.Fatalf("execute: HTTP %d %s", w.Code, w.Body)
 			}
@@ -149,7 +150,7 @@ func TestPurgeWhoseClientDisconnectsAfterTheRewriteStillCleansUp(t *testing.T) {
 		}
 	}, cancel)
 	var receipts struct {
-		Receipts []purgeReceipt `json:"receipts"`
+		Receipts []purgehttp.Receipt `json:"receipts"`
 	}
 	for deadline := time.Now().Add(30 * time.Second); len(receipts.Receipts) == 0; time.Sleep(20 * time.Millisecond) {
 		if time.Now().After(deadline) {

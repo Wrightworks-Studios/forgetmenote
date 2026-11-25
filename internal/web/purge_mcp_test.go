@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"forgetmenote/internal/purgehttp"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"forgetmenote/internal/catalog"
@@ -65,7 +66,7 @@ func TestPreparePurgeCannotExecute(t *testing.T) {
 	actionCall(t, editor, "prepare_purge", map[string]any{"project": "default", "kind": "text", "text": secret}, true)
 
 	raw := actionCall(t, session, "prepare_purge", map[string]any{"project": "default", "kind": "text", "text": secret}, false)
-	var out preparePurgeOutput
+	var out purgehttp.AgentPlan
 	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +198,7 @@ func TestPreparePurgeGivesAgentsNoCountsOfRecordsOutsideTheNotebook(t *testing.T
 	// redacted too, and an Admin how many.
 	w := proxyCall(app, "keeper", "POST", "/p/default/api/purge/prepare", `{"token":"`+token+`"}`)
 	var plan webPurgePlan
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &plan) != nil || plan.Derived != (purgeDerived{Own: true, Others: purgeOthersRedacted}) {
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &plan) != nil || plan.Derived != (purgehttp.Derived{Own: true, Others: purgehttp.OthersRedacted}) {
 		t.Fatalf("the owner reviews the agent's plan: HTTP %d %s", w.Code, w.Body)
 	}
 	if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "admin", Admin: true}); err != nil {
