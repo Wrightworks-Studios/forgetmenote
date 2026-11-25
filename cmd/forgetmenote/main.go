@@ -22,6 +22,7 @@ import (
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/client"
 	"forgetmenote/internal/instanceconfig"
+	"forgetmenote/internal/integrations"
 	// The hidden "forgetmenote sandbox-exec" helper that confines local document
 	// extractors. Its init handles that subcommand before main runs.
 	_ "forgetmenote/internal/sandbox"
@@ -50,6 +51,9 @@ func runArguments(args []string) error {
 	}
 	if len(args) > 0 && args[0] == "plugin" {
 		return runPlugin(args[1:], os.Stdout)
+	}
+	if len(args) > 0 && args[0] == "integrations" {
+		return runIntegrations(args[1:], os.Stdout)
 	}
 	if err := capacity.Validate(); err != nil {
 		return err
@@ -223,6 +227,13 @@ func runArguments(args []string) error {
 	defer stop()
 	server := &http.Server{Addr: *listen, Handler: runtime, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 60 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
 	log.Printf("ForgetMeNote instance configuration: %+v", app.InstanceSummary())
+	if omitted := integrations.Omitted(); len(omitted) > 0 {
+		names := []string{}
+		for _, integration := range omitted {
+			names = append(names, integration.Name)
+		}
+		log.Printf("ForgetMeNote build leaves out optional integrations: %s", strings.Join(names, " "))
+	}
 	if app.OutgoingPaused() {
 		log.Print("ForgetMeNote outgoing actions are paused by server.outgoing (OUTGOING): no automations, Jev reviews, repository refresh, backup expiry, background embedding or Quicknotes routing run; Slack, data writes, personal connections, backup leases and setup, and hosted extraction refuse")
 	}

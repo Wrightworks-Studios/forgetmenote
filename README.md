@@ -117,7 +117,9 @@ emergencies.
 
 To run ForgetMeNote on a server with HTTPS, durable storage and upgrades, follow the
 [deployment guide](docs/deployment.md). Local accounts work out of the box; see
-[authentication](docs/authentication.md) for OIDC or a trusted proxy.
+[authentication](docs/authentication.md) for OIDC or a trusted proxy. To build without integrations
+you don't use, such as local OCR or the database connections, set `FMN_OMIT` in `.env`; see
+[optional integrations](docs/integrations.md).
 
 ### Connect an AI client
 

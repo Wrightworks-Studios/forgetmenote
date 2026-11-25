@@ -112,6 +112,7 @@ func TestSourceJobsRetainedStorageAdmission(t *testing.T) {
 }
 
 func TestSourceJobsExpiryDrainsWorker(t *testing.T) {
+	requireOCR(t)
 	dir := t.TempDir()
 	for name, body := range map[string]string{"pdftotext": "printf '<html><body><doc><page width=\"612\" height=\"792\"/></doc></body></html>\\n'", "pdfimages": "printf '1 0 image\\n'", "pdftoppm": "touch started\nexec /bin/sleep 30"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+body+"\n"), 0700); err != nil {
@@ -173,6 +174,7 @@ func TestSourceJobsExpiredActiveCanBeCanceled(t *testing.T) {
 }
 
 func TestSourceJobsAdmissionCancellationAndRevocation(t *testing.T) {
+	requireOCR(t)
 	dir := t.TempDir()
 	bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber checkpoint</word></line></block></flow></page><page width="612" height="792"/></doc></body></html>`
 	for name, body := range map[string]string{"pdftotext": "cat <<'XML'\n" + bbox + "\nXML\n", "pdfimages": "printf '2 0 image\\n'\n", "pdftoppm": "touch started\nexec /bin/sleep 30\n"} {
@@ -238,6 +240,7 @@ func TestSourceJobsAdmissionCancellationAndRevocation(t *testing.T) {
 }
 
 func TestSourceJobsRestartResumeUsesCompletedPages(t *testing.T) {
+	requireOCR(t)
 	dir := t.TempDir()
 	bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber checkpoint</word></line></block></flow></page><page width="612" height="792"/></doc></body></html>`
 	for name, body := range map[string]string{"pdftotext": "cat <<'XML'\n" + bbox + "\nXML\n", "pdfimages": "printf '2 0 image\\n'\n", "pdftoppm": "touch started\nexec /bin/sleep 30\n"} {

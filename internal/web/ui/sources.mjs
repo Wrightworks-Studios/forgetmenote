@@ -73,7 +73,9 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
       if (!Number.isSafeInteger(sourceBytes) || sourceBytes <= 0) throw new Error('Source upload budget is unavailable.');
       loading = false; enabled(); descriptionOption();
       $('archive-file').accept = formats.flatMap(format => format.extensions).join(',');
-      $('archive-formats').textContent = `Documents, images, email, audio, and video · Up to ${sourceBytes / (1024 * 1024)} MiB`;
+      // A build without local OCR offers no image formats (docs/integrations.md).
+      const kinds = formats.some(format => format.mime?.startsWith('image/')) ? 'Documents, images, email' : 'Documents, email';
+      $('archive-formats').textContent = `${kinds}, audio, and video · Up to ${sourceBytes / (1024 * 1024)} MiB`;
       let remembered; try { remembered = JSON.parse(localStorage.getItem(rememberedKey())); } catch {}
       if (remembered?.id && remembered.path === (target?.path || '')) {
         jobID = remembered.id;

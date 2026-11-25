@@ -1,3 +1,5 @@
+//go:build !fmn_omit_outlook
+
 package sources
 
 import (

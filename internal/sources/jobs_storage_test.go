@@ -296,6 +296,7 @@ func pdfTools(t *testing.T) (finish func()) {
 // A gateway that is gone leaves a running job whose checkpoints another
 // gateway, with a disk of its own, resumes from and then expires.
 func TestAnotherGatewayResumesAJobFromItsStoredCheckpoints(t *testing.T) {
+	requireOCR(t)
 	for name, open := range blobStores {
 		t.Run(name, func(t *testing.T) {
 			finish := pdfTools(t)

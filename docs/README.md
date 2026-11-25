@@ -23,6 +23,7 @@ Start with the [application README](../README.md), [editing guide](editor.md) or
 | [Headless notebooks, API, and CLI](headless.md) | User and operator |
 | [One organization per instance](instance-administration.md) | Operator |
 | [Instance configuration](instance-configuration.md) | Operator |
+| [Optional integrations](integrations.md) | Operator and developer |
 | [Decision service and TypeSafe integration](jev-architecture.md) | Developer |
 | [Jev judgments and notebook reviews](jev.md) | User and operator |
 | [Knowledge workflows](knowledge.md) | User and operator |
