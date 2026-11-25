@@ -356,7 +356,7 @@ func (s *Store) ForgetPurge() {
 	s.forgetPurged(nil)
 	if !s.liveClosed {
 		// As after missed hints: every loaded document is read again.
-		n := s.backend.(*dbNotebook)
+		n := s.backend
 		n.liveHeard(n.liveSync(), notestore.LiveChange{})
 	}
 }

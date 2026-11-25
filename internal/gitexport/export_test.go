@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"maps"
 	"os"
 	"os/exec"
@@ -416,59 +415,5 @@ func TestMaintenanceLeavesAnExportInProgressAlone(t *testing.T) {
 	git(t, repo, "fsck", "--strict", "--no-dangling")
 	if left, _ := filepath.Glob(filepath.Join(repo, "objects", "pack", "tmp_*")); len(left) != 0 {
 		t.Fatal("temporary files remain:", left)
-	}
-}
-
-// VerifyExport accepts an export whose branch is the commit asked for and
-// which git fsck --strict finds sound, refuses a missing export, one behind
-// or ahead of that commit and one whose objects are damaged, and changes
-// nothing, even beside the exporter that holds the directory.
-func TestVerifyExportChecksTheBranchAndTheObjects(t *testing.T) {
-	e := newEnv(t)
-	n := e.create("notes")
-	head := history(t, n)
-	if _, err := VerifyExport(e.ctx, e.ex.Path("notes"), head.Commit); !errors.Is(err, fs.ErrNotExist) {
-		t.Fatal("an export that does not exist:", err)
-	}
-	if _, err := e.ex.Sync(e.ctx, "notes"); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.ex.Maintain(e.ctx, "notes"); err != nil {
-		t.Fatal(err)
-	}
-	repo := e.ex.Path("notes")
-	before := objectFiles(t, repo)
-	branch, err := VerifyExport(e.ctx, repo, head.Commit)
-	if err != nil || branch != head.Commit {
-		t.Fatal(branch, err)
-	}
-	if after := objectFiles(t, repo); len(after) != len(before) {
-		t.Fatal("verifying changed the export's objects")
-	}
-	if refOf(t, repo) != head.Commit {
-		t.Fatal("verifying moved the branch")
-	}
-
-	parent := mustID(t, git(t, repo, "rev-parse", "main~1"))
-	if branch, err = VerifyExport(e.ctx, repo, parent); !errors.Is(err, ErrMismatch) || branch != head.Commit || !strings.Contains(err.Error(), "the export's branch is at "+head.Commit.String()+", not "+parent.String()) {
-		t.Fatal("an export ahead of the commit asked for:", branch, err)
-	}
-	git(t, repo, "update-ref", "refs/heads/main", parent.String())
-	if branch, err = VerifyExport(e.ctx, repo, head.Commit); !errors.Is(err, ErrMismatch) || branch != parent {
-		t.Fatal("an export behind the commit asked for:", branch, err)
-	}
-	git(t, repo, "update-ref", "refs/heads/main", head.Commit.String())
-
-	// The objects go missing: fsck finds the history broken.
-	git(t, repo, "repack", "-a", "-d", "-q")
-	packs, _ := filepath.Glob(filepath.Join(repo, "objects", "pack", "*.pack"))
-	if len(packs) == 0 {
-		t.Fatal("no pack")
-	}
-	for _, pack := range packs {
-		os.Remove(pack)
-	}
-	if _, err := VerifyExport(e.ctx, repo, head.Commit); err == nil || !strings.Contains(err.Error(), "fsck") {
-		t.Fatal("an export without its objects:", err)
 	}
 }

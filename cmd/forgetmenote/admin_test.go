@@ -9,9 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"forgetmenote/internal/blob"
 	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/notestore"
 	"forgetmenote/internal/pg/pgtest"
 	"forgetmenote/internal/workspace"
 )
@@ -172,62 +170,6 @@ func TestRetiredOwnerCommandsExplainTheirRemoval(t *testing.T) {
 	}
 }
 
-// A data directory whose catalog notebooks the previous release still keeps
-// in Git, not yet imported into the database, does not serve, and its
-// repository stays as it was; once the cutover imports it, the catalog
-// serves the notebook from the database.
-func TestServeRefusesNotebooksStillInGitUntilImported(t *testing.T) {
-	data := t.TempDir()
-	db := instanceDatabase(t, databaseURLFile(t, true))
-	c, err := catalog.Open(data, nil, db)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.Close()
-	blobs, err := blob.OpenDir(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer blobs.Close()
-	notes, err := notestore.Open(t.Context(), db, blobs, notestore.Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = notes.Delete(t.Context(), "default")
-	notes.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	head := previousNotebook(t, data, "default")
-	tree := filepath.Join(data, "projects", "default", "workspace")
-	t.Setenv("DATA_DIR", data)
-	t.Setenv("LISTEN_ADDR", "127.0.0.1:0")
-	if err = runArguments(nil); err == nil || !strings.Contains(err.Error(), "forgetmenote admin storage import") {
-		t.Fatalf("serve: %v", err)
-	}
-	if got := cutoverGitRun(t, tree, "rev-parse", "HEAD"); got != head {
-		t.Fatal("serving changed the repository")
-	}
-	if status := cutoverGitRun(t, tree, "status", "--porcelain", "--untracked-files=all", "--ignored"); status != "" {
-		t.Fatalf("serving changed the working tree:\n%s", status)
-	}
-	var out bytes.Buffer
-	if err = runAdmin([]string{"storage", "import", "-data", data}, strings.NewReader(""), &out); err != nil {
-		t.Fatalf("storage import: %v\n%s", err, out.String())
-	}
-	if c, err = catalog.Open(data, nil, db); err != nil {
-		t.Fatal("the imported notebook is still refused:", err)
-	}
-	defer c.Close()
-	store, err := c.Access(catalog.Bootstrap, "default", "read")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if doc, err := store.Read(t.Context(), "idea.md", ""); err != nil || doc.Revision != head {
-		t.Fatalf("the imported notebook reads %+v: %v", doc, err)
-	}
-}
-
 // The backup command bundles a notebook from the notes store through its Git
 // export, as the running instance does.
 func TestBackupCommandBundlesTheNotebooksHistory(t *testing.T) {
@@ -251,7 +193,7 @@ func TestBackupCommandBundlesTheNotebooksHistory(t *testing.T) {
 	if err = runArguments([]string{"-data", data, "backup", bundle}); err != nil {
 		t.Fatal(err)
 	}
-	if heads := cutoverGitRun(t, t.TempDir(), "bundle", "list-heads", bundle); !strings.Contains(heads, saved.Revision) {
+	if heads := gitRun(t, t.TempDir(), "bundle", "list-heads", bundle); !strings.Contains(heads, saved.Revision) {
 		t.Fatalf("the backup does not hold the notebook's head %s: %s", saved.Revision, heads)
 	}
 }

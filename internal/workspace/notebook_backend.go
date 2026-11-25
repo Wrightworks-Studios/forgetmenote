@@ -2,85 +2,9 @@ package workspace
 
 import "context"
 
-// notebookBackend is what a Store serves from its notebook: every method
-// below delegates to it. Its one implementation is dbNotebook, the notebook
-// kept in the notes store; it is maintained by hand. Operational state stays
-// with its concrete owner.
-type notebookBackend interface {
-	AddComment(ctx context.Context, path, text, revision, author string, options ...CommentOptions) (Discussion, error)
-	AddFinding(ctx context.Context, in FindingInput, actor string) (ReviewFinding, error)
-	ApplyGroup(ctx context.Context, group EditGroup) (GroupResult, error)
-	AssertSnapshot(ctx context.Context, revision string) error
-	AuthorityStatus(ctx context.Context) (AuthorityState, error)
-	Backup(ctx context.Context, target string) error
-	BackupLimited(ctx context.Context, target string, limit int64) error
-	BrowseCollection(ctx context.Context, folder, collection string) (FolderBrowse, error)
-	BrowseScoped(ctx context.Context, folder string, scope ContentScope) (FolderBrowse, error)
-	CaptureAbortReceive(ctx context.Context, in CaptureMove) (CaptureReceipt, error)
-	CaptureCancel(ctx context.Context, in CaptureMove) (CaptureReceipt, error)
-	CaptureCreate(ctx context.Context, id, path string, content []byte) (Document, error)
-	CaptureFinish(ctx context.Context, in CaptureMove) (CaptureReceipt, error)
-	CapturePreflight(ctx context.Context, in CaptureMove) (CaptureReceipt, error)
-	CapturePrepare(ctx context.Context, in CaptureMove) (Document, error)
-	CaptureReceive(ctx context.Context, in CaptureMove, content []byte) (Document, error)
-	CaptureSaved(ctx context.Context, id, path, hash string) (Document, error)
-	ChangesSince(ctx context.Context, from, revision string) (ChangeSet, error)
-	Close() error
-	Collections(ctx context.Context) (Collections, error)
-	Comments(ctx context.Context, path string) (Discussion, error)
-	DecideFinding(ctx context.Context, path, id, revision, actor, decision string, canEdit bool) (ReviewFinding, error)
-	DeleteComment(ctx context.Context, path, id, replyID, revision, author string, canModerate bool) (Discussion, error)
-	Duplicate(ctx context.Context, from, to, expected, actor string) (MoveResult, error)
-	EmptyTrash(ctx context.Context, expected, confirmation string) (TrashResult, error)
-	Find(ctx context.Context, query, tag, status, pathPrefix string) ([]Entry, error)
-	FindScoped(ctx context.Context, query, tag, status, path string, includeTrash bool, limit int, scope ContentScope) (ScopedEntries, error)
-	Findings(ctx context.Context) ([]ReviewFinding, error)
-	FinishAuthority(ctx context.Context, id string, commit bool) (AuthorityState, error)
-	GroupReceipt(ctx context.Context, group EditGroup, identityID string) (GroupResult, error)
-	History(ctx context.Context, path string) ([]Commit, error)
-	HistoryNotes(ctx context.Context, revision string, offset int, known map[string]SnapshotFile) (HistoryBatch, error)
-	HistoryRevisions(ctx context.Context, target, after string) ([]HistoryRevision, error)
-	HistoryScoped(ctx context.Context, path string, scope ContentScope) ([]Commit, error)
-	HistoryVisibilityID(ctx context.Context) (string, error)
-	ImportSource(ctx context.Context, capture SourceCapture, target, expected, title string, folder *string) (Document, error)
-	KnowledgeRead(ctx context.Context, path, revision string) (Document, error)
-	List(ctx context.Context) ([]Entry, error)
-	ListCollection(ctx context.Context, collection string) ([]Entry, error)
-	ListTrash(ctx context.Context) (TrashListing, error)
-	LiveApply(ctx context.Context, in LiveUpdate) (LiveDocument, error)
-	LiveCheckpoint(ctx context.Context, path string) (LiveDocument, error)
-	LivePatch(ctx context.Context, in TargetedPatch) (LiveDocument, error)
-	LiveRead(ctx context.Context, path string) (LiveDocument, error)
-	Locks(ctx context.Context, path string) (LockState, error)
-	Move(ctx context.Context, from, to, expected, actor string) (MoveResult, error)
-	NotebookSnapshot(ctx context.Context) (NotebookSnapshot, error)
-	OrganizationReceipt(ctx context.Context, a OrganizationAction, actor string) (OrganizationResult, error)
-	OrganizationSources(ctx context.Context, sources []MutationSource) error
-	Organize(ctx context.Context, a OrganizationAction, apply bool) (OrganizationResult, error)
-	PrepareAuthority(ctx context.Context, in AuthorityRequest) (AuthorityState, error)
-	Read(ctx context.Context, path, revision string) (Document, error)
-	ResolveComment(ctx context.Context, path, id, revision, author string, canEdit bool) (Discussion, error)
-	RestoreTrash(ctx context.Context, id, to, expected, actor string) (TrashResult, error)
-	Save(ctx context.Context, path string, content []byte, expected, actor string) (Document, error)
-	SetContainer(ctx context.Context, path, container, expected, actor string) (Document, error)
-	SetLock(ctx context.Context, path string, locked bool, expected, actor string) (LockState, error)
-	SetMetadata(ctx context.Context, path string, m Metadata, expected, actor string) (Document, error)
-	Snapshot(ctx context.Context, revision string) (Snapshot, error)
-	SnapshotScoped(ctx context.Context, revision string, scope ContentScope) (Snapshot, error)
-	StageAuthority(ctx context.Context, id string, snapshot NotebookSnapshot) (AuthorityState, error)
-	Status(ctx context.Context) (Status, error)
-	TaskHistory(ctx context.Context, task string) ([]Commit, error)
-	TrashNotes(ctx context.Context, paths []string, expected, actor string) (TrashResult, error)
-	TrashPolicy(ctx context.Context) (TrashIndex, error)
-	UndoOrganization(ctx context.Context, input OrganizationUndo) (OrganizationResult, error)
-	ValidateMutationGroup(ctx context.Context, group EditGroup) error
-	VerifySource(ctx context.Context, target, revision string) (SourceVerification, error)
-	VisibleHistoryPaths(ctx context.Context, paths []string) (map[string]bool, error)
-	WaitLive(ctx context.Context, path, known string, milliseconds int, incremental bool) (LiveDocument, error)
-	Watch() (<-chan struct{}, func(), error)
-	WholeHistory(ctx context.Context, path, revision string) ([]Commit, error)
-	WriteInstructions(ctx context.Context, content []byte, expected, actor string) (Document, error)
-}
+// Store's notebook methods delegate to its dbNotebook, the notebook kept in
+// the notes store, which embeds the Store for its pure policy, cache and live
+// state. Operational state stays with its concrete owner.
 
 func (s *Store) AddComment(ctx context.Context, path, text, revision, author string, options ...CommentOptions) (Discussion, error) {
 	return s.backend.AddComment(ctx, path, text, revision, author, options...)
@@ -355,10 +279,6 @@ func (s *Store) WaitLive(ctx context.Context, path, known string, milliseconds i
 }
 
 func (s *Store) Watch() (<-chan struct{}, func(), error) { return s.backend.Watch() }
-
-func (s *Store) WholeHistory(ctx context.Context, path, revision string) ([]Commit, error) {
-	return s.backend.WholeHistory(ctx, path, revision)
-}
 
 func (s *Store) WriteInstructions(ctx context.Context, content []byte, expected, actor string) (Document, error) {
 	return s.backend.WriteInstructions(ctx, content, expected, actor)

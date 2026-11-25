@@ -20,9 +20,6 @@ func (c *Catalog) Import(ctx context.Context, actor, id, name string, bundle io.
 	c.lock()
 	err := c.checkImport(actor, id, name)
 	if err == nil {
-		err = c.checkNoRepository(id)
-	}
-	if err == nil {
 		var release func()
 		if release, err = c.reserveNotebook(id); err == nil {
 			defer release()

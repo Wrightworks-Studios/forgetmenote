@@ -52,7 +52,7 @@ func unpublished(t *testing.T, c *Catalog, data, id string) {
 }
 
 func TestImportRechecksPermissionsAndRollsBackFailures(t *testing.T) {
-	for _, scenario := range []string{"revoked", "catalog-write", "git-repository", "cancelled"} {
+	for _, scenario := range []string{"revoked", "catalog-write", "cancelled"} {
 		t.Run(scenario, func(t *testing.T) {
 			data := t.TempDir()
 			c, err := Open(data, nil, testDB(t, data))
@@ -75,7 +75,6 @@ func TestImportRechecksPermissionsAndRollsBackFailures(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			reader := &importCallbackReader{Reader: bytes.NewReader(raw)}
-			var head string
 			switch scenario {
 			case "revoked":
 				reader.beforeRead = func() {
@@ -85,8 +84,6 @@ func TestImportRechecksPermissionsAndRollsBackFailures(t *testing.T) {
 				}
 			case "catalog-write":
 				pgtest.FailWrites(t, c.db, "catalog")
-			case "git-repository":
-				head = gitNotebook(t, data, "imported")
 			case "cancelled":
 				reader.beforeRead = cancel
 			}
@@ -96,13 +93,6 @@ func TestImportRechecksPermissionsAndRollsBackFailures(t *testing.T) {
 			}
 			if scenario == "revoked" && !errors.Is(err, workspace.ErrForbidden) {
 				t.Fatal(err)
-			}
-			if scenario == "git-repository" {
-				if !strings.Contains(err.Error(), "forgetmenote admin storage import") {
-					t.Fatalf("the refusal does not name the import: %v", err)
-				}
-				gitUnchanged(t, data, "imported", head)
-				os.RemoveAll(filepath.Join(data, "projects", "imported"))
 			}
 			unpublished(t, c, data, "imported")
 		})

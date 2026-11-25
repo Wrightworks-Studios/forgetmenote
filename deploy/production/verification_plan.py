@@ -20,7 +20,7 @@ DOCUMENTS = ('docs/**', '*.md', 'deploy/production/**/*.md')
 # Release tooling and CI, which operators run from their current checkout.
 OPERATOR = ('.github/', 'deploy/production/')
 # Tests, fixtures, harnesses, smoke scripts and deployment templates outside the image.
-TESTS = ('scripts/', 'deploy/standalone/', 'deploy/integrations/', 'deploy/kubernetes/', 'deploy/git-backup/',
+TESTS = ('scripts/', 'deploy/standalone/', 'deploy/integrations/', 'deploy/git-backup/',
          'deploy/iwork/README.md', 'deploy/requirements.txt', 'playwright.config.mjs', 'Makefile',
          'compose.yaml', '.env.example', '.ignore', '.gitignore', '.gitattributes', '.prettierignore')
 # Go test tools are main packages, which nothing can import.

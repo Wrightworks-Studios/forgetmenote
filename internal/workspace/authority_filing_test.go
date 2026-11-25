@@ -107,7 +107,7 @@ func TestFilingCheckedBeforeAHandoffCannotReserveAfterIt(t *testing.T) {
 	ctx := captureContext()
 	source, _, in, _ := filingStores(t)
 	other := captureGateway(t, source)
-	n := other.backend.(*dbNotebook)
+	n := other.backend
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	mctx := n.mutationContext(ctx)

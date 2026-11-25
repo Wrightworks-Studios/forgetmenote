@@ -89,7 +89,7 @@ Back up the complete stopped stack first. Update the source checkout, deliberate
 
 The upgrade that introduces Postgres moves the instance's accounts, grants and other state out of `/data` once. After the backup and build, run `docker compose up -d postgres`, then `docker compose run --rm forgetmenote import-files` while ForgetMeNote is stopped (its entrypoint migrates the schema first), then `docker compose up -d`. The import prints each area's file count and digest; keep that output with the backup. It refuses a database that already holds the instance's state, so it never runs twice or after the instance served from Postgres. See [moving file state](postgres.md#moving-file-state).
 
-The upgrade that introduces storage v2 moves every notebook from its Git repository into the database and blob store once. Follow the [storage v2 cutover](storage-cutover.md) from the generated directory: stop only the `forgetmenote` service, keep `postgres` running for the dump and the import, and take the full stack archive below as well. That release refuses to start until every notebook is imported.
+The upgrade that introduces storage v2 moves every notebook from its Git repository into the database and blob store once, with `forgetmenote admin storage import` in a stopped window. This release no longer has that import: an instance still keeping notebooks in Git upgrades through an earlier release that has it, following that release's `docs/storage-cutover.md`, first.
 
 ## Backup and full restoration
 

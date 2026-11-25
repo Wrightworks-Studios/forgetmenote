@@ -8,10 +8,9 @@ with large file contents in blob storage ([notebook content](#notebook-content))
 Self-hosting runs every role in one process beside a Postgres container from the
 standalone compose preset.
 
-This is Phase 1 of the scalable architecture design. Until its cutover, production
-keeps running the file-based stores, and the deployment rules in
-[engineering rules](engineering-rules.md) and [deploying](../deploy/production/deploying.md)
-apply unchanged.
+This is Phase 1 of the scalable architecture design. Every instance has since
+moved onto Postgres, and the deployment rules in
+[engineering rules](engineering-rules.md) apply unchanged.
 
 ## Shape
 
@@ -437,12 +436,10 @@ The cutover from a file-based release: complete a backup of every volume, stop
 every process, run `forgetmenote migrate` and `forgetmenote import-files`, keep
 the report, run `export-files` into a new directory and compare its report, then
 start the gateways. The import reads a volume mounted read-only, so the stopped
-release can restart on it untouched. On Duplo, `deploy/production/cutover.py`
-ran these steps for the earlier stack of a notebook owner and gateways
-([moving onto Postgres](../deploy/production/postgres-cutover.md)); storage v2
-has no notebook owners, so that tool needs revising before it moves another
-instance. Moving notebooks out of their Git repositories is the separate
-[storage v2 cutover](storage-cutover.md).
+release can restart on it untouched. The later storage v2 cutover moved
+notebooks out of their Git repositories into the database; this release no
+longer has its import, so an instance still keeping notebooks in Git upgrades
+through an earlier release with `forgetmenote admin storage import` first.
 
 To roll back after writes resumed, stop every gateway and run `export-files`.
 On a copy of the file-based release's volume, first remove the state files the
@@ -452,15 +449,6 @@ copy the export over it. Removing first matters:
 a record deleted after the cutover would otherwise return from the files the
 import left in place. The export does not revoke a managed backup lease that is
 still active; its GitHub token expires within the hour it was minted for.
-
-`make smoke-rollback` rehearses that handoff with disposable containers: the
-current image (`SMOKE_IMAGE`) serves Postgres, `export-files` writes its state
-back, and the file-based release (`ROLLBACK_IMAGE`, release A by default) serves
-the export with the same recovery key, accounts, notebooks, permissions and
-writes. It never pulls an image, so pull the release once beforehand; it is an
-operator check, not part of the release gate. `make smoke-cutover` runs
-`cutover.py`'s own phases the other way, from a release A volume to an owner and
-two gateways over Postgres and an S3 stand-in, then its rollback.
 
 ## Outgoing paused
 
