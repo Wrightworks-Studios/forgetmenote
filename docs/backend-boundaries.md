@@ -65,6 +65,15 @@ leases, drains and receipts to `internal/backups`. Consent, notebook generation
 and actor authority stay with that manager and the catalog; transport extraction
 does not create another backup writer or a new persistent representation.
 
+`internal/taskqueue` owns task queues: the task actions, the `/task` and
+`/tasks` Slack commands, forms and buttons, task notices and the weekday
+reminder. Web registers the task tools through the shared action dispatcher,
+and checks a command's Slack signature and workspace before it reaches task
+queues. The required hooks bind the personal-credential check, automation
+authority, messaging clients and the Slack app, data operations and
+connections, reply reminder authority and the origin. Those configured after
+startup are read at each call.
+
 `internal/jsonfile` provides the shared strict operator loader. It checks regular
 file size before decoding, rejects unknown fields and trailing values, and bounds
 the reader even if the file grows. Individual owners retain semantic validation,
