@@ -36,3 +36,19 @@ func TestWorkspaceMemberAudienceUsesOnlyDelegatedService(t *testing.T) {
 		})
 	}
 }
+
+func TestPairByEmailNeedsWorkspaceDomains(t *testing.T) {
+	client := Client{Workspace: "T1", Members: &MemberAccess{Actor: "service-1", Binding: Binding{Project: "default", ExternalProcessing: true}}}
+	for _, domains := range [][]string{{"example.com"}, {"example.com", "corp.example.org"}} {
+		client.Members.PairByEmail = domains
+		if err := client.Validate(); err != nil {
+			t.Fatalf("%q: %v", domains, err)
+		}
+	}
+	for _, domains := range [][]string{{"Example.com"}, {"example"}, {"@example.com"}, {""}, {"example.com/x"}} {
+		client.Members.PairByEmail = domains
+		if client.Validate() == nil {
+			t.Fatalf("%q was accepted as a pairing domain", domains)
+		}
+	}
+}

@@ -68,6 +68,7 @@ func connectPersonalProviderHandler(t *testing.T, app *Server, user, provider st
 	if provider == "google" {
 		config.Google = &connectors.OAuthApplication{ClientID: "test", SecretFile: secret}
 	} else {
+		requireSlack(t)
 		config.Slack = &connectors.OAuthApplication{ClientID: "test", SecretFile: secret, Workspace: "T123"}
 	}
 	app.personalConnections, err = connectors.OpenPersonalConnections(app.db, config)

@@ -23,6 +23,7 @@ var all = []Integration{
 	{Name: "outlook", Title: "Outlook message sources (.msg)"},
 	{Name: "iwork", Title: "Pages and Keynote sources (.pages, .key)"},
 	{Name: "ocr", Title: "Tesseract OCR of images and scanned PDF pages"},
+	{Name: "slack", Title: "Slack workspace app and personal Slack connections"},
 }
 
 // omitted is filled by the init functions of the fmn_omit_NAME files.

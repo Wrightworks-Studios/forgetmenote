@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/jsonfile"
 	"forgetmenote/internal/pg"
 	"net/http"
@@ -97,6 +98,11 @@ const personalStorageTimeout = 10 * time.Second
 func OpenPersonalConnections(db *pg.DB, config PersonalConfig) (*PersonalConnections, error) {
 	if config.Version != 1 || !filepath.IsAbs(config.KeyFile) {
 		return nil, errors.New("personal connections require version 1 and an absolute keyFile")
+	}
+	if config.Slack != nil {
+		if err := integrations.Check("slack"); err != nil {
+			return nil, fmt.Errorf("personal connections: %w", err)
+		}
 	}
 	for _, app := range []*OAuthApplication{config.Google, config.Slack} {
 		if app != nil && (strings.TrimSpace(app.ClientID) == "" || !filepath.IsAbs(app.SecretFile)) {

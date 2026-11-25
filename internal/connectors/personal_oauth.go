@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"forgetmenote/internal/capacity"
+	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/pg"
 	"io"
 	"net"
@@ -367,6 +368,13 @@ func (p *PersonalConnections) response(req *http.Request) (map[string]any, error
 // expiring waits for a refresh elsewhere and then uses its token. A persisted
 // in-flight marker prevents reuse of a rotated token after a crash.
 func (p *PersonalConnections) token(ctx context.Context, owner, provider string, generation uint64) (personalCredential, error) {
+	// A Slack grant that a build with Slack stored stays, unused, in a build
+	// without it.
+	if provider == "slack" {
+		if err := integrations.Check("slack"); err != nil {
+			return personalCredential{}, err
+		}
+	}
 	id := personalKey(owner, provider)
 	p.mu.Lock()
 	lock := p.refreshLocks[id]
