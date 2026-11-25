@@ -1,4 +1,4 @@
-package web
+package personal
 
 import (
 	"context"
@@ -33,23 +33,24 @@ func personalQuiet(now time.Time, zone, start, end string) bool {
 	}
 	return clock >= start || clock < end
 }
-func (s *Server) notifyPersonal(ctx context.Context, r *automation.Run, state *personalState, persist func() error) error {
+func (s *Service) notifyPersonal(ctx context.Context, r *automation.Run, state *State, persist func() error) error {
 	settings, err := s.catalog.Assistant(r.Spec.Actor)
 	if err != nil {
 		return err
 	}
 	_, _, chatEnabled := s.messaging.MessageClient("slack")
-	if !chatEnabled || !settings.Notifications || s.slack == nil || s.personalConnections == nil || personalQuiet(time.Now(), settings.TimeZone, settings.QuietStart, settings.QuietEnd) {
+	team, slack, members, mounted := s.hooks.Slack()
+	if !chatEnabled || !settings.Notifications || !mounted || s.hooks.PersonalConnections() == nil || personalQuiet(time.Now(), settings.TimeZone, settings.QuietStart, settings.QuietEnd) {
 		return nil
 	}
-	connections, err := s.personalConnections.List(r.Spec.Personal.Account)
+	connections, err := s.hooks.PersonalConnections().List(r.Spec.Personal.Account)
 	if err != nil {
 		return err
 	}
 	user := ""
 	generation := uint64(0)
 	for _, c := range connections {
-		if c.Provider == "slack" && c.State == "connected" && c.Workspace == s.slack.config.Team {
+		if c.Provider == "slack" && c.State == "connected" && c.Workspace == team {
 			user = c.Subject
 			generation = c.Generation
 		}
@@ -98,8 +99,8 @@ func (s *Server) notifyPersonal(ctx context.Context, r *automation.Run, state *p
 	ids := []string{}
 	for id, draft := range state.Drafts {
 		if draft.State == "ready" && (!draft.Notified || draft.Due != "" && !draft.ReminderNotified) {
-			if err = s.personalCurrent(ctx, draft.Source); err != nil {
-				if errors.Is(err, errPersonalSourceChanged) {
+			if err = s.hooks.Current(ctx, draft.Source); err != nil {
+				if errors.Is(err, ErrSourceChanged) {
 					supersedePersonal(state, draft.Source)
 					if err = persist(); err != nil {
 						return err
@@ -135,26 +136,26 @@ func (s *Server) notifyPersonal(ctx context.Context, r *automation.Run, state *p
 		} else if draft.MailboxID != "" {
 			label = "Gmail draft ready"
 		}
-		fmt.Fprintf(&message, "• %s: %s\n%s\n", label, strings.ReplaceAll(draft.Title, "\n", " "), assistantNoteURL(s.origin, r.Spec.Project, draft.Path))
+		fmt.Fprintf(&message, "• %s: %s\n%s\n", label, strings.ReplaceAll(draft.Title, "\n", " "), assistantNoteURL(s.hooks.Origin(), r.Spec.Project, draft.Path))
 	}
-	fmt.Fprintf(&message, "Assistant: %s/account/assistant", s.origin)
+	fmt.Fprintf(&message, "Assistant: %s/account/assistant", s.hooks.Origin())
 	text := message.String()
-	address := messaging.Address{Client: "slack", Workspace: s.slack.config.Team, User: user, Channel: user, Direct: true}
-	if err = s.slack.VerifyMember(ctx, address); err != nil {
+	address := messaging.Address{Client: "slack", Workspace: team, User: user, Channel: user, Direct: true}
+	if err = members.VerifyMember(ctx, address); err != nil {
 		return err
 	}
 	current, _ := s.catalog.Assistant(r.Spec.Actor)
 	if !current.Notifications || current.Revision != settings.Revision {
 		return workspace.ErrForbidden
 	}
-	if err = s.checkAutomationAuth(ctx); err != nil {
+	if err = s.hooks.CheckAutomationAuth(ctx); err != nil {
 		return err
 	}
-	if err = s.personalConnections.Check(r.Spec.Personal.Account, "slack", generation); err != nil {
+	if err = s.hooks.PersonalConnections().Check(r.Spec.Personal.Account, "slack", generation); err != nil {
 		return err
 	}
 	// Sent now or by an earlier run, the items are notified.
-	sent, err := s.messaging.SendOnce(ctx, automation.Effect{Scope: scope, Action: automation.Hash(ids), Actor: r.Spec.Actor}, s.slack, address, messaging.Reply{Text: text}, messaginghttp.DMSendTimeout, map[string]any{"items": ids})
+	sent, err := s.messaging.SendOnce(ctx, automation.Effect{Scope: scope, Action: automation.Hash(ids), Actor: r.Spec.Actor}, slack, address, messaging.Reply{Text: text}, messaginghttp.DMSendTimeout, map[string]any{"items": ids})
 	if err != nil && !sent {
 		return err
 	}

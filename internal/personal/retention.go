@@ -1,4 +1,4 @@
-package web
+package personal
 
 import (
 	"time"
@@ -8,7 +8,7 @@ import (
 
 // Operational previews are disposable. Published Markdown and external-effect
 // barriers have independent owners and are never deleted by this cleanup.
-func prunePersonal(state *personalState, policy catalog.AssistantPolicy, now time.Time) {
+func prunePersonal(state *State, policy catalog.AssistantPolicy, now time.Time) {
 	days := policy.RetainDays
 	if days == 0 {
 		days = 30
@@ -38,7 +38,7 @@ func prunePersonal(state *personalState, policy catalog.AssistantPolicy, now tim
 	}
 	for key, at := range state.SeenAt {
 		if !protected[key] && at.Before(cutoff) {
-			fp := personalFingerprint(personalObservation{Key: key, Revision: state.Seen[key]})
+			fp := personalFingerprint(Observation{Key: key, Revision: state.Seen[key]})
 			delete(state.Attempts, fp)
 			delete(state.Decisions, fp)
 			delete(state.Seen, key)
@@ -49,7 +49,7 @@ func prunePersonal(state *personalState, policy catalog.AssistantPolicy, now tim
 	// recoverable/published drafts and pending work; release orphaned revisions.
 	live := map[string]bool{}
 	for key, revision := range state.Seen {
-		live[personalFingerprint(personalObservation{Key: key, Revision: revision})] = true
+		live[personalFingerprint(Observation{Key: key, Revision: revision})] = true
 	}
 	for id := range state.Drafts {
 		live[id] = true

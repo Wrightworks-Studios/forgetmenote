@@ -13,6 +13,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/personal"
 )
 
 func TestPersonalNotificationsRecoverAcceptedPrivateDelivery(t *testing.T) {
@@ -69,11 +70,11 @@ func TestPersonalNotificationsRecoverAcceptedPrivateDelivery(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := &automation.Run{Spec: spec}
-	state := personalState{Drafts: map[string]personalDraft{
-		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Summary: "PRIVATE CONTENT", Source: personalObservation{Kind: "briefing"}},
-		"two": {ID: "two", State: "ready", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}},
+	state := personal.State{Drafts: map[string]personal.Draft{
+		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Summary: "PRIVATE CONTENT", Source: personal.Observation{Kind: "briefing"}},
+		"two": {ID: "two", State: "ready", NoteRevision: "committed", Source: personal.Observation{Kind: "briefing"}},
 	}}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return errors.New("checkpoint interrupted") }); err == nil || sent != 1 {
+	if err = app.personal.Notify(ctx, run, &state, func() error { return errors.New("checkpoint interrupted") }); err == nil || sent != 1 {
 		t.Fatalf("expected accepted send and interrupted checkpoint: sends=%d err=%v", sent, err)
 	}
 	// A concurrent dismissal changes the pending batch. Recovery must apply the
@@ -86,7 +87,7 @@ func TestPersonalNotificationsRecoverAcceptedPrivateDelivery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); err != nil {
+	if err = app.personal.Notify(ctx, run, &state, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if sent != 1 || !state.Drafts["two"].Notified {
@@ -96,8 +97,8 @@ func TestPersonalNotificationsRecoverAcceptedPrivateDelivery(t *testing.T) {
 	if err = app.personalConnections.Disconnect(account.ID, "slack"); err != nil {
 		t.Fatal(err)
 	}
-	state.Drafts["three"] = personalDraft{ID: "three", State: "ready", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); err != nil || sent != 1 {
+	state.Drafts["three"] = personal.Draft{ID: "three", State: "ready", NoteRevision: "committed", Source: personal.Observation{Kind: "briefing"}}
+	if err = app.personal.Notify(ctx, run, &state, func() error { return nil }); err != nil || sent != 1 {
 		t.Fatal("disconnected Slack received a notification", err)
 	}
 }
@@ -178,9 +179,9 @@ func TestPersonalDisconnectedQueueDoesNotBlockOtherWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	old := personalObservation{Key: "email:t1", Kind: "email", Revision: "old", Source: connectors.PersonalOperation{Provider: "google", Generation: 1, Operation: "email.thread", Arguments: map[string]any{"id": "t1"}}, Content: json.RawMessage(`{"secret":"old email"}`), Observed: time.Now()}
-	id := personalFingerprint(old)
-	state := personalState{Pending: []personalObservation{old}, Reads: []connectors.PersonalOperation{old.Source}, Drafts: map[string]personalDraft{id: {ID: id, State: "ready", Source: old}}}
+	old := personal.Observation{Key: "email:t1", Kind: "email", Revision: "old", Source: connectors.PersonalOperation{Provider: "google", Generation: 1, Operation: "email.thread", Arguments: map[string]any{"id": "t1"}}, Content: json.RawMessage(`{"secret":"old email"}`), Observed: time.Now()}
+	id := personal.Fingerprint(old)
+	state := personal.State{Pending: []personal.Observation{old}, Reads: []connectors.PersonalOperation{old.Source}, Drafts: map[string]personal.Draft{id: {ID: id, State: "ready", Source: old}}}
 	raw, _ := json.Marshal(state)
 	if _, err = app.automations.Queue.SaveJobState(spec, "", raw, false); err != nil {
 		t.Fatal(err)
@@ -188,7 +189,7 @@ func TestPersonalDisconnectedQueueDoesNotBlockOtherWork(t *testing.T) {
 	if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 		t.Fatal("disconnected evidence blocked remaining work", err)
 	}
-	_, state, err = app.readPersonalState(spec)
+	_, state, err = app.personal.ReadState(spec)
 	if err != nil || len(state.Pending) != 0 || len(state.Reads) != 0 || state.Drafts[id].State != "disconnected" {
 		t.Fatalf("revoked work retained: %+v %v", state, err)
 	}

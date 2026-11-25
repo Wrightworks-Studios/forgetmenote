@@ -67,7 +67,7 @@ func TestPersonalBatchBudgetAppliesToItemsWithinProviderPages(t *testing.T) {
 	if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	_, state, err := app.readPersonalState(spec)
+	_, state, err := app.personal.ReadState(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestPersonalBatchBudgetAppliesToItemsWithinProviderPages(t *testing.T) {
 		if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 			t.Fatal(err)
 		}
-		_, state, err = app.readPersonalState(spec)
+		_, state, err = app.personal.ReadState(spec)
 		if err != nil {
 			t.Fatal(err)
 		}

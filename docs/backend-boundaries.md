@@ -151,6 +151,24 @@ stay in web, since a message reaches automation and chat; the few exports only
 tests use are in `testexports.go`, and a boundary test fails on any production
 reference to them.
 
+`internal/personal` owns the personal assistant's worker: collection from
+connected mail, calendars, documents and Slack, the run that judges items and
+drafts replies, publishing drafts to the assistant notebook, profile memory
+upkeep, Slack notifications, retention and the briefing. Web keeps every
+consent, connection and account-binding check. The connect, callback and
+disconnect routes and their binding cookies stay in `personal_connections.go`,
+with the authority every provider call rechecks. The run's spec and its check
+stay in web, and so do the checks the worker reaches through hooks
+(`personal_access.go`): profile context, notebook access, source evidence and
+freshness, grant generations, discarding work that became unavailable, mailbox
+drafts and automation authority before each state save. The MCP tools and
+account pages stay in web too. The required hooks bind those checks, the
+automation answer and calls, Jev, the connections, the origin and the Slack
+app, each read at each call. The worker's tests stay in web, where a run passes
+those checks. The few exports only tests use are in `testexports.go`. Boundary
+tests fail on a production reference to them, on a grant begun, finished or
+removed outside the connection routes, and on a cookie handled outside web.
+
 `internal/citationchecks` owns citation-check sidecars, bounded queue/read
 admission, worker cancellation and shutdown. Pending check identity is durable
 before work starts; publication checks the current check ID and cannot recreate a

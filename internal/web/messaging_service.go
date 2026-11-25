@@ -8,6 +8,7 @@ import (
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/personal"
 )
 
 // initMessaging binds messaging to this instance's automation, chat, personal
@@ -34,7 +35,7 @@ func (s *Server) initMessaging() error {
 			return s.personalConnections.LinkedOwner(client, workspace, user)
 		},
 		RecordPersonalInteraction: func(ctx context.Context, user string, in messaginghttp.Interaction) error {
-			return s.recordPersonalInteraction(ctx, user, personalInteraction{ID: in.ID, UserText: in.UserText, Response: in.Response, Source: in.Source})
+			return s.recordPersonalInteraction(ctx, user, personal.Interaction{ID: in.ID, UserText: in.UserText, Response: in.Response, Source: in.Source})
 		},
 		LinkReply: s.linkCommandReply,
 		SlackMemberEvent: func(eventID string, raw json.RawMessage) error {

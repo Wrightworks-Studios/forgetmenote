@@ -11,6 +11,7 @@ import (
 	"errors"
 	"forgetmenote/internal/jev"
 	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/quicknotes"
 	"forgetmenote/internal/reposource"
 	"html/template"
@@ -78,6 +79,7 @@ type Server struct {
 	python               *automation.Python
 	slack                *slackService
 	messaging            *messaginghttp.Service
+	personal             *personal.Service
 	tasks                *taskqueue.Service
 	// messageClients are the configured messaging transports, by client ID.
 	messageClients map[string]messaging.Transport
@@ -295,6 +297,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 		return nil, err
 	}
 	if err = s.initMessaging(); err != nil {
+		return nil, err
+	}
+	if err = s.initPersonal(); err != nil {
 		return nil, err
 	}
 	if err = s.initDataOperations(); err != nil {

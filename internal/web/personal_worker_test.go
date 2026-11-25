@@ -21,6 +21,7 @@ import (
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/personal"
 )
 
 func connectPersonalFixture(t *testing.T, app *Server, user string, google func(*http.Request) string) {
@@ -181,7 +182,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	_, state, err := app.readPersonalState(spec)
+	_, state, err := app.personal.ReadState(spec)
 	if err != nil || len(state.Drafts) != 1 {
 		t.Fatalf("drafts=%d error=%v", len(state.Drafts), err)
 	}
@@ -319,7 +320,7 @@ func TestPersonalUIChatCanReadItsDelegatedAccount(t *testing.T) {
 			t.Error(err)
 		}
 		n := calls.Add(1)
-		if n <= 3 && len(personalArray(body["tools"])) > 0 && body["tool_choice"] != "none" {
+		if n <= 3 && len(personal.Array(body["tools"])) > 0 && body["tool_choice"] != "none" {
 			tools, _ := json.Marshal(body["tools"])
 			if !strings.Contains(string(tools), "read_personal_source") || strings.Contains(string(tools), "submit_personal_action") {
 				t.Error("chat must offer personal reads without external submissions")
@@ -372,12 +373,6 @@ func TestPersonalUIChatCanReadItsDelegatedAccount(t *testing.T) {
 		t.Fatalf("personal chat %s: %s (%d calls)", run.State, run.Error, calls.Load())
 	}
 }
-func TestPersonalQuietHours(t *testing.T) {
-	now := time.Date(2026, 10, 9, 5, 0, 0, 0, time.UTC)
-	if !personalQuiet(now, "America/Denver", "22:00", "07:00") || personalQuiet(now, "America/Denver", "08:00", "17:00") {
-		t.Fatal("overnight or timezone quiet hours incorrect")
-	}
-}
 
 func TestPersonalMemoryUsesOnlyDirectInteractionsAndPreservesEdits(t *testing.T) {
 	calls := 0
@@ -402,10 +397,10 @@ func TestPersonalMemoryUsesOnlyDirectInteractionsAndPreservesEdits(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.seedAssistant(ctx, settings); err != nil {
+	if err = app.personal.Seed(ctx, settings); err != nil {
 		t.Fatal(err)
 	}
-	in := personalInteraction{ID: "direct-one", UserText: "Please keep replies brief", Response: "Understood", Source: "private-chat"}
+	in := personal.Interaction{ID: "direct-one", UserText: "Please keep replies brief", Response: "Understood", Source: "private-chat"}
 	if err = app.recordPersonalInteraction(ctx, "bob", in); err == nil {
 		t.Fatal("another user could be selected")
 	}
@@ -413,7 +408,7 @@ func TestPersonalMemoryUsesOnlyDirectInteractionsAndPreservesEdits(t *testing.T)
 		t.Fatal(err)
 	}
 	r := automation.Run{ID: automation.Hash("memory"), Spec: spec}
-	if err = app.maintainPersonalMemory(ctx, &r); err != nil {
+	if err = app.personal.MaintainMemory(ctx, &r); err != nil {
 		t.Fatal(err)
 	}
 	store, _ := app.catalog.Access("alice", settings.Project, "read")
@@ -424,7 +419,7 @@ func TestPersonalMemoryUsesOnlyDirectInteractionsAndPreservesEdits(t *testing.T)
 	if err = app.recordPersonalInteraction(ctx, "alice", in); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.maintainPersonalMemory(ctx, &r); err != nil || calls != 1 {
+	if err = app.personal.MaintainMemory(ctx, &r); err != nil || calls != 1 {
 		t.Fatalf("duplicate interaction repurchased: %d %v", calls, err)
 	}
 }

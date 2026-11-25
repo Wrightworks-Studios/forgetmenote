@@ -1,4 +1,4 @@
-package web
+package personal
 
 import "forgetmenote/internal/connectors"
 
@@ -18,16 +18,16 @@ type emailPage struct {
 }
 
 func readEmailPage(data map[string]any, changes bool) emailPage {
-	p := emailPage{expired: data["expired"] == true, next: personalString(data["nextPageToken"]), cursor: personalString(data["cursor"])}
-	entries := personalArray(data["messages"])
+	p := emailPage{expired: data["expired"] == true, next: String(data["nextPageToken"]), cursor: String(data["cursor"])}
+	entries := Array(data["messages"])
 	if changes {
-		entries = personalArray(data["changes"])
+		entries = Array(data["changes"])
 	}
 	for _, v := range entries {
-		m := personalObject(v)
-		id := personalString(m["id"])
+		m := Object(v)
+		id := String(m["id"])
 		if id == "" {
-			id = personalString(m["messageId"])
+			id = String(m["messageId"])
 		}
 		p.ids = append(p.ids, id)
 	}
@@ -36,7 +36,7 @@ func readEmailPage(data map[string]any, changes bool) emailPage {
 
 // emailStatusCursor is the change cursor that email.status reports.
 func emailStatusCursor(data map[string]any) string {
-	return personalString(data["cursor"])
+	return String(data["cursor"])
 }
 
 // emailMessage is an email.message result: the message's thread, or that the
@@ -47,7 +47,7 @@ type emailMessage struct {
 }
 
 func readEmailMessage(data map[string]any) emailMessage {
-	return emailMessage{unavailable: data["unavailable"] == true, thread: personalString(data["threadId"])}
+	return emailMessage{unavailable: data["unavailable"] == true, thread: String(data["threadId"])}
 }
 
 // emailThread is an email.thread result, as far as deciding whether it waits
@@ -66,16 +66,16 @@ type emailThreadMessage struct {
 }
 
 func readEmailThread(data map[string]any) emailThread {
-	messages := personalArray(data["messages"])
+	messages := Array(data["messages"])
 	t := emailThread{complete: data["complete"] == true, messages: len(messages)}
 	if len(messages) == 0 {
 		return t
 	}
-	last := personalObject(messages[len(messages)-1])
-	headers := personalObject(last["headers"])
-	t.last = emailThreadMessage{sender: personalString(last["sender"]), account: personalString(last["account"]), listID: headers["list-id"] != nil, autoSubmitted: personalString(headers["auto-submitted"])}
-	for _, flag := range personalArray(last["flags"]) {
-		t.last.flags = append(t.last.flags, personalString(flag))
+	last := Object(messages[len(messages)-1])
+	headers := Object(last["headers"])
+	t.last = emailThreadMessage{sender: String(last["sender"]), account: String(last["account"]), listID: headers["list-id"] != nil, autoSubmitted: String(headers["auto-submitted"])}
+	for _, flag := range Array(last["flags"]) {
+		t.last.flags = append(t.last.flags, String(flag))
 	}
 	return t
 }
@@ -91,7 +91,7 @@ func readSlackList(data map[string]any) slackList {
 	channels, ok := data["channels"].([]any)
 	l := slackList{listed: ok, next: slackNextCursor(data)}
 	for _, v := range channels {
-		l.ids = append(l.ids, personalString(personalObject(v)["id"]))
+		l.ids = append(l.ids, String(Object(v)["id"]))
 	}
 	return l
 }
@@ -113,14 +113,14 @@ func readSlackHistory(data map[string]any) slackHistory {
 	messages, ok := data["messages"].([]any)
 	h := slackHistory{listed: ok, next: slackNextCursor(data), hasMore: data["has_more"] == true}
 	for _, v := range messages {
-		m := personalObject(v)
-		h.messages = append(h.messages, slackMessage{user: personalString(m["user"]), ts: personalString(m["ts"]), thread: personalString(m["thread_ts"]), automated: m["bot_id"] != nil || m["subtype"] != nil})
+		m := Object(v)
+		h.messages = append(h.messages, slackMessage{user: String(m["user"]), ts: String(m["ts"]), thread: String(m["thread_ts"]), automated: m["bot_id"] != nil || m["subtype"] != nil})
 	}
 	return h
 }
 
 func slackNextCursor(data map[string]any) string {
-	return personalString(personalObject(data["response_metadata"])["next_cursor"])
+	return String(Object(data["response_metadata"])["next_cursor"])
 }
 
 // calendarPage is a calendar.events page, or a calendar.event result as a
@@ -143,15 +143,15 @@ func readCalendarPage(data map[string]any, single bool) calendarPage {
 	if single {
 		items, ok = []any{data}, true
 	}
-	p := calendarPage{malformed: !ok && data["items"] != nil, next: personalString(data["nextPageToken"])}
+	p := calendarPage{malformed: !ok && data["items"] != nil, next: String(data["nextPageToken"])}
 	for _, v := range items {
-		event := personalObject(v)
-		p.events = append(p.events, calendarEvent{id: personalString(event["id"]), cancelled: event["status"] == "cancelled", link: personalString(event["htmlLink"]), data: event})
+		event := Object(v)
+		p.events = append(p.events, calendarEvent{id: String(event["id"]), cancelled: event["status"] == "cancelled", link: String(event["htmlLink"]), data: event})
 	}
 	return p
 }
 
 // personalArgument is a string argument of a personal read the server queued.
 func personalArgument(call connectors.PersonalOperation, name string) string {
-	return personalString(call.Arguments[name])
+	return String(call.Arguments[name])
 }

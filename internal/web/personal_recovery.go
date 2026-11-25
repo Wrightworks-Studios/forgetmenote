@@ -6,6 +6,7 @@ import (
 	"errors"
 	"slices"
 
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -26,7 +27,7 @@ func (s *Server) personalRecoveryTools(server *mcp.Server) {
 			return nil, err
 		}
 		if in.ID == "memory" {
-			memorySpec := personalMemorySpec(spec)
+			memorySpec := personal.MemorySpec(spec)
 			stored, e := s.automations.Queue.JobState(memorySpec)
 			if e != nil {
 				return nil, e
@@ -34,7 +35,7 @@ func (s *Server) personalRecoveryTools(server *mcp.Server) {
 			if stored.Revision != in.Revision {
 				return nil, workspace.ErrConflict
 			}
-			var memory personalMemoryState
+			var memory personal.MemoryState
 			if err = json.Unmarshal(stored.Data, &memory); err != nil {
 				return nil, err
 			}
@@ -70,7 +71,7 @@ func (s *Server) personalRecoveryTools(server *mcp.Server) {
 					return nil, err
 				}
 				delete(state.Attempts, in.ID)
-				state.Pending = slices.DeleteFunc(state.Pending, func(o personalObservation) bool { return o.Key == draft.Source.Key })
+				state.Pending = slices.DeleteFunc(state.Pending, func(o personal.Observation) bool { return o.Key == draft.Source.Key })
 				state.Pending = append(state.Pending, draft.Source)
 				delete(state.Drafts, in.ID)
 			} else {
