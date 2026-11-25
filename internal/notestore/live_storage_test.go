@@ -11,7 +11,7 @@ import (
 // A live document's snapshot is rewritten whole at every compaction and
 // checkpoint. Postgres stores it uncompressed: compressing the snapshot of
 // the 1.2 MB F1 manuscript took about 20 ms of each checkpoint's 44 ms,
-// against the design's 30 ms budget (docs/design/storage-v2-results-store.md).
+// against the 30 ms checkpoint budget (docs/architecture.md).
 func TestLiveSnapshotsAreStoredUncompressed(t *testing.T) {
 	e := newEnv(t, notestore.Options{})
 	n := e.create("notes")

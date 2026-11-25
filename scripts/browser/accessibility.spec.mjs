@@ -62,8 +62,10 @@ test('the note editor has named controls and accessible theme contrast in every 
       for (const issue of result.violations) {
         // axe-core does not count a contenteditable as focusable, so it finds
         // nothing focusable in Source's scroller beside the pane; Tab reaches
-        // the editable .cm-content inside it. (Read-only, it is a real gap:
-        // see docs/design/storage-v2-results-store.md.)
+        // the editable .cm-content inside it. (When a note turns read-only
+        // during an edit, .cm-content is no longer editable and Tab skips the
+        // Markdown column: a real gap, which tabindex="0" on .cm-content
+        // would close, and this exception with it.)
         const nodes = issue.nodes
           .map(node => node.target)
           .filter(

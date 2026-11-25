@@ -1,6 +1,7 @@
 package web
 
-// MCP contract suite (storage v2 design §4.2).
+// MCP contract suite. MCP tool names, inputs, outputs and error classes are a
+// stable contract for the agents that call them: changes are additive only.
 //
 // TestMCPContract drives every MCP tool whose handler reads or writes notebook
 // storage through a real MCP SDK client against a real server, on a fixture
@@ -185,8 +186,8 @@ func TestMCPContractHelpers(t *testing.T) {
 
 // TestMCPContractCommitTimes checks the one spelling the goldens cannot: the
 // normalizer reads Git 2.54's "Z" and production Git's "+00:00" as one UTC
-// contract, and commit times must keep production's numeric offset (wave 2
-// plan §0.9).
+// contract, and commit times must keep production's numeric offset, +00:00
+// rather than Git 2.54's "Z", so production output does not change.
 func TestMCPContractCommitTimes(t *testing.T) {
 	t.Setenv("TZ", "UTC")
 	app, _ := fixture(t)
@@ -1343,9 +1344,8 @@ func contractBackup(sc *contractScenario) {
 // those operations; discussions and locks across moves; refusals of unknown
 // revisions and paths, with their /api/v1 error classes; derived reads at old
 // revisions; the 50-commit history limit and older revisions as bases; and
-// the export's commit objects and tree. They were recorded on the Git backend
-// at 3196c3e; docs/design/storage-v2-results-contract.md classifies each
-// difference storage v2 shows.
+// the export's commit objects and tree. They were first recorded on the Git
+// backend that the notes store replaced.
 
 const contractHistory = "contract-history"
 

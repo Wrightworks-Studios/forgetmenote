@@ -14,15 +14,14 @@ import (
 	"forgetmenote/internal/notestore"
 )
 
-// BenchmarkBudgetExportF2 measures the storage v2 import and export budgets
-// (design §13, bake-off §4) on F2, the 2,000-note notebook with 200 images
+// BenchmarkBudgetExportF2 measures the import and export budgets
+// (docs/architecture.md) on F2, the 2,000-note notebook with 200 images
 // and 20,000 revisions. Each iteration starts from an empty store: it
 // imports F2's Git history, verifies it, exports the whole history, packs
 // and checks the export, exports single new revisions, purges a note from
 // the 41st revision on and rebuilds the export, and imports a bundle of the
 // export into a second notebook, whose export must have the same head. Run it with -benchtime=1x; FMN_BUDGET_F2=small runs a
-// 2,000-revision F2. docs/design/storage-v2-results-store.md has the
-// results.
+// 2,000-revision F2.
 func BenchmarkBudgetExportF2(b *testing.B) {
 	o := benchfixture.NotebookOptions{}
 	if os.Getenv("FMN_BUDGET_F2") == "small" {

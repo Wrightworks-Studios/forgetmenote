@@ -108,14 +108,14 @@ func exportObjects(t *testing.T, path string) []byte {
 	return out
 }
 
-// The completeness test of design §15 (bake-off D3): a secret planted in
-// 300 revisions of an F2 notebook, in notes, discussions (escaped, as JSON
+// The purge completeness test: a secret planted in 300 revisions of an F2
+// notebook, in notes, discussions (escaped, as JSON
 // stores its quote, backslash, ampersand and angle brackets) and commit
 // messages, and in a live note's typed, compacted and pending edits, is
 // purged by redaction; then no stored byte holds it in any form: no
 // Postgres row, block, workspace state, live document or object of the Git
 // export. Old revisions resolve to their replacements and the export still
-// round-trips. FMN_PURGE_F2=full runs the bake-off's 20,000-revision F2.
+// round-trips. FMN_PURGE_F2=full runs the full 20,000-revision F2.
 func TestPurgeLeavesNoStoredCopyOfARedactedSecret(t *testing.T) {
 	if testing.Short() {
 		t.Skip("replays a generated notebook")

@@ -1,5 +1,5 @@
-// Command fixture materializes the storage v2 benchmark fixtures for
-// baselines, import tests and the bake-off harnesses:
+// Command fixture materializes the storage benchmark fixtures for
+// baselines and import tests:
 //
 //	go run ./internal/benchfixture/cmd/fixture -fixture f2 -format git -out /tmp/f2
 //

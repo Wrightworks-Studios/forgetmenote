@@ -12,7 +12,7 @@ import {
   revealLine
 } from './editor-text.mjs';
 
-// Chapters 1–3 of the F1 manuscript (~/forgetmenote-design/fixtures/f1-moby-dick.md,
+// Chapters 1–3 of the F1 manuscript (internal/benchfixture's Novel,
 // SHA-256 15bf4dd6…), cut before "## Chapter 4." with its fmn-id line and the
 // cut's trailing blank line removed: 53,034 bytes, SHA-256
 // 2ec600d6f9840f2b18d4fcbd1af42fc21069472c753dfc39f45b17a54390ddc8.

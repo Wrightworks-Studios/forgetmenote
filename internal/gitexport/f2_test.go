@@ -15,7 +15,7 @@ import (
 // imports it, verifies it, exports it and verifies the export against the
 // store: the same commits, trees and blobs, and git fsck --strict passes.
 // It runs a 2,000-revision F2 by default; FMN_GITEXPORT_F2=full runs the
-// bake-off shape (2,000 notes, 200 images, 20,000 revisions).
+// full shape (2,000 notes, 200 images, 20,000 revisions).
 func TestF2RoundTrip(t *testing.T) {
 	if testing.Short() {
 		t.Skip("large round trip")

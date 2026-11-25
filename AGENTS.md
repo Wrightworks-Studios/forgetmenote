@@ -34,6 +34,6 @@ make browser-summary ARGS='scripts/browser/FEATURE.spec.mjs'
 - To see signed-in screens, run `make ui-capture OUT=dir`: a disposable instance with synthetic notes, screenshots of the main surfaces. Never read or print a recovery key.
 - Large UI sources are split so a task loads only what it touches: styles live in `internal/web/ui/styles/` (imported in cascade order by `style.css`; keep new rules in the file for their surface); the app page is `internal/web/ui/index.html` plus one named template per region in `internal/web/ui/page/`. `app.mjs` coordinates note, navigation and save state; self-contained features live in their own `init*` modules (for example `file-actions.mjs`, `protection.mjs`, `search.mjs`).
 - Browser tests are Prettier-formatted (one statement per line): run `npx --no-install prettier --write scripts/browser` after editing them; `make format-browser` checks.
-- `.ignore` keeps archives, design studies, binary test data and fonts out of search; use `rg -u` when they matter.
+- `.ignore` keeps archives, binary test data and fonts out of search; use `rg -u` when they matter.
 
 [Architecture and ownership](docs/architecture.md) · [Complete engineering requirements](docs/engineering-rules.md) · [Verification](docs/verification.md) · [Deployment](deploy/production/deploying.md) · [AWS recovery](docs/aws-recovery.md)

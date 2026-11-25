@@ -22,13 +22,12 @@ import (
 	"github.com/reearth/ygo/crdt"
 )
 
-// The storage v2 budgets (design §13, bake-off §4) measured through the
-// workspace, the path a request takes to the notes store, on the bake-off
-// fixtures: F1, the 1.2 MB manuscript, after its 5,000-edit F1h history,
-// and F2, the 2,000-note notebook with 20,000 revisions. Each latency
-// sub-benchmark reports the p50, p95 and maximum of its iterations, so run
-// them with a fixed iteration count, as
-// docs/design/storage-v2-results-store.md does.
+// The storage performance budgets (docs/architecture.md) measured through
+// the workspace, the path a request takes to the notes store, on the
+// benchmark fixtures: F1, the 1.2 MB manuscript, after its 5,000-edit F1h
+// history, and F2, the 2,000-note notebook with 20,000 revisions. Each
+// latency sub-benchmark reports the p50, p95 and maximum of its iterations,
+// so run them with a fixed iteration count, such as -benchtime=50x.
 
 // latencies collects one sample per timed iteration.
 type latencies []time.Duration
@@ -396,15 +395,15 @@ func BenchmarkBudgetNotebook(b *testing.B) {
 		b.Fatal(err)
 	}
 	// The note with the most revisions, and the folder of notes closest to
-	// the bake-off's 50 for the move.
+	// 50, the size of move this benchmark measures.
 	env := testEnv(b, s)
 	var busiest string
 	if err := env.db.Pool.QueryRow(ctx, `SELECT e.path FROM entries e JOIN (SELECT entry_id, count(*) AS n FROM revision_changes WHERE org = $1 GROUP BY entry_id) c USING (entry_id)
 		WHERE e.org = $1 AND e.path LIKE '%.md' AND e.path NOT LIKE 'Trash/%' AND e.path NOT LIKE 'comments/%' ORDER BY c.n DESC, e.path LIMIT 1`, env.db.Org).Scan(&busiest); err != nil {
 		b.Fatal(err)
 	}
-	// The folder whose notes, its subfolders' included, are closest to the
-	// bake-off's 50 for the move.
+	// The folder whose notes, its subfolders' included, are closest to 50,
+	// the size of move this benchmark measures.
 	folders := map[string]int{}
 	notes := 0
 	for _, e := range listed {

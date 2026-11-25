@@ -25,7 +25,7 @@ import (
 )
 
 // Purge permanently removes content from every version of a notebook kept in
-// the notes store (storage v2 design §11), the one authorized rewrite of
+// the notes store (docs/purge.md), the one authorized rewrite of
 // history: a whole note, chosen versions of one, or text redacted from
 // selected notes or the whole notebook. PreparePurge plans it without
 // changing anything, and ExecutePurge runs exactly that plan when given its

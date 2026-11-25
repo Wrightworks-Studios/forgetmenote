@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// NovelHistoryOptions configures F1h. Zero fields take the bake-off defaults.
+// NovelHistoryOptions configures F1h. Zero fields take the benchmark defaults.
 type NovelHistoryOptions struct {
 	Seed  uint64
 	Edits int       // edit revisions after the note is created; default 5000
@@ -19,7 +19,7 @@ type NovelHistoryOptions struct {
 	Path  string // initial note path; default "Manuscripts/Moby-Dick.md"
 }
 
-// DefaultNovelEdits is the bake-off's F1h length.
+// DefaultNovelEdits is F1h's benchmark length.
 const DefaultNovelEdits = 5000
 
 var novelPaths = []string{

@@ -592,7 +592,7 @@ func TestHistoryRevisionsChecksAncestry(t *testing.T) {
 	}
 }
 
-// Design §13: per-note history over 5,000 revisions, p95 < 50 ms. The note
+// Budget: per-note history over 5,000 revisions, p95 < 50 ms. The note
 // is renamed 20 revisions before the head, so its history follows the
 // rename; all but one in a hundred of its versions are archived, so a
 // scoped history reads all 5,000 to find 50 eligible ones; another note
