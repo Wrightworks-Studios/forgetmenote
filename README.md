@@ -1,181 +1,198 @@
+<div align="center">
+
+<img src="internal/branding/assets/flower.svg" alt="ForgetMeNote" width="112" height="112">
+
 # ForgetMeNote
 
-A self-hosted notebook service for people and AI. Editable notebooks keep Markdown, attachments and their Git commit history in the instance's Postgres database and blob store, and each is exported as a standard Git repository; connected repository notebooks expose verified upstream snapshots read-only. The browser, API, CLI and MCP use the same notebook permissions and revision checks.
+**Self-hosted notebooks for people and AI.**
 
-One Go binary serves an instance, and several gateway processes of it can share one database. Optional Chat, retrieval, imports, data operations and automations run under instance policy and explicit notebook scope. Credentials and execution receipts stay private and outside notebook content. Backups run through an external worker.
+Write in Markdown, keep every version in Git, edit together in real time, and let your AI tools
+read and write the same notes under the same permissions as your team.
 
-**Under active development.** The repository includes release verification and production recovery tooling. Local tests use disposable data and synthetic providers; they do not establish a security audit or certify a particular live identity provider, AI service or deployment. Every release still needs its own verification and recovery assets.
+[![Check](https://github.com/Wrightworks-Studios/forgetmenote/actions/workflows/check.yml/badge.svg?branch=next)](https://github.com/Wrightworks-Studios/forgetmenote/actions/workflows/check.yml)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/license-FSL--1.1--ALv2-3299d6)](LICENSE.md)
+[![Go 1.27](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)](go.mod)
+[![MCP server](https://img.shields.io/badge/MCP-server-3299d6)](docs/ai.md)
 
-## Run
+[Quick start](#quick-start) ·
+[Documentation](docs/README.md) ·
+[Connect an AI client](docs/ai.md) ·
+[Deploy](docs/deployment.md) ·
+[Contributing](CONTRIBUTING.md)
 
-Requires Docker with Compose and Git to obtain the application source. From this repository:
+</div>
+
+<p align="center">
+  <img src="docs/images/editor.png" alt="A note open in the ForgetMeNote editor, with the Visual, Source and Side by side modes and the formatting toolbar" width="900">
+</p>
+
+## Why ForgetMeNote
+
+Most note apps make you choose: a polished editor that owns your data, or plain files with no
+collaboration, permissions or history. AI assistants add a third problem: they need access to your
+knowledge, but usually get either too little or far too much. ForgetMeNote is built around one idea:
+**everything is a notebook**, and a notebook is a set of Markdown notes with its own members, roles
+and Git history, shared by the people and the AI agents that work in it.
+
+- **Your notes stay yours.** Notes are plain Markdown, attachments are ordinary files, and every
+  notebook exports as a standard Git repository you can clone, diff and keep without ForgetMeNote.
+- **Every save is a version.** Saves are Git commits. Browse history, compare, and restore any
+  version as a new commit. Conflicting edits are detected instead of silently overwritten, and
+  owners can purge sensitive content from every version when they need to.
+- **AI with the same rules as people.** A built-in [MCP server](docs/ai.md) with OAuth lets Claude,
+  ChatGPT, Codex, Cursor and other MCP clients search, read, comment on and edit notes. Every call checks the
+  user's current notebook role, the scopes they consented to, and the note's revision, so an agent
+  can't see more than its user or overwrite newer work.
+- **Real-time collaboration.** People and agents co-edit the same note live, with private drafts
+  and device-local recovery for work that hasn't been saved yet.
+- **Permissions that mean something.** Read, Comment, Edit and Owner roles per notebook, a private
+  Inbox for each person, and no public links. The browser, HTTP API, CLI and MCP share one
+  authorization path.
+- **Simple to run, ready to grow.** One Go binary and Postgres, with no Node process at runtime.
+  Start with Docker Compose on a single machine, and add gateway processes behind a load balancer
+  when you need them.
+
+## Features
+
+**Writing and reading**
+
+- A Markdown editor with Visual (live preview), Source and Side by side modes, built on CodeMirror 6,
+  that handles book-length notes up to 32 MiB.
+- Tables, task lists, code blocks, images, video embeds and attachments up to 32 MiB, stored as
+  ordinary Git blobs with no Git LFS.
+- Note properties (title, status, tags), folders, cover images, and Notes, Drafts and Archives.
+- A wiki reading mode with `[[page links]]`, plus Light, Dark and Parchment themes.
+
+**Collaboration**
+
+- Live co-editing for people and agents on one shared document per note.
+- Discussions and passage comments with replies and resolution, kept in the notebook's history.
+- Note and folder locks, a recoverable Trash, and a Review queue for proposed changes.
+- Task queues that can be assigned to one person, several people, or a group.
+
+**Search and knowledge**
+
+- Full-text search over current and committed history, with optional semantic search through an
+  embedding service you configure.
+- Archived sources: PDFs with local OCR, office documents and saved email become searchable Markdown
+  with pinned citations back to the original file.
+- Repository-connected notebooks: read-only snapshots of a Git repository with code search and exact
+  line citations, alongside your own notes.
+
+**AI**
+
+- An MCP server at `/mcp` with OAuth (authorization code with PKCE, dynamic client registration,
+  rotating refresh tokens) and an optional plugin for Codex and Claude Code.
+- Integrated notebook chat that cites the notes it used, with any provider you configure: OpenAI
+  Responses, Anthropic Messages, Chat Completions-compatible APIs, or a local Ollama model.
+- A private Inbox for quick capture, with optional AI sorting into notebooks.
+- Instance-wide AI policy: operators choose which providers, models and processing are allowed, and
+  credentials never enter notebook content, prompts or logs.
+
+**Administration**
+
+- Local accounts, OIDC single sign-on, or a trusted authenticating proxy.
+- Groups, invitations and automation accounts, with roles granted per notebook.
+- A CLI and HTTP API for headless use, plus scheduled automations.
+- A Git export of every notebook, complete instance backup and restore, and an external backup
+  worker that pushes each export to a Git remote you choose.
+
+## Quick start
+
+You need Docker with Compose.
 
 ```sh
+git clone https://github.com/Wrightworks-Studios/forgetmenote.git
+cd forgetmenote
 cp .env.example .env
 mkdir -p data
-# Set PUID and PGID in .env to the owner of ./data; use id -u and id -g.
+# Set PUID and PGID in .env to the owner of ./data (see `id -u` and `id -g`).
 docker compose up -d --build
 docker compose exec forgetmenote forgetmenote token
 ```
 
-Open **http://localhost:8080**, sign in under **Recovery administrator** using that key, and complete **Create your administrator account**. This creates your personal local account with Admin authority and signs you in immediately. Keep the recovery key for emergencies. Setup is available only before any user record exists; existing installations keep their accounts and permissions.
+Open **http://localhost:8080**, choose **Recovery administrator**, sign in with the key the last
+command printed, and create your administrator account. Keep the recovery key somewhere safe for
+emergencies.
 
-For a server deployment, follow the short [deployment guide](docs/deployment.md). It covers durable storage, HTTPS, startup, and upgrades. Authentication is a separate choice: local accounts work by default; [OIDC or trusted-proxy sign-in](docs/authentication.md) disables local password login. The [Authelia test/operator preset](docs/standalone.md) stays optional.
+To run ForgetMeNote on a server with HTTPS, durable storage and upgrades, follow the
+[deployment guide](docs/deployment.md). Local accounts work out of the box; see
+[authentication](docs/authentication.md) for OIDC or a trusted proxy. To build without integrations
+you don't use, such as local OCR or the database connections, set `FMN_OMIT` in `.env`; see
+[optional integrations](docs/integrations.md).
 
-Use **Your settings** for appearance, your account, and AI connections; **Notebook settings** for members, locks, history, and export; **Administration** for instance users and notebook-creation grants. Authorized creators use **Create notebook** beside the notebook picker. Newly created local or OIDC users receive no shared-notebook access until an Admin or notebook Owner grants it. Each user can capture notes in a protected private Inbox without an ordinary notebook-creation grant. This does not create identity-provider accounts.
+### Connect an AI client
 
-| Role | Read/export | Comment | Edit unlocked notes | Manage notebook members and locks | Manage all notebooks and instance users |
-|---|---|---|---|---|---|
-| Read | Yes | | | | |
-| Comment | Yes | Yes | | | |
-| Edit | Yes | Yes | Yes | | |
-| Owner | Yes | Yes | Yes | Own notebooks | |
-| Admin | Yes | Yes | Yes | All notebooks | Yes |
+Add `https://YOUR_HOST/mcp` as a remote MCP server in any client that supports OAuth. The client
+registers itself, you sign in to ForgetMeNote and approve the scopes, and the client can then work in
+the notebooks your account can access. See [Connect an AI client](docs/ai.md) for Claude, ChatGPT,
+Codex, Claude Code and Cursor.
 
+## Roles
 
-Users without a grant see no other users’ notebook content. Protected personal Inboxes cannot be shared through membership settings. Admin is global; there is no public sharing link. Disabling a user or removing a grant affects subsequent browser and MCP requests. An already downloaded export cannot be recalled. Trusted-proxy identities use exact usernames; OIDC uses issuer and subject. Instance-managed groups grant notebook roles and explicit data operations.
+| Role | Read and export | Comment | Edit unlocked notes | Manage members and locks | Manage all notebooks and users |
+| --- | :---: | :---: | :---: | :---: | :---: |
+| Read | ✓ | | | | |
+| Comment | ✓ | ✓ | | | |
+| Edit | ✓ | ✓ | ✓ | | |
+| Owner | ✓ | ✓ | ✓ | Own notebooks | |
+| Admin | ✓ | ✓ | ✓ | All notebooks | ✓ |
 
-## Included
+New users see no shared notebooks until an Owner or Admin grants access. Removing a grant or disabling
+a user takes effect on their next browser, API or MCP request. See
+[notebooks and people](docs/workspaces.md).
 
-- Independent notebooks with a notebook picker and browser-based permission management.
-- Markdown editing, safe rendered previews, search, relative links, Light, Dark, and Parchment themes, bundled Onest and Source Serif 4 reading fonts, custom CSS, and device-local draft recovery.
-- Folder browsing with List/Cards views, note previews, and optional Git-backed cover images.
-- Optional display titles independent of filenames; Owners/Admins can click a saved, unlocked note's filename in the header to rename it without changing its folder. The UI handles `.md` automatically.
-- Owner/Admin organization controls for rename, move, and duplicate, with link maintenance, note/folder locks, and draft protection.
-- Recoverable note deletion from **Properties → Move to Trash** or the note actions menu; restore, Undo, and confirmed **Empty Trash**. **Include trash** opts into trashed notes in current and historical search.
-- Live co-editing in Visual (an inline live preview), Source, and Side by side, plus concurrent MCP edits. Accepted live edits persist on the server; Save or an agent checkpoint creates a Git version.
-- Book-length notes: live editing up to the note size limit (32 MiB by default) in one CodeMirror editor that opens and edits the whole note in every mode.
-- Committed-history search, archived sources with pinned citations, and review proposals; optional semantic search through an external embedding service.
-- Read-only connected repository snapshots, code search across selected notebooks, exact source citations, and optional source-aware chat.
-- Explicit saves recorded as Git commits; optimistic conflict detection, history browsing, and restore as a new commit. Owners and Admins can [purge](docs/purge.md) sensitive content from every version.
-- Note-level discussions with author attribution, resolution and permission-checked comment/reply deletion, stored in each project's Git history.
-- Attachments up to 32 MiB per file, kept as ordinary Git blobs in the notebook's history. No Git LFS.
-- A Git export of each notebook and downloadable project bundles. Optional [managed private GitHub backups](docs/managed-backups.md) and existing [operator backups](docs/backups.md) push the exports; saved content remains local when backup services are unavailable.
-- Complete instance backup and restoration instructions.
-- Shared permission enforcement for the web editor and MCP; OAuth authorization code + PKCE, refresh rotation, and owner consent.
-- Non-root Docker runtime and embedded assets, with no Node process at runtime. Notebook content, the instance catalog (users, password hashes, roles, identity links, policy) and sign-in state live in Postgres, beside the app in the compose presets; see [Postgres](docs/postgres.md).
-
-## Storage and ownership
-
-Each notebook is a revision log in Postgres with Git's object model: every
-revision is an exact Git commit, revision IDs are commit SHAs, and file contents
-of 8 KiB or more are content blocks in the blob store. Live edits are Yjs
-documents in the same database. ForgetMeNote writes a bare Git repository for
-each notebook that reproduces its history byte for byte, and the external backup
-worker pushes it. See [architecture](docs/architecture.md#notebook-storage).
+## How it works
 
 ```text
-postgres/                     # the instance database: notebook revisions, live edits, catalog, sign-in state
-data/
-  admin.token                 # recovery administrator key; outside notebook content
-  proxy.secret                # optional trusted-proxy secret
-  custom.css                  # optional instance-wide appearance overrides
-  blocks/                     # notebook content blocks (the default blob store is the data directory)
-  exports/
-    default.git/              # Git export of notebook "default", branch main:
-                              #   notes/example.md, assets/image.webp,
-                              #   comments/<note-path-hash>.json, Trash/, .gitnotes-trash.json
-  projects/default/           # derived search and history caches for notebook "default"
+ Browser · CLI · HTTP API · MCP clients
+                  │
+     ForgetMeNote gateways (one Go binary)
+     identity · roles · revision checks
+                  │
+   Postgres ─────── blob store ─────── Git exports
+   revisions,       large files        one bare repository
+   live edits,                         per notebook, pushed
+   accounts                            by the backup worker
 ```
 
-The export has the layout of a notebook repository: notes, `assets/`, discussion
-files under `comments/`, the reserved `Trash/` directory and its
-`.gitnotes-trash.json` manifest, and `.gitnotes-locks.json`. Git records content,
-not access-control changes. Back up the database, the blob store and the data
-directory together from a stopped instance to preserve the instance, including
-pending live edits and operation receipts. A project bundle contains only that
-project's committed files and history; checkpoint pending live edits before
-exporting it. See [backup and restore](docs/backups.md).
+Each notebook is a revision log in Postgres that uses Git's object model: every revision is an exact
+Git commit and revision IDs are commit SHAs. Larger files live in a blob store, and ForgetMeNote
+writes a bare Git repository for each notebook that reproduces its history byte for byte. Every
+change to a notebook is one database transaction, so several gateways can serve one instance
+safely. Search indexes are derived from committed content and can always be rebuilt. See
+[architecture](docs/architecture.md) for the details.
 
-Every notebook change is one database transaction that locks the notebook's head
-row, so each notebook has one writer at a time and several gateways can serve
-one instance ([several gateways](docs/deployment.md#several-gateways)). Instances
-upgrading from Git repositories under `data/projects/NOTEBOOK/workspace` move
-them once with the [storage v2 cutover](docs/storage-cutover.md).
+The backend uses the Go standard library, the official MCP Go SDK, Goldmark and Bluemonday. The
+interface is vanilla JavaScript and CSS with CodeMirror 6 and Yjs, bundled by esbuild; Node is used
+only at build time.
 
-## AI clients
+## Documentation
 
-See [MCP and plugin setup](docs/ai.md). The endpoint is `/mcp`; content tools require explicit notebook scope. The included plugin packages connection configuration and a skill; the server also works without the plugin.
+| For | Start with |
+| --- | --- |
+| Writers | [Using ForgetMeNote](docs/editor.md) · [Live collaboration](docs/collaboration.md) · [Wiki mode](docs/wiki.md) · [Task queues](docs/tasks.md) |
+| AI users | [Connect an AI client](docs/ai.md) · [Notebook chat](docs/chat.md) · [Knowledge workflows](docs/knowledge.md) · [Archived sources](docs/sources.md) |
+| Operators | [Deployment](docs/deployment.md) · [Configuration](docs/instance-configuration.md) · [Authentication](docs/authentication.md) · [Backups](docs/backups.md) |
+| Developers | [Contributing](CONTRIBUTING.md) · [Architecture](docs/architecture.md) · [Headless use, API and CLI](docs/headless.md) |
 
-General AI uses configured hosted or local providers; no general model or inference server is bundled. Local PDF processing uses Poppler and Tesseract. Audio transcription uses configured hosted processing. Use operator-configured connections for integrated Chat, or a connected AI client through MCP. ChatGPT client availability, account entitlements, mobile support, and live OAuth interoperability must be verified with your account; they have not been tested here.
+The [documentation index](docs/README.md) lists every guide.
 
-## Development
+## Project status
 
-To build from source, run a local instance and open a pull request, follow [CONTRIBUTING.md](CONTRIBUTING.md).
+ForgetMeNote is under active development and runs in production for small teams. It has not had an
+independent security audit. Test each release against your own identity provider, AI providers and
+recovery plan before you rely on it, and see [SECURITY.md](SECURITY.md) for supported deployments and
+how to report a vulnerability.
 
-Go 1.27.4, Git, Node 24, and Python 3.12. Go dependencies are pinned in `go.mod`/`go.sum`; browser dependencies are locked in `package-lock.json`. Operator and Python test dependencies are pinned in `deploy/requirements.txt`; font conversion has separate build-only requirements. On Linux, install `openssl` and `inotify-tools` for the operator and backup-watcher tests; Docker with Compose is required for smoke checks.
+## Contributing
 
-```sh
-python3 -m venv .venv
-. .venv/bin/activate
-make setup-deps setup-browser
-make check-fast check-browser
-
-docker build -t forgetmenote:poc .
-make smoke-full SMOKE_IMAGE=forgetmenote:poc
-```
-
-Read [AGENTS.md](AGENTS.md) and [SKILL.md](SKILL.md). Changes follow test-first development. Storage tests use disposable Postgres clusters, and real Git repositories where Git is the boundary; HTTP and MCP tests exercise authorization and conflict behavior. The Docker smoke test uses disposable synthetic data and independently restores an exported bundle.
-
-The backend uses the Go standard library for HTTP, templates, files, and cryptography; the official MCP Go SDK for protocol handling; Goldmark for Markdown; and Bluemonday for HTML sanitization. The application UI uses vanilla JavaScript and CSS. CodeMirror 6 with its Lezer Markdown parser supplies the note editor in every mode (the Visual live preview, Source, and Side by side, with a persistent ForgetMeNote toolbar) and the read-only source viewer; micromark through `mdast-util-from-markdown` 2.0.3, with the GFM table, strikethrough, autolink and task-list extensions, renders the side-by-side pane and private drafts in the browser; Yjs 13.6.32 carries live editing; esbuild 0.28.2 bundles the browser assets. Node is used only during development/builds; the production container runs the Go application with Git, Python for approved automation packages and the external backup utility, Poppler/Tesseract for local OCR, FFmpeg and the iWork converter. Docker builds the frontend automatically. After `make setup-deps`, `make frontend` builds the embedded assets without reinstalling dependencies. `make check-fast` runs format/vet, frontend, fixture and Python checks plus affected Go package race tests; it is PR feedback and does not replace the full release gate. `make check-browser` runs the full disposable browser suite in Chromium, with the editor's caret cases also in WebKit; `make smoke-full` runs eight synthetic Docker boundaries: core, headless, resources, chat, OIDC, required-TOTP, source/OCR and decision providers. `make check` remains an alias for `check-fast`, and `make smoke` runs the basic Docker smoke. Set `PYTHON` to an existing virtual environment executable when needed.
-
-## Current boundaries
-
-No word-processor-style track changes, notebook deletion, folder-level roles, outbound invitation email, full audit UI, Git LFS, or automated wiki migration. Administration supports groups and invitations without sending email. Proposed changes can be reviewed before acceptance through the existing Review workflow. Comments attach to a note and follow moves made through ForgetMeNote. Large notebooks and repositories need measurement before adoption. Search derives indexes from committed notebook Markdown or the connected repository snapshot; notebook revisions remain authoritative, and coverage/size bounds are explicit. See [architecture](docs/architecture.md) for ownership and [repository search](docs/repository-notebooks.md#search-source-and-notes) for source-index limits.
-
-`BROWSE_EXCLUDE_PREFIXES` optionally hides comma-separated path prefixes from navigation and search, including MCP search. It preserves direct reads, history, and backups; it is not an access-control rule. It applies across the instance.
-
-Private drafts and edits that have not synced remain in the browser, scoped by user, project, and tab. Accepted live edits are durable on the server but remain separate from the notebook's history until checkpointed. Full server backups include that live state; they cannot include browser-only drafts. Source code is in this repository; runtime notes live in the separate Docker data directory. Do not commit secrets or personal notes to the application source repository.
-
-## Feature guides
-
-Start with the [documentation index](docs/README.md) for user, operator, developer and historical guides.
-
-- [Headless operation, CLI, HTTP API, and notebook authority](docs/headless.md)
-- [Repository-connected notebooks, exact code citations, and notebook links](docs/repository-notebooks.md)
-- [Jev evidence ranking, citation checks and notebook reviews](docs/jev.md)
-- [Private Quicknotes Inbox and optional sorting](docs/quicknotes.md)
-
-- [Editing, display titles, filename renaming, history, locks, and passage comments](docs/editor.md)
-- [Trash, restore, search visibility, and confirmed emptying](docs/trash.md)
-- [Live collaboration and draft recovery](docs/collaboration.md)
-- [Authentication, account linking, and session revocation](docs/authentication.md)
-- [Organization administration, groups, invitations and automation accounts](docs/instance-administration.md)
-- [MCP and optional plugin setup](docs/ai.md)
-- [Optional GitHub authorship attribution](docs/github-attribution.md)
-- [Images, attachments, and video embeds](docs/media.md)
-- [External backups and full restoration](docs/backups.md)
-- [Storage v2 cutover from Git repositories](docs/storage-cutover.md)
-- [Upgrading an existing Gitnotes installation](docs/rebranding.md)
-
-See [architecture and code ownership](docs/architecture.md) for the backend boundaries, derived search indexes, browser modules, and compatibility archive.
-
-## Optional knowledge workflows
-
-[Sources, review proposals, semantic search and external-agent MCP workflows](docs/knowledge.md) extend ordinary Markdown notes. Embeddings are optional; notebook history remains the source of truth. Current retrieval behavior is documented in that guide.
-
-Archive documents, presentations, spreadsheets, saved email, images, and short audio/video recordings with original files, provenance, searchable Markdown, and pinned citations. Docker includes local English OCR with Poppler and Tesseract; a self-hosted build can leave it out with the other [optional integrations](docs/integrations.md). Transcription and image descriptions use configured hosted processing with consent and execution budgets. Size memory for your measured document workload and concurrency; the former local-model estimates do not apply. See [Archived sources](docs/sources.md).
-
-See [production hardening and the release gate](docs/production-readiness.md) for recovery, token rotation, resource limits, and browser checks.
-
-Notebook ownership and account controls: [Notebooks and people](docs/workspaces.md).
-
-## Collaboration
-
-Live browser co-editing and targeted concurrent MCP edits share one Yjs document
-per Markdown note. Durable updates are acknowledged immediately; Save or an agent
-checkpoint creates Git versions (existing ordinary notebook writes also checkpoint
-pending notes in that notebook). Idle time and restarts do not commit.
-Stale overlapping AI rewrites return conflicts. Every editing mode edits the
-Markdown text directly. See [live collaboration](docs/collaboration.md) for protocol,
-limits, and complete-backup semantics.
-
-See [Personal employee assistants](docs/personal-assistant.md) for private assistant notebooks, delegated Google/Slack connections, Jev triage, and Luna drafts.
+Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) takes you from a
+fresh clone to a running instance with sample notes and an open pull request.
 
 ## License
 
 Copyright 2026 Wrightworks Studios LLC. ForgetMeNote is licensed under the
-[Functional Source License, Version 1.1, ALv2 Future License](LICENSE.md). You may
-use, modify and self-host it for any purpose except offering a competing commercial
-product or service. Each release also becomes available under the Apache License 2.0
-two years after it is published.
+[Functional Source License, Version 1.1, ALv2 Future License](LICENSE.md). You may use, modify and
+self-host it for any purpose except offering a competing commercial product or service. Each release
+also becomes available under the Apache License 2.0 two years after it is published.

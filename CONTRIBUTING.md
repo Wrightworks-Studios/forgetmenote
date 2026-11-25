@@ -11,7 +11,7 @@ from [AGENTS.md](AGENTS.md) instead; it covers the same ground in more detail.
   them in `/usr/lib/postgresql/VERSION/bin`; add that directory to `PATH`.
 - Python 3.12 for `make check-fast`. On Linux it also needs `openssl` and
   `inotify-tools`, and browser tests need a C compiler.
-- Docker with Compose, only for container smoke tests and the [README quick start](README.md#run).
+- Docker with Compose, only for container smoke tests and the [README quick start](README.md#quick-start).
 
 ## Build
 
