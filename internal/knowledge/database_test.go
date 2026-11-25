@@ -67,8 +67,8 @@ func commitFixture(t testing.TB, store *workspace.Store, subject string, changes
 
 // importedNotebook builds a history with build in a new Git repository,
 // running git there, then imports what its HEAD reaches into a new notebook
-// kept in the notes store, as the storage cutover imports a notebook's
-// repository, and opens it.
+// kept in the notes store, as an import of Git history does, and opens
+// it.
 func importedNotebook(t *testing.T, build func(git func(args ...string) string, repo string)) *workspace.Store {
 	t.Helper()
 	repo := t.TempDir()

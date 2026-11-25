@@ -14,7 +14,7 @@ import (
 // change to it is seen, and an invalid one is refused.
 func TestCommittedLockPolicyIsReusedUntilItChanges(t *testing.T) {
 	s := newTestStore(t)
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	ctx := t.Context()
 	load := func() ([]string, error) {
 		s.mu.Lock()
@@ -60,7 +60,7 @@ func TestCommittedLockPolicyIsReusedUntilItChanges(t *testing.T) {
 // missing or invalid index is refused while Trash content exists.
 func TestCachedTrashIndexIsPrivateAndChecked(t *testing.T) {
 	s := newTestStore(t)
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	ctx := t.Context()
 	load := func() (TrashIndex, error) {
 		s.mu.Lock()

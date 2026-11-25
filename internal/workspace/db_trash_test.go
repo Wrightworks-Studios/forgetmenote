@@ -23,9 +23,8 @@ import (
 )
 
 // importedTestStore opens, as a test store of its own, a notebook
-// imported from a Git export of s, s's backup bundle, as the cutover
-// imports a notebook from its Git repository: entries follow only the
-// renames Git infers. s needs an exporter (backupTestStore).
+// imported from a Git export of s, s's backup bundle, as any import of
+// Git history is: entries follow only the renames Git infers. s needs an exporter (backupTestStore).
 func importedTestStore(t *testing.T, s *Store, excluded []string) *Store {
 	t.Helper()
 	return openImportedTestStore(t, excluded, func(notes *notestore.Store) error {
@@ -156,7 +155,7 @@ func trashHistoryFixture(t *testing.T) *Store {
 }
 
 // backendOf returns s's backend.
-func backendOf(s *Store) *dbNotebook { return s.backend.(*dbNotebook) }
+func backendOf(s *Store) *dbNotebook { return s.backend }
 
 func trashHistoryOf(s *Store, path string) (map[string][]string, error) {
 	ctx := context.Background()

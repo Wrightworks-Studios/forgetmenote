@@ -54,7 +54,7 @@ docker compose logs --tail=50 forgetmenote
 
 Before an upgrade, make a [complete instance backup](backups.md#complete-instance-backup). Update the application source to the chosen release, rebuild, and recreate the service with the same `/data` mount and authentication configuration. Run only one instance against a data directory. Verify login, a note, and its history afterwards. Never use `down -v` as an upgrade step.
 
-The first release with storage v2 moves every notebook from its Git repository into the database and blob store once, in a stopped window: follow the [storage v2 cutover](storage-cutover.md). That release refuses to start until every notebook is imported.
+The first release with storage v2 moved every notebook from its Git repository into the database and blob store once, in a stopped window. This release no longer has that import: an instance still keeping notebooks in Git upgrades through an earlier release that has `forgetmenote admin storage import`, following that release's `docs/storage-cutover.md`, first.
 
 Git-provider backup credentials and schedules stay outside the application. Follow the [backup recipe](backups.md) for optional remote pushes and full restoration.
 

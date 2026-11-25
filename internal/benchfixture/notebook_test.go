@@ -252,7 +252,7 @@ func TestNotebookShapeHistoryAndFormats(t *testing.T) {
 }
 
 // TestNotebookMatchesWorkspaceBehaviour imports the materialized notebook into
-// the notes store, as the storage cutover imports a notebook's repository,
+// the notes store, as an import of Git history does,
 // opens it with today's workspace and checks that the app reads every
 // committed format and computes the same Trash histories, link rewrites and
 // anchors the generator predicts.

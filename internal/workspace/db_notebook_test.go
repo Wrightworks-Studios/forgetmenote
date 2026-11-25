@@ -175,7 +175,7 @@ func commitShapes() map[string]struct {
 // for byte.
 func TestDatabaseCommitsMatchGitCommits(t *testing.T) {
 	db := newTestStore(t)
-	backend := db.backend.(*dbNotebook)
+	backend := db.backend
 	repository := t.TempDir()
 	git := func(identity attribution.Identity, input string, args ...string) []byte {
 		t.Helper()
@@ -380,7 +380,7 @@ func TestNewNotesAreKeptUnderTheirIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	s.mu.Lock()
 	result, err := backend.applyChanges(ctx, plain.Revision, `Move "one.md" to "two.md"`, orderedChanges(map[string][]byte{"one.md": nil, "two.md": content}, map[string]string{"two.md": "one.md"}))
 	s.mu.Unlock()
@@ -420,7 +420,7 @@ func TestOrderedChangesRenameFirstThenDeleteThenWrite(t *testing.T) {
 // same request replays it, another request under its ID conflicts.
 func TestOperationRevisionsReplayTheirRequest(t *testing.T) {
 	s := newTestStore(t)
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	group := EditGroup{ID: "g-1", Summary: "Group", Edits: []NoteEdit{{Path: "a.md", Content: "a"}}}
 	identity := attribution.Identity{ID: "u-1", Name: "Ada", Email: "ada@example.com", Source: "mcp"}
 	ctx := attribution.With(context.Background(), identity)

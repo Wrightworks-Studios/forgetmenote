@@ -44,7 +44,7 @@ func browserDoc(state []byte) (*crdt.Doc, error) {
 	return doc, nil
 }
 
-func liveDB(s *Store) *dbNotebook { return s.backend.(*dbNotebook) }
+func liveDB(s *Store) *dbNotebook { return s.backend }
 
 // reopenLiveStore restarts s as reopenTestStore does, recovers its pending
 // live edits as its first write does, and reads each recovered document.

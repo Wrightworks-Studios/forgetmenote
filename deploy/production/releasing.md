@@ -1,6 +1,8 @@
 # Releasing images
 
-Build, verify and publish a committed image. Deployment is separate: see [deploying](deploying.md).
+Build, verify and publish a committed image. Deployment is separate: a single host
+follows [deploying ForgetMeNote](../../docs/deployment.md), and a hosted instance
+deploys with its own deployment repository's tools.
 
 ## Local image release
 
@@ -8,7 +10,7 @@ Keep the source repository private. `release_image.py` publishes a private image
 at `ghcr.io/OWNER/REPOSITORY` using your existing GitHub CLI login, or to a private
 ECR repository with your AWS sign-in. It builds
 `linux/amd64`, runs the [selected resumable gate](../../docs/verification.md)
-with bounded concurrency, then pushes `main-COMMIT` and prints the verified digest for DuploCloud.
+with bounded concurrency, then pushes `main-COMMIT` and prints the verified digest to deploy.
 It does not deploy a workload or change an existing service.
 
 Requirements: a clean, committed `main` checkout, Go matching `go.mod`, Node 24,
@@ -118,15 +120,12 @@ before running it.
 ## GitHub Actions release
 
 An instance's own deployment repository runs its release pipeline from a checkout of
-this repository. It reads the instance's live revision from the recovery bucket with
-`deploy_release.py deployed` and stops when no runtime file changed since. If an
-earlier run already published an image for that runtime, it deploys that image
-without verifying again. Otherwise it verifies with `--since` that revision before
-any cloud sign-in, publishes reusing those checks, stores the receipts and deploys
-with `compatibility: unknown`, which waits for a completed backup of the stopped
-volume. A live revision this history lacks, such as one built from a repository
-this one replaced, counts every runtime file as changed, so that release verifies
-completely.
+this repository. Its tools read the instance's live revision and stop when no runtime
+file changed since. If an earlier run already published an image for that runtime,
+it deploys that image without verifying again. Otherwise it verifies with `--since`
+that revision before any cloud sign-in, publishes reusing those checks and deploys.
+A live revision this history lacks, such as one built from a repository this one
+replaced, counts every runtime file as changed, so that release verifies completely.
 
 [Notify deployments](../../.github/workflows/notify-deployments.yml) starts that
 pipeline on each push to `main` that changes more than documents, once the

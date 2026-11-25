@@ -589,27 +589,6 @@ func fsck(ctx context.Context, path string) error {
 	return err
 }
 
-// VerifyExport proves that the export repository at path ends at head: its
-// branch names head, and git fsck --strict finds every object its history
-// needs present and sound. It returns the commit the branch names. A missing
-// export is an fs.ErrNotExist error, another branch an ErrMismatch error. It
-// only reads the repository, without its lock, so it may run beside the
-// exporter of a serving gateway, as the cutover's check does once the new
-// release has started.
-func VerifyExport(ctx context.Context, path string, head gitobj.ID) (gitobj.ID, error) {
-	if _, err := os.Stat(filepath.Join(path, "HEAD")); err != nil {
-		return gitobj.ID{}, err
-	}
-	branch, err := readRef(path)
-	if err != nil {
-		return branch, err
-	}
-	if branch != head {
-		return branch, fmt.Errorf("%w: the export's branch is at %s, not %s", ErrMismatch, branch, head)
-	}
-	return branch, fsck(ctx, path)
-}
-
 // Bundle writes a bundle of notebook's whole export (git bundle create -
 // --all) to w after bringing the export up to the head. More than limit bytes
 // stop Git and fail with ErrBundleLimit; Git has two minutes.

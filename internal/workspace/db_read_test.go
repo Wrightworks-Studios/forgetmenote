@@ -331,7 +331,7 @@ func TestDatabaseListingFollowsContentAcrossPaths(t *testing.T) {
 			t.Fatalf("entry %d: %+v", i, e)
 		}
 	}
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	s.mu.Lock()
 	locked, err := backend.list(ctx)
 	s.mu.Unlock()

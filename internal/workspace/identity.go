@@ -48,9 +48,8 @@ func NoteID(content []byte) (string, error) {
 
 // ImportEntryID is the identity a file imported from Git history keeps in
 // the notebook store (notestore.Options.ImportEntryID): the fmn-id a note
-// declares, as the notebook's identity index reads it, or "" for none. The
-// storage cutover and the bundle import both use it, so one file never gets
-// two identities.
+// declares, as the notebook's identity index reads it, or "" for none. Every
+// import of Git history uses it, so one file never gets two identities.
 func ImportEntryID(path string, content []byte) string {
 	if !strings.HasSuffix(path, ".md") || path == "AGENTS.md" {
 		return ""

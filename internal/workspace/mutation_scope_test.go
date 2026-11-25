@@ -57,7 +57,7 @@ func TestMutationScopeRechecksSavesWhenTheyWrite(t *testing.T) {
 func TestMutationScopeChecksEveryNoteALockCovers(t *testing.T) {
 	s := newTestStore(t)
 	commitFixture(t, s, fixture("folder/a.md", "# A\n"), fixture("folder/b.md", "---\nfmn-container: archive\n---\n# B\n"), fixture("open/c.md", "# C\n"))
-	backend := s.backend.(*dbNotebook)
+	backend := s.backend
 	check := func(ctx context.Context, path string) error {
 		s.mu.Lock()
 		defer s.mu.Unlock()

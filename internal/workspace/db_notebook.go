@@ -46,8 +46,6 @@ type dbNotebook struct {
 	}
 }
 
-var _ notebookBackend = (*dbNotebook)(nil)
-
 // systemIdentity signs what no request does, as Git's default identity did.
 var systemIdentity = attribution.Identity{Name: "ForgetMeNote", Email: "forgetmenote@localhost", Source: "system"}
 

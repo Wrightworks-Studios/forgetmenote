@@ -233,7 +233,7 @@ func (s *Store) ExecutePurgeFenced(ctx context.Context, plan PurgePlan, confirma
 	err := s.checkAuthority(ctx)
 	// The rewrite's transaction checks again that the record checkAuthority
 	// read is still the notebook's, as applyChanges does.
-	authority := s.backend.(*dbNotebook).authorityVersion
+	authority := s.backend.authorityVersion
 	s.mu.Unlock()
 	if err != nil {
 		return PurgeResult{}, err
@@ -287,7 +287,7 @@ func (s *Store) ExecutePurgeFenced(ctx context.Context, plan PurgePlan, confirma
 	s.mu.Lock()
 	s.forgetPurged(work.paths)
 	if head, err := s.notes.Head(ctx); err == nil {
-		s.backend.(*dbNotebook).observe(head, true)
+		s.backend.observe(head, true)
 	}
 	s.mu.Unlock()
 	if export != nil && work.fromSeq > 0 {
@@ -316,7 +316,7 @@ func (s *Store) purgeRefusal(ctx context.Context, err error) error {
 	case errors.Is(err, notestore.ErrAuthorityChanged):
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		return s.backend.(*dbNotebook).authorityRefusal(ctx, err)
+		return s.backend.authorityRefusal(ctx, err)
 	case errors.Is(err, notestore.ErrConflict):
 		return fmt.Errorf("%w: %v", ErrConflict, err)
 	}
@@ -331,7 +331,7 @@ func (s *Store) forgetPurged(paths []string) {
 	s.identityHead, s.identityIDs, s.identityObjects = "", nil, nil
 	s.metadataHead, s.metadataObjects, s.metadataCache, s.metadataPaths = "", nil, nil, nil
 	s.trashRevision, s.trashCache, s.locksRevision = "", TrashIndex{}, ""
-	db := s.backend.(*dbNotebook)
+	db := s.backend
 	db.locksBlob, db.trashBlob = gitobj.ID{}, gitobj.ID{}
 	for _, p := range paths {
 		delete(s.live, p)
