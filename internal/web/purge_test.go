@@ -37,6 +37,7 @@ type webPurgePlan struct {
 	Notes              []workspace.PurgeFile       `json:"notes"`
 	Versions           int                         `json:"versions"`
 	Elsewhere          []workspace.PurgeOccurrence `json:"elsewhere"`
+	Live               []workspace.PurgeLive       `json:"live"`
 	ReferencesToRemap  int                         `json:"referencesToRemap"`
 	ExportForcePush    bool                        `json:"exportForcePush"`
 	Blocked            string                      `json:"blocked"`
