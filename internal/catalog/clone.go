@@ -23,6 +23,7 @@ func cloneCatalog(in catalogData) catalogData {
 	}
 	out.AccessEpoch = maps.Clone(in.AccessEpoch)
 	out.ProjectAccessEpoch = maps.Clone(in.ProjectAccessEpoch)
+	out.RetiredOwners = maps.Clone(in.RetiredOwners)
 	out.Transfers = maps.Clone(in.Transfers)
 	out.InstanceLogo = slices.Clone(in.InstanceLogo)
 	out.Accounts = maps.Clone(in.Accounts)
