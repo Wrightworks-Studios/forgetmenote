@@ -1,3 +1,5 @@
+//go:build !fmn_omit_ocr
+
 package sources
 
 import (

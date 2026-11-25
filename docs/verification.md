@@ -237,8 +237,9 @@ not overwritten when a later candidate passes.
 ## PR feedback and complete regression
 
 `make check-fast BASE=<commit> JOBS=2` runs formatting, vet, frontend/fixture and
-Python checks plus race tests for affected Go packages and their production or
-race-test importers. Selection includes committed, staged, unstaged and untracked
+Python checks, the build without [optional integrations](integrations.md)
+(`make check-core`), plus race tests for affected Go packages and their
+production or race-test importers. Selection includes committed, staged, unstaged and untracked
 inputs; deleted fixtures/embeds retain their owning packages, dependency changes
 and runtime inputs no package owns select all packages. Test, document and
 operator inputs that no Go package reads, such as browser harness files, Make
@@ -326,10 +327,10 @@ to a moving mirror or disable signature checks. OCR data retains its separate
 revision and SHA-256 pin. Python operator requirements have one owner at
 `deploy/requirements.txt`; the runtime uses standard-library helpers.
 
-Optional integration adapters remain in the single Go executable. They do not
-start another server or load credentials when disabled. A current native symbol inventory totals about 3.03 MB for adapters/AWS/PostgreSQL
-in a 55.3 MB unstripped binary; this excludes shared dependencies and is not a
-counterfactual stripped-image saving. Splitting those small Go adapters would add packaging paths without removing the image's dominant local
-parser/runtime dependencies; measure the checked image and binary before adding
-a second runtime variant. Fonts and assets remain embedded, with license notices
-computed from the actual production bundle.
+Integration adapters remain in the single Go executable. They do not start
+another server or load credentials when unconfigured. A self-hosted build may
+leave out the [optional integrations](integrations.md) with build tags and the
+Dockerfile's `FMN_OMIT`; the release image and the release gate always use the
+default build, which includes them all, and `make check-core` keeps the build
+without them compiling and passing its owners' tests. Fonts and assets remain
+embedded, with license notices computed from the actual production bundle.

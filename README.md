@@ -154,7 +154,7 @@ See [architecture and code ownership](docs/architecture.md) for the backend boun
 
 [Sources, review proposals, semantic search and external-agent MCP workflows](docs/knowledge.md) extend ordinary Markdown notes. Embeddings are optional; notebook history remains the source of truth. Current retrieval behavior is documented in that guide.
 
-Archive documents, presentations, spreadsheets, saved email, images, and short audio/video recordings with original files, provenance, searchable Markdown, and pinned citations. Docker includes local English OCR with Poppler and Tesseract. Transcription and image descriptions use configured hosted processing with consent and execution budgets. Size memory for your measured document workload and concurrency; the former local-model estimates do not apply. See [Archived sources](docs/sources.md).
+Archive documents, presentations, spreadsheets, saved email, images, and short audio/video recordings with original files, provenance, searchable Markdown, and pinned citations. Docker includes local English OCR with Poppler and Tesseract; a self-hosted build can leave it out with the other [optional integrations](docs/integrations.md). Transcription and image descriptions use configured hosted processing with consent and execution budgets. Size memory for your measured document workload and concurrency; the former local-model estimates do not apply. See [Archived sources](docs/sources.md).
 
 See [production hardening and the release gate](docs/production-readiness.md) for recovery, token rotation, resource limits, and browser checks.
 

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"forgetmenote/internal/durable"
+	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/jsonfile"
 	"maps"
 	"math"
@@ -28,7 +29,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/redshiftdata"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -120,7 +120,7 @@ type runtime struct {
 	config                       Connection
 	client                       *http.Client
 	slots                        chan struct{}
-	redshift                     *redshiftdata.Client
+	redshift                     redshiftClient
 	aws                          aws.CredentialsProvider
 	loginMu                      sync.Mutex
 	loginToken, loginFingerprint string
@@ -178,6 +178,11 @@ func New(cfg Config) (*Manager, error) {
 		}
 		if c.Kind != "http" && c.Kind != "mcp" && c.Kind != "postgres" && c.Kind != "redshift" && c.Kind != "broker" && c.Kind != "email" && c.Kind != "sheets" && c.Kind != "calendar" {
 			return nil, errors.New("unknown connection kind")
+		}
+		if c.Kind == "postgres" || c.Kind == "redshift" {
+			if err := integrations.Check(c.Kind); err != nil {
+				return nil, fmt.Errorf("connection %s: %w", c.ID, err)
+			}
 		}
 		if err := configureGoogle(&c); err != nil {
 			return nil, err

@@ -75,8 +75,9 @@ make browser-summary ARGS='scripts/browser/FEATURE.spec.mjs'
 ```
 
 Pull-request CI runs `make check-fast`: formatting, `go vet`, the frontend, fixture
-and Python tests, and race tests for the Go packages changed since `BASE` (every
-package without it). Run it before you push:
+and Python tests, the build without [optional integrations](docs/integrations.md)
+(`make check-core`), and race tests for the Go packages changed since `BASE`
+(every package without it). Run it before you push:
 
 ```sh
 python3.12 -m venv .venv

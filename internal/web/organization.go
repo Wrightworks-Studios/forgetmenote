@@ -9,6 +9,7 @@ import (
 
 	"forgetmenote/internal/branding"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -84,7 +85,7 @@ func (s *Server) organizationTools(server *mcp.Server) {
 			mode = "proxy"
 		}
 		summary := s.InstanceSummary()
-		return map[string]any{"organization": org, "branding": currentBrand(s.catalog), "authentication": mode, "instance": summary,
+		return map[string]any{"organization": org, "branding": currentBrand(s.catalog), "authentication": mode, "instance": summary, "omittedIntegrations": integrations.Omitted(),
 			"headless": summary["headless"], "githubConfigured": summary["repositorySources"], "backupsConfigured": summary["managedBackups"], "chatConfigured": summary["chat"], "embeddingsConfigured": summary["embeddings"]}, nil
 	})
 	addManagementTool(s, server, "set_instance_name", "Set the instance display name. Admin only.", false, func(ctx context.Context, in struct {

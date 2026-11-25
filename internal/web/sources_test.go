@@ -98,6 +98,7 @@ func TestSourceJSONBudgetIncludesBase64AndEscapedPreviewText(t *testing.T) {
 }
 
 func TestHostedImageDescriptionsThroughBrowserAndMCP(t *testing.T) {
+	requireLocalOCR(t)
 	if _, err := exec.LookPath("tesseract"); err != nil {
 		t.Skip("requires Tesseract")
 	}
@@ -372,6 +373,10 @@ func TestRefusedDocumentsAreClientErrors(t *testing.T) {
 		tests["clip.mp4"] = tests["clip.wav"]
 	}
 	for filename, test := range tests {
+		if !offeredSource(filename) && filename != "unknown.bin" {
+			// Refused by the integration this build leaves out, before parsing.
+			test.message = "this build leaves out"
+		}
 		t.Run(filename, func(t *testing.T) {
 			body, _ := json.Marshal(map[string]any{"filename": filename, "data": base64.StdEncoding.EncodeToString([]byte(test.document))})
 			response := call(app, "POST", "/api/sources/preview", string(body), testToken)

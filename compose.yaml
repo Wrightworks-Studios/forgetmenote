@@ -28,6 +28,8 @@ services:
       args:
         APP_UID: ${PUID:-1000}
         APP_GID: ${PGID:-1000}
+        # Optional integrations to leave out of the image; see docs/integrations.md.
+        FMN_OMIT: ${FMN_OMIT:-}
     image: forgetmenote:local
     restart: unless-stopped
     init: true

@@ -6,13 +6,10 @@ import (
 	"errors"
 	"image"
 	_ "image/jpeg"
-	"image/png"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"forgetmenote/internal/workspace"
 	_ "golang.org/x/image/bmp"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/tiff"
@@ -165,24 +162,4 @@ func extractImage(ctx context.Context, extension string, raw []byte, options Opt
 		result.Sections = append(result.Sections, section)
 	}
 	return renderDocumentResult(result)
-}
-func tesseractFrame(ctx context.Context, dir string, raw, header []byte) ([]byte, error) {
-	decoded, err := decodeImage(ctx, raw, header)
-	if err != nil {
-		return nil, refused(err)
-	}
-	target, err := os.OpenFile(filepath.Join(dir, "frame.png"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(target.Name())
-	err = png.Encode(&scratchWriter{Writer: target, remaining: 32 << 20}, decoded)
-	closeErr := target.Close()
-	if err != nil {
-		return nil, err
-	}
-	if closeErr != nil {
-		return nil, closeErr
-	}
-	return sourceCommand(ctx, dir, workspace.MaxSourceText(), "tesseract", target.Name(), "stdout", "-l", "eng", "--psm", "3")
 }

@@ -98,6 +98,7 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
   for(const [key,name] of services)$('instance-status').append(node('dt',name),node('dd',status.instance[key]?'Configured':'Not configured'));
   $('instance-status').append(node('dt','Browser interface'),node('dd',status.instance.headless?'Disabled':'Enabled'));
   $('instance-status').append(node('dt','Outgoing actions'),node('dd',status.instance.outgoingPaused?'Paused':'Enabled'));
+  if(status.omittedIntegrations?.length)$('instance-status').append(node('dt','Left out of this build'),node('dd',status.omittedIntegrations.map(integration=>integration.title).join('; ')));
   activity();
   await integrations.load(directory,org.groups,active);
  }
