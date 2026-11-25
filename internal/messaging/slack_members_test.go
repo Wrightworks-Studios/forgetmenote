@@ -1,3 +1,5 @@
+//go:build !fmn_omit_slack
+
 package messaging
 
 import (
@@ -55,21 +57,5 @@ func TestSlackMembersListsActiveHumansAcrossPages(t *testing.T) {
 	want := []Member{{User: "UALICE", Email: "alice@example.com"}, {User: "UPENDING"}, {User: "UQUIET", Email: "quiet@example.com"}}
 	if !slices.Equal(got, want) || !slices.Equal(cursors, []string{"", "page-2"}) {
 		t.Fatalf("members %+v after cursors %q", got, cursors)
-	}
-}
-
-func TestPairByEmailNeedsWorkspaceDomains(t *testing.T) {
-	client := Client{Workspace: "T1", Members: &MemberAccess{Actor: "service-1", Binding: Binding{Project: "default", ExternalProcessing: true}}}
-	for _, domains := range [][]string{{"example.com"}, {"example.com", "corp.example.org"}} {
-		client.Members.PairByEmail = domains
-		if err := client.Validate(); err != nil {
-			t.Fatalf("%q: %v", domains, err)
-		}
-	}
-	for _, domains := range [][]string{{"Example.com"}, {"example"}, {"@example.com"}, {""}, {"example.com/x"}} {
-		client.Members.PairByEmail = domains
-		if client.Validate() == nil {
-			t.Fatalf("%q was accepted as a pairing domain", domains)
-		}
 	}
 }

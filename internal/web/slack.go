@@ -21,6 +21,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/capacity"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/outgoing"
 	"forgetmenote/internal/workspace"
@@ -50,6 +51,9 @@ func (s *Server) ConfigureSlack(file string) error {
 	return s.ConfigureSlackConfig(cfg)
 }
 func (s *Server) ConfigureSlackConfig(cfg messaging.SlackConfig) error {
+	if err := integrations.Check("slack"); err != nil {
+		return err
+	}
 	unlock, err := s.startupConfiguration()
 	if err != nil {
 		return err
@@ -218,7 +222,7 @@ func (s *Server) slackEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	policy, _, _ := s.messageClient("slack")
 	if event.Type == "event_callback" && (event.Event.Type == "team_join" || event.Event.Type == "user_change") {
-		member, active, err := s.slack.transport().EventMember(event.Event.User.Raw)
+		member, active, err := s.slack.EventMember(event.Event.User.Raw)
 		if err != nil {
 			http.Error(w, "Invalid member event", http.StatusBadRequest)
 			return

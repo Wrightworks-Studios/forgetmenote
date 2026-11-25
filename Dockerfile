@@ -6,7 +6,7 @@
 # downloads and compiler output between builds; they never reach an image layer.
 #
 # FMN_OMIT names optional integrations a self-hosted build leaves out, separated
-# by spaces: postgres redshift outlook iwork ocr (docs/integrations.md).
+# by spaces: postgres redshift outlook iwork ocr slack (docs/integrations.md).
 # Each sets the Go build tag fmn_omit_NAME; iwork and ocr also leave out their
 # system packages. The default, empty, builds every integration, and the
 # release image uses it.
@@ -31,7 +31,7 @@ COPY plugins ./plugins
 COPY --from=frontend /src/internal/web/ui/dist ./internal/web/ui/dist
 RUN --mount=type=cache,target=/root/.cache/go-build \
     tags=; for name in $FMN_OMIT; do \
-      case $name in postgres|redshift|outlook|iwork|ocr) tags="$tags,fmn_omit_$name" ;; \
+      case $name in postgres|redshift|outlook|iwork|ocr|slack) tags="$tags,fmn_omit_$name" ;; \
       *) echo "FMN_OMIT: unknown integration $name" >&2; exit 1 ;; esac; \
     done \
  && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -tags "${tags#,}" -ldflags="-s -w" -o /out/forgetmenote ./cmd/forgetmenote

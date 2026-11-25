@@ -1,11 +1,18 @@
+//go:build !fmn_omit_slack
+
 package web
 
 import (
 	"context"
+	"encoding/json"
 
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/sources"
 )
+
+// The Slack Web API transport of a configured Slack app. A build with the tag
+// fmn_omit_slack leaves it out (slack_transport_omitted.go), and
+// ConfigureSlackConfig refuses Slack configuration there.
 
 // transport reads the endpoint for every call, so tests can redirect a
 // configured service to a local server. Every call uses the bot token as the
@@ -21,6 +28,9 @@ func slackAttachmentText(ctx context.Context, name, url string, data []byte) (st
 
 func (s *slackService) VerifyMember(ctx context.Context, d messaging.Address) error {
 	return s.transport().VerifyMember(ctx, d)
+}
+func (s *slackService) EventMember(raw json.RawMessage) (messaging.Member, bool, error) {
+	return s.transport().EventMember(raw)
 }
 func (s *slackService) Members(ctx context.Context) ([]messaging.Member, error) {
 	return s.transport().Members(ctx)

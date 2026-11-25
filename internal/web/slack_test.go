@@ -22,6 +22,7 @@ import (
 
 func configureSlackFixture(t *testing.T, app *Server) {
 	t.Helper()
+	requireSlack(t)
 	dir := t.TempDir()
 	secret := filepath.Join(dir, "signing")
 	bot := filepath.Join(dir, "bot")

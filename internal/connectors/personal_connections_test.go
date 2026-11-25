@@ -15,11 +15,69 @@ import (
 	"testing"
 	"time"
 
+	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/pg/pgtest"
 )
 
 const personalTestOwner = "0123456789abcdef0123456789abcdef"
+
+// personalSlackApp is app in a build with Slack and nothing without it, so
+// the Google cases run in both builds.
+func personalSlackApp(app *OAuthApplication) *OAuthApplication {
+	if !integrations.Included("slack") {
+		return nil
+	}
+	return app
+}
+
+// requireSlack skips a case that connects a personal Slack account.
+func requireSlack(t *testing.T) {
+	t.Helper()
+	if err := integrations.Check("slack"); err != nil {
+		t.Skip(err)
+	}
+}
+
+// A Slack grant stored by a build with Slack is kept, and refused by name
+// rather than used, by a build without it.
+func TestStoredSlackGrantNeedsItsIntegration(t *testing.T) {
+	p, _, db := personalFixture(t, func(w http.ResponseWriter, r *http.Request) { t.Error("called the provider", r.URL.Path) })
+	grant := personalCredential{Owner: personalTestOwner, PersonalConnection: PersonalConnection{Provider: "slack", Workspace: "T123", Generation: 1, State: "connected"}, AccessToken: "fixture-access"}
+	if err := p.save(t.Context(), db.Pool, grant, 0); err != nil {
+		t.Fatal(err)
+	}
+	got, err := p.token(t.Context(), personalTestOwner, "slack", 1)
+	if integrations.Included("slack") {
+		if err != nil || got.AccessToken != "fixture-access" {
+			t.Fatal(err)
+		}
+		return
+	}
+	if err == nil || !strings.Contains(err.Error(), "fmn_omit_slack") {
+		t.Fatal(err)
+	}
+	if stored, _, err := p.load(t.Context(), db.Pool, personalTestOwner, "slack"); err != nil || stored.AccessToken != "fixture-access" {
+		t.Fatal("the stored grant was lost", err)
+	}
+}
+
+// A build without Slack refuses a personal Slack application by name at
+// startup; the full build opens the same configuration.
+func TestPersonalSlackNeedsItsIntegration(t *testing.T) {
+	config := personalConfig(t, strings.Repeat("ba", 32))
+	config.Slack = &OAuthApplication{ClientID: "fixture", SecretFile: config.Google.SecretFile, Workspace: "T123"}
+	_, err := OpenPersonalConnections(pgtest.Org(t), config)
+	if integrations.Included("slack") {
+		if err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	if err == nil || !strings.Contains(err.Error(), "fmn_omit_slack") {
+		t.Fatal(err)
+	}
+}
 
 func personalFixture(t *testing.T, h http.HandlerFunc) (*PersonalConnections, PersonalConfig, *pg.DB) {
 	t.Helper()
@@ -33,7 +91,7 @@ func personalFixture(t *testing.T, h http.HandlerFunc) (*PersonalConnections, Pe
 	if err := os.WriteFile(secret, []byte("fixture-oauth-secret"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	config := PersonalConfig{Version: 1, KeyFile: key, Google: &OAuthApplication{ClientID: "fixture", SecretFile: secret}, Slack: &OAuthApplication{ClientID: "fixture", SecretFile: secret, Workspace: "T123"}}
+	config := PersonalConfig{Version: 1, KeyFile: key, Google: &OAuthApplication{ClientID: "fixture", SecretFile: secret}, Slack: personalSlackApp(&OAuthApplication{ClientID: "fixture", SecretFile: secret, Workspace: "T123"})}
 	db := pgtest.Org(t)
 	p, err := OpenPersonalConnections(db, config)
 	if err != nil {
@@ -456,6 +514,7 @@ func TestPersonalConnectionsFailClosedWithoutDatabase(t *testing.T) {
 }
 
 func TestPersonalSlackUsesUserGrantAndFullThreadPrecondition(t *testing.T) {
+	requireSlack(t)
 	var writes atomic.Int32
 	var change atomic.Bool
 	p, _, _ := personalFixture(t, func(w http.ResponseWriter, r *http.Request) {
@@ -573,6 +632,9 @@ func TestPersonalRefreshReauthorizesOnlyWhenTheGrantIsGone(t *testing.T) {
 		{name: "slack revoked grant", provider: "slack", refresh: answer(200, `{"ok":false,"error":"invalid_refresh_token"}`), reauthorize: true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			if c.provider == "slack" {
+				requireSlack(t)
+			}
 			var refresh atomic.Pointer[http.HandlerFunc]
 			refresh.Store(&c.refresh)
 			p, _, db := personalFixture(t, func(w http.ResponseWriter, r *http.Request) {
