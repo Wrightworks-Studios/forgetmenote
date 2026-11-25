@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/taskqueue"
 )
 
 // channelMessage sends a message from a member in a channel thread and
@@ -124,7 +125,7 @@ func TestSlashTaskFormAndMessageShortcutLinkAConversation(t *testing.T) {
 	// The message shortcut opens the form with the message linked and its
 	// text, made readable, as the task.
 	shortcut := func(channel string) map[string]any {
-		return map[string]any{"type": "message_action", "callback_id": taskShortcut, "trigger_id": "trigger-shortcut", "team": map[string]any{"id": "T123"},
+		return map[string]any{"type": "message_action", "callback_id": taskqueue.Shortcut, "trigger_id": "trigger-shortcut", "team": map[string]any{"id": "T123"},
 			"user": map[string]any{"id": "UBOB", "team_id": "T123"}, "channel": map[string]any{"id": channel}, "response_url": f.upstream + "/actions/T123/2/hook",
 			"message": map[string]any{"ts": "1700000000.000400", "text": "Can <@UDAN> update <https://example.com/doc|the doc> &amp; tell <#C1|design>?\nThanks"}}
 	}
@@ -132,7 +133,7 @@ func TestSlashTaskFormAndMessageShortcutLinkAConversation(t *testing.T) {
 		t.Fatalf("the shortcut: HTTP %d %q, views %d", w.Code, w.Body, len(f.views))
 	}
 	view := f.views[1]["view"].(map[string]any)
-	if f.views[1]["trigger_id"] != "trigger-shortcut" || view["callback_id"] != taskAddView {
+	if f.views[1]["trigger_id"] != "trigger-shortcut" || view["callback_id"] != taskqueue.AddView {
 		t.Fatalf("the shortcut opened %v", f.views[1])
 	}
 	if _, text := formElement(t, view, "text"); text["initial_value"] != "Can @Dan Ortiz update the doc & tell #design? Thanks" {

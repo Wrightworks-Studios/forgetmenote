@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/taskqueue"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -27,7 +28,7 @@ func newTaskChangeHarness(t *testing.T) *taskChangeHarness {
 	f := newTaskFixture(t)
 	app := f.app
 	now := time.Date(2026, 11, 20, 15, 0, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{
 		{"id": "UALICE", "team_id": "T123", "profile": map[string]any{"real_name": "Alice Lee"}},
 		{"id": "UBOB", "team_id": "T123", "profile": map[string]any{"real_name": "Bob Ray"}},
@@ -82,7 +83,7 @@ func (h *taskChangeHarness) notices(from int, id string) []string {
 
 // update sends update_task as user and returns the result, or the refusal as
 // "status code: message" over HTTP and as the message alone over MCP.
-func (h *taskChangeHarness) update(t *testing.T, transport, user string, args map[string]any) (taskResult, string) {
+func (h *taskChangeHarness) update(t *testing.T, transport, user string, args map[string]any) (taskqueue.Result, string) {
 	t.Helper()
 	if transport == "mcp" {
 		result, err := h.mcp[user].CallTool(t.Context(), &mcp.CallToolParams{Name: "update_task", Arguments: args})
@@ -96,10 +97,10 @@ func (h *taskChangeHarness) update(t *testing.T, transport, user string, args ma
 					texts = append(texts, text.Text)
 				}
 			}
-			return taskResult{}, strings.Join(texts, "\n")
+			return taskqueue.Result{}, strings.Join(texts, "\n")
 		}
 		raw, _ := json.Marshal(result.StructuredContent)
-		return decodeTask[taskResult](t, raw), ""
+		return decodeTask[taskqueue.Result](t, raw), ""
 	}
 	body, _ := json.Marshal(args)
 	w := apiCall(h.f.app, "POST", "/api/v1/actions/update_task", string(body), h.tokens[user])
@@ -110,36 +111,36 @@ func (h *taskChangeHarness) update(t *testing.T, transport, user string, args ma
 		if err := json.Unmarshal(w.Body.Bytes(), &failure); err != nil {
 			t.Fatalf("HTTP %d: %s", w.Code, w.Body)
 		}
-		return taskResult{}, fmt.Sprintf("%d %s: %s", w.Code, failure.Error.Code, failure.Error.Message)
+		return taskqueue.Result{}, fmt.Sprintf("%d %s: %s", w.Code, failure.Error.Code, failure.Error.Message)
 	}
-	return decodeTask[taskResult](t, w.Body.Bytes()), ""
+	return decodeTask[taskqueue.Result](t, w.Body.Bytes()), ""
 }
 
 // history is a task's changes, newest first, as its requester reads them.
-func (h *taskChangeHarness) history(t *testing.T, requester, id string) []taskHistoryEntry {
+func (h *taskChangeHarness) history(t *testing.T, requester, id string) []taskqueue.HistoryEntry {
 	t.Helper()
-	return decodeTask[[]taskHistoryEntry](t, actionCall(t, h.mcp[requester], "task_history", map[string]any{"id": id}, false))
+	return decodeTask[[]taskqueue.HistoryEntry](t, actionCall(t, h.mcp[requester], "task_history", map[string]any{"id": id}, false))
 }
 
 // holder names whose queue holds a task now, or nobody.
 func (h *taskChangeHarness) holder(t *testing.T, id string) string {
 	t.Helper()
-	_, store, err := h.f.app.taskQueues()
+	_, store, ok := h.f.app.catalog.TaskQueues()
+	if !ok {
+		t.Fatal("task queues are not enabled")
+	}
+	book, err := taskqueue.ReadBook(t.Context(), store)
 	if err != nil {
 		t.Fatal(err)
 	}
-	book, err := readTaskBook(t.Context(), store)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if person, i := book.find(id); i >= 0 {
+	if person, i := book.Find(id); i >= 0 {
 		return h.names.Replace(person)
 	}
 	return "nobody"
 }
 
 // describeTask lists a task's owner and the fields a change can set.
-func (h *taskChangeHarness) describeTask(v taskView) string {
+func (h *taskChangeHarness) describeTask(v taskqueue.View) string {
 	parts := []string{h.names.Replace(v.Owner.ID) + ": " + v.Text}
 	for _, field := range [][2]string{{"due", v.Due}, {"priority", v.Priority}, {"snoozed", v.Snoozed}, {"next", strings.Join(v.NextDates, ", ")}} {
 		if field[1] != "" {
@@ -275,14 +276,14 @@ func TestTaskChangesKeepTheirRules(t *testing.T) {
 				for k, v := range c.add {
 					add[k] = v
 				}
-				added := decodeTask[taskView](t, actionCall(t, h.mcp[from], "add_task", add, false))
+				added := decodeTask[taskqueue.View](t, actionCall(t, h.mcp[from], "add_task", add, false))
 				id, revision := added.ID, added.Revision
 				for _, prep := range c.prep {
 					args := map[string]any{"id": id, "revision": revision}
 					for k, v := range prep {
 						args[k] = v
 					}
-					revision = decodeTask[taskResult](t, actionCall(t, h.mcp[to], "update_task", args, false)).Task.Revision
+					revision = decodeTask[taskqueue.Result](t, actionCall(t, h.mcp[to], "update_task", args, false)).Task.Revision
 				}
 				args := map[string]any{"id": id, "revision": revision}
 				for k, v := range c.change {

@@ -34,23 +34,20 @@ func TestMemberNamesAreReadFromSlackOutsideTheirLock(t *testing.T) {
 	answer := func() { answered.Do(func() { close(release) }) }
 	defer answer()
 	app.slack.endpoint = slow.URL + "/chat.postEphemeral"
-	app.memberNames.seed([]messaging.Member{{User: "UBOB", Name: "Bob Ray"}})
-	app.memberNames.mu.Lock()
-	app.memberNames.read = time.Time{}
-	app.memberNames.mu.Unlock()
+	app.tasks.ResetMemberNames([]messaging.Member{{User: "UBOB", Name: "Bob Ray"}})
 
 	// A member nobody has named yet reads the list.
 	named := make(chan string, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		named <- app.memberNameWithin(ctx, "UNEW")
+		named <- app.tasks.MemberNameWithin(ctx, "UNEW")
 	}()
 	<-listing
 	// While Slack answers, a known name is at hand, and whoever waits for the
 	// list gives up at their own deadline.
 	known := make(chan string, 1)
-	go func() { known <- app.memberName("UBOB") }()
+	go func() { known <- app.tasks.MemberName("UBOB") }()
 	select {
 	case name := <-known:
 		if name != "Bob Ray" {
@@ -62,14 +59,14 @@ func TestMemberNamesAreReadFromSlackOutsideTheirLock(t *testing.T) {
 	waiting, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 	started := time.Now()
-	if name := app.memberNameWithin(waiting, "UNEW"); name != "" || time.Since(started) > 2*time.Second {
+	if name := app.tasks.MemberNameWithin(waiting, "UNEW"); name != "" || time.Since(started) > 2*time.Second {
 		t.Fatalf("a waiting caller got %q after %v", name, time.Since(started))
 	}
 	answer()
 	if name := <-named; name != "Nell Ward" {
 		t.Fatalf("the new member is named %q", name)
 	}
-	if name := app.memberName("UNEW"); name != "Nell Ward" {
+	if name := app.tasks.MemberName("UNEW"); name != "Nell Ward" {
 		t.Fatalf("the list was not kept: %q", name)
 	}
 }
@@ -78,14 +75,14 @@ func TestATaskReminderReadsTheMemberListOnce(t *testing.T) {
 	f := newTaskFixture(t)
 	app := f.app
 	now := time.Date(2026, 11, 17, 16, 30, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{
 		{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{"real_name": "Alice Lee"}},
 		{"id": "UBOB", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{"real_name": "Bob Ray"}},
 	}
 	bob := taskClients(t, app, "bob")[0]
 	actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Renew the parking permit"}, false)
-	app.memberNames = memberNameCache{}
+	app.tasks.ResetMemberNames(nil)
 	before := f.memberLists
 	spec := automation.Spec{ID: "task-reminder", Kind: "native", Actor: f.service, Project: "default", TimeoutSeconds: 60, Native: &automation.NativeTask{Task: "task-reminder", Client: "slack"}}
 	run := automation.Run{ID: automation.Hash("tuesday"), Spec: spec}

@@ -1,4 +1,4 @@
-package web
+package taskqueue
 
 import (
 	"cmp"
@@ -60,16 +60,16 @@ var (
 
 const taskListButtons = 20
 
-// taskAddView is the /task form, and taskConfirmView the form asking to give
+// AddView is the /task form, and ConfirmView the form asking to give
 // more than taskConfirmAbove people a copy.
 const (
-	taskAddView     = "task_add"
-	taskConfirmView = "task_add_confirm"
+	AddView     = "task_add"
+	ConfirmView = "task_add_confirm"
 )
 
-// taskShortcut is the message shortcut that opens the task form for a
+// Shortcut is the message shortcut that opens the task form for a
 // message.
-const taskShortcut = "task_from_message"
+const Shortcut = "task_from_message"
 
 // A task links the Slack conversation it came from: a message link as Slack
 // writes one in a message, <url> or <url|label>, or as pasted in the form.
@@ -96,7 +96,7 @@ func taskSourceLink(source string) string {
 }
 
 // taskSourceSuffix ends a list line with the task's link, if it has one.
-func taskSourceSuffix(t taskView) string {
+func taskSourceSuffix(t View) string {
 	if link := taskSourceLink(t.Source); link != "" {
 		return " · " + link
 	}
@@ -106,12 +106,12 @@ func taskSourceSuffix(t taskView) string {
 // slackTaskInput reads a typed task command. It links the Slack message
 // pasted in it, taking the link out of the task, or else the channel thread
 // it was typed in. A thread the app cannot read is left unlinked.
-func (s *Server) slackTaskInput(ctx context.Context, d messaging.Address, text string) (taskInput, bool) {
-	people, task, due, ok := taskAddParts(text)
+func (s *Service) slackTaskInput(ctx context.Context, d messaging.Address, text string) (Input, bool) {
+	people, task, due, ok := AddParts(text)
 	if !ok {
-		return taskInput{}, false
+		return Input{}, false
 	}
-	in := taskInput{People: people, Text: task, Due: due}
+	in := Input{People: people, Text: task, Due: due}
 	if m := taskPastedLink.FindStringSubmatch(task); m != nil {
 		in.Source = strings.ReplaceAll(m[1], "&amp;", "&")
 		in.Text = strings.Join(strings.Fields(strings.Replace(task, m[0], " ", 1)), " ")
@@ -122,10 +122,10 @@ func (s *Server) slackTaskInput(ctx context.Context, d messaging.Address, text s
 }
 
 // slackPermalink links a message the app can see, within a second and a half.
-func (s *Server) slackPermalink(ctx context.Context, channel, ts string) string {
+func (s *Service) slackPermalink(ctx context.Context, channel, ts string) string {
 	ctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
 	defer cancel()
-	link, err := s.slack.Permalink(ctx, channel, ts)
+	link, err := s.hooks.Permalink(ctx, channel, ts)
 	if err != nil {
 		if !errors.Is(err, messaging.ErrAudienceHidden) {
 			s.logAutomationError("Slack task link", err)
@@ -140,12 +140,12 @@ func (s *Server) slackPermalink(ctx context.Context, channel, ts string) string 
 
 // slackPlainText makes a Slack message readable as one line of task text:
 // mentions become names, read within ctx, and links their labels.
-func (s *Server) slackPlainText(ctx context.Context, text string) string {
+func (s *Service) slackPlainText(ctx context.Context, text string) string {
 	text = slackMarkup.ReplaceAllStringFunc(text, func(markup string) string {
 		m := slackMarkup.FindStringSubmatch(markup)
 		switch {
 		case m[1] == "@":
-			if name := s.memberNameWithin(ctx, m[2]); name != "" {
+			if name := s.MemberNameWithin(ctx, m[2]); name != "" {
 				return "@" + name
 			}
 			return "@" + cmp.Or(m[3], "someone")
@@ -164,14 +164,14 @@ func (s *Server) slackPlainText(ctx context.Context, text string) string {
 
 // The buttons that confirm or cancel a request giving many people a copy.
 const (
-	taskConfirmAction = "task_confirm"
-	taskCancelAction  = "task_cancel"
+	ConfirmAction = "task_confirm"
+	CancelAction  = "task_cancel"
 )
 
 // taskNoQueue answers a list from someone who has never had a task.
 const taskNoQueue = "You have no open tasks. Give someone a task with `task @person what to do`, adding `due 2026-11-21` if it has a date."
 
-func taskCommand(text string) bool {
+func Command(text string) bool {
 	return taskListCommand.MatchString(text) || taskAddCommand.MatchString(text) || taskHelpAsked.MatchString(text) || taskHelpCommand.MatchString(text) || taskConfirmed.MatchString(text)
 }
 
@@ -191,30 +191,30 @@ func taskConfirmedEvent(operation, request string) string {
 // queueConfirmedTasks queues a confirmed request to run in the background,
 // answering in the conversation d. The run reads the request back only if its
 // ID shows this server queued it.
-func (s *Server) queueConfirmedTasks(ctx context.Context, d messaging.Address, operation string, in taskInput) error {
+func (s *Service) queueConfirmedTasks(ctx context.Context, d messaging.Address, operation string, in Input) error {
 	in.Confirm = true
 	raw, err := json.Marshal(in)
 	if err != nil {
 		return err
 	}
 	d.Message, d.Files = "", nil
-	return s.enqueueMessage(ctx, messaging.Event{ID: taskConfirmedEvent(operation, string(raw)), Text: "task-confirmed " + operation + "\n" + string(raw), Address: d})
+	return s.hooks.Enqueue(ctx, messaging.Event{ID: taskConfirmedEvent(operation, string(raw)), Text: "task-confirmed " + operation + "\n" + string(raw), Address: d})
 }
 
 // confirmedTaskInput reads a confirmed request from its run, which must be
 // the one queueConfirmedTasks made.
-func confirmedTaskInput(r *automation.Run, d messaging.Address) (taskInput, string, bool) {
+func confirmedTaskInput(r *automation.Run, d messaging.Address) (Input, string, bool) {
 	m := taskConfirmed.FindStringSubmatch(r.Spec.Instruction)
-	var in taskInput
+	var in Input
 	if m == nil || d.Message != "" || r.Spec.ID != "chat-"+automation.Hash([]string{d.Client, d.Workspace, taskConfirmedEvent(m[1], m[2])})[:32] || json.Unmarshal([]byte(m[2]), &in) != nil || !in.Confirm {
-		return taskInput{}, "", false
+		return Input{}, "", false
 	}
 	return in, m[1], true
 }
 
-// taskAddParts reads a task command: the people named, the task and its due
+// AddParts reads a task command: the people named, the task and its due
 // date.
-func taskAddParts(text string) (people []string, task, due string, ok bool) {
+func AddParts(text string) (people []string, task, due string, ok bool) {
 	m := taskAddCommand.FindStringSubmatch(text)
 	if m == nil {
 		return nil, "", "", false
@@ -224,7 +224,7 @@ func taskAddParts(text string) (people []string, task, due string, ok bool) {
 
 // slackTaskQueues returns the task queue settings when task queues serve the
 // Slack workspace team.
-func (s *Server) slackTaskQueues(team string) (catalog.TaskQueues, bool) {
+func (s *Service) SlackQueues(team string) (catalog.TaskQueues, bool) {
 	settings, _, err := s.taskQueues()
 	return settings, err == nil && settings.Client == "slack" && settings.Workspace == team
 }
@@ -236,27 +236,27 @@ var errNotTaskMember = errors.New("not a member of the task workspace")
 // slackTaskMember is the Slack member pressing a task button or submitting a
 // task form, confirmed with Slack, and their queue's person, made when create
 // is set.
-func (s *Server) slackTaskMember(ctx context.Context, settings catalog.TaskQueues, user string, create bool) (taskCaller, error) {
+func (s *Service) slackTaskMember(ctx context.Context, settings catalog.TaskQueues, user string, create bool) (Caller, error) {
 	if err := s.verifyTaskMember(ctx, settings, user); err != nil {
-		return taskCaller{}, fmt.Errorf("%w: %w", errNotTaskMember, err)
+		return Caller{}, fmt.Errorf("%w: %w", errNotTaskMember, err)
 	}
-	return s.memberTaskCaller(settings, user, create)
+	return s.MemberCaller(settings, user, create)
 }
 
 // memberTaskCaller is the member writing in Slack, whose membership the
 // conversation already verified.
-func (s *Server) memberTaskCaller(settings catalog.TaskQueues, user string, create bool) (taskCaller, error) {
+func (s *Service) MemberCaller(settings catalog.TaskQueues, user string, create bool) (Caller, error) {
 	person, err := s.catalog.TaskPersonForMember(settings.Client, settings.Workspace, user, create)
 	if err != nil {
-		return taskCaller{}, err
+		return Caller{}, err
 	}
 	account, _ := s.catalog.TaskPersonAccount(person.ID)
-	return taskCaller{Person: person, Account: account}, nil
+	return Caller{Person: person, Account: account}, nil
 }
 
 // taskCommandReply answers a task command in a conversation. ok is false when
 // task queues do not serve this client, so the assistant answers instead.
-func (s *Server) taskCommandReply(ctx context.Context, r *automation.Run, d messaging.Address) (messaging.Reply, bool, error) {
+func (s *Service) CommandReply(ctx context.Context, r *automation.Run, d messaging.Address) (messaging.Reply, bool, error) {
 	settings, _, err := s.taskQueues()
 	if err != nil || settings.Client != d.Client || settings.Workspace != d.Workspace {
 		return messaging.Reply{}, false, nil
@@ -269,20 +269,20 @@ func (s *Server) taskCommandReply(ctx context.Context, r *automation.Run, d mess
 		if !d.Direct || d.Shared {
 			return messaging.Reply{Text: "Your queue is private: send me `tasks` in a direct message."}, true, nil
 		}
-		caller, err := s.memberTaskCaller(settings, d.User, false)
+		caller, err := s.MemberCaller(settings, d.User, false)
 		if errors.Is(err, catalog.ErrNoTaskPerson) {
 			return messaging.Reply{Text: taskNoQueue}, true, nil
 		}
 		if err != nil {
 			return messaging.Reply{}, true, err
 		}
-		list, err := s.listTasks(ctx, caller)
+		list, err := s.List(ctx, caller)
 		if err != nil {
 			return messaging.Reply{}, true, err
 		}
 		return s.taskListReply(list), true, nil
 	}
-	in, operation, ok := taskInput{}, "slack-"+r.ID, false
+	in, operation, ok := Input{}, "slack-"+r.ID, false
 	if taskConfirmed.MatchString(text) {
 		if in, operation, ok = confirmedTaskInput(r, d); !ok {
 			return messaging.Reply{Text: "That isn't a request I can add. Send the task command again."}, true, nil
@@ -290,7 +290,7 @@ func (s *Server) taskCommandReply(ctx context.Context, r *automation.Run, d mess
 	} else if in, ok = s.slackTaskInput(ctx, d, text); !ok {
 		return messaging.Reply{}, false, nil
 	}
-	caller, err := s.memberTaskCaller(settings, d.User, true)
+	caller, err := s.MemberCaller(settings, d.User, true)
 	if err != nil {
 		return messaging.Reply{}, true, err
 	}
@@ -302,8 +302,8 @@ func (s *Server) taskCommandReply(ctx context.Context, r *automation.Run, d mess
 		value, _ := json.Marshal(taskConfirmValue{Run: r.ID, Count: confirm.Count})
 		copies := "Give " + strconv.Itoa(confirm.Count) + " copies"
 		return messaging.Reply{Text: confirm.question() + " Go ahead?\n" + taskQuote(in.Text, in.Due, in.Source), Buttons: []messaging.Button{
-			{Action: taskConfirmAction, Label: copies, Value: string(value), Style: "primary"},
-			{Action: taskCancelAction, Label: "Cancel", Value: string(value)},
+			{Action: ConfirmAction, Label: copies, Value: string(value), Style: "primary"},
+			{Action: CancelAction, Label: "Cancel", Value: string(value)},
 		}}, true, nil
 	case errors.As(err, &input) && input.Status < 500:
 		return messaging.Reply{Text: "I didn't add that task: " + input.Message}, true, nil
@@ -328,7 +328,7 @@ func taskQuote(text, due, source string) string {
 // slackTaskConfirm answers a confirm or cancel button under a request for
 // many copies. Only the member who asked can press them; confirming queues
 // the request to run in the background, in the same conversation.
-func (s *Server) slackTaskConfirm(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, action, raw, responseURL string) {
+func (s *Service) SlackConfirm(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, action, raw, responseURL string) {
 	var value taskConfirmValue
 	if json.Unmarshal([]byte(raw), &value) != nil || value.Run == "" || len(value.Run) > 128 {
 		http.Error(w, "Invalid interaction", http.StatusBadRequest)
@@ -338,20 +338,20 @@ func (s *Server) slackTaskConfirm(w http.ResponseWriter, r *http.Request, settin
 	defer cancel()
 	run, err := s.automations.Queue.Get(value.Run)
 	d := run.Spec.Delivery
-	_, _, _, ok := taskAddParts(run.Spec.Instruction)
-	respond, text := s.slack.Respond, ""
+	_, _, _, ok := AddParts(run.Spec.Instruction)
+	respond, text := s.hooks.Respond, ""
 	switch {
 	case err != nil || d == nil || d.Client != settings.Client || d.Workspace != settings.Workspace || !ok:
 		text = "That request has expired; send the task again."
 	case d.User != user:
-		respond, text = s.slack.RespondAside, "Only whoever asked can confirm or cancel this."
-	case action == taskCancelAction:
+		respond, text = s.hooks.RespondAside, "Only whoever asked can confirm or cancel this."
+	case action == CancelAction:
 		text = "Cancelled; nothing was added."
 	default:
 		in, _ := s.slackTaskInput(ctx, *d, run.Spec.Instruction)
 		if err = s.queueConfirmedTasks(ctx, *d, "slack-"+run.ID, in); err != nil {
 			s.logAutomationError("Slack task confirmation", err)
-			respond, text = s.slack.RespondAside, "I couldn't start that just now; press the button again in a moment."
+			respond, text = s.hooks.RespondAside, "I couldn't start that just now; press the button again in a moment."
 		} else {
 			text = "Adding " + strconv.Itoa(value.Count) + " copies now. I'll confirm here when they're all added.\n" + taskQuote(in.Text, in.Due, in.Source)
 		}
@@ -370,7 +370,7 @@ func taskNameList(names []string) string {
 	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
-func taskName(p taskPersonView) string {
+func taskName(p PersonView) string {
 	switch {
 	case p.You:
 		return "you"
@@ -384,7 +384,7 @@ func taskName(p taskPersonView) string {
 
 // taskLine shows a task in Slack's message format, its text and who gave it
 // escaped.
-func taskLine(t taskView) string {
+func taskLine(t View) string {
 	line := mrkdwnEscape.Replace(t.Text)
 	details := []string{}
 	if t.Due != "" {
@@ -410,7 +410,7 @@ func taskLine(t taskView) string {
 
 // taskListReply shows the member's queue, with a Done button beside each of
 // the first tasks, and the tasks they gave others.
-func (s *Server) taskListReply(list taskList) messaging.Reply {
+func (s *Service) taskListReply(list List) messaging.Reply {
 	var b strings.Builder
 	reply := messaging.Reply{}
 	if len(list.Mine) == 0 {
@@ -425,7 +425,7 @@ func (s *Server) taskListReply(list taskList) messaging.Reply {
 	for i, t := range list.Mine {
 		if i < taskListButtons {
 			value, _ := json.Marshal(taskButtonValue{Task: t.ID, Revision: t.Revision})
-			reply.Sections = append(reply.Sections, messaging.Section{Text: "• " + taskLine(t) + taskSourceSuffix(t), Buttons: []messaging.Button{{Action: taskDoneAction, Label: "Done", Value: string(value)}}})
+			reply.Sections = append(reply.Sections, messaging.Section{Text: "• " + taskLine(t) + taskSourceSuffix(t), Buttons: []messaging.Button{{Action: DoneAction, Label: "Done", Value: string(value)}}})
 			continue
 		}
 		b.WriteString("\n• " + taskLine(t) + taskSourceSuffix(t))
@@ -433,7 +433,7 @@ func (s *Server) taskListReply(list taskList) messaging.Reply {
 	if len(list.Filed) > 0 {
 		b.WriteString("\n\nTasks you gave others:")
 		// Copies of one task are one line naming their owners.
-		groups, order := map[string][]taskView{}, []string{}
+		groups, order := map[string][]View{}, []string{}
 		for _, t := range list.Filed {
 			every := ""
 			if t.Every != nil {
@@ -479,7 +479,7 @@ func validTaskDate(value string) bool {
 }
 
 // slackTaskButton closes or snoozes a task from a Done or Snooze button.
-func (s *Server) slackTaskButton(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, action, raw, responseURL, pressID string) {
+func (s *Service) SlackButton(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, action, raw, responseURL, pressID string) {
 	value, valid := validTaskButton(raw)
 	if !valid {
 		http.Error(w, "Invalid interaction", http.StatusBadRequest)
@@ -487,18 +487,18 @@ func (s *Server) slackTaskButton(w http.ResponseWriter, r *http.Request, setting
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	update := taskUpdate{ID: value.Task, Revision: value.Revision, Outcome: "done"}
-	if action == taskSnoozeAction {
+	update := Update{ID: value.Task, Revision: value.Revision, Outcome: "done"}
+	if action == SnoozeAction {
 		// A week from the day the reminder was sent, or from today when that
 		// has passed.
 		until := value.Until
 		if today := s.taskTime().Format(time.DateOnly); until <= today {
 			until = s.taskTime().AddDate(0, 0, 7).Format(time.DateOnly)
 		}
-		update = taskUpdate{ID: value.Task, Revision: value.Revision, SnoozeUntil: &until}
+		update = Update{ID: value.Task, Revision: value.Revision, SnoozeUntil: &until}
 	}
 	text, _ := s.slackTaskChange(ctx, settings, user, update, pressID)
-	if err := s.slack.Respond(ctx, responseURL, text); err != nil {
+	if err := s.hooks.Respond(ctx, responseURL, text); err != nil {
 		s.logAutomationError("Slack task button response", err)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -507,7 +507,7 @@ func (s *Server) slackTaskButton(w http.ResponseWriter, r *http.Request, setting
 // slackTaskChange closes or snoozes a task as the member who pressed a button
 // or submitted a form, checked against the task as it is now. It returns what
 // to tell them, and whether the task changed.
-func (s *Server) slackTaskChange(ctx context.Context, settings catalog.TaskQueues, user string, update taskUpdate, pressID string) (string, bool) {
+func (s *Service) slackTaskChange(ctx context.Context, settings catalog.TaskQueues, user string, update Update, pressID string) (string, bool) {
 	caller, err := s.slackTaskMember(ctx, settings, user, false)
 	switch {
 	case errors.Is(err, errNotTaskMember):
@@ -538,13 +538,13 @@ func (s *Server) slackTaskChange(ctx context.Context, settings catalog.TaskQueue
 
 // slackTaskReasonModal asks why a task does not apply. It shows nothing of the
 // task: whoever submits it is checked against the task then.
-func (s *Server) slackTaskReasonModal(w http.ResponseWriter, r *http.Request, raw, trigger string) {
+func (s *Service) SlackReasonModal(w http.ResponseWriter, r *http.Request, raw, trigger string) {
 	if _, valid := validTaskButton(raw); !valid {
 		http.Error(w, "Invalid interaction", http.StatusBadRequest)
 		return
 	}
 	view := map[string]any{
-		"type": "modal", "callback_id": taskNotApplicableView, "private_metadata": raw,
+		"type": "modal", "callback_id": NotApplicableView, "private_metadata": raw,
 		"title":  map[string]string{"type": "plain_text", "text": "Not applicable"},
 		"submit": map[string]string{"type": "plain_text", "text": "Close task"},
 		"close":  map[string]string{"type": "plain_text", "text": "Cancel"},
@@ -558,7 +558,7 @@ func (s *Server) slackTaskReasonModal(w http.ResponseWriter, r *http.Request, ra
 	// Slack accepts a modal only within three seconds of the press.
 	ctx, cancel := context.WithTimeout(r.Context(), 2500*time.Millisecond)
 	defer cancel()
-	if err := s.slack.OpenView(ctx, trigger, view); err != nil {
+	if err := s.hooks.OpenView(ctx, trigger, view); err != nil {
 		s.logAutomationError("Slack task modal", err)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -566,7 +566,7 @@ func (s *Server) slackTaskReasonModal(w http.ResponseWriter, r *http.Request, ra
 
 // slackTaskReason closes a task as not applicable from the submitted modal,
 // as the submitting member, and answers in the modal.
-func (s *Server) slackTaskReason(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, raw, reason, pressID string) {
+func (s *Service) SlackReason(w http.ResponseWriter, r *http.Request, settings catalog.TaskQueues, user, raw, reason, pressID string) {
 	value, valid := validTaskButton(raw)
 	if !valid {
 		http.Error(w, "Invalid interaction", http.StatusBadRequest)
@@ -574,7 +574,7 @@ func (s *Server) slackTaskReason(w http.ResponseWriter, r *http.Request, setting
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	text, closed := s.slackTaskChange(ctx, settings, user, taskUpdate{ID: value.Task, Revision: value.Revision, Outcome: "not_applicable", Reason: strings.TrimSpace(reason)}, pressID)
+	text, closed := s.slackTaskChange(ctx, settings, user, Update{ID: value.Task, Revision: value.Revision, Outcome: "not_applicable", Reason: strings.TrimSpace(reason)}, pressID)
 	answer := map[string]any{"response_action": "errors", "errors": map[string]string{"reason": text}}
 	if closed {
 		answer = map[string]any{"response_action": "update", "view": map[string]any{
