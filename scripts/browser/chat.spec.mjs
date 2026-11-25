@@ -1058,9 +1058,11 @@ for (const arrival of ['snapshot', 'sse', 'reconnect'])
       await expect(page.locator('#chat-attach')).toBeDisabled();
       await expect(page.locator('#chat-input')).toHaveValue('Keep this unsent message');
       await page.locator('#chat-stop').click();
-      expect(requests.filter(request => request.path.endsWith('/cancel')).map(request => request.path)).toEqual([
-        '/p/default/api/chat/' + chat.id + '/runs/older-run/cancel'
-      ]);
+      // The click returns once Stop is pressed; the fixture server records the
+      // cancel only after its body arrives, so wait for it.
+      await expect
+        .poll(() => requests.filter(request => request.path.endsWith('/cancel')).map(request => request.path))
+        .toEqual(['/p/default/api/chat/' + chat.id + '/runs/older-run/cancel']);
       expect(latest.state).toBe('completed');
       await expect(page.locator('#chat-send')).toBeEnabled();
       await expect(page.locator('#chat-attach')).toBeEnabled();
