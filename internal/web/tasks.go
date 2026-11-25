@@ -13,11 +13,11 @@ import (
 )
 
 // initTasks binds task queues to this instance's access checks, messaging
-// clients, Slack app, data connections and reply reminder policy. Those
-// configured later are read at each call.
+// clients, Slack app, data connections, reply reminder policy and origin. The
+// Slack app, the connections and the origin are read at each call.
 func (s *Server) initTasks() error {
 	var err error
-	s.tasks, err = taskqueue.New(s.catalog, s.automations, s.origin, taskqueue.Hooks{
+	s.tasks, err = taskqueue.New(s.catalog, s.automations, taskqueue.Hooks{
 		Personal: func(ctx context.Context) bool {
 			_, automated := ctx.Value(automationKey{}).(automationAuth)
 			return !automated && clientGlobal(ctx)
@@ -44,6 +44,7 @@ func (s *Server) initTasks() error {
 		DataConnections:     func() *connectors.Manager { return s.dataConnections },
 		PersonalConnections: func() *connectors.PersonalConnections { return s.personalConnections },
 		ReplyAuthority:      s.replyAuthority,
+		Origin:              func() string { return s.origin },
 	})
 	return err
 }

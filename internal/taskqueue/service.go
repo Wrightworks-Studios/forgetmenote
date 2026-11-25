@@ -42,13 +42,14 @@ type Hooks struct {
 	// ReplyAuthority is the account whose reply reminders may read its Slack,
 	// when the instance and the account allow them.
 	ReplyAuthority func(user string) (catalog.Account, error)
+	// Origin is the instance's address, for links in task messages.
+	Origin func() string
 }
 
 // Service serves one instance's task queues.
 type Service struct {
 	catalog     *catalog.Catalog
 	automations *automation.Runtime
-	origin      string
 	hooks       Hooks
 	// Clock replaces the time task queues read, in tests.
 	Clock func() time.Time
@@ -56,13 +57,13 @@ type Service struct {
 	memberNames memberNameCache
 }
 
-// New serves the task queues of the instance at origin.
-func New(c *catalog.Catalog, automations *automation.Runtime, origin string, hooks Hooks) (*Service, error) {
+// New serves an instance's task queues.
+func New(c *catalog.Catalog, automations *automation.Runtime, hooks Hooks) (*Service, error) {
 	h := hooks
-	if c == nil || automations == nil || h.Personal == nil || h.CheckAutomation == nil || h.Client == nil || h.SendDM == nil || h.Enqueue == nil || h.Permalink == nil || h.OpenView == nil || h.Respond == nil || h.RespondAside == nil || h.DataCall == nil || h.DataConnections == nil || h.PersonalConnections == nil || h.ReplyAuthority == nil {
+	if c == nil || automations == nil || h.Personal == nil || h.CheckAutomation == nil || h.Client == nil || h.SendDM == nil || h.Enqueue == nil || h.Permalink == nil || h.OpenView == nil || h.Respond == nil || h.RespondAside == nil || h.DataCall == nil || h.DataConnections == nil || h.PersonalConnections == nil || h.ReplyAuthority == nil || h.Origin == nil {
 		return nil, errors.New("task queues require the catalog, automations and every shared check")
 	}
-	return &Service{catalog: c, automations: automations, origin: origin, hooks: hooks}, nil
+	return &Service{catalog: c, automations: automations, hooks: hooks}, nil
 }
 
 func (s *Service) logAutomationError(stage string, err error) { s.automations.Report(stage, err) }

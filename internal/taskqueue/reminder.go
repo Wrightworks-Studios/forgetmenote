@@ -552,7 +552,7 @@ func (s *Service) taskWaitingReply(reply messaging.Reply, waiting taskWaiting, l
 	case errors.Is(waiting.err, connectors.ErrProviderBusy):
 		sections = append(sections, messaging.Section{Text: "_Slack was busy, so messages waiting on your reply are not listed today._"})
 	case waiting.err != nil:
-		sections = append(sections, messaging.Section{Text: "_I couldn't check Slack for messages waiting on your reply. Reconnect Slack on <" + s.origin + "/account/assistant|your account page>, or turn reply reminders off there._"})
+		sections = append(sections, messaging.Section{Text: "_I couldn't check Slack for messages waiting on your reply. Reconnect Slack on <" + s.hooks.Origin() + "/account/assistant|your account page>, or turn reply reminders off there._"})
 	case len(waiting.messages) > 0 || waiting.unchecked > 0:
 		sections = append(sections, messaging.Section{Text: "Waiting on your reply:"})
 		for _, m := range waiting.messages {
