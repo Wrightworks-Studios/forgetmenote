@@ -1,4 +1,4 @@
-package web
+package taskqueue
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 // Task buttons in direct messages. A press is checked again against the task
 // as it is then: only the queue's owner can close it.
 const (
-	taskDoneAction = "task_done"
+	DoneAction = "task_done"
 )
 
 type taskButtonValue struct {
@@ -28,7 +28,7 @@ type taskButtonValue struct {
 // taskNotice is one change that people other than its actor hear about.
 type taskNotice struct {
 	Event      string // added, done, not_applicable, withdrawn, reassigned or moved earlier
-	Task       taskView
+	Task       View
 	Actor      string // person ID
 	Previous   string // the owner before a reassignment
 	Reason     string
@@ -39,17 +39,17 @@ type taskNotice struct {
 // owner, a closed task to its requester. People without a workspace member
 // hear nothing. Each message is sent at most once, and a failure never undoes
 // the change, which Git already records.
-func (s *Server) noticeTask(ctx context.Context, n taskNotice) {
+func (s *Service) noticeTask(ctx context.Context, n taskNotice) {
 	settings, _, err := s.taskQueues()
 	if err != nil || settings.Client == "" {
 		return
 	}
-	_, transport, ok := s.messageClient(settings.Client)
+	_, transport, ok := s.hooks.Client(settings.Client)
 	if !ok {
 		return
 	}
 	owner, requester := n.Task.Owner, n.Task.Requester
-	who := func(p taskPersonView) string {
+	who := func(p PersonView) string {
 		switch {
 		case p.Name != "":
 			return mrkdwnEscape.Replace(p.Name)
@@ -74,13 +74,13 @@ func (s *Server) noticeTask(ctx context.Context, n taskNotice) {
 		reason = "\nReason: " + mrkdwnEscape.Replace(n.Reason)
 	}
 	type message struct {
-		to      taskPersonView
+		to      PersonView
 		text    string
 		buttons []messaging.Button
 	}
 	done := func() []messaging.Button {
 		value, _ := json.Marshal(taskButtonValue{Task: n.Task.ID, Revision: n.Task.Revision})
-		return []messaging.Button{{Action: taskDoneAction, Label: "Done", Value: string(value), Style: "primary"}}
+		return []messaging.Button{{Action: DoneAction, Label: "Done", Value: string(value), Style: "primary"}}
 	}
 	var out []message
 	switch n.Event {
@@ -99,8 +99,8 @@ func (s *Server) noticeTask(ctx context.Context, n taskNotice) {
 	case "withdrawn":
 		out = append(out, message{owner, who(requester) + " withdrew a task they gave you:\n" + line + reason, nil})
 	case "reassigned":
-		out = append(out, message{owner, "New task from " + who(requester) + ", passed to you by " + who(s.taskPersonView(n.Actor, taskCaller{})) + ":\n" + line + reason, done()})
-		out = append(out, message{requester, who(s.taskPersonView(n.Actor, taskCaller{})) + " passed your task to " + who(owner) + ":\n" + line + reason, nil})
+		out = append(out, message{owner, "New task from " + who(requester) + ", passed to you by " + who(s.personView(n.Actor, Caller{})) + ":\n" + line + reason, done()})
+		out = append(out, message{requester, who(s.personView(n.Actor, Caller{})) + " passed your task to " + who(owner) + ":\n" + line + reason, nil})
 	case "moved earlier":
 		out = append(out, message{owner, who(requester) + " moved a task's due date earlier:\n" + line, nil})
 	}
@@ -119,9 +119,9 @@ func (s *Server) noticeTask(ctx context.Context, n taskNotice) {
 
 // sendTaskDM sends a member a direct message at most once: effect names it. A
 // failure is logged and never undoes the change the message reports.
-func (s *Server) sendTaskDM(ctx context.Context, settings catalog.TaskQueues, transport messaging.Transport, label string, effect automation.Effect, member string, reply messaging.Reply) {
+func (s *Service) sendTaskDM(ctx context.Context, settings catalog.TaskQueues, transport messaging.Transport, label string, effect automation.Effect, member string, reply messaging.Reply) {
 	address := messaging.Address{Client: settings.Client, Workspace: settings.Workspace, User: member, Channel: member, Direct: true}
-	if _, err := s.sendOnce(ctx, effect, transport, address, reply, dmSendTimeout, nil); err != nil {
+	if _, err := s.hooks.SendDM(ctx, effect, transport, address, reply); err != nil {
 		s.logAutomationError(label, err)
 	}
 }
