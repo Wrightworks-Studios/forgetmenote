@@ -1,0 +1,1116 @@
+[
+  {
+    "step": "read the committed note",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The second draft.</p>\n",
+      "metadata": {
+        "id": "c0ffee000000000000000000000000a1",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "chapters/alpha-renamed.md",
+      "revision": "REV1",
+      "title": "Alpha",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "open a live session",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "liveRevision": "ID1:0",
+      "path": "chapters/alpha-renamed.md",
+      "pending": false,
+      "revision": "REV1",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "patch a word live",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:0",
+      "edits": [
+        {
+          "end": 81,
+          "old": "second",
+          "start": 75,
+          "text": "third"
+        }
+      ],
+      "operationId": "history-op-1",
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft.\n",
+      "liveRevision": "ID1:1",
+      "path": "chapters/alpha-renamed.md",
+      "pending": true,
+      "revision": "REV1",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "read_note keeps the committed text while live edits are pending",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The second draft.</p>\n",
+      "metadata": {
+        "id": "c0ffee000000000000000000000000a1",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "chapters/alpha-renamed.md",
+      "revision": "REV1",
+      "title": "Alpha",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "read_document while live edits are pending",
+    "tool": "read_document",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "citation": "/?note=chapters%2Falpha-renamed.md&noteId=c0ffee000000000000000000000000a1&project=contract-history&revision=REV1",
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "editable": true,
+      "hash": "f7b424a8d65ac13410b715b2e300c2cec28eac6746a729e659b74bddaa0b9760",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The second draft.</p>\n",
+      "noteId": "c0ffee000000000000000000000000a1",
+      "origin": "notes",
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "search while live edits are pending",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "query": "third"
+    },
+    "result": [
+      {
+        "editable": false,
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": ""
+        },
+        "path": "drafts/alpha.md",
+        "title": "Third alpha"
+      }
+    ]
+  },
+  {
+    "step": "status while live edits are pending",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "history has no checkpoint while live edits are pending",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID2"
+      }
+    ]
+  },
+  {
+    "step": "a save that requires a checkpoint while live edits are pending",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Saved\n",
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history",
+      "requireCheckpoint": true,
+      "revision": "REV1"
+    },
+    "error": "live edits are waiting for a Git checkpoint; explicitly checkpoint the live note"
+  },
+  {
+    "step": "a save from the committed revision while live edits are pending",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Saved\n",
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history",
+      "revision": "REV1"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "the live note after the refused saves",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft.\n",
+      "liveRevision": "ID1:1",
+      "path": "chapters/alpha-renamed.md",
+      "pending": false,
+      "revision": "REV6",
+      "version": "REV6"
+    }
+  },
+  {
+    "step": "history after the refused saves",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV6",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID2"
+      }
+    ]
+  },
+  {
+    "step": "retrying a patch after its edits were committed",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:0",
+      "edits": [
+        {
+          "end": 81,
+          "old": "second",
+          "start": 75,
+          "text": "third"
+        }
+      ],
+      "operationId": "history-op-1",
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft.\n",
+      "liveRevision": "ID1:1",
+      "path": "chapters/alpha-renamed.md",
+      "pending": false,
+      "revision": "REV6",
+      "version": "REV6"
+    }
+  },
+  {
+    "step": "the retry did not apply the edit twice",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft.\n",
+      "liveRevision": "ID1:1",
+      "path": "chapters/alpha-renamed.md",
+      "pending": false,
+      "revision": "REV6",
+      "version": "REV6"
+    }
+  },
+  {
+    "step": "status before moving a note with live edits",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV6"
+    }
+  },
+  {
+    "step": "patch before the move",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:1",
+      "edits": [
+        {
+          "end": 87,
+          "old": "draft.",
+          "start": 81,
+          "text": "draft, revised."
+        }
+      ],
+      "operationId": "history-op-2",
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft, revised.\n",
+      "liveRevision": "ID1:2",
+      "path": "chapters/alpha-renamed.md",
+      "pending": true,
+      "revision": "REV6",
+      "version": "REV6"
+    }
+  },
+  {
+    "step": "moving a note with pending live edits",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/alpha-renamed.md",
+      "project": "contract-history",
+      "revision": "REV6",
+      "to": "chapters/alpha-live.md"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "the live note after the move attempt",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft, revised.\n",
+      "liveRevision": "ID1:2",
+      "path": "chapters/alpha-renamed.md",
+      "pending": false,
+      "revision": "REV7",
+      "version": "REV7"
+    }
+  },
+  {
+    "step": "checkpoint before moving",
+    "tool": "checkpoint_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft, revised.\n",
+      "liveRevision": "ID1:2",
+      "path": "chapters/alpha-renamed.md",
+      "pending": false,
+      "revision": "REV7",
+      "version": "REV7"
+    }
+  },
+  {
+    "step": "status after the checkpoint",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV7"
+    }
+  },
+  {
+    "step": "move the checkpointed note",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/alpha-renamed.md",
+      "project": "contract-history",
+      "revision": "REV7",
+      "to": "chapters/alpha-live.md"
+    },
+    "result": {
+      "from": "chapters/alpha-renamed.md",
+      "revision": "REV8",
+      "to": "chapters/alpha-live.md",
+      "updatedLinks": 1
+    }
+  },
+  {
+    "step": "history of a note moved with pending live edits",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/alpha-renamed.md\" to \"chapters/alpha-live.md\"",
+        "path": "chapters/alpha-live.md",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV7",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV6",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID2"
+      }
+    ]
+  },
+  {
+    "step": "the committed text after the move",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft, revised.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The third draft, revised.</p>\n",
+      "metadata": {
+        "id": "c0ffee000000000000000000000000a1",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "chapters/alpha-live.md",
+      "revision": "REV8",
+      "title": "Alpha",
+      "version": "REV8"
+    }
+  },
+  {
+    "step": "a live read at the new path",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft, revised.\n",
+      "liveRevision": "ID3:2",
+      "path": "chapters/alpha-live.md",
+      "pending": false,
+      "revision": "REV8",
+      "version": "REV8"
+    }
+  },
+  {
+    "step": "a live read at the vacated path",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "a patch based on the vacated path's live revision",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:1",
+      "edits": [
+        {
+          "end": 95,
+          "old": "revised",
+          "start": 88,
+          "text": "reworked"
+        }
+      ],
+      "operationId": "history-op-3",
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "live base expired or was replaced; read the live note and reconcile: the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "the live note before trashing it",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe third draft, revised.\n",
+      "liveRevision": "ID3:2",
+      "path": "chapters/alpha-live.md",
+      "pending": false,
+      "revision": "REV8",
+      "version": "REV8"
+    }
+  },
+  {
+    "step": "patch before trashing",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID3:2",
+      "edits": [
+        {
+          "end": 75,
+          "old": "The ",
+          "start": 71,
+          "text": "Then the "
+        }
+      ],
+      "operationId": "history-op-4",
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThen the third draft, revised.\n",
+      "liveRevision": "ID3:3",
+      "path": "chapters/alpha-live.md",
+      "pending": true,
+      "revision": "REV8",
+      "version": "REV8"
+    }
+  },
+  {
+    "step": "trash a note with pending live edits",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "chapters/alpha-live.md"
+      ],
+      "project": "contract-history",
+      "revision": "REV8"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID4",
+          "originalPath": "chapters/alpha-live.md",
+          "path": "Trash/ID4.md",
+          "title": "Alpha"
+        }
+      ],
+      "revision": "REV9"
+    }
+  },
+  {
+    "step": "the Trash listing",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "confirmation": "HASH1",
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "ID2",
+          "id": "ID5",
+          "originalPath": "drafts/alpha.md",
+          "path": "Trash/ID5.md",
+          "title": "Another alpha"
+        },
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID4",
+          "originalPath": "chapters/alpha-live.md",
+          "path": "Trash/ID4.md",
+          "title": "Alpha"
+        }
+      ],
+      "revision": "REV9"
+    }
+  },
+  {
+    "step": "Trash keeps the live edits",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "Trash/ID4.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThen the third draft, revised.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>Then the third draft, revised.</p>\n",
+      "metadata": {
+        "id": "c0ffee000000000000000000000000a1",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "Trash/ID4.md",
+      "revision": "REV9",
+      "title": "Alpha",
+      "version": "REV9"
+    }
+  },
+  {
+    "step": "a trashed note has no live session at its old path",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "restore the note",
+    "tool": "restore_trash",
+    "as": "admin",
+    "arguments": {
+      "id": "ID4",
+      "project": "contract-history",
+      "revision": "REV9"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID4",
+          "originalPath": "chapters/alpha-live.md",
+          "path": "chapters/alpha-live.md",
+          "title": "Alpha"
+        }
+      ],
+      "revision": "REV10"
+    }
+  },
+  {
+    "step": "the restored note's live text",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThen the third draft, revised.\n",
+      "liveRevision": "ID6:3",
+      "path": "chapters/alpha-live.md",
+      "pending": false,
+      "revision": "REV10",
+      "version": "REV10"
+    }
+  },
+  {
+    "step": "history across live edits, a move, Trash and a restore",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Restore note from Trash",
+        "path": "chapters/alpha-live.md",
+        "revision": "REV10",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move notes to Trash",
+        "path": "Trash/ID4.md",
+        "revision": "REV9",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-live.md",
+        "path": "chapters/alpha-live.md",
+        "revision": "REV11",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/alpha-renamed.md\" to \"chapters/alpha-live.md\"",
+        "path": "chapters/alpha-live.md",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV7",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV6",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID2"
+      }
+    ]
+  },
+  {
+    "step": "lock the live note",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": true,
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV10"
+    },
+    "result": {
+      "path": "chapters/alpha-live.md",
+      "revision": "REV12",
+      "rules": [
+        {
+          "path": "chapters/alpha-live.md"
+        }
+      ]
+    }
+  },
+  {
+    "step": "a live read of a locked note",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThen the third draft, revised.\n",
+      "liveRevision": "ID6:3",
+      "path": "chapters/alpha-live.md",
+      "pending": false,
+      "revision": "REV12",
+      "version": "REV10"
+    }
+  },
+  {
+    "step": "a live patch to a locked note is refused",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID6:3",
+      "edits": [
+        {
+          "end": 75,
+          "old": "Then",
+          "start": 71,
+          "text": "Now"
+        }
+      ],
+      "operationId": "history-op-5",
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "unlock the live note",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": false,
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV12"
+    },
+    "result": {
+      "path": "chapters/alpha-live.md",
+      "revision": "REV13",
+      "rules": []
+    }
+  },
+  {
+    "step": "a checkpoint with nothing pending makes no commit",
+    "tool": "checkpoint_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThen the third draft, revised.\n",
+      "liveRevision": "ID6:3",
+      "path": "chapters/alpha-live.md",
+      "pending": false,
+      "revision": "REV13",
+      "version": "REV10"
+    }
+  },
+  {
+    "step": "an editor reads live",
+    "tool": "read_live_note",
+    "as": "editor",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThen the third draft, revised.\n",
+      "liveRevision": "ID6:3",
+      "path": "chapters/alpha-live.md",
+      "pending": false,
+      "revision": "REV13",
+      "version": "REV10"
+    }
+  },
+  {
+    "step": "a non-member cannot read live",
+    "tool": "read_live_note",
+    "as": "outsider",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "a live read of a non-Markdown path is refused",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/notes.txt",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  }
+]

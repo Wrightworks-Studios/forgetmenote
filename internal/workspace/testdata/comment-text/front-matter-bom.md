@@ -1,0 +1,5 @@
+﻿---
+title: BOM
+---
+
+Body after a byte order mark.

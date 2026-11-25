@@ -1,0 +1,22 @@
+{{/* Empty state and library browser. Rendered in place by index.html. */}}
+{{define "index-library"}}<section id="empty">
+        <h1>Your notes</h1>
+        <button id="first-note">Create a note</button>
+        <button id="first-source" class="quiet">Add source</button>
+      </section>
+      <section id="folder-browser" hidden>
+        <div class="folder-heading"><div><h1 id="folder-title"></h1><span id="folder-count" class="small"></span></div><div class="creation-row"><button id="new-note" data-icon="new" aria-label="New note">New note</button><div class="sidebar-disclosure creation-menu">
+        <button id="create-toggle" aria-expanded="false" aria-controls="create-actions" data-sidebar-toggle aria-label="More creation options"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div id="create-actions" class="sidebar-actions" hidden>
+          <button id="quicknotes-open" class="quiet" aria-label="Quick note" hidden>Quick note<small>Private Inbox</small></button>
+          <button id="create-source" class="quiet" aria-label="Import source">Import source<small id="create-note-destination">Current notebook</small></button>
+        </div>
+      </div>
+      </div></div>
+        <div id="library-toolbar">
+          <div class="library-filters"><label class="library-collection" data-icon="list"><span class="sr-only">Collection</span><select id="library-collection" aria-label="Collection"><option value="notes">All notes</option><option value="drafts">Drafts</option><option value="archives">Archives</option></select></label><button id="library-tags" class="quiet" data-icon="tag">Tags</button><span class="library-order">Name A–Z</span><span id="folder-overview"></span></div>
+          <div class="browse-views" role="group" aria-label="Browse view"><button data-browse-view="list" class="quiet" data-icon="list" aria-label="List" title="List view" aria-pressed="true"></button><button data-browse-view="cards" class="quiet" data-icon="grid" aria-label="Cards" title="Grid view" aria-pressed="false"></button></div>
+        </div>
+        <section id="folder-group"><h2 class="library-label">Folders</h2><ul id="folder-groups" aria-label="Folders"></ul></section><h2 id="library-notes-label" class="library-label">Notes</h2><ul id="folder-items" data-view="list" aria-label="Notes"></ul>
+        <p id="folder-empty" class="small" hidden>No notes in this folder.</p>
+      </section>{{end}}

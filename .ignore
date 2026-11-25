@@ -1,0 +1,6 @@
+# Search scope for ripgrep-based tools, including coding agents. These paths
+# stay tracked; include them with `rg -u` when they matter.
+docs/brand-study/
+internal/sources/testdata/
+internal/web/ui/fonts/
+package-lock.json

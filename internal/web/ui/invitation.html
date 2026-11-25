@@ -1,0 +1,9 @@
+{{$brand := brand}}
+<!doctype html>
+<html lang="en" data-instance-name="{{$brand.Name}}"><head>{{template "brand-icons" $brand}}<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Join · {{$brand.Name}}</title><link rel="stylesheet" href="{{asset "/static/style.css"}}"><script type="module" src="{{asset "/static/invitation.mjs"}}"></script></head>
+<body class="login"><main><h1>{{$brand.Name}}</h1><h2 id="invite-title">Invitation</h2>
+<form id="invitation-form" hidden>
+{{if .Local}}<label id="invite-username-label" for="invite-username">Username</label><input id="invite-username" autocomplete="username" maxlength="64"><label id="invite-password-label" for="invite-password">New password</label><input id="invite-password" type="password" autocomplete="new-password" minlength="12" maxlength="256"><label id="invite-confirm-label" for="invite-confirm">Confirm password</label><input id="invite-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="256">{{end}}
+<button id="invite-accept">Continue</button></form>
+{{if not .SignedIn}}<a id="invite-login" href="/login?next=/invitation">Sign in to accept with an existing account</a>{{end}}
+<p id="invite-status" role="status"></p><a href="/login" id="invite-done" hidden>Sign in</a></main></body></html>

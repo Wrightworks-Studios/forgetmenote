@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "connections": [
+    {
+      "id": "redshift", "label": "Redshift Data API", "kind": "redshift",
+      "redshift": {"region": "us-east-1", "database": "REPLACE_WITH_DATABASE", "workgroup": "REPLACE_WITH_WORKGROUP"},
+      "timeoutSeconds": 120, "maxRows": 500, "maxBytes": 524288, "concurrent": 4,
+      "operations": [{"name": "schema", "readOnly": true}, {"name": "query", "readOnly": true}]
+    },
+    {
+      "id": "application", "label": "Curated application helpers", "kind": "broker",
+      "endpoint": "https://shell-ro-broker.example.com", "secretFile": "/run/secrets/broker-token",
+      "timeoutSeconds": 120, "maxBytes": 524288,
+      "broker": {"module": "application.data_tools", "catalogFunction": "list_tool_metadata", "invokeFunction": "invoke_tool"},
+      "operations": [{"name": "lookup_user", "readOnly": true}, {"name": "lookup_organization", "readOnly": true}]
+    },
+    {
+      "id": "warehouse", "label": "Analytics database", "kind": "postgres",
+      "endpoint": "postgres://fmn_reader@postgres.internal/analytics?sslmode=verify-full",
+      "secretFile": "/run/secrets/warehouse-password", "externalProcessing": false,
+      "timeoutSeconds": 20, "maxRows": 500, "maxBytes": 524288, "concurrent": 4,
+      "operations": [{"name": "schema", "readOnly": true}, {"name": "query", "readOnly": true}]
+    },
+    {
+      "id": "grafana", "label": "Grafana", "kind": "http",
+      "endpoint": "https://grafana.example.com", "secretFile": "/run/secrets/grafana-token",
+      "operations": [
+        {"name": "dashboards", "description": "Find accessible Grafana dashboards", "readOnly": true,
+          "method": "GET", "path": "/api/search", "query": {"query": "{query}"},
+          "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "maxLength": 200}}, "required": ["query"], "additionalProperties": false}},
+        {"name": "metrics", "description": "Query the metrics datasource; expressions are PromQL", "readOnly": true,
+          "method": "GET", "path": "/api/datasources/proxy/uid/metrics/api/v1/query", "query": {"query": "{expression}"},
+          "inputSchema": {"type": "object", "properties": {"expression": {"type": "string", "maxLength": 2000}}, "required": ["expression"], "additionalProperties": false}}
+      ]
+    },
+    {
+      "id": "logs", "label": "OpenSearch logs", "kind": "http",
+      "endpoint": "https://search.example.com/application-logs", "secretFile": "/run/secrets/search-auth", "authScheme": "Basic",
+      "operations": [{"name": "search", "description": "Search the configured application log index", "readOnly": true,
+        "method": "POST", "path": "/_search", "body": true,
+        "inputSchema": {"type": "object", "properties": {"query": {"type": "object"}, "size": {"type": "integer", "minimum": 0, "maximum": 100}}, "required": ["query", "size"], "additionalProperties": false}}]
+    },
+    {
+      "id": "loki", "label": "Loki log queries", "kind": "http",
+      "endpoint": "https://loki.example.com", "secretFile": "/run/secrets/loki-token",
+      "operations": [{"name":"range","description":"Query recent logs or log counts using LogQL","readOnly":true,"method":"GET","path":"/loki/api/v1/query_range","query":{"query":"{query}","start":"{start}","end":"{end}","limit":"100"},
+        "inputSchema":{"type":"object","properties":{"query":{"type":"string","maxLength":4000},"start":{"type":"string","maxLength":40},"end":{"type":"string","maxLength":40}},"required":["query","start","end"],"additionalProperties":false}}]
+    },
+    {
+      "id": "cluster", "label": "Application pods", "kind": "http",
+      "endpoint": "https://kubernetes.default.svc", "secretFile": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+      "caFile": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+      "operations": [
+        {"name": "pods", "description": "List pods in the configured application namespace", "readOnly": true,
+          "method": "GET", "path": "/api/v1/namespaces/application/pods", "query": {"limit": "100"}},
+        {"name": "logs", "description": "Read recent logs from one pod in the application namespace", "readOnly": true,
+          "method": "GET", "path": "/api/v1/namespaces/application/pods/{pod}/log", "query": {"tailLines": "{lines}", "timestamps": "true"},
+          "inputSchema": {"type": "object", "properties": {"pod": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"}, "lines": {"type": "integer", "minimum": 1, "maximum": 200}}, "required": ["pod", "lines"], "additionalProperties": false}}
+      ]
+    },
+    {
+      "id": "superset", "label": "Superset charts", "kind": "http",
+      "endpoint": "https://superset.example.com", "secretFile": "/run/secrets/superset-token",
+      "operations": [{"name": "chart", "description": "Inspect an accessible Superset chart", "readOnly": true,
+        "method": "GET", "path": "/api/v1/chart/{id}",
+        "inputSchema": {"type": "object", "properties": {"id": {"type": "integer", "minimum": 1}}, "required": ["id"], "additionalProperties": false}}]
+    },
+    {
+      "id": "amplitude", "label": "Amplitude event catalog", "kind": "http",
+      "endpoint": "https://amplitude.com", "secretFile": "/run/secrets/amplitude-auth", "authScheme": "Basic",
+      "operations": [{"name": "events", "description": "List configured Amplitude event types", "readOnly": true,
+        "method": "GET", "path": "/api/2/events/list"}]
+    },
+    {
+      "id": "github", "label": "GitHub issues", "kind": "http", "endpoint": "https://api.github.com", "externalProcessing": true,
+      "githubApp": {"appId": "REPLACE_APP_ID", "installationId": 0, "privateKeyFile": "/run/secrets/github-app/PRIVATE_KEY_PEM",
+        "permissions": {"issues": "write", "metadata": "read"}},
+      "operations": [
+        {"name": "search_issues", "description": "Search issues and pull requests with GitHub search syntax; include repo:example-org/NAME or org:example-org", "readOnly": true,
+          "method": "GET", "path": "/search/issues", "query": {"q": "{q}", "per_page": "30"},
+          "inputSchema": {"type": "object", "properties": {"q": {"type": "string", "minLength": 1, "maxLength": 256}}, "required": ["q"], "additionalProperties": false}},
+        {"name": "list_issues", "description": "List a repository's issues by state, newest first", "readOnly": true,
+          "method": "GET", "path": "/repos/{owner}/{repo}/issues", "query": {"state": "{state}", "per_page": "30"},
+          "inputSchema": {"type": "object", "properties": {"owner": {"type": "string", "const": "example-org"}, "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,100}$"},
+            "state": {"type": "string", "enum": ["open", "closed", "all"]}}, "required": ["owner", "repo", "state"], "additionalProperties": false}},
+        {"name": "get_issue", "description": "Read one issue or pull request", "readOnly": true,
+          "method": "GET", "path": "/repos/{owner}/{repo}/issues/{number}",
+          "inputSchema": {"type": "object", "properties": {"owner": {"type": "string", "const": "example-org"}, "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,100}$"},
+            "number": {"type": "integer", "minimum": 1}}, "required": ["owner", "repo", "number"], "additionalProperties": false}},
+        {"name": "list_issue_comments", "description": "Read an issue's comments, oldest first", "readOnly": true,
+          "method": "GET", "path": "/repos/{owner}/{repo}/issues/{number}/comments", "query": {"per_page": "100"},
+          "inputSchema": {"type": "object", "properties": {"owner": {"type": "string", "const": "example-org"}, "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,100}$"},
+            "number": {"type": "integer", "minimum": 1}}, "required": ["owner", "repo", "number"], "additionalProperties": false}},
+        {"name": "create_issue", "description": "Open an issue. Runs only after the requester confirms it.", "readOnly": false,
+          "method": "POST", "path": "/repos/{owner}/{repo}/issues", "bodyArgument": "issue",
+          "inputSchema": {"type": "object", "properties": {"owner": {"type": "string", "const": "example-org"}, "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,100}$"},
+            "issue": {"type": "object", "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 256}, "body": {"type": "string", "maxLength": 60000},
+              "labels": {"type": "array", "maxItems": 10, "items": {"type": "string", "maxLength": 50}}}, "required": ["title"], "additionalProperties": false}},
+            "required": ["owner", "repo", "issue"], "additionalProperties": false}},
+        {"name": "comment_on_issue", "description": "Comment on an issue or pull request. Runs only after the requester confirms it.", "readOnly": false,
+          "method": "POST", "path": "/repos/{owner}/{repo}/issues/{number}/comments", "bodyArgument": "comment",
+          "inputSchema": {"type": "object", "properties": {"owner": {"type": "string", "const": "example-org"}, "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,100}$"},
+            "number": {"type": "integer", "minimum": 1}, "comment": {"type": "object", "properties": {"body": {"type": "string", "minLength": 1, "maxLength": 60000}}, "required": ["body"], "additionalProperties": false}},
+            "required": ["owner", "repo", "number", "comment"], "additionalProperties": false}},
+        {"name": "update_issue", "description": "Change an issue's labels, assignees, title or state. Labels and assignees replace the current lists. Runs only after the requester confirms it.", "readOnly": false,
+          "method": "PATCH", "path": "/repos/{owner}/{repo}/issues/{number}", "bodyArgument": "changes",
+          "inputSchema": {"type": "object", "properties": {"owner": {"type": "string", "const": "example-org"}, "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,100}$"},
+            "number": {"type": "integer", "minimum": 1}, "changes": {"type": "object", "minProperties": 1, "additionalProperties": false, "properties": {
+              "title": {"type": "string", "minLength": 1, "maxLength": 256}, "state": {"type": "string", "enum": ["open", "closed"]},
+              "state_reason": {"type": "string", "enum": ["completed", "not_planned", "reopened"]},
+              "labels": {"type": "array", "maxItems": 10, "items": {"type": "string", "maxLength": 50}},
+              "assignees": {"type": "array", "maxItems": 10, "items": {"type": "string", "maxLength": 39}}}}},
+            "required": ["owner", "repo", "number", "changes"], "additionalProperties": false}}
+      ]
+    },
+    {
+      "id": "custom", "label": "Custom data MCP", "kind": "mcp",
+      "endpoint": "https://tools.example.com/mcp", "secretFile": "/run/secrets/custom-mcp-token",
+      "operations": [{"name": "search_records", "description": "Search records through the configured MCP server", "readOnly": true}]
+    }
+  ]
+}

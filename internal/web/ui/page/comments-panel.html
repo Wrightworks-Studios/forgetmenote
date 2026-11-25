@@ -1,0 +1,29 @@
+{{/* Note context panel: contents, references and comments. Rendered in place by index.html. */}}
+{{define "index-comments-panel"}}<button id="context-backdrop" aria-label="Close note context" tabindex="-1" hidden></button>
+    <aside id="comments-panel" aria-label="Note context" tabindex="-1" hidden>
+      <div class="dialog-title">
+        <h2>Note context</h2>
+        <button id="comments-close" class="quiet close-control" data-icon="close" aria-label="Close"></button>
+      </div>
+      <nav class="context-tabs" aria-label="Note context sections"><button class="quiet" data-context-tab="contents">Contents</button><button class="quiet" data-context-tab="references">References</button><button class="quiet" data-context-tab="comments">Comments</button></nav>
+      <nav id="note-context-contents" aria-label="Contents" hidden></nav><div id="note-context-references" hidden></div><div id="note-context-comments">
+      <p id="comments-note" class="small"></p>
+      <div id="comments-list"></div>
+      <form id="comment-form">
+        <div id="comment-context" hidden></div>
+        <button id="comment-reset" type="button" class="quiet" hidden>New note comment</button>
+        <label id="comment-label" for="comment-text">Add a comment</label
+        ><textarea
+          id="comment-text"
+          autocorrect="off"
+          autocapitalize="off"
+          writingsuggestions="false"
+          spellcheck="true"
+          required
+          maxlength="10000"
+          rows="4"
+        ></textarea
+        ><button>Post comment</button>
+      </form>
+      <p id="comment-status" role="status"></p></div>
+    </aside>{{end}}

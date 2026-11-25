@@ -1,0 +1,34 @@
+{
+  "name": "forgetmenote",
+  "namespace": "duploservices-notes",
+  "claim": "forgetmenote-data",
+  "volume": "vol-REPLACE",
+  "region": "us-east-1",
+  "account": "123456789012",
+  "vault": "forgetmenote",
+  "backup_role": "arn:aws:iam::123456789012:role/forgetmenote-backup-service",
+  "bucket": "forgetmenote-recovery-123456789012-us-east-1",
+  "kms_key": "arn:aws:kms:us-east-1:123456789012:key/REPLACE",
+  "export_function": "forgetmenote-backup",
+  "aws_profile": "notes-admin",
+  "kubeconfig": "/secure/notes-kubeconfig.yaml",
+  "duplo_host": "https://example.duplocloud.net",
+  "duplo_tenant": "notes",
+  "public_url": "https://notes.example.com",
+  "rehearsal": true,
+  "services": {
+    "helper": {
+      "name": "forgetmenote-rehearsal-helper"
+    },
+    "owner": {
+      "name": "forgetmenote-rehearsal-owner"
+    },
+    "gateway": {
+      "name": "forgetmenote-rehearsal-gateway",
+      "replicas": 2
+    }
+  },
+  "owner_entry": "pool",
+  "database_instance": "forgetmenote-REPLACE",
+  "blob_bucket": "forgetmenote-blobs-123456789012-us-east-1"
+}

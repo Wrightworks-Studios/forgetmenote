@@ -1,0 +1,233 @@
+{
+  "moves": [
+    {
+      "name": "fixture",
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"locked\",\n    \"old/locked.md\"\n  ]\n}\n",
+        "assets/set/image.png": "image",
+        "assets/set/note.md": "---\ncover: assets/set/image.png\ncustom: keep\n---\n# Note\nExact body.",
+        "box/inner": "<mode 120000> outside-target",
+        "box/note.md": "# Boxed\n",
+        "comments/<discussion of old/a.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Feedback\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  },\n  {\n    \"finding\": {\n      \"key\": \"k1\",\n      \"path\": \"old/a.md\",\n      \"title\": \"Check the claim\",\n      \"origin\": \"\",\n      \"sourceRevision\": \"\",\n      \"noteHash\": \"\",\n      \"evidence\": null,\n      \"requestHash\": \"\",\n      \"stale\": false\n    },\n    \"id\": \"f1\",\n    \"author\": \"agent\",\n    \"text\": \"It needs a source.\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "linked": "<mode 120000> outside-target",
+        "locked/child.md": "Protected text\n",
+        "old/a.md": "# An original note\n\nSeveral lines of original content.\n\n[Other](../other.md#section)\n![Image](media/pic.png)\n",
+        "old/kept.md": "---\nfmn-id: <id 2>\n---\n# Kept\n\nAn identity.\n",
+        "old/locked.md": "# Keep this text unchanged\n",
+        "old/media/pic.png": "image bytes",
+        "other.md": "# References\n\n[Read](old/a.md#heading)\n\n[ref]: old/a.md \"A title\"\n\n`[code](old/a.md)`\n\n```md\n[code](old/a.md)\n```\n",
+        "outside.md": "---\ncover: assets/set/image.png\n---\nOutside.",
+        "sources/a.md": "# Source\n",
+        "summary.md": "[Evidence](sources/a.md?fmn-rev=<base~7>#source)\n"
+      }
+    },
+    {
+      "name": "a folder",
+      "result": {
+        "from": "old",
+        "to": "new/nested",
+        "revision": "<rev 1>",
+        "updatedLinks": 2
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move \"old\" to \"new/nested\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"locked\",\n    \"new/nested/locked.md\"\n  ]\n}\n",
+        "comments/<discussion of new/nested/a.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Feedback\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  },\n  {\n    \"finding\": {\n      \"key\": \"k1\",\n      \"path\": \"new/nested/a.md\",\n      \"title\": \"Check the claim\",\n      \"origin\": \"\",\n      \"sourceRevision\": \"\",\n      \"noteHash\": \"\",\n      \"evidence\": null,\n      \"requestHash\": \"\",\n      \"stale\": false\n    },\n    \"id\": \"f1\",\n    \"author\": \"agent\",\n    \"text\": \"It needs a source.\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "comments/<discussion of old/a.md>.json": null,
+        "new/nested/a.md": "# An original note\n\nSeveral lines of original content.\n\n[Other](../../other.md#section)\n![Image](media/pic.png)\n",
+        "new/nested/kept.md": "---\nfmn-id: <id 2>\n---\n# Kept\n\nAn identity.\n",
+        "new/nested/locked.md": "# Keep this text unchanged\n",
+        "new/nested/media/pic.png": "image bytes",
+        "old/a.md": null,
+        "old/kept.md": null,
+        "old/locked.md": null,
+        "old/media/pic.png": null,
+        "other.md": "# References\n\n[Read](new/nested/a.md#heading)\n\n[ref]: new/nested/a.md \"A title\"\n\n`[code](old/a.md)`\n\n```md\n[code](old/a.md)\n```\n"
+      }
+    },
+    {
+      "name": "a copied folder",
+      "result": {
+        "from": "new/nested",
+        "to": "copies/nested",
+        "revision": "<rev 2>",
+        "updatedLinks": 0
+      },
+      "commits": [
+        {
+          "revision": "<rev 2>",
+          "parents": [
+            "<rev 1>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Duplicate \"new/nested\" to \"copies/nested\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"copies/nested/locked.md\",\n    \"locked\",\n    \"new/nested/locked.md\"\n  ]\n}\n",
+        "copies/nested/a.md": "# An original note\n\nSeveral lines of original content.\n\n[Other](../../other.md#section)\n![Image](media/pic.png)\n",
+        "copies/nested/kept.md": "---\nfmn-id: <id 3>\n---\n# Kept\n\nAn identity.\n",
+        "copies/nested/locked.md": "# Keep this text unchanged\n",
+        "copies/nested/media/pic.png": "image bytes"
+      }
+    },
+    {
+      "name": "a copied asset folder",
+      "result": {
+        "from": "assets/set",
+        "to": "assets/copy",
+        "revision": "<rev 3>",
+        "updatedLinks": 1
+      },
+      "commits": [
+        {
+          "revision": "<rev 3>",
+          "parents": [
+            "<rev 2>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Duplicate \"assets/set\" to \"assets/copy\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "assets/copy/image.png": "image",
+        "assets/copy/note.md": "---\ncover: \"assets/copy/image.png\"\ncustom: keep\n---\n# Note\nExact body."
+      }
+    },
+    {
+      "name": "an asset folder",
+      "result": {
+        "from": "assets/set",
+        "to": "assets/moved",
+        "revision": "<rev 4>",
+        "updatedLinks": 2
+      },
+      "commits": [
+        {
+          "revision": "<rev 4>",
+          "parents": [
+            "<rev 3>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move \"assets/set\" to \"assets/moved\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "assets/moved/image.png": "image",
+        "assets/moved/note.md": "---\ncover: \"assets/moved/image.png\"\ncustom: keep\n---\n# Note\nExact body.",
+        "assets/set/image.png": null,
+        "assets/set/note.md": null,
+        "outside.md": "---\ncover: \"assets/moved/image.png\"\n---\nOutside."
+      }
+    },
+    {
+      "name": "a folder pinned links name",
+      "result": {
+        "from": "sources",
+        "to": "archive",
+        "revision": "<rev 5>",
+        "updatedLinks": 0
+      },
+      "commits": [
+        {
+          "revision": "<rev 5>",
+          "parents": [
+            "<rev 4>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move \"sources\" to \"archive\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "archive/a.md": "# Source\n",
+        "sources/a.md": null
+      }
+    },
+    {
+      "name": "a note with a pinned link",
+      "result": {
+        "from": "summary.md",
+        "to": "notes/summary.md",
+        "revision": "<rev 6>",
+        "updatedLinks": 1
+      },
+      "commits": [
+        {
+          "revision": "<rev 6>",
+          "parents": [
+            "<rev 5>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move \"summary.md\" to \"notes/summary.md\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "notes/summary.md": "[Evidence](../sources/a.md?fmn-rev=<base~7>#source)\n",
+        "summary.md": null
+      }
+    },
+    {
+      "name": "a note out of a locked folder",
+      "result": {
+        "from": "locked/child.md",
+        "to": "child.md",
+        "revision": "<rev 7>",
+        "updatedLinks": 0
+      },
+      "commits": [
+        {
+          "revision": "<rev 7>",
+          "parents": [
+            "<rev 6>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move \"locked/child.md\" to \"child.md\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"child.md\",\n    \"copies/nested/locked.md\",\n    \"locked\",\n    \"new/nested/locked.md\"\n  ]\n}\n",
+        "child.md": "Protected text\n",
+        "locked/child.md": null
+      }
+    },
+    {
+      "name": "a copied note with an identity",
+      "result": {
+        "from": "new/nested/kept.md",
+        "to": "kept-copy.md",
+        "revision": "<rev 8>",
+        "updatedLinks": 0
+      },
+      "commits": [
+        {
+          "revision": "<rev 8>",
+          "parents": [
+            "<rev 7>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Duplicate \"new/nested/kept.md\" to \"kept-copy.md\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "kept-copy.md": "---\nfmn-id: <id 4>\n---\n# Kept\n\nAn identity.\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{"id":1,"time":"2026-11-04T04:49:46.153759Z","actor":"@local-admin","action":"account.create","target":"local-447a97a440db38b2886f0689189b5aca","outcome":"succeeded"}
+{"id":2,"time":"2026-11-04T04:49:46.233332Z","actor":"local-447a97a440db38b2886f0689189b5aca","action":"account.create","target":"local-e94c1d7f75f074853f7413cfd99725ff","outcome":"succeeded"}
+{"id":3,"time":"2026-11-04T04:49:46.354295Z","actor":"local-447a97a440db38b2886f0689189b5aca","action":"notebook.member","target":"work","outcome":"succeeded","details":{"before":"","role":"edit","user":"local-e94c1d7f75f074853f7413cfd99725ff"}}
+{"id":4,"time":"2026-11-04T04:49:46.374381Z","actor":"local-447a97a440db38b2886f0689189b5aca","action":"notebook.member","target":"work","outcome":"succeeded","details":{"before":"edit","role":"read","user":"local-e94c1d7f75f074853f7413cfd99725ff"}}
+{"id":5,"time":"2026-11-04T04:49:46.394347Z","actor":"local-447a97a440db38b2886f0689189b5aca","action":"group.set","target":"team","outcome":"succeeded"}
+{"id":6,"time":"2026-11-04T04:49:46.414435Z","actor":"local-447a97a440db38b2886f0689189b5aca","action":"notebook.group","target":"work","outcome":"succeeded","details":{"group":"team","role":"read"}}
+{"id":7,"time":"2026-11-04T04:49:46.435368Z","actor":"local-447a97a440db38b2886f0689189b5aca","action":"instance.branding","target":"instance","outcome":"succeeded"}
+{"id":8,"time":"2026-11-04T04:49:46.463473Z","actor":"local-447a97a440db38b2886f0689189b5aca","action":"fixture.note","target":"work","outcome":"ok","details":{"why":"a \u003ctagged\u003e \u0026 quoted \"detail\""}}

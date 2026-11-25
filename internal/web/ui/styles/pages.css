@@ -1,0 +1,76 @@
+/* Standalone pages, print, late overrides and motion. */
+/* Standalone account onboarding shares the application's form tokens. */
+.connect-page { display: block; min-height: 100vh; overflow: auto; background: var(--bg); }
+.connect-page main { width: min(820px, 100%); margin: 0 auto; padding: 32px 24px 64px; box-sizing: border-box; }
+.connect-page h1 { font-family: var(--brand-font); font-size: clamp(28px, 5vw, 40px); margin: 0; }
+.connect-page h2 { font-size: var(--text-heading); margin-top: 28px; }
+.connect-page header { align-items: start; flex-wrap: wrap; }
+.connect-page section { margin-block: 24px; }
+.connect-page li { margin-block: 10px; }
+.connect-page p, .connect-page li { line-height: 1.65; }
+.connect-page pre, .connect-page code { overflow-wrap: anywhere; white-space: pre-wrap; }
+.connect-page label { display: block; margin-block: 12px 8px; font-weight: 600; }
+.connect-page input, .connect-page select { width: 100%; min-width: 0; }
+.connect-page textarea { min-width: 0; margin-bottom: 12px; overflow-wrap: anywhere; }
+.connect-copy { display: flex; align-items: center; gap: 12px; }
+.connect-copy button { flex-shrink: 0; }
+.connect-notebooks { list-style: none; padding: 0; }
+.connect-notebooks li { display: grid; gap: 4px; border-bottom: 1px solid var(--border); padding-block: 12px; }
+.connect-notebooks span, .connect-notebooks code { color: var(--muted); font-size: var(--text-body); }
+@media(max-width: 560px) { .connect-page main { padding: 24px 16px; } .connect-copy { align-items: stretch; flex-direction: column; } }
+
+/* Personal settings use the same controls and spacing in full and headless UI. */
+.assistant-page main {max-width:960px}
+.assistant-page section,.assistant-page details {margin-block:1.5rem}
+.assistant-page fieldset {display:grid;gap:.65rem;border:0;border-top:1px solid var(--border);padding:1rem 0;margin-block:1rem}
+.assistant-page label:has(input[type=checkbox]) {display:flex;align-items:flex-start;gap:.65rem;margin-block:.8rem}
+.assistant-page input[type=checkbox] {width:1.15rem;height:1.15rem;flex:0 0 1.15rem;margin:.15rem 0 0}
+.assistant-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:1rem}
+.assistant-page .settings-card {padding:var(--space-4);border:0;background:var(--bg);border-radius:var(--radius-card);margin-block:1rem;overflow-wrap:anywhere}
+.assistant-page .actions {display:flex;flex-wrap:wrap;gap:.65rem;margin-block:1rem}
+.assistant-page textarea {width:100%;min-height:7rem}
+
+.assistant-page .assistant-controls {border:0;padding:0;margin:0;display:block;min-width:0}
+
+#assistant-welcome:not([hidden]) {margin:12px 24px;padding:12px 16px;background:var(--sidebar);border:0;border-radius:var(--radius-control);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+.confirmation-dialog { max-width: 28rem; }
+.confirmation-dialog > button { margin-inline-end: var(--space-2); }
+
+.person-initial { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; margin-inline-end: var(--space-2); border-radius: 50%; background: var(--sidebar); color: var(--text); font-size: var(--text-caption); }
+
+@media(max-width:420px) { .theme-options { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media print {
+ :is(#sidebar,#mobile-navigation,#reader-actions,#comments-panel,#chat-panel,#writing-panel,#editor-tools,#feedback-tray) { display:none!important; }
+ #main { margin:0!important; }
+ #main > header { position:static; }
+ #preview { max-width:none;color:#000;background:#fff; }
+ #preview a { text-decoration:underline; }
+}
+
+
+.notebook-scope { display: flex; flex-wrap: wrap; gap: 6px; max-height: 76px; overflow: auto; }
+.notebook-scope label { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 3px 10px; border: 1px solid var(--border); border-radius: var(--radius-control); font-size: var(--text-small); font-weight: 500; color: var(--text); cursor: pointer; }
+.notebook-scope label:has(input:checked) { border-color: var(--accent); background: var(--selected); }
+.notebook-scope input { width: auto; margin: 0; }
+#search-projects-label { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+#search-projects-label legend { float: left; padding: 0; margin-right: 8px; color: var(--muted); font-size: var(--text-small); font-weight: 500; }
+#editor-tools { height: auto; min-height: var(--toolbar-height); flex-wrap: wrap; }
+@media (min-width: 721px) { #formatting-tools { flex: 0 1 auto; overflow: visible; } .formatting-toolbar { flex-wrap: nowrap; } }
+.prose .table-scroll { max-width: min(100%, var(--reading-width)); margin-inline: auto; }
+
+@media (max-width: 720px) { body.editing-note #main > header { flex-wrap: wrap; } body.editing-note #main > header .note-actions { flex: 1 1 100%; } #note-context-toggle { font-size: 0; } #note-context-toggle::after { content: "Context"; font-size: var(--text-small); } }
+
+:is(#note-back,#search-close,#source-back) { align-items: center; gap: var(--space-2); }
+#note-back:not([hidden]),.search-active #search-close,#source-back { display: inline-flex; }
+.close-control, #writing-close { display: grid; place-items: center; min-width: 34px; padding: var(--space-1); }
+#active-search-options .search-chip { display: inline-flex; align-items: center; gap: var(--space-1); }
+#active-search-options .search-chip .ui-icon { width: 12px; height: 12px; flex-basis: 12px; }
+/* Keep text opaque throughout motion so opening surfaces retain contrast. */
+@keyframes surface-enter { from { transform: translateY(4px); } to { transform: translateY(0); } }
+@keyframes panel-enter { from { transform: translateX(12px); } to { transform: translateX(0); } }
+@keyframes scrim-enter { from { opacity: 0; } to { opacity: 1; } }
+dialog[open], [popover]:popover-open, .sidebar-actions:not([hidden]) { animation: surface-enter var(--motion-open); }
+dialog::backdrop { animation: scrim-enter var(--motion-open); }
+:is(#chat-panel,#comments-panel,#writing-panel):not([hidden]) { animation: panel-enter var(--motion-open); }
+@media (pointer: coarse) { button,.button,input:not([type="checkbox"]):not([type="radio"]),select,#sidebar .navigation-item,#account-actions-toggle,#sidebar-import-source,#notifications-open { min-height: 44px; } #sidebar-import-source { min-width: 44px; } #sidebar-new-note { padding-right: 44px; } #notifications-open { flex-basis: 44px; width: 44px; } }

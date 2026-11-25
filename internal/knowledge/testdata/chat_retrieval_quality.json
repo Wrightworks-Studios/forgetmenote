@@ -1,0 +1,118 @@
+{
+  "notes": [
+    {
+      "path": "bicycle.md",
+      "content": "---\ntitle: Bicycle workshop\n---\n# Bicycle workshop\n## Chain repairs\nBicycle maintenance includes chain inspection. Replace damaged links and apply lubricant.\n## Brakes\nBicycle brakes need cable adjustment. Check stopping distance after each repair.\n"
+    },
+    {
+      "path": "solar.md",
+      "content": "# Solar array\n## Energy output\nThe solar array produces 19 kWh of energy daily. Panels cost 2400 units.\n## Maintenance\nClean panels monthly and inspect the inverter.\n"
+    },
+    {
+      "path": "wind.md",
+      "content": "# Wind turbine\n## Energy output\nThe wind turbine produces 14 kWh of energy daily. Equipment costs 3200 units.\n## Maintenance\nInspect bearings and rotor balance quarterly.\n"
+    },
+    {
+      "path": "weather.md",
+      "content": "# Ridge weather\nAfternoon rain arrives quickly. Carry waterproof clothing and identify shelters before departure.\n"
+    },
+    {
+      "path": "café.md",
+      "content": "# Café Reykjavík\nThe café serves coffee beside the harbour. Naïve sketches decorate the windows.\n"
+    },
+    {
+      "path": "tortoise.md",
+      "content": "# Desert tortoise\nThe tortoise shelters in burrows during hot afternoons and eats grasses.\n"
+    },
+    {
+      "path": "ceramics.md",
+      "content": "# Ceramic glazing\nMix cobalt pigment into glaze and fire the clay bowl slowly.\n"
+    }
+  ],
+  "queries": [
+    {
+      "id": "exact_name",
+      "text": "Bicycle workshop",
+      "expectedPaths": [
+        "bicycle.md"
+      ],
+      "kind": "exact"
+    },
+    {
+      "id": "reordered_words",
+      "text": "brakes bicycle",
+      "expectedPaths": [
+        "bicycle.md"
+      ],
+      "kind": "lexical"
+    },
+    {
+      "id": "paraphrase",
+      "text": "two-wheeler upkeep",
+      "expectedPaths": [
+        "bicycle.md"
+      ],
+      "kind": "semantic"
+    },
+    {
+      "id": "comparison",
+      "text": "solar wind energy output",
+      "expectedPaths": [
+        "solar.md",
+        "wind.md"
+      ],
+      "kind": "comparison"
+    },
+    {
+      "id": "unicode",
+      "text": "naïve café",
+      "expectedPaths": [
+        "café.md"
+      ],
+      "kind": "lexical"
+    },
+    {
+      "id": "irrelevant",
+      "text": "quantum chromodynamics",
+      "expectedPaths": [],
+      "kind": "missing"
+    },
+    {
+      "id": "missing_evidence",
+      "text": "tortoise vaccination schedule",
+      "expectedPaths": [],
+      "kind": "weak",
+      "candidatePaths": [
+        "tortoise.md"
+      ]
+    }
+  ],
+  "syntheticEmbeddings": {
+    "dimensions": 3,
+    "documentVectorByPath": {
+      "bicycle.md": [
+        1,
+        0,
+        0
+      ]
+    },
+    "otherDocumentVector": [
+      0,
+      1,
+      0
+    ],
+    "queryVectorByID": {
+      "paraphrase": [
+        1,
+        0,
+        0
+      ]
+    },
+    "otherQueryVector": [
+      0,
+      0,
+      1
+    ]
+  },
+  "notesForEvaluation": "Synthetic notes only. expectedPaths identifies answer-bearing evidence, not relevance certification. Missing-evidence query may retrieve the tortoise note, which does not contain vaccination advice; the answer must acknowledge the gap. Synthetic vectors prove deterministic fusion mechanics, not real embedding quality."
+}

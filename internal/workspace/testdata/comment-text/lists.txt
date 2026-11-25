@@ -1,0 +1,1 @@
+one two three four done open with a long line that wraps across the width of the editor many times over, so the hanging indent shows on its wrapped rows. ten eleven star plus upper spaced not a task first continued paragraph indented code in item lazy continuation

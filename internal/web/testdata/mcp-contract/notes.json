@@ -1,0 +1,2008 @@
+[
+  {
+    "step": "status of the new notebook",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "status by the notebook name",
+    "tool": "notebook_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "browse the empty root",
+    "tool": "browse_folder",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "items": [],
+      "path": "",
+      "revision": "REV1",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "search the empty notebook",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": ""
+    },
+    "result": []
+  },
+  {
+    "step": "create the index",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n",
+      "path": "index.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "result": {
+      "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Start with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV2",
+      "title": "Contract notebook",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "create chapter one with an fmn-id",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000001",
+        "kind": "",
+        "status": "draft",
+        "tags": [
+          "fiction",
+          "draft"
+        ],
+        "title": "Chapter one"
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV3",
+      "title": "Chapter one",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "create chapter two",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: Chapter two\n---\n# Chapter two\n\nThe captain read [the whale notes](../research/whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: Chapter two\n---\n# Chapter two\n\nThe captain read [the whale notes](../research/whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../research/whales.md\" rel=\"nofollow\">the whale notes</a> twice.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Chapter two"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV4",
+      "title": "Chapter two",
+      "version": "REV4"
+    }
+  },
+  {
+    "step": "create a research note",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "---\ntags: [research]\n---\n# Sperm whales\n\nSperm whales dive deeper than a mile. See https://example.org/whales for the survey.\n",
+      "path": "research/whales.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "result": {
+      "content": "---\ntags: [research]\n---\n# Sperm whales\n\nSperm whales dive deeper than a mile. See https://example.org/whales for the survey.\n",
+      "html": "<h1 id=\"h-sperm-whales\">Sperm whales</h1>\n<p>Sperm whales dive deeper than a mile. See <a href=\"https://example.org/whales\" rel=\"nofollow\">https://example.org/whales</a> for the survey.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [
+          "research"
+        ],
+        "title": ""
+      },
+      "path": "research/whales.md",
+      "revision": "REV5",
+      "title": "Sperm whales",
+      "version": "REV5"
+    }
+  },
+  {
+    "step": "creating an existing note with an empty revision conflicts",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Replaced\n",
+      "path": "index.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "save_note refuses a non-Markdown path",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "plain",
+      "path": "notes/data.txt",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "notes must be Markdown (.md) files"
+  },
+  {
+    "step": "save_note refuses a path outside the notebook",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "escape",
+      "path": "../escape.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "a duplicate fmn-id is refused",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Clone\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "path": "manuscript/clone.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "fmn-id is already used by another note in this notebook"
+  },
+  {
+    "step": "read the index",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Start with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV5",
+      "title": "Contract notebook",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "update the index with its current revision",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Contract notebook\n\nBegin with [Chapter one](manuscript/chapter-1.md).\n\nSee also [Chapter two](manuscript/chapter-2.md).\n",
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV5"
+    },
+    "result": {
+      "content": "# Contract notebook\n\nBegin with [Chapter one](manuscript/chapter-1.md).\n\nSee also [Chapter two](manuscript/chapter-2.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Begin with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n<p>See also <a href=\"manuscript/chapter-2.md\" rel=\"nofollow\">Chapter two</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV6",
+      "title": "Contract notebook",
+      "version": "REV6"
+    }
+  },
+  {
+    "step": "a stale revision conflicts",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Stale\n",
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV5"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "read the index at its first revision",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "result": {
+      "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Start with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV2",
+      "title": "Contract notebook",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "a note is absent at the notebook's initial revision",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "read a missing note",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "missing.md",
+      "project": "contract"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "read_note refuses a non-Markdown path",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "assets/cover.png",
+      "project": "contract"
+    },
+    "error": "notes are Markdown (.md) files; read media as an attachment"
+  },
+  {
+    "step": "read at an unknown revision",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV7"
+    },
+    "error": "revision REV7 is not in this notebook's history"
+  },
+  {
+    "step": "list every note",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": ""
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "Begin with Chapter one. See also Chapter two.",
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": ""
+        },
+        "path": "index.md",
+        "title": "Contract notebook"
+      },
+      {
+        "editable": false,
+        "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+        "metadata": {
+          "id": "c0ffee00000000000000000000000001",
+          "kind": "",
+          "status": "draft",
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        "path": "manuscript/chapter-1.md",
+        "title": "Chapter one"
+      },
+      {
+        "editable": false,
+        "excerpt": "The captain read the whale notes twice. Departure They sailed before the whale returned.",
+        "metadata": {
+          "id": "c0ffee00000000000000000000000002",
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": "Chapter two"
+        },
+        "path": "manuscript/chapter-2.md",
+        "title": "Chapter two"
+      },
+      {
+        "editable": false,
+        "excerpt": "Sperm whales dive deeper than a mile. See https://example.org/whales for the survey.",
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [
+            "research"
+          ],
+          "title": ""
+        },
+        "path": "research/whales.md",
+        "title": "Sperm whales"
+      }
+    ]
+  },
+  {
+    "step": "search for a word",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": "whale"
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+        "metadata": {
+          "id": "c0ffee00000000000000000000000001",
+          "kind": "",
+          "status": "draft",
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        "path": "manuscript/chapter-1.md",
+        "title": "Chapter one"
+      },
+      {
+        "editable": false,
+        "excerpt": "The captain read the whale notes twice. Departure They sailed before the whale returned.",
+        "metadata": {
+          "id": "c0ffee00000000000000000000000002",
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": "Chapter two"
+        },
+        "path": "manuscript/chapter-2.md",
+        "title": "Chapter two"
+      },
+      {
+        "editable": false,
+        "excerpt": "Sperm whales dive deeper than a mile. See https://example.org/whales for the survey.",
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [
+            "research"
+          ],
+          "title": ""
+        },
+        "path": "research/whales.md",
+        "title": "Sperm whales"
+      }
+    ]
+  },
+  {
+    "step": "filter by tag",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": "",
+      "tag": "research"
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "Sperm whales dive deeper than a mile. See https://example.org/whales for the survey.",
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [
+            "research"
+          ],
+          "title": ""
+        },
+        "path": "research/whales.md",
+        "title": "Sperm whales"
+      }
+    ]
+  },
+  {
+    "step": "filter by status",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": "",
+      "status": "draft"
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+        "metadata": {
+          "id": "c0ffee00000000000000000000000001",
+          "kind": "",
+          "status": "draft",
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        "path": "manuscript/chapter-1.md",
+        "title": "Chapter one"
+      }
+    ]
+  },
+  {
+    "step": "filter by folder",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/",
+      "project": "contract",
+      "query": ""
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+        "metadata": {
+          "id": "c0ffee00000000000000000000000001",
+          "kind": "",
+          "status": "draft",
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        "path": "manuscript/chapter-1.md",
+        "title": "Chapter one"
+      },
+      {
+        "editable": false,
+        "excerpt": "The captain read the whale notes twice. Departure They sailed before the whale returned.",
+        "metadata": {
+          "id": "c0ffee00000000000000000000000002",
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": "Chapter two"
+        },
+        "path": "manuscript/chapter-2.md",
+        "title": "Chapter two"
+      }
+    ]
+  },
+  {
+    "step": "browse the root",
+    "tool": "browse_folder",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "items": [
+        {
+          "count": 2,
+          "kind": "folder",
+          "path": "manuscript",
+          "title": "manuscript"
+        },
+        {
+          "count": 1,
+          "kind": "folder",
+          "path": "research",
+          "title": "research"
+        },
+        {
+          "excerpt": "Begin with Chapter one. See also Chapter two.",
+          "kind": "note",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "index.md",
+          "title": "Contract notebook"
+        }
+      ],
+      "path": "",
+      "revision": "REV6",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "browse a folder",
+    "tool": "browse_folder",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript",
+      "project": "contract"
+    },
+    "result": {
+      "items": [
+        {
+          "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+          "kind": "note",
+          "metadata": {
+            "id": "c0ffee00000000000000000000000001",
+            "kind": "",
+            "status": "draft",
+            "tags": [
+              "fiction",
+              "draft"
+            ],
+            "title": "Chapter one"
+          },
+          "path": "manuscript/chapter-1.md",
+          "title": "Chapter one"
+        },
+        {
+          "excerpt": "The captain read the whale notes twice. Departure They sailed before the whale returned.",
+          "kind": "note",
+          "metadata": {
+            "id": "c0ffee00000000000000000000000002",
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": "Chapter two"
+          },
+          "path": "manuscript/chapter-2.md",
+          "title": "Chapter two"
+        }
+      ],
+      "path": "manuscript",
+      "revision": "REV6",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "browsing a missing folder is empty",
+    "tool": "browse_folder",
+    "as": "admin",
+    "arguments": {
+      "path": "nowhere",
+      "project": "contract"
+    },
+    "result": {
+      "items": [],
+      "path": "nowhere",
+      "revision": "REV6",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "count collections",
+    "tool": "note_collections",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "archives": 0,
+      "drafts": 0,
+      "invalid": 0,
+      "notes": 4,
+      "revision": "REV6",
+      "version": 1,
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "read chapter two",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: Chapter two\n---\n# Chapter two\n\nThe captain read [the whale notes](../research/whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../research/whales.md\" rel=\"nofollow\">the whale notes</a> twice.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Chapter two"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV6",
+      "title": "Chapter two",
+      "version": "REV4"
+    }
+  },
+  {
+    "step": "set chapter two's properties",
+    "tool": "set_note_properties",
+    "as": "admin",
+    "arguments": {
+      "metadata": {
+        "kind": "",
+        "status": "review",
+        "tags": [
+          "fiction"
+        ],
+        "title": "Chapter two: departure"
+      },
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV6"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../research/whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../research/whales.md\" rel=\"nofollow\">the whale notes</a> twice.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "review",
+        "tags": [
+          "fiction"
+        ],
+        "title": "Chapter two: departure"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV8",
+      "title": "Chapter two: departure",
+      "version": "REV8"
+    }
+  },
+  {
+    "step": "set properties with a stale revision",
+    "tool": "set_note_properties",
+    "as": "admin",
+    "arguments": {
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Stale"
+      },
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV5"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "move chapter two to Drafts",
+    "tool": "set_note_container",
+    "as": "admin",
+    "arguments": {
+      "container": "draft",
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV8"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\nfmn-container: draft\n---\n# Chapter two\n\nThe captain read [the whale notes](../research/whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../research/whales.md\" rel=\"nofollow\">the whale notes</a> twice.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "container": "draft",
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "review",
+        "tags": [
+          "fiction"
+        ],
+        "title": "Chapter two: departure"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV9",
+      "title": "Chapter two: departure",
+      "version": "REV9"
+    }
+  },
+  {
+    "step": "collections after the move to Drafts",
+    "tool": "note_collections",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "archives": 0,
+      "drafts": 1,
+      "invalid": 0,
+      "notes": 3,
+      "revision": "REV9",
+      "version": 1,
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "search excluding drafts",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "drafts": "exclude",
+      "project": "contract",
+      "query": "whale"
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+        "metadata": {
+          "id": "c0ffee00000000000000000000000001",
+          "kind": "",
+          "status": "draft",
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        "path": "manuscript/chapter-1.md",
+        "title": "Chapter one"
+      },
+      {
+        "editable": false,
+        "excerpt": "Sperm whales dive deeper than a mile. See https://example.org/whales for the survey.",
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [
+            "research"
+          ],
+          "title": ""
+        },
+        "path": "research/whales.md",
+        "title": "Sperm whales"
+      }
+    ]
+  },
+  {
+    "step": "an unknown container is refused",
+    "tool": "set_note_container",
+    "as": "admin",
+    "arguments": {
+      "container": "attic",
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV9"
+    },
+    "error": "choose Notes, Drafts, or Archives"
+  },
+  {
+    "step": "return chapter two to Notes",
+    "tool": "set_note_container",
+    "as": "admin",
+    "arguments": {
+      "container": "",
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV9"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../research/whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../research/whales.md\" rel=\"nofollow\">the whale notes</a> twice.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "review",
+        "tags": [
+          "fiction"
+        ],
+        "title": "Chapter two: departure"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV10",
+      "title": "Chapter two: departure",
+      "version": "REV10"
+    }
+  },
+  {
+    "step": "history of one note",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update index.md",
+        "path": "index.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update index.md",
+        "path": "index.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "history of a folder",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript",
+      "project": "contract"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV10",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV9",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-1.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "history of the notebook",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV10",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV9",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update index.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update research/whales.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-1.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update index.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Initialize notes notebook",
+        "revision": "REV1"
+      }
+    ]
+  },
+  {
+    "step": "read the index before restoring",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "# Contract notebook\n\nBegin with [Chapter one](manuscript/chapter-1.md).\n\nSee also [Chapter two](manuscript/chapter-2.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Begin with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n<p>See also <a href=\"manuscript/chapter-2.md\" rel=\"nofollow\">Chapter two</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV10",
+      "title": "Contract notebook",
+      "version": "REV6"
+    }
+  },
+  {
+    "step": "restore the index's first version",
+    "tool": "restore_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV10",
+      "sourceRevision": "REV2"
+    },
+    "result": {
+      "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Start with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV11",
+      "title": "Contract notebook",
+      "version": "REV11"
+    }
+  },
+  {
+    "step": "restore with a stale revision",
+    "tool": "restore_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV10",
+      "sourceRevision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "restore without a source revision",
+    "tool": "restore_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV10",
+      "sourceRevision": ""
+    },
+    "error": "provide a Markdown path, historical sourceRevision, and current note revision"
+  },
+  {
+    "step": "outline of chapter one",
+    "tool": "document_outline",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "citation": "/?note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract&revision=REV11",
+      "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+      "noteId": "c0ffee00000000000000000000000001",
+      "origin": "notes",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV11",
+      "sections": [
+        {
+          "endByte": 152,
+          "kind": "heading",
+          "level": 1,
+          "startByte": 105,
+          "startLine": 7,
+          "subtreeWords": 20,
+          "title": "Chapter one",
+          "words": 7
+        },
+        {
+          "endByte": 229,
+          "kind": "heading",
+          "level": 2,
+          "startByte": 152,
+          "startLine": 11,
+          "subtreeWords": 13,
+          "title": "The harbour",
+          "words": 13
+        }
+      ],
+      "stats": {
+        "characters": 112,
+        "paragraphs": 2,
+        "readingMinutes": 0.08888888888888889,
+        "sentences": 3,
+        "words": 20
+      },
+      "total": 2,
+      "version": 1
+    }
+  },
+  {
+    "step": "resolve a link by fmn-id",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "noteId": "c0ffee00000000000000000000000001",
+      "project": "contract"
+    },
+    "result": {
+      "headings": [
+        "chapter-one",
+        "the-harbour"
+      ],
+      "noteId": "c0ffee00000000000000000000000001",
+      "notebook": "Contract notebook",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "title": "Chapter one",
+      "url": "/?note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract"
+    }
+  },
+  {
+    "step": "resolve a link to an outline heading",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "heading": "the-harbour",
+      "noteId": "c0ffee00000000000000000000000001",
+      "project": "contract"
+    },
+    "result": {
+      "heading": "the-harbour",
+      "headings": [
+        "chapter-one",
+        "the-harbour"
+      ],
+      "noteId": "c0ffee00000000000000000000000001",
+      "notebook": "Contract notebook",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "title": "Chapter one",
+      "url": "/?note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract#the-harbour"
+    }
+  },
+  {
+    "step": "resolve a path at a historical revision",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "result": {
+      "headings": [
+        "contract-notebook"
+      ],
+      "notebook": "Contract notebook",
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV2",
+      "title": "Contract notebook",
+      "url": "/?note=index.md&project=contract&revision=REV2"
+    }
+  },
+  {
+    "step": "resolve a path and fmn-id at the note's first revision",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "noteId": "c0ffee00000000000000000000000001",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV3"
+    },
+    "result": {
+      "headings": [
+        "chapter-one",
+        "the-harbour"
+      ],
+      "noteId": "c0ffee00000000000000000000000001",
+      "notebook": "Contract notebook",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV3",
+      "title": "Chapter one",
+      "url": "/?note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract&revision=REV3"
+    }
+  },
+  {
+    "step": "a reader resolves a link",
+    "tool": "resolve_notebook_link",
+    "as": "reader",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "headings": [
+        "chapter-one",
+        "the-harbour"
+      ],
+      "noteId": "c0ffee00000000000000000000000001",
+      "notebook": "Contract notebook",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "title": "Chapter one",
+      "url": "/?note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract"
+    }
+  },
+  {
+    "step": "an unknown heading is refused",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "heading": "no-such-heading",
+      "noteId": "c0ffee00000000000000000000000001",
+      "project": "contract"
+    },
+    "error": "linked heading is unavailable; open the page to choose its new heading"
+  },
+  {
+    "step": "an unknown fmn-id is refused",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "noteId": "c0ffee000000000000000000000000ff",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "an invalid fmn-id is refused",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "noteId": "not-an-fmn-id",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "an fmn-id the note at that revision lacks is refused",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "noteId": "c0ffee00000000000000000000000001",
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "a missing path is refused",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "path": "missing.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "a non-member cannot resolve links",
+    "tool": "resolve_notebook_link",
+    "as": "outsider",
+    "arguments": {
+      "noteId": "c0ffee00000000000000000000000001",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "find link targets",
+    "tool": "find_notebook_link_targets",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": "chapter"
+    },
+    "result": [
+      {
+        "noteId": "c0ffee00000000000000000000000001",
+        "path": "manuscript/chapter-1.md",
+        "project": "contract",
+        "title": "Chapter one"
+      },
+      {
+        "noteId": "c0ffee00000000000000000000000002",
+        "path": "manuscript/chapter-2.md",
+        "project": "contract",
+        "title": "Chapter two"
+      }
+    ]
+  },
+  {
+    "step": "every link target",
+    "tool": "find_notebook_link_targets",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": ""
+    },
+    "result": [
+      {
+        "path": "index.md",
+        "project": "contract",
+        "title": "Contract notebook"
+      },
+      {
+        "noteId": "c0ffee00000000000000000000000001",
+        "path": "manuscript/chapter-1.md",
+        "project": "contract",
+        "title": "Chapter one"
+      },
+      {
+        "noteId": "c0ffee00000000000000000000000002",
+        "path": "manuscript/chapter-2.md",
+        "project": "contract",
+        "title": "Chapter two"
+      },
+      {
+        "path": "research/whales.md",
+        "project": "contract",
+        "title": "Sperm whales"
+      }
+    ]
+  },
+  {
+    "step": "a reader finds link targets",
+    "tool": "find_notebook_link_targets",
+    "as": "reader",
+    "arguments": {
+      "project": "contract",
+      "query": "chapter"
+    },
+    "result": [
+      {
+        "noteId": "c0ffee00000000000000000000000001",
+        "path": "manuscript/chapter-1.md",
+        "project": "contract",
+        "title": "Chapter one"
+      },
+      {
+        "noteId": "c0ffee00000000000000000000000002",
+        "path": "manuscript/chapter-2.md",
+        "project": "contract",
+        "title": "Chapter two"
+      }
+    ]
+  },
+  {
+    "step": "a non-member cannot find link targets",
+    "tool": "find_notebook_link_targets",
+    "as": "outsider",
+    "arguments": {
+      "project": "contract",
+      "query": ""
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "find term mentions",
+    "tool": "find_term_mentions",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "terms": [
+        {
+          "aliases": [
+            "whales"
+          ],
+          "name": "whale"
+        }
+      ]
+    },
+    "result": {
+      "complete": true,
+      "matches": [
+        {
+          "citation": "/?endLine=13&note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract&revision=REV11&startLine=13",
+          "endByte": 177,
+          "endLine": 13,
+          "excerpt": "The whale appeared at dawn.\nNobody on the quay believed him.",
+          "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+          "noteId": "c0ffee00000000000000000000000001",
+          "origin": "notes",
+          "path": "manuscript/chapter-1.md",
+          "project": "contract",
+          "revision": "REV11",
+          "startByte": 172,
+          "startLine": 13,
+          "term": "whale",
+          "text": "whale"
+        },
+        {
+          "citation": "/?endLine=9&note=manuscript%2Fchapter-2.md&noteId=c0ffee00000000000000000000000002&project=contract&revision=REV11&startLine=9",
+          "endByte": 158,
+          "endLine": 9,
+          "excerpt": "The captain read the whale notes twice.",
+          "hash": "HASH2",
+          "noteId": "c0ffee00000000000000000000000002",
+          "origin": "notes",
+          "path": "manuscript/chapter-2.md",
+          "project": "contract",
+          "revision": "REV11",
+          "startByte": 153,
+          "startLine": 9,
+          "term": "whale",
+          "text": "whale"
+        },
+        {
+          "citation": "/?endLine=13&note=manuscript%2Fchapter-2.md&noteId=c0ffee00000000000000000000000002&project=contract&revision=REV11&startLine=13",
+          "endByte": 239,
+          "endLine": 13,
+          "excerpt": "They sailed before the whale returned.",
+          "hash": "HASH2",
+          "noteId": "c0ffee00000000000000000000000002",
+          "origin": "notes",
+          "path": "manuscript/chapter-2.md",
+          "project": "contract",
+          "revision": "REV11",
+          "startByte": 234,
+          "startLine": 13,
+          "term": "whale",
+          "text": "whale"
+        },
+        {
+          "citation": "/?endLine=4&note=research%2Fwhales.md&noteId=&project=contract&revision=REV11&startLine=4",
+          "endByte": 39,
+          "endLine": 4,
+          "excerpt": "Sperm whales",
+          "hash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+          "origin": "notes",
+          "path": "research/whales.md",
+          "project": "contract",
+          "revision": "REV11",
+          "startByte": 33,
+          "startLine": 4,
+          "term": "whale",
+          "text": "whales"
+        },
+        {
+          "citation": "/?endLine=6&note=research%2Fwhales.md&noteId=&project=contract&revision=REV11&startLine=6",
+          "endByte": 53,
+          "endLine": 6,
+          "excerpt": "Sperm whales dive deeper than a mile. See                            for the survey.",
+          "hash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+          "origin": "notes",
+          "path": "research/whales.md",
+          "project": "contract",
+          "revision": "REV11",
+          "startByte": 47,
+          "startLine": 6,
+          "term": "whale",
+          "text": "whales"
+        }
+      ],
+      "origin": "notes",
+      "project": "contract",
+      "revision": "REV11",
+      "scanned": 4
+    }
+  },
+  {
+    "step": "list documents",
+    "tool": "list_documents",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "entries": [
+        {
+          "origin": "notes",
+          "path": "index.md",
+          "project": "contract",
+          "revision": "REV11",
+          "supported": true,
+          "title": "Contract notebook"
+        },
+        {
+          "noteId": "c0ffee00000000000000000000000001",
+          "origin": "notes",
+          "path": "manuscript/chapter-1.md",
+          "project": "contract",
+          "revision": "REV11",
+          "supported": true,
+          "title": "Chapter one"
+        },
+        {
+          "noteId": "c0ffee00000000000000000000000002",
+          "origin": "notes",
+          "path": "manuscript/chapter-2.md",
+          "project": "contract",
+          "revision": "REV11",
+          "supported": true,
+          "title": "Chapter two: departure"
+        },
+        {
+          "origin": "notes",
+          "path": "research/whales.md",
+          "project": "contract",
+          "revision": "REV11",
+          "supported": true,
+          "title": "Sperm whales"
+        }
+      ],
+      "origin": "notes",
+      "project": "contract",
+      "revision": "REV11",
+      "total": 4
+    }
+  },
+  {
+    "step": "list documents under a prefix",
+    "tool": "list_documents",
+    "as": "admin",
+    "arguments": {
+      "pathPrefix": "manuscript/",
+      "project": "contract"
+    },
+    "result": {
+      "entries": [
+        {
+          "noteId": "c0ffee00000000000000000000000001",
+          "origin": "notes",
+          "path": "manuscript/chapter-1.md",
+          "project": "contract",
+          "revision": "REV11",
+          "supported": true,
+          "title": "Chapter one"
+        },
+        {
+          "noteId": "c0ffee00000000000000000000000002",
+          "origin": "notes",
+          "path": "manuscript/chapter-2.md",
+          "project": "contract",
+          "revision": "REV11",
+          "supported": true,
+          "title": "Chapter two: departure"
+        }
+      ],
+      "origin": "notes",
+      "project": "contract",
+      "revision": "REV11",
+      "total": 2
+    }
+  },
+  {
+    "step": "map the notebook",
+    "tool": "notebook_map",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "entries": [
+        {
+          "hash": "db231c5cf3838c19b24d42d1baa3b59cf645c4fe1ee3b0701a7ad88e0347dacf",
+          "headings": [
+            {
+              "anchor": "contract-notebook",
+              "text": "Contract notebook"
+            }
+          ],
+          "links": [
+            "manuscript/chapter-1.md"
+          ],
+          "path": "index.md",
+          "ref": {
+            "origin": "notes",
+            "path": "index.md",
+            "project": "contract",
+            "revision": "REV11"
+          },
+          "title": "Contract notebook"
+        },
+        {
+          "backlinks": [
+            "index.md"
+          ],
+          "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+          "headings": [
+            {
+              "anchor": "chapter-one",
+              "text": "Chapter one"
+            },
+            {
+              "anchor": "the-harbour",
+              "text": "The harbour"
+            }
+          ],
+          "noteId": "c0ffee00000000000000000000000001",
+          "path": "manuscript/chapter-1.md",
+          "ref": {
+            "noteId": "c0ffee00000000000000000000000001",
+            "origin": "notes",
+            "path": "manuscript/chapter-1.md",
+            "project": "contract",
+            "revision": "REV11"
+          },
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        {
+          "hash": "HASH2",
+          "headings": [
+            {
+              "anchor": "chapter-two",
+              "text": "Chapter two"
+            },
+            {
+              "anchor": "departure",
+              "text": "Departure"
+            }
+          ],
+          "links": [
+            "research/whales.md"
+          ],
+          "noteId": "c0ffee00000000000000000000000002",
+          "path": "manuscript/chapter-2.md",
+          "ref": {
+            "noteId": "c0ffee00000000000000000000000002",
+            "origin": "notes",
+            "path": "manuscript/chapter-2.md",
+            "project": "contract",
+            "revision": "REV11"
+          },
+          "tags": [
+            "fiction"
+          ],
+          "title": "Chapter two: departure"
+        },
+        {
+          "backlinks": [
+            "manuscript/chapter-2.md"
+          ],
+          "hash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+          "headings": [
+            {
+              "anchor": "sperm-whales",
+              "text": "Sperm whales"
+            }
+          ],
+          "path": "research/whales.md",
+          "ref": {
+            "origin": "notes",
+            "path": "research/whales.md",
+            "project": "contract",
+            "revision": "REV11"
+          },
+          "tags": [
+            "research"
+          ],
+          "title": "Sperm whales"
+        }
+      ],
+      "origin": "notes",
+      "project": "contract",
+      "revision": "REV11",
+      "total": 4
+    }
+  },
+  {
+    "step": "read a document",
+    "tool": "read_document",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "citation": "/?note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract&revision=REV11",
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "editable": true,
+      "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "noteId": "c0ffee00000000000000000000000001",
+      "origin": "notes",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV11"
+    }
+  },
+  {
+    "step": "read a document by its fmn-id",
+    "tool": "read_document",
+    "as": "admin",
+    "arguments": {
+      "noteId": "c0ffee00000000000000000000000001",
+      "path": "",
+      "project": "contract"
+    },
+    "result": {
+      "citation": "/?note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract&revision=REV11",
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "editable": true,
+      "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "noteId": "c0ffee00000000000000000000000001",
+      "origin": "notes",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV11"
+    }
+  },
+  {
+    "step": "read a line range of a document",
+    "tool": "read_document",
+    "as": "admin",
+    "arguments": {
+      "endLine": 9,
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "startLine": 7
+    },
+    "result": {
+      "citation": "/?note=manuscript%2Fchapter-1.md&noteId=c0ffee00000000000000000000000001&project=contract&revision=REV11",
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "editable": true,
+      "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "noteId": "c0ffee00000000000000000000000001",
+      "origin": "notes",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV11"
+    }
+  },
+  {
+    "step": "read a missing document",
+    "tool": "read_document",
+    "as": "admin",
+    "arguments": {
+      "path": "missing.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "search selected notebooks",
+    "tool": "search_notebooks",
+    "as": "admin",
+    "arguments": {
+      "projects": [
+        "contract"
+      ],
+      "query": "whale"
+    },
+    "result": {
+      "notes": {
+        "contract": {
+          "contentScope": {
+            "collection": "all",
+            "policy": {
+              "archives": "exclude",
+              "drafts": "include",
+              "version": 1
+            }
+          },
+          "estimatedTokens": 768,
+          "message": "BM25 retrieves matching committed passages; results are selected evidence, not exhaustive coverage.",
+          "mode": "bm25",
+          "passages": null,
+          "reranked": false,
+          "revision": "REV11",
+          "scopeId": "HASH3",
+          "semantic": "disabled",
+          "visibility": "HASH1",
+          "weak": false
+        }
+      },
+      "results": [
+        {
+          "kind": "notes",
+          "note": {
+            "anchor": "departure",
+            "citation": "/manuscript/chapter-2.md?fmn-chars=1400&fmn-passage=HASH4&fmn-rev=REV11#departure",
+            "hash": "HASH4",
+            "heading": "Departure",
+            "id": "HASH5",
+            "noteHash": "HASH2",
+            "noteId": "c0ffee00000000000000000000000002",
+            "path": "manuscript/chapter-2.md",
+            "revision": "REV11",
+            "sectionHash": "HASH4",
+            "text": "## Departure\n\nThey sailed before the whale returned."
+          },
+          "project": "contract",
+          "ref": {
+            "heading": "departure",
+            "noteId": "c0ffee00000000000000000000000002",
+            "origin": "notes",
+            "path": "manuscript/chapter-2.md",
+            "project": "contract",
+            "revision": "REV11"
+          }
+        },
+        {
+          "kind": "notes",
+          "note": {
+            "anchor": "the-harbour",
+            "citation": "/manuscript/chapter-1.md?fmn-chars=1400&fmn-passage=HASH6&fmn-rev=REV11#the-harbour",
+            "hash": "HASH6",
+            "heading": "The harbour",
+            "id": "HASH7",
+            "noteHash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+            "noteId": "c0ffee00000000000000000000000001",
+            "path": "manuscript/chapter-1.md",
+            "revision": "REV11",
+            "sectionHash": "HASH6",
+            "text": "## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him."
+          },
+          "project": "contract",
+          "ref": {
+            "heading": "the-harbour",
+            "noteId": "c0ffee00000000000000000000000001",
+            "origin": "notes",
+            "path": "manuscript/chapter-1.md",
+            "project": "contract",
+            "revision": "REV11"
+          }
+        },
+        {
+          "kind": "notes",
+          "note": {
+            "anchor": "chapter-two",
+            "citation": "/manuscript/chapter-2.md?fmn-chars=1400&fmn-passage=HASH8&fmn-rev=REV11#chapter-two",
+            "hash": "HASH8",
+            "heading": "Chapter two",
+            "id": "HASH9",
+            "noteHash": "HASH2",
+            "noteId": "c0ffee00000000000000000000000002",
+            "path": "manuscript/chapter-2.md",
+            "revision": "REV11",
+            "sectionHash": "HASH8",
+            "text": "# Chapter two\n\nThe captain read [the whale notes](../research/whales.md) twice."
+          },
+          "project": "contract",
+          "ref": {
+            "heading": "chapter-two",
+            "noteId": "c0ffee00000000000000000000000002",
+            "origin": "notes",
+            "path": "manuscript/chapter-2.md",
+            "project": "contract",
+            "revision": "REV11"
+          }
+        }
+      ],
+      "sources": {
+        "coverage": {
+          "contract": {
+            "chunks": 0,
+            "downloaded": "",
+            "embedded": 0,
+            "excluded": 0,
+            "indexed": "",
+            "message": "Repository integration is not configured",
+            "mode": ""
+          }
+        },
+        "reranked": false,
+        "results": null,
+        "truncated": false
+      },
+      "truncated": false
+    }
+  },
+  {
+    "step": "find recipe notes",
+    "tool": "find_recipes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": []
+  }
+]

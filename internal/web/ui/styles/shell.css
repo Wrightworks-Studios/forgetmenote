@@ -1,0 +1,156 @@
+/* Sidebar, page header and the empty state. */
+/* Destinations scroll above a footer that keeps the account row at the bottom. */
+#sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 16px;
+  overflow-y: auto;
+  /* A hairline above the footer while destinations continue below it: the
+     content-attached cover hides the box-attached line once the end is in view. */
+  background:
+    linear-gradient(var(--sidebar), var(--sidebar)) bottom / 100% 1px no-repeat local,
+    linear-gradient(var(--border), var(--border)) bottom / 100% 1px no-repeat scroll;
+}
+.sidebar-scroll > * { flex-shrink: 0; }
+.sidebar-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 16px 16px;
+}
+.brand {
+  font-family: var(--ui-font);
+  font-size: var(--text-title);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-decoration: none;
+  min-width: 0;
+}
+.brand img { flex-shrink: 0; object-fit: contain; }
+/* Fraunces widens with weight: at 15px/500 the default name fits beside both sidebar heading buttons. */
+.brand span {
+  font: 500 15px/1.2 var(--brand-font);
+  font-variation-settings: "SOFT" 70, "WONK" 1, "opsz" 48;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.instance-logo-field { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.instance-logo-field img { object-fit: contain; flex: 0 0 48px; }
+.instance-logo-field input { min-width: 0; flex: 1; }
+#instance-form .form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.login-brand img { object-fit: contain; }
+.search {
+  margin: 0;
+}
+.search input {
+  font-size: var(--text-body);
+  background: var(--bg);
+}
+.sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: var(--space-4);
+}
+:is(.sidebar-bottom, .sidebar-footer) :is(button, a.button).quiet {
+  border-color: transparent;
+  text-align: left;
+  font-weight: 500;
+}
+:is(.sidebar-bottom, .sidebar-footer) :is(button, a.button).quiet:hover {
+  background: var(--hover);
+}
+#main {
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+}
+header {
+  min-height: 60px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 8px 24px;
+  gap: 16px;
+}
+.breadcrumb {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 0 var(--space-3);
+}
+.breadcrumb #filename-form { grid-column: 1 / -1; }
+.breadcrumb .note-heading { grid-column: 1; grid-row: 1; }
+.breadcrumb #save-state { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
+#path {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#save-state {
+  white-space: nowrap;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#menu {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  border-color: transparent;
+  color: var(--muted);
+}
+#menu:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.sidebar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+body.sidebar-collapsed #main {
+  margin-left: 0;
+}
+#sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--backdrop);
+  /* Above the sticky top bar so the whole page dims behind the phone sidebar. */
+  z-index: var(--layer-backdrop);
+  padding: 0;
+}
+.note-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.note-tree li {
+  margin: 2px 0;
+}

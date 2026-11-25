@@ -1,0 +1,136 @@
+{{/* Notebook settings dialog. Rendered in place by index.html. */}}
+{{define "index-settings-dialog"}}<dialog id="settings-dialog">
+      <div class="dialog-title">
+        <h2>Notebook settings</h2>
+        <button data-close="settings-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button>
+      </div>
+      <p class="small settings-scope">Current notebook · <span id="settings-project"></span></p>
+      <nav class="category-navigation" data-settings-categories aria-label="Notebook settings categories"><button class="quiet" data-settings-category="sharing">Sharing</button><button class="quiet" data-settings-category="authority">Storage &amp; sync</button><button class="quiet" data-settings-category="sources">Sources</button><button class="quiet" data-settings-category="search">Search defaults</button><button class="quiet" data-settings-category="instructions">Instructions</button><button class="quiet" data-settings-category="history">History &amp; export</button></nav>
+      <section data-settings-panel="authority">
+        <h3>Authoritative source</h3>
+        <p id="authority-current" role="status"></p><p id="authority-revision" class="small"></p>
+        <form id="authority-form">
+          <p>Change to <output id="authority-to"></output></p>
+          <label id="authority-writers-label"><input id="authority-writers" type="checkbox" /> I have stopped any other backup jobs for this branch.</label>
+          <button id="authority-preview" type="submit">Preview change</button>
+        </form>
+        <section id="authority-preview-panel" hidden>
+          <h4>Handoff preview</h4><dl id="authority-preview-detail" class="repository-detail"></dl>
+          <p id="authority-status" role="status"></p>
+          <button id="authority-apply" type="button">Apply change</button>
+          <button id="authority-cancel" class="quiet" type="button">Cancel handoff</button>
+        </section>
+        <p id="authority-error" role="alert"></p>
+      </section>
+      <section data-settings-panel="sources">
+        <h3>Repository source</h3>
+        <p id="repository-status" role="status"></p>
+        <div id="repository-owner-controls" hidden>
+          <a id="repository-install" class="button quiet" target="_blank" rel="noopener noreferrer">Install GitHub App</a>
+          <button id="repository-connect">Connect GitHub</button>
+          <form id="repository-select-form" hidden>
+            <label for="repository-choice">Repository</label><select id="repository-choice"></select>
+            <label><input id="repository-share" type="checkbox" required /> Share source files with this notebook's members</label>
+            <button id="repository-select-submit" class="primary" type="submit">Connect repository</button>
+          </form>
+          <div id="repository-active-controls" class="actions" hidden><button id="repository-refresh" class="quiet">Refresh now</button><button id="repository-pause" class="quiet">Pause</button><button id="repository-disconnect" class="quiet">Disconnect</button></div>
+        </div>
+        <form id="repository-index-form" hidden>
+          <h4>Indexed files</h4>
+          <label>Include paths (one path, directory/ or glob per line)<textarea id="repository-index-include" rows="2"></textarea></label>
+          <label>Exclude paths<textarea id="repository-index-exclude" rows="2"></textarea></label>
+          <button type="submit" class="primary">Save path filters</button>
+        </form>
+        <details id="repository-exclusions"><summary>Index exclusions</summary><ul></ul></details>
+        <dl id="repository-detail" class="repository-detail"></dl>
+        <p id="repository-error" role="alert"></p>
+        <button id="repository-browse" class="quiet" hidden>Browse source files</button>
+        <div id="repository-file-tools" hidden>
+          <label for="repository-file-filter">Filter source files</label>
+          <input id="repository-file-filter" type="search" placeholder="Find a file or folder…" autocomplete="off" />
+          <p class="small"><span id="repository-file-count" role="status"></span> · <span id="repository-tree-revision"></span></p>
+        </div>
+        <ul id="repository-files" class="repository-files"></ul>
+      </section>
+      <section data-settings-panel="sharing">
+      <section id="wiki-setting" hidden>
+        <h3>Wiki</h3>
+        <label><input id="wiki-default" type="checkbox" /> Open as wiki</label>
+        <p class="small">Members see the notebook as a wiki by default: its index.md as the home page, a page tree, and links between pages. Anyone can switch to the editor layout.</p>
+        <p id="wiki-setting-status" role="status"></p>
+      </section>
+      <section id="project-members" hidden>
+        <h3>People</h3>
+        <div id="member-list"></div>
+        <form id="member-form">
+          <h4>Add a person</h4>
+          <div class="member-add-fields">
+            <button id="member-choose" type="button" class="quiet select-picker" popovertarget="member-picker" aria-haspopup="dialog" aria-expanded="false"><span id="member-selected">Select a person</span></button>
+            <input id="member-user" type="hidden" />
+            <div class="select-picker"><select id="member-role" aria-label="Notebook role">
+              <option value="read">Reader</option><option value="comment">Commenter</option><option value="edit">Editor</option><option value="owner">Owner</option>
+            </select></div>
+            <button id="member-submit" type="submit" disabled>Add</button>
+          </div>
+          <div id="member-picker" popover="auto" role="dialog" aria-label="Choose a person">
+            <label class="sr-only" for="member-search">Find a person</label>
+            <input id="member-search" type="search" placeholder="Search by name…" autocomplete="off" maxlength="120" />
+            <div id="member-results" class="people-results" aria-live="polite"></div>
+          </div>
+        </form>
+        <p id="member-status" role="status"></p>
+      </section>
+      </section>
+      <section data-settings-panel="search">
+      <details open><summary id="retrieval-defaults">Search and AI defaults</summary>
+        <form id="retrieval-defaults-form">
+          <fieldset><legend>Search</legend><div class="filter-fields">
+            <label for="default-search-archives">Archives</label><div class="select-picker"><select id="default-search-archives"><option value="include">Include</option><option value="lower">Lower priority</option><option value="exclude">Exclude</option></select></div>
+            <label for="default-search-drafts">Drafts</label><div class="select-picker"><select id="default-search-drafts"><option value="include">Include</option><option value="lower">Lower priority</option><option value="exclude">Exclude</option></select></div>
+          </div></fieldset>
+          <fieldset><legend>New AI chats</legend><div class="filter-fields">
+            <label for="default-ai-archives">Archives</label><div class="select-picker"><select id="default-ai-archives"><option value="include">Include</option><option value="lower">Lower priority</option><option value="exclude">Exclude</option></select></div>
+            <label for="default-ai-drafts">Drafts</label><div class="select-picker"><select id="default-ai-drafts"><option value="include">Include</option><option value="lower">Lower priority</option><option value="exclude">Exclude</option></select></div>
+          </div></fieldset>
+          <button id="retrieval-defaults-save" class="primary" type="submit">Save defaults</button>
+        </form>
+        <p id="retrieval-defaults-status" role="status"></p>
+      </details>
+      <button id="semantic-settings-open" class="quiet">Index status</button>
+      </section>
+      <section data-settings-panel="instructions">
+      <h3>Instructions</h3>
+      <button id="instructions-open" class="quiet">Agent instructions</button>
+      </section>
+      <section data-settings-panel="history">
+      <section id="managed-backup" hidden>
+        <h3>GitHub backup</h3>
+        <p id="managed-backup-status" role="status"></p><p id="managed-backup-receipt" class="small"></p>
+        <button id="managed-backup-connect" class="quiet" type="button">Connect GitHub backup</button>
+        <a id="managed-backup-install" target="_blank" rel="noopener noreferrer">Install Backups App or change repository access</a>
+        <form id="managed-backup-select" hidden>
+          <label>Empty private repository<select id="managed-backup-choice"></select></label>
+          <label>Notebook branch<input id="managed-backup-branch" value="main" required maxlength="200" /></label>
+          <label><input id="managed-backup-share" type="checkbox" required /> GitHub readers of this destination can read all committed notebook history, including earlier revisions.</label>
+          <button id="managed-backup-enable" type="submit">Enable backup</button>
+        </form>
+        <form id="managed-backup-create" hidden>
+          <h4>Create a private destination</h4>
+          <label>GitHub owner<input id="managed-backup-owner" required maxlength="100" /></label>
+          <label>Repository name<input id="managed-backup-name" required maxlength="100" /></label>
+          <label><input id="managed-backup-create-confirm" type="checkbox" required /> Create a new private GitHub repository under this owner.</label>
+          <button type="submit">Create private repository</button>
+        </form>
+        <div id="managed-backup-controls" hidden><button id="managed-backup-now" class="quiet">Back up now</button><button id="managed-backup-pause" class="quiet">Pause</button><button id="managed-backup-disconnect" class="quiet">Disconnect</button></div>
+        <p id="managed-backup-error" role="alert"></p>
+      </section>
+      <h3>History</h3>
+      <button id="project-history-open" class="quiet">Notebook history</button>
+      <p id="purge-settings-help" class="small" hidden>Owners can permanently erase text, such as a leaked secret, from every version of this notebook.</p>
+      <button id="purge-open" class="quiet" hidden>Permanently erase text…</button>
+      <h3>Export</h3>
+      <a id="backup-link" class="button quiet" href="#"
+        >Download complete Git bundle</a
+      >
+      </section>
+    </dialog>{{end}}

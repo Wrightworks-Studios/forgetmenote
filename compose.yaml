@@ -1,0 +1,99 @@
+services:
+  # The instance database. Create ./secrets/database-password and
+  # ./secrets/database-url first; see docs/postgres.md.
+  postgres:
+    # Official image, pinned to a minor release and its multi-platform index
+    # digest; upgrade deliberately with a backup.
+    image: postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+    restart: unless-stopped
+    stop_grace_period: 60s
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      POSTGRES_USER: forgetmenote
+      POSTGRES_DB: forgetmenote
+      POSTGRES_PASSWORD_FILE: /run/secrets/database-password
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+      - ./secrets/database-password:/run/secrets/database-password:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "forgetmenote", "-d", "forgetmenote"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  forgetmenote:
+    build:
+      context: .
+      args:
+        APP_UID: ${PUID:-1000}
+        APP_GID: ${PGID:-1000}
+    image: forgetmenote:local
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    user: "${PUID:-1000}:${PGID:-1000}"
+    # Serving never migrates: apply this binary's schema, then serve.
+    entrypoint: ["/bin/sh", "-c", "forgetmenote migrate && exec forgetmenote \"$$@\"", "forgetmenote"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      INSTANCE_CONFIG_FILE: ${INSTANCE_CONFIG_FILE:-}
+      OWNER_MAP_FILE: ${OWNER_MAP_FILE:-}
+      HEADLESS: ${HEADLESS:-false}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      # No external auth configured: local username/password login is enabled.
+      # OIDC or trusted-proxy configuration disables local password sign-ins.
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET_FILE: ${OIDC_CLIENT_SECRET_FILE:-}
+      OIDC_DEFAULT_GROUPS: ${OIDC_DEFAULT_GROUPS:-}
+      OIDC_REQUEST_EMAIL: ${OIDC_REQUEST_EMAIL:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET_FILE: ${GITHUB_CLIENT_SECRET_FILE:-}
+      REPOSITORY_APP_CONFIG_FILE: ${REPOSITORY_APP_CONFIG_FILE:-}
+      BACKUP_APP_CONFIG_FILE: ${BACKUP_APP_CONFIG_FILE:-}
+      CHAT_CONFIG_FILE: ${CHAT_CONFIG_FILE:-}
+      DECISION_CONFIG_FILE: ${DECISION_CONFIG_FILE:-}
+      PERSONAL_CONNECTIONS_CONFIG_FILE: ${PERSONAL_CONNECTIONS_CONFIG_FILE:-}
+      AUTOMATION_PYTHON: ${AUTOMATION_PYTHON:-/usr/local/bin/python3}
+      DATA_CONNECTIONS_CONFIG_FILE: ${DATA_CONNECTIONS_CONFIG_FILE:-}
+      AUTOMATIONS_CONFIG_FILE: ${AUTOMATIONS_CONFIG_FILE:-}
+      SLACK_CONFIG_FILE: ${SLACK_CONFIG_FILE:-}
+      ADMIN_USERS: ${ADMIN_USERS:-}
+      PROXY_SECRET_FILE: ${PROXY_SECRET_FILE:-}
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
+      BROWSE_EXCLUDE_PREFIXES: ${BROWSE_EXCLUDE_PREFIXES:-}
+      DATABASE_URL_FILE: ${DATABASE_URL_FILE:-/run/secrets/database-url}
+      BLOBS_CONFIG_FILE: ${BLOBS_CONFIG_FILE:-}
+      OUTGOING: ${OUTGOING:-}
+      EMBEDDING_URL: ${EMBEDDING_URL:-}
+      EMBEDDING_SECRET_FILE: ${EMBEDDING_SECRET_FILE:-}
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    volumes:
+      - ./data:/data
+      - ./secrets/database-url:/run/secrets/database-url:ro
+      # Optional embedding credential:
+      # - ./secrets/embedding-token:/run/secrets/embedding-token:ro
+      # OIDC secret, when configured:
+      # - ./secrets/oidc-client-secret:/run/secrets/oidc-client-secret:ro
+      # Optional identity-only GitHub OAuth secret; never store it in a project repository.
+      # - ./secrets/github-client-secret:/run/secrets/github-client-secret:ro
+      # Optional repository GitHub App and AI configuration. See docs/repository-notebooks.md.
+      # - ./secrets/repository-app.json:/run/secrets/repository-app.json:ro
+      # - ./secrets/repository-app-key.pem:/run/secrets/repository-app-key.pem:ro
+      # - ./secrets/repository-client-secret:/run/secrets/repository-client-secret:ro
+      # - ./secrets/repository-webhook-secret:/run/secrets/repository-webhook-secret:ro
+      # - ./secrets/chat.json:/run/secrets/chat.json:ro
+      # Optional Jev without chat; see docs/jev.md.
+      # - ./secrets/jev.json:/run/secrets/jev.json:ro
+      # - ./secrets/typesafe-api-key:/run/secrets/typesafe-api-key:ro
+      # Optional data/automation configuration and credentials; see deploy/integrations/README.md.
+      # - ./secrets/integrations:/etc/forgetmenote:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

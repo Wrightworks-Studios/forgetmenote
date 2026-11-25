@@ -1,0 +1,412 @@
+{
+  "undo after later actions": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "backlink.md": "[note](notes/m.md)\n",
+        "comments/<discussion of notes/m.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "dest/index.md": "# Destination\n",
+        "links.md": "[current](b.md)\n",
+        "notes/m.md": "# Original\n[image](../assets/picture.png)\n",
+        "relate.md": "# Relate\n",
+        "tag.md": "# Tag me\n",
+        "target.md": "# Target\n"
+      }
+    },
+    {
+      "name": "a duplicate",
+      "result": {
+        "revision": "<rev 1>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "Trash/<id 2>.md",
+            "before": null,
+            "after": "# Shared fact\nWorkshop begins at 09:00.\n"
+          },
+          {
+            "path": "b.md",
+            "before": "# Shared fact\nWorkshop begins at 09:00.\n",
+            "after": null
+          },
+          {
+            "path": "links.md",
+            "before": "[current](b.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ],
+        "trash": {
+          "id": "<id 2>",
+          "path": "Trash/<id 2>.md",
+          "originalPath": "b.md",
+          "title": "Shared fact",
+          "deletedAt": "<time>",
+          "deletedBy": "organizer-test"
+        }
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: duplicate\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 1>\nGitnotes-Request: <hash 2>\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"b.md\",\n      \"title\": \"Shared fact\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"organizer-test\",\n      \"history\": {\n        \"b.md\": [\n          \"<base~5>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 2>.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": null,
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "tags on the rewritten backlink",
+      "result": {
+        "revision": "<rev 2>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "[current](a.md)\n",
+            "after": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 2>",
+          "parents": [
+            "<rev 1>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 3>\nGitnotes-Request: <hash 4>\n"
+        }
+      ],
+      "files": {
+        "links.md": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+      }
+    },
+    {
+      "name": "undoing the tags",
+      "result": {
+        "revision": "<rev 3>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 3>",
+          "parents": [
+            "<rev 2>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Undo organization: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 5>\nGitnotes-Request: <hash 6>\n"
+        }
+      ],
+      "files": {
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "tags on the rewritten backlink",
+      "result": {
+        "revision": "<rev 4>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "[current](a.md)\n",
+            "after": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 4>",
+          "parents": [
+            "<rev 3>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 7>\nGitnotes-Request: <hash 8>\n"
+        }
+      ],
+      "files": {
+        "links.md": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+      }
+    },
+    {
+      "name": "undoing the tags",
+      "result": {
+        "revision": "<rev 5>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 5>",
+          "parents": [
+            "<rev 4>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Undo organization: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 9>\nGitnotes-Request: <hash 10>\n"
+        }
+      ],
+      "files": {
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "tags on the rewritten backlink",
+      "result": {
+        "revision": "<rev 6>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "[current](a.md)\n",
+            "after": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 6>",
+          "parents": [
+            "<rev 5>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 11>\nGitnotes-Request: <hash 12>\n"
+        }
+      ],
+      "files": {
+        "links.md": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+      }
+    },
+    {
+      "name": "undoing the tags",
+      "result": {
+        "revision": "<rev 7>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 7>",
+          "parents": [
+            "<rev 6>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Undo organization: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 13>\nGitnotes-Request: <hash 14>\n"
+        }
+      ],
+      "files": {
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "tags on the rewritten backlink",
+      "result": {
+        "revision": "<rev 8>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "[current](a.md)\n",
+            "after": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 8>",
+          "parents": [
+            "<rev 7>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 15>\nGitnotes-Request: <hash 16>\n"
+        }
+      ],
+      "files": {
+        "links.md": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+      }
+    },
+    {
+      "name": "undoing the tags",
+      "result": {
+        "revision": "<rev 9>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 9>",
+          "parents": [
+            "<rev 8>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Undo organization: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 17>\nGitnotes-Request: <hash 18>\n"
+        }
+      ],
+      "files": {
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "tags on the rewritten backlink",
+      "result": {
+        "revision": "<rev 10>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "[current](a.md)\n",
+            "after": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 10>",
+          "parents": [
+            "<rev 9>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 19>\nGitnotes-Request: <hash 20>\n"
+        }
+      ],
+      "files": {
+        "links.md": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n"
+      }
+    },
+    {
+      "name": "undoing the tags",
+      "result": {
+        "revision": "<rev 11>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "links.md",
+            "before": "---\ntags: [\"workshop\"]\n---\n[current](a.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 11>",
+          "parents": [
+            "<rev 10>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Undo organization: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 21>\nGitnotes-Request: <hash 22>\n"
+        }
+      ],
+      "files": {
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "an undo past all but one later action",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "an undo past a later action",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "an undo after a later action's undo",
+      "result": {
+        "revision": "<rev 12>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "Trash/<id 2>.md",
+            "before": "# Shared fact\nWorkshop begins at 09:00.\n",
+            "after": null
+          },
+          {
+            "path": "b.md",
+            "before": null,
+            "after": "# Shared fact\nWorkshop begins at 09:00.\n"
+          },
+          {
+            "path": "links.md",
+            "before": "[current](a.md)\n",
+            "after": "[current](b.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 12>",
+          "parents": [
+            "<rev 11>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Undo organization: duplicate\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 23>\nGitnotes-Request: <hash 24>\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"b.md\",\n      \"title\": \"Shared fact\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"organizer-test\",\n      \"history\": {\n        \"b.md\": [\n          \"<base~5>\"\n        ]\n      },\n      \"restored\": true\n    }\n  ]\n}\n",
+        "Trash/<id 2>.md": null,
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "links.md": "[current](b.md)\n"
+      }
+    },
+    {
+      "name": "the restored duplicate",
+      "result": {
+        "path": "b.md",
+        "content": "IyBTaGFyZWQgZmFjdApXb3Jrc2hvcCBiZWdpbnMgYXQgMDk6MDAuCg==",
+        "revision": "<rev 12>",
+        "version": "<rev 12>"
+      }
+    }
+  ]
+}

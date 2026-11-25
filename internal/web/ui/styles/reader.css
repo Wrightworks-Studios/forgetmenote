@@ -1,0 +1,198 @@
+/* Note document, prose typography, tables and notices. */
+@media (min-width: 721px) {
+  body.sidebar-collapsed #feedback-tray {
+    left: 24px;
+  }
+}
+#empty {
+  padding: 112px 12%;
+  max-width: 950px;
+}
+h1 {
+  font: 600 var(--text-title)/1.2 var(--brand-font);
+  font-variation-settings: "WONK" 0;
+  letter-spacing: -0.025em;
+  margin: 0 0 28px;
+}
+#empty h1, .login h1 {
+  font-family: var(--brand-font);
+  font-variation-settings: "SOFT" 70, "WONK" 0, "opsz" 48;
+}
+#empty button {
+  margin: 20px 0 16px;
+}
+.small,
+small {
+  font-size: var(--text-small);
+  line-height: 1.65;
+  color: var(--muted);
+}
+#document {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: calc(100vh - 72px);
+}
+#document.is-editing {
+  grid-template-columns: minmax(0, 1fr);
+  --prose-top: var(--space-4);
+}
+#document.is-editing > #preview { display: none; }
+/* Interactive views: a labelled frame the note's code runs in, never the page itself. */
+.note-view { margin: 16px 0 24px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); overflow: hidden; }
+.note-view-bar { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px 4px 12px; border-bottom: 1px solid var(--border); font-size: var(--text-small); color: var(--muted); }
+.note-view-label { font-weight: 600; color: var(--text); }
+.note-view-status { flex: 1; min-width: 0; }
+.note-view-bar :is(button, .button) { min-height: 28px; padding: 0 10px; font-size: var(--text-small); }
+.note-view-frame { display: block; width: 100%; height: 160px; border: 0; }
+.note-view > pre { margin: 0; border: 0; border-radius: 0; }
+.note-view > .note-view-frame + pre { border-top: 1px solid var(--border); }
+#editing {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+#editor {
+  box-sizing: border-box;
+  min-height: 65vh;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text);
+  /* Source text sits in the same column as the visual editor and reader. */
+  padding: var(--prose-top) max(40px, calc((100% - var(--reading-width)) / 2)) 38px;
+  font:
+    15px/1.7 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  outline: none;
+}
+.editor-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 20px;
+  font-size: var(--text-small);
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+.prose {
+  max-width: 100%;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--prose-top) 40px 96px;
+  font: var(--reading-size) / 1.65 var(--reading-font);
+  /* Hinted glyph advances in Linux Chromium open gaps inside words of the
+     variable reading fonts ("hour s", "Mill Cr eek"); unhinted layout keeps
+     the designed spacing. */
+  text-rendering: geometricPrecision;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.prose > :not(.table-scroll) {
+  max-width: var(--reading-width);
+  margin-inline: auto;
+}
+.prose :is(h1, h2, h3, h4, h5, h6) { font-family: var(--reading-font); letter-spacing: -0.02em; padding: 0; }
+.prose h1 { font-size: 1.79em; line-height: 1.2; font-weight: 600; margin-block: 0 24px; }
+.prose h2 { font-size: 1.32em; line-height: 1.3; font-weight: 600; margin-block: 1.6em 0.6em; }
+.prose h3 { font-size: 1.15em; line-height: 1.35; font-weight: 600; margin-block: 1.6em 0.6em; }
+.prose :is(h4, h5, h6) { font-size: 1em; line-height: 1.4; font-weight: 600; margin-block: 1.6em 0.6em; }
+.prose :is(p, ul, ol) { margin-block: 0 1.1em; }
+.prose p { padding: 0; line-height: 1.65; }
+.prose :is(li, td, th) > p:last-child { margin-bottom: 0; }
+.prose :is(ul, ol) { padding-inline-start: 34px; }
+.prose li + li { margin-top: 0.25em; }
+.prose li > :is(ul, ol) { margin-bottom: 0; }
+/* Inline marks, code, quotes and tables, in Read and the rendered pane. */
+.prose strong { font-weight: 600; }
+.prose pre,
+.prose code {
+  font:
+    0.82em/1.6 ui-monospace,
+    monospace;
+  background: var(--sidebar);
+  border-radius: var(--radius-small);
+}
+.prose code {
+  display: inline;
+  padding: 2px 5px;
+  color: inherit;
+}
+.prose pre {
+  padding: 18px;
+  overflow: auto;
+}
+.prose .table-scroll {
+  overflow-x: auto;
+  margin-block: 1.5em;
+}
+.table-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.prose table {
+  width: 100%;
+  /* Columns size to their content, as in the reader, not into equal widths. */
+  table-layout: auto;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  line-height: 1.55;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.prose :is(td, th) {
+  min-width: 6rem;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.prose :is(td, th):first-child { padding-left: 0; }
+.prose :is(td, th):last-child { padding-right: 0; }
+.prose th {
+  background: transparent;
+  border-bottom-color: var(--control-border);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.prose :is(td, th).numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-small);
+}
+.prose blockquote {
+  box-sizing: border-box;
+  margin-block: 1.1em;
+  padding-block: 0;
+  border-left: 2px solid var(--leaf);
+  padding-left: 22px;
+  color: var(--text);
+  font-style: italic;
+}
+.prose hr,
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: var(--space-6) 0;
+}
+#feedback-tray {
+  position: fixed;
+  bottom: 24px;
+  left: calc(var(--sidebar-width) + 24px);
+  right: 24px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  z-index: var(--layer-navigation); pointer-events: none;
+}
+#feedback-tray > * { pointer-events: auto; }
+#notice {
+  flex: 1; background: var(--surface);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-control);
+  padding: 16px;
+  color: var(--danger);
+  box-shadow: var(--shadow-popover);
+  z-index: var(--layer-navigation);
+}
+#trash-undo { background: var(--surface); border-color: var(--control-border); box-shadow: var(--shadow-popover); }

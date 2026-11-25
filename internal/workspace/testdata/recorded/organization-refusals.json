@@ -1,0 +1,678 @@
+{
+  "a backlink out of scope": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a backlink out of scope",
+      "error": "backlink links.md is locked, excluded or outside the selected scope: this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a changed retained note": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a changed retained note",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    }
+  ],
+  "a collision": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/b.md": "Occupied\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a collision",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    }
+  ],
+  "a duplicate with a discussion": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "comments/<discussion of b.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Keep me\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a duplicate with a discussion",
+      "error": "duplicate has discussion or retained discussion history"
+    }
+  ],
+  "a duplicate with a source's provenance": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "---\nsource_id: <id 1>\nsource_sha256: <hash 1>\nsource_original: assets/sources/original.pdf\n---\n# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "---\nsource_id: <id 1>\nsource_sha256: <hash 1>\nsource_original: assets/sources/original.pdf\n---\n# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a duplicate with a source's provenance",
+      "error": "source provenance needs manual review"
+    }
+  ],
+  "a folder that is a nested note": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a folder that is a nested note",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a folder that is a nested symbolic link": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "dest/inner": "<mode 120000> outside-target",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a folder that is a nested symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a folder that is a note": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a folder that is a note",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a folder that is a symbolic link": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "linked": "<mode 120000> outside-target",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a folder that is a symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a fragment backlink to a different body": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n\nMore.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[current](b.md#shared-fact)\n"
+      }
+    },
+    {
+      "name": "a fragment backlink to a different body",
+      "error": "fragment references require identical retained headings and body"
+    }
+  ],
+  "a historical source": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a historical source",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a locked backlink": [
+    {
+      "name": "fixture",
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"links.md\"\n  ]\n}\n",
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a locked backlink",
+      "error": "backlink links.md is locked, excluded or outside the selected scope: this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a missing folder": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a missing folder",
+      "error": "approved destination no longer exists"
+    }
+  ],
+  "a path not allowed": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a path not allowed",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a relative resource": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared\n[image](image.png)\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n",
+        "nested/b.md": "# Shared\n[image](image.png)\n"
+      }
+    },
+    {
+      "name": "a relative resource",
+      "error": "relative links resolve differently"
+    }
+  ],
+  "a retained note that sorts later": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a retained note that sorts later",
+      "error": "retain the deterministically first note; duplicate ordering changed"
+    }
+  ],
+  "a source in a container": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "---\nfmn-container: archive\n---\n# Shared\nFact 1.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a source in a container",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a stale source": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a stale source",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    }
+  ],
+  "a traversal": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a traversal",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "a wiki link to move": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared\n[[a]]\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "a wiki link to move",
+      "error": "unsupported outgoing references require manual relocation"
+    }
+  ],
+  "an HTML image to move": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared\n<img src=\"a.png\">\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "an HTML image to move",
+      "error": "unsupported outgoing references require manual relocation"
+    }
+  ],
+  "an HTML link to move": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared\n<a href=\"a.md\">a</a>\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "an HTML link to move",
+      "error": "unsupported outgoing references require manual relocation"
+    }
+  ],
+  "an expected backlink missing": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "an expected backlink missing",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    }
+  ],
+  "an unknown kind": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "an unknown kind",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "an unrewritable CommonMark backlink": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[duplicate \\]](b.md)\n"
+      }
+    },
+    {
+      "name": "an unrewritable CommonMark backlink",
+      "error": "backlink links.md: Markdown dependency requires a manual repair"
+    }
+  ],
+  "an unsupported Trash link rewrite": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Same\n[image \\]](assets/picture.png)\n",
+        "b.md": "# Same\n[image \\]](assets/picture.png)\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "an unsupported Trash link rewrite",
+      "error": "Markdown dependency requires a manual repair"
+    }
+  ],
+  "different metadata": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "---\ntags: [unique]\n---\n# Shared\nFact 1.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "different metadata",
+      "error": "meaningful metadata differs"
+    }
+  ],
+  "no ID": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "no ID",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ],
+  "pending live edits": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "dest/index.md": "# Folder\n",
+        "links.md": "[note](b.md)\n"
+      }
+    },
+    {
+      "name": "pending live edits",
+      "error": "live edits are waiting for a Git checkpoint; explicitly checkpoint the live note",
+      "is": [
+        "live pending"
+      ]
+    }
+  ],
+  "undo": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "backlink.md": "[note](notes/m.md)\n",
+        "comments/<discussion of notes/m.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "dest/index.md": "# Destination\n",
+        "links.md": "[current](b.md)\n",
+        "notes/m.md": "# Original\n[image](../assets/picture.png)\n",
+        "relate.md": "# Relate\n",
+        "tag.md": "# Tag me\n",
+        "target.md": "# Target\n"
+      }
+    },
+    {
+      "name": "a duplicate",
+      "result": {
+        "revision": "<rev 1>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "Trash/<id 2>.md",
+            "before": null,
+            "after": "# Shared fact\nWorkshop begins at 09:00.\n"
+          },
+          {
+            "path": "b.md",
+            "before": "# Shared fact\nWorkshop begins at 09:00.\n",
+            "after": null
+          },
+          {
+            "path": "links.md",
+            "before": "[current](b.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ],
+        "trash": {
+          "id": "<id 2>",
+          "path": "Trash/<id 2>.md",
+          "originalPath": "b.md",
+          "title": "Shared fact",
+          "deletedAt": "<time>",
+          "deletedBy": "organizer-test"
+        }
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: duplicate\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 1>\nGitnotes-Request: <hash 2>\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"b.md\",\n      \"title\": \"Shared fact\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"organizer-test\",\n      \"history\": {\n        \"b.md\": [\n          \"<base~5>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 2>.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": null,
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "another revision",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "another action",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "no ID",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a later receipt of another run",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a later receipt never made",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "edit the backlink",
+      "result": {
+        "path": "links.md",
+        "content": "VXNlciBjaGFuZ2VkIGJhY2tsaW5rCg==",
+        "revision": "<rev 2>",
+        "version": "<rev 2>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 2>",
+          "parents": [
+            "<rev 1>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update links.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "links.md": "User changed backlink\n"
+      }
+    },
+    {
+      "name": "revert the edit",
+      "result": {
+        "path": "links.md",
+        "content": "W2N1cnJlbnRdKGEubWQpCg==",
+        "revision": "<rev 3>",
+        "version": "<rev 3>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 3>",
+          "parents": [
+            "<rev 2>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update links.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "an edit since, reverted",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "edit the backlink again",
+      "result": {
+        "path": "links.md",
+        "content": "VXNlciBjaGFuZ2VkIGJhY2tsaW5rCg==",
+        "revision": "<rev 4>",
+        "version": "<rev 4>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 4>",
+          "parents": [
+            "<rev 3>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update links.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "links.md": "User changed backlink\n"
+      }
+    },
+    {
+      "name": "a newer edit",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    }
+  ]
+}

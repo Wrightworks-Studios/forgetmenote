@@ -1,0 +1,44 @@
+{{$brand := brand}}
+<!doctype html>
+<html lang="en" data-instance-name="{{$brand.Name}}"><head>{{template "brand-icons" $brand}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connect your AI · {{.Instance.Name}}</title><link rel="stylesheet" href="{{asset "/static/style.css"}}"><script type="module" src="{{asset "/static/connect-ai.mjs"}}"></script></head>
+<body class="connect-page"><main>
+  <header class="dialog-title"><div><p class="eyebrow">{{.Instance.Name}}</p><h1 class="login-brand"><img src="{{$brand.Icon}}" width="40" height="40" alt="">Connect your AI</h1></div>{{if not .Headless}}<a href="/">Back to notebooks</a>{{end}}</header>
+  <p>Use your own AI account. Sign in to this connection with your {{$brand.Name}} account.</p>
+  <label for="mcp-endpoint">MCP endpoint</label><div class="connect-copy"><input id="mcp-endpoint" readonly value="{{.Instance.Endpoint}}"><button type="button" class="quiet" data-copy="mcp-endpoint">Copy endpoint</button></div>
+  <p class="small">Plugin {{.Instance.Name}} · {{.Instance.Version}} · MCP <code>{{.MCPName}}</code></p>
+  <label for="ai-client">Your AI client</label>
+  <select id="ai-client"><option value="chatgpt">ChatGPT web</option><option value="codex">OpenAI desktop / Codex</option><option value="claude">Claude</option><option value="other">Other MCP clients</option></select>
+  <section data-client="chatgpt"><h2>ChatGPT web</h2>
+    <ol><li>Open <a href="https://chatgpt.com/plugins" target="_blank" rel="noopener noreferrer">ChatGPT Plugins</a> → + → Add custom MCP server.</li><li>Enter the endpoint above. Choose OAuth and dynamic client registration (DCR); leave static client credentials empty.</li><li>Create and install your personal connection, then sign in to {{$brand.Name}}.</li></ol>
+    <p class="small">Availability depends on your account and security settings. Each person creates their own connection. Local ZIP packages are for desktop clients.</p>
+  </section>
+  <section data-client="codex" hidden><h2>OpenAI desktop / Codex</h2>
+    <ol><li><a href="/account/connect/download/codex" data-download>Download {{.Instance.Name}} for Codex</a>.</li><li>Copy this prompt into Codex on the same computer. Your agent handles setup.</li></ol>
+    <label for="codex-install-prompt">Installation prompt</label>
+    <textarea id="codex-install-prompt" readonly rows="7">{{.Instance.CodexInstallPrompt}}</textarea>
+    <button type="button" data-copy="codex-install-prompt">Copy installation prompt</button>
+    <p>After setup, reopen Codex. In Plugins, select your personal marketplace, install the companion and sign in. Start a new chat.</p>
+    <details><summary>Manual setup</summary><p>Extract the ZIP, review <code>install.py</code>, then run from that directory with Python 3:</p><div class="connect-copy"><input id="codex-install" readonly value="python3 install.py install"><button type="button" class="quiet" data-copy="codex-install">Copy command</button></div></details>
+    <details><summary>Direct Codex CLI connection</summary><p>Use this instead of the plugin if you only need MCP tools:</p><pre id="codex-direct">codex mcp add {{.MCPName}} --url '{{.Instance.Endpoint}}'
+codex mcp login {{.MCPName}} --scopes notes:read,notes:write,data:read</pre><button type="button" class="quiet" data-copy="codex-direct">Copy CLI commands</button><p class="small">If another instance uses this connection name, choose a different name.</p></details>
+    <details><summary>Upgrade or uninstall</summary><p>Ask your agent to run the installer from a fresh download to upgrade, then reopen Codex. To remove it, uninstall in Codex and ask your agent to run <code>python3 install.py uninstall</code>. Other plugins and OAuth credentials are preserved.</p></details>
+  </section>
+  <section data-client="claude" hidden><h2>Claude</h2>
+    <ol><li><a href="/account/connect/download/claude" data-download>Download {{.Instance.Name}} for Claude</a>.</li><li>In Claude, open Customize → Plugins and upload the custom plugin ZIP. Individual Pro and Max accounts are supported.</li><li>Enable the plugin and sign in to its MCP connection. Start a new chat.</li></ol>
+    <p class="small">Claude’s cloud must be able to reach this HTTPS endpoint.</p>
+    <details><summary>Claude Code</summary><p>Extract the ZIP in a durable directory. From there:</p><pre id="claude-install">claude plugin marketplace add .
+claude plugin install {{.Instance.ID}}@{{.Instance.ID}}-local --scope user</pre><button type="button" class="quiet" data-copy="claude-install">Copy Claude Code commands</button><p>Use <code>/mcp</code> to authenticate. The included README covers updates and uninstall.</p></details>
+  </section>
+  <section data-client="other" hidden><h2>Other MCP clients</h2><p>Use Streamable HTTP, OAuth authorization code flow with S256 PKCE, dynamic client registration, and these scopes:</p><code>{{.Scopes}}</code><pre id="generic-mcp">{
+  "mcpServers": {
+    "{{.MCPName}}": {"type": "http", "url": "{{.Instance.Endpoint}}"}
+  }
+}</pre><button type="button" class="quiet" data-copy="generic-mcp">Copy example JSON</button><p class="small">Configuration syntax varies by client. This is a common example, not a claim that every client is tested.</p></section>
+  <p id="connect-status" role="status" aria-live="polite"></p>
+  <section><h2>Verify the connection</h2><p>In your AI client, ask: “Call capabilities and list_projects for {{.Instance.Origin}}. Show my readable and writable notebooks.”</p><p class="small">Downloading is not a connection test. Check that the returned instance and account are yours. Consent should show <code>{{.Scopes}}</code>; management and data writes are separate.</p></section>
+  <section id="access"><h2>Your notebook access</h2><p class="small">Current website permissions. Your AI connection is also limited by its consent. Locks and revision checks still apply.</p>
+  <ul class="connect-notebooks">{{range .Projects}}<li><strong>{{.Name}}</strong><span>{{if .Capabilities.Edit}}Readable and writable{{else}}Read-only{{end}} · {{.Role}}{{if eq .Kind "repository"}} · GitHub source{{end}}</span><code>{{.ID}}</code></li>{{else}}<li>No notebook access yet. Ask an administrator to share a notebook or provision your work notebook.</li>{{end}}</ul>
+  <p class="small">A higher direct or group grant wins. Ordinary work notebooks are private to their members; instance administrators retain access.</p>
+  {{if not .Headless}}<a href="/?account=security">Manage sign-in and revoke sessions</a>{{else}}<button id="revoke-sessions" type="button" class="quiet">Revoke your browser and AI sessions</button>{{end}}
+  </section>
+</main></body></html>

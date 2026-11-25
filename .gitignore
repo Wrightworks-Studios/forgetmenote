@@ -1,0 +1,31 @@
+/data/
+/.env
+/bin/
+/coverage.out
+/plugin-local/
+*.token
+*.key
+.DS_Store
+
+ssh/
+*.bundle
+
+node_modules
+/internal/web/ui/dist/*
+!/internal/web/ui/dist/BUILD_REQUIRED.txt
+
+/secrets/
+
+__pycache__/
+
+/.venv/
+/test-results/
+# Synthetic Keynote fixtures are documents, not credential key files.
+!/internal/sources/testdata/iwork/*.key
+
+# Operator Python environment created by `make operator-venv`.
+/.venv/
+/ui-capture/
+
+# Benchmark fixture sources and generated fixtures (internal/benchfixture, FMN_FIXTURE_CACHE).
+/.fixture-cache/

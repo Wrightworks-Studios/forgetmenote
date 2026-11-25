@@ -1,0 +1,542 @@
+[
+  {
+    "step": "supported source formats",
+    "tool": "source_formats",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "formats": [
+        {
+          "describeImages": true,
+          "description": "Local Poppler text and English Tesseract OCR with physical page anchors. Tables, equations and reading order need verification; hosted OCR is explicit.",
+          "extensions": [
+            ".pdf"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/pdf",
+          "name": "PDF",
+          "transcription": false
+        },
+        {
+          "description": "Static page text and headings; no scripts or linked assets.",
+          "extensions": [
+            ".html",
+            ".htm"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "text/html",
+          "name": "Webpage",
+          "transcription": false
+        },
+        {
+          "description": "UTF-8 or BOM-marked UTF-16 text.",
+          "extensions": [
+            ".txt"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "text/plain",
+          "name": "Text",
+          "transcription": false
+        },
+        {
+          "description": "Main document paragraphs, headings, and tables; no pagination or embedded objects.",
+          "extensions": [
+            ".docx"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "name": "Word",
+          "transcription": false
+        },
+        {
+          "description": "Chapter text in spine order; no DRM decryption.",
+          "extensions": [
+            ".epub"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/epub+zip",
+          "name": "EPUB",
+          "transcription": false
+        },
+        {
+          "description": "Sheets and stored cell values, including hidden content; formulas are never calculated.",
+          "extensions": [
+            ".xlsx"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "name": "Excel",
+          "transcription": false
+        },
+        {
+          "description": "Comma-delimited records, including quoted multiline fields.",
+          "extensions": [
+            ".csv"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "text/csv",
+          "name": "CSV",
+          "transcription": false
+        },
+        {
+          "description": "Tab-delimited records.",
+          "extensions": [
+            ".tsv"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "text/tab-separated-values",
+          "name": "TSV",
+          "transcription": false
+        },
+        {
+          "describeImages": true,
+          "description": "English OCR with page anchors; OCR may contain errors.",
+          "extensions": [
+            ".png"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "image/png",
+          "name": "PNG",
+          "transcription": false
+        },
+        {
+          "describeImages": true,
+          "description": "English OCR with page anchors; OCR may contain errors.",
+          "extensions": [
+            ".jpg",
+            ".jpeg"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "image/jpeg",
+          "name": "JPEG",
+          "transcription": false
+        },
+        {
+          "describeImages": true,
+          "description": "English OCR for each frame; OCR may contain errors.",
+          "extensions": [
+            ".tiff",
+            ".tif"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "image/tiff",
+          "name": "TIFF",
+          "transcription": false
+        },
+        {
+          "describeImages": true,
+          "description": "English OCR with page anchors; OCR may contain errors.",
+          "extensions": [
+            ".webp"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "image/webp",
+          "name": "WebP",
+          "transcription": false
+        },
+        {
+          "describeImages": true,
+          "description": "English OCR with page anchors; OCR may contain errors.",
+          "extensions": [
+            ".bmp"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "image/bmp",
+          "name": "Bitmap",
+          "transcription": false
+        },
+        {
+          "describeImages": true,
+          "description": "Slide text and tables; animations, notes, and embedded media are not transcribed.",
+          "extensions": [
+            ".pptx"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          "name": "PowerPoint",
+          "transcription": false
+        },
+        {
+          "description": "Message headers and body; attachment names only.",
+          "extensions": [
+            ".eml"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "message/rfc822",
+          "name": "Email",
+          "transcription": false
+        },
+        {
+          "description": "Message headers and body; attachment names only.",
+          "extensions": [
+            ".msg"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.ms-outlook",
+          "name": "Outlook message",
+          "transcription": false
+        },
+        {
+          "description": "Document text and tables; original layout is not retained.",
+          "extensions": [
+            ".odt"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.oasis.opendocument.text",
+          "name": "OpenDocument text",
+          "transcription": false
+        },
+        {
+          "description": "Stored cell values; formulas are not recalculated.",
+          "extensions": [
+            ".ods"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.oasis.opendocument.spreadsheet",
+          "name": "OpenDocument spreadsheet",
+          "transcription": false
+        },
+        {
+          "description": "Slide text and tables; embedded media are not transcribed.",
+          "extensions": [
+            ".odp"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.oasis.opendocument.presentation",
+          "name": "OpenDocument presentation",
+          "transcription": false
+        },
+        {
+          "description": "Document text and tables; complex layout may be omitted.",
+          "extensions": [
+            ".pages"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.apple.pages",
+          "name": "Pages",
+          "transcription": false
+        },
+        {
+          "description": "Slide text and tables; animations and embedded media are not transcribed.",
+          "extensions": [
+            ".key"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "application/vnd.apple.keynote",
+          "name": "Keynote",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "extensions": [
+            ".wav"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "audio/wav",
+          "name": "WAV",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "extensions": [
+            ".mp3"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "audio/mpeg",
+          "name": "MP3",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "extensions": [
+            ".m4a"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "audio/mp4",
+          "name": "M4A",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "extensions": [
+            ".aac"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "audio/aac",
+          "name": "AAC",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "extensions": [
+            ".ogg"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "audio/ogg",
+          "name": "Ogg",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "extensions": [
+            ".flac"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "audio/flac",
+          "name": "FLAC",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "extensions": [
+            ".mp4"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "video/mp4",
+          "name": "MP4",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "extensions": [
+            ".mov"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "video/quicktime",
+          "name": "QuickTime",
+          "transcription": false
+        },
+        {
+          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "extensions": [
+            ".avi"
+          ],
+          "externalOCR": false,
+          "hostedDescriptions": false,
+          "maxBytes": 67108864,
+          "mime": "video/x-msvideo",
+          "name": "AVI",
+          "transcription": false
+        }
+      ]
+    }
+  },
+  {
+    "step": "archive an uploaded text source",
+    "tool": "archive_source",
+    "as": "admin",
+    "arguments": {
+      "data": "SGFyYm91ciBsb2csIG1vcm5pbmcgd2F0Y2guCkEgbGFyZ2Ugd2hhbGUgc2lnaHRlZCBvZmYgdGhlIHF1YXkuCg==",
+      "filename": "harbour-log.txt",
+      "project": "contract",
+      "title": "Harbour log"
+    },
+    "result": {
+      "content": "---\ntitle: \"Harbour log\"\nkind: archived-source\nstatus: unreviewed\nsource_id: \"ID1\"\nsource_url: \"\"\nsource_final_url: \"\"\nsource_captured_at: \"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"\nsource_imported_by: \"ID2\"\nsource_method: \"uploaded\"\nsource_original: \"assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt\"\nsource_sha256: \"bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb\"\nsource_mime: \"text/plain\"\nsource_extractor: \"ForgetMeNote Text text v1\"\nsource_extraction: \"extracted\"\nsource_warning: \"\"\nsource_text_sha256: \"bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb\"\n---\n\n# Harbour log\n\n[Original file](/assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt)\n\n## Extracted content\n\nHarbour log, morning watch.\nA large whale sighted off the quay.\n",
+      "html": "<h1 id=\"h-harbour-log\">Harbour log</h1>\n<p><a href=\"/assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt\" rel=\"nofollow\">Original file</a></p>\n<h2 id=\"h-extracted-content\">Extracted content</h2>\n<p>Harbour log, morning watch.\nA large whale sighted off the quay.</p>\n",
+      "metadata": {
+        "kind": "archived-source",
+        "source": {
+          "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+          "extraction": "extracted",
+          "extractor": "ForgetMeNote Text text v1",
+          "finalURL": "",
+          "id": "ID1",
+          "importedBy": "ID2",
+          "method": "uploaded",
+          "mime": "text/plain",
+          "original": "assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt",
+          "sha256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+          "textSHA256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+          "url": "",
+          "warning": ""
+        },
+        "status": "unreviewed",
+        "tags": [],
+        "title": "Harbour log"
+      },
+      "path": "sources/ID1.md",
+      "revision": "REV1",
+      "title": "Harbour log",
+      "version": "REV1"
+    }
+  },
+  {
+    "step": "read the source note",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "sources/ID1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\ntitle: \"Harbour log\"\nkind: archived-source\nstatus: unreviewed\nsource_id: \"ID1\"\nsource_url: \"\"\nsource_final_url: \"\"\nsource_captured_at: \"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"\nsource_imported_by: \"ID2\"\nsource_method: \"uploaded\"\nsource_original: \"assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt\"\nsource_sha256: \"bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb\"\nsource_mime: \"text/plain\"\nsource_extractor: \"ForgetMeNote Text text v1\"\nsource_extraction: \"extracted\"\nsource_warning: \"\"\nsource_text_sha256: \"bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb\"\n---\n\n# Harbour log\n\n[Original file](/assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt)\n\n## Extracted content\n\nHarbour log, morning watch.\nA large whale sighted off the quay.\n",
+      "html": "<h1 id=\"h-harbour-log\">Harbour log</h1>\n<p><a href=\"/assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt\" rel=\"nofollow\">Original file</a></p>\n<h2 id=\"h-extracted-content\">Extracted content</h2>\n<p>Harbour log, morning watch.\nA large whale sighted off the quay.</p>\n",
+      "metadata": {
+        "kind": "archived-source",
+        "source": {
+          "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+          "extraction": "extracted",
+          "extractor": "ForgetMeNote Text text v1",
+          "finalURL": "",
+          "id": "ID1",
+          "importedBy": "ID2",
+          "method": "uploaded",
+          "mime": "text/plain",
+          "original": "assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt",
+          "sha256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+          "textSHA256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+          "url": "",
+          "warning": ""
+        },
+        "status": "unreviewed",
+        "tags": [],
+        "title": "Harbour log"
+      },
+      "path": "sources/ID1.md",
+      "revision": "REV1",
+      "title": "Harbour log",
+      "version": "REV1"
+    }
+  },
+  {
+    "step": "verify the archived source",
+    "tool": "verify_source",
+    "as": "admin",
+    "arguments": {
+      "path": "sources/ID1.md",
+      "project": "contract"
+    },
+    "result": {
+      "originalState": "Original checksum matches",
+      "originalStatus": "match",
+      "revision": "REV1",
+      "textState": "Extracted text checksum matches",
+      "textStatus": "match"
+    }
+  },
+  {
+    "step": "read the archived original",
+    "tool": "read_source_original",
+    "as": "admin",
+    "arguments": {
+      "path": "assets/sources/ID1/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "result": {
+      "data": "SGFyYm91ciBsb2csIG1vcm5pbmcgd2F0Y2guCkEgbGFyZ2Ugd2hhbGUgc2lnaHRlZCBvZmYgdGhlIHF1YXkuCg==",
+      "encoding": "base64",
+      "mimeType": "text/plain",
+      "nextOffset": 64,
+      "offset": 0,
+      "revision": "REV1",
+      "sha256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+      "total": 64
+    }
+  },
+  {
+    "step": "read_source_original reads only archived originals",
+    "tool": "read_source_original",
+    "as": "admin",
+    "arguments": {
+      "path": "sources/ID1.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "refreshing a source with a stale revision conflicts",
+    "tool": "archive_source",
+    "as": "admin",
+    "arguments": {
+      "data": "SGFyYm91ciBsb2csIG1vcm5pbmcgd2F0Y2guCkEgbGFyZ2Ugd2hhbGUgc2lnaHRlZCBvZmYgdGhlIHF1YXkuCkxhdGVyIGVudHJ5Lgo=",
+      "filename": "harbour-log.txt",
+      "path": "sources/ID1.md",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "a reader cannot archive sources",
+    "tool": "archive_source",
+    "as": "reader",
+    "arguments": {
+      "data": "UmVhZGVyIHNvdXJjZS4K",
+      "filename": "reader.txt",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "verify a note that is not a source",
+    "tool": "verify_source",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract"
+    },
+    "error": "note is not an archived source"
+  }
+]

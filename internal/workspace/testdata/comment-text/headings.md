@@ -1,0 +1,17 @@
+# ATX #
+
+## Closing ##
+
+###No space
+
+Setext one
+===
+
+Setext two
+---
+
+####### seven
+
+#
+
+# \# escaped

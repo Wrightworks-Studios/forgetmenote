@@ -1,0 +1,10 @@
+{{/* Wiki layout regions: the generated contents page and the page footer. Rendered in place by index.html. */}}
+{{define "index-wiki-home"}}<section id="wiki-home" hidden aria-labelledby="wiki-home-title">
+        <h1 id="wiki-home-title"></h1>
+        <ul id="wiki-contents" aria-label="Contents"></ul>
+        <p id="wiki-home-empty" class="small" hidden>No pages here yet.</p>
+      </section>{{end}}
+{{define "index-wiki-footer"}}<footer id="wiki-footer" aria-label="Page links">
+        <nav id="wiki-pager" aria-label="Previous and next pages"></nav>
+        <section id="wiki-backlinks" aria-labelledby="wiki-backlinks-title"><h2 id="wiki-backlinks-title">Referenced by</h2><ul id="wiki-backlinks-list"></ul></section>
+      </footer>{{end}}

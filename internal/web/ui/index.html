@@ -1,0 +1,69 @@
+{{$brand := brand}}
+<!doctype html>
+<html lang="en" data-instance-name="{{$brand.Name}}">
+  <head>{{template "brand-icons" $brand}}
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="source-style-nonce" content="{{.StyleNonce}}" />
+    <title>{{$brand.Name}}</title>
+    <link rel="preload" href="{{asset "/static/fonts/Onest.woff2"}}" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="{{asset "/static/fonts/Fraunces.woff2"}}" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="{{asset "/static/fonts/SourceSerif4-Roman.woff2"}}" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="{{asset "/static/style.css"}}" />
+    <link rel="stylesheet" href="/custom.css" />
+    <script type="module" src="{{asset "/static/app.mjs"}}"></script>
+  </head>
+  <body>
+    {{template "index-sidebar" .}}
+    <button
+      id="sidebar-backdrop"
+      aria-label="Close sidebar"
+      tabindex="-1"
+      hidden
+    ></button>
+    <aside id="chat-panel" aria-labelledby="chat-title" hidden></aside>
+    {{template "index-writing-panel" .}}
+    <main id="main">
+      {{template "index-header" .}}
+      <p id="assistant-welcome" class="small" hidden>Your personal assistant is available. <a class="button quiet" href="/account/assistant">Set up my assistant</a></p>
+      <details id="notebook-outline" hidden><summary>Notebook map</summary><div class="document-toolbar"><input id="outline-query" type="search" placeholder="Find a page or symbol…" aria-label="Search notebook map" /><button id="outline-find" class="quiet">Find</button></div><p id="outline-status" role="status" class="small"></p><ul id="outline-entries"></ul><button id="outline-more" class="quiet" hidden>More entries</button></details>
+      <section id="source-browser" hidden aria-label="Repository files"><div class="folder-heading"><div><h1 id="source-browser-title">Files</h1><p id="source-browser-status" class="small" role="status"></p></div><button id="source-check" class="quiet">Check for updates</button></div><label class="search"><input id="source-file-query" type="search" placeholder="Find a file…" aria-label="Find a repository file" /></label><ul id="source-files" class="note-tree"></ul><button id="source-files-more" class="quiet" hidden>More files</button></section>
+      <section id="source-document" hidden aria-label="Read-only repository document"><div class="document-toolbar"><button id="source-back" class="quiet" data-icon="back">Files</button><span id="source-document-meta" class="small"></span><a id="source-github" target="_blank" rel="noopener noreferrer">Open on GitHub</a><button id="source-copy" class="quiet">Copy citation</button><button id="source-writing-open" class="quiet" hidden>Writing tools</button><button id="source-raw-toggle" class="quiet" hidden>Code</button></div><p id="source-update" class="small" role="status" hidden></p><article id="source-markdown" class="markdown-body" hidden></article><div id="source-code"></div><div class="document-toolbar"><button id="source-previous" class="quiet" hidden>Previous lines</button><button id="source-next" class="quiet" hidden>Next lines</button></div></section>
+      <div id="metadata-bar" hidden aria-label="Note properties"></div>
+      <section id="inbox-view" hidden aria-labelledby="inbox-title">
+        <div class="folder-heading"><div><h1 id="inbox-title">Inbox</h1></div><button id="inbox-capture">Quick note</button></div>
+        <div id="inbox-content"></div>
+      </section>
+      {{template "index-search" .}}
+      {{template "index-library" .}}
+      {{template "index-wiki-home" .}}
+      {{template "index-document" .}}
+      {{template "index-wiki-footer" .}}
+      <nav id="reader-actions" aria-label="Note actions" hidden></nav>
+      <div id="feedback-tray"><div id="notice" role="alert" hidden></div><button id="trash-undo" class="quiet" hidden>Undo move to Trash</button></div>
+      <dialog id="draft-candidates-dialog"><div class="dialog-title"><h2>Choose a retained draft</h2><button id="draft-candidates-close" class="quiet">Cancel</button></div>
+        <div id="draft-candidates-list"></div>
+        <button id="draft-candidates-shared" class="quiet">Open shared version</button>
+      </dialog>
+      <dialog id="reconcile-dialog"><div class="dialog-title"><h2>Reconcile draft</h2><button id="reconcile-close" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+        <label>Latest saved version<textarea id="reconcile-latest" readonly rows="10" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true"></textarea></label>
+        <label>Your combined version<textarea id="reconcile-content" rows="10" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true"></textarea></label>
+        <p id="reconcile-error" role="alert"></p>
+        <div class="dialog-actions"><button id="reconcile-apply">Use combined version</button><button id="reconcile-discard" class="quiet">Discard draft and use latest</button></div>
+      </dialog>
+    </main>
+    {{template "index-note-dialogs" .}}
+    {{template "index-account-dialogs" .}}
+    {{template "index-settings-dialog" .}}
+    {{template "index-comments-panel" .}}
+    {{template "index-admin-dialogs" .}}
+    <input
+      id="upload"
+      type="file"
+      hidden
+      accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml,application/pdf,audio/*,video/mp4,video/webm,.html,.htm,.txt,.docx,.epub,.xlsx,.csv,.tsv"
+    />
+    <nav id="mobile-navigation" aria-label="Main navigation"><button class="quiet" data-destination="browse-root">Notes</button><button class="quiet" data-destination="search-open">Search</button><button class="quiet" data-destination="inbox-open">Inbox</button><button class="quiet" data-destination="review-open">Review</button></nav>
+  </body>
+</html>

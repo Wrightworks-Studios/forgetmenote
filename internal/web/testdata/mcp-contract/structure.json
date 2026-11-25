@@ -1,0 +1,337 @@
+[
+  {
+    "step": "status before moving",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "an editor cannot move notes",
+    "tool": "move_notes",
+    "as": "editor",
+    "arguments": {
+      "from": "research/whales.md",
+      "project": "contract",
+      "revision": "REV1",
+      "to": "research/sperm-whales.md"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "rename a note; links to it are rewritten",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "research/whales.md",
+      "project": "contract",
+      "revision": "REV1",
+      "to": "research/sperm-whales.md"
+    },
+    "result": {
+      "from": "research/whales.md",
+      "revision": "REV2",
+      "to": "research/sperm-whales.md",
+      "updatedLinks": 1
+    }
+  },
+  {
+    "step": "a stale move conflicts",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "index.md",
+      "project": "contract",
+      "revision": "REV1",
+      "to": "home.md"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "the linking note was rewritten",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../research/sperm-whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../research/sperm-whales.md\" rel=\"nofollow\">the whale notes</a> twice.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "review",
+        "tags": [
+          "fiction"
+        ],
+        "title": "Chapter two: departure"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV2",
+      "title": "Chapter two: departure",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "move a folder",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "research",
+      "project": "contract",
+      "revision": "REV2",
+      "to": "reference"
+    },
+    "result": {
+      "from": "research",
+      "revision": "REV3",
+      "to": "reference",
+      "updatedLinks": 1
+    }
+  },
+  {
+    "step": "moving onto an occupied path is refused",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "index.md",
+      "project": "contract",
+      "revision": "REV3",
+      "to": "manuscript/chapter-1.md"
+    },
+    "error": "destination already exists or is inaccessible"
+  },
+  {
+    "step": "moving a missing note",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "missing.md",
+      "project": "contract",
+      "revision": "REV3",
+      "to": "found.md"
+    },
+    "error": "stat <TMP>/projects/contract/workspace/missing.md: no such file or directory"
+  },
+  {
+    "step": "duplicate a note; the copy gets a new fmn-id",
+    "tool": "duplicate_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV3",
+      "to": "manuscript/chapter-1-copy.md"
+    },
+    "result": {
+      "from": "manuscript/chapter-1.md",
+      "revision": "REV4",
+      "to": "manuscript/chapter-1-copy.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "read the copy",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1-copy.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: ID1\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "metadata": {
+        "id": "ID1",
+        "kind": "",
+        "status": "draft",
+        "tags": [
+          "fiction",
+          "draft"
+        ],
+        "title": "Chapter one"
+      },
+      "path": "manuscript/chapter-1-copy.md",
+      "revision": "REV4",
+      "title": "Chapter one",
+      "version": "REV4"
+    }
+  },
+  {
+    "step": "duplicate a folder",
+    "tool": "duplicate_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "reference",
+      "project": "contract",
+      "revision": "REV4",
+      "to": "reference-copy"
+    },
+    "result": {
+      "from": "reference",
+      "revision": "REV5",
+      "to": "reference-copy",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "duplicate with a stale revision",
+    "tool": "duplicate_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "index.md",
+      "project": "contract",
+      "revision": "REV4",
+      "to": "index-copy.md"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "browse after moves",
+    "tool": "browse_folder",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "items": [
+        {
+          "count": 3,
+          "kind": "folder",
+          "path": "manuscript",
+          "title": "manuscript"
+        },
+        {
+          "count": 1,
+          "kind": "folder",
+          "path": "reference",
+          "title": "reference"
+        },
+        {
+          "count": 1,
+          "kind": "folder",
+          "path": "reference-copy",
+          "title": "reference-copy"
+        },
+        {
+          "excerpt": "Start with Chapter one.",
+          "kind": "note",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "index.md",
+          "title": "Contract notebook"
+        }
+      ],
+      "path": "",
+      "revision": "REV5",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "link targets follow moves; copies get new fmn-ids",
+    "tool": "find_notebook_link_targets",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": ""
+    },
+    "result": [
+      {
+        "path": "index.md",
+        "project": "contract",
+        "title": "Contract notebook"
+      },
+      {
+        "noteId": "ID1",
+        "path": "manuscript/chapter-1-copy.md",
+        "project": "contract",
+        "title": "Chapter one"
+      },
+      {
+        "noteId": "c0ffee00000000000000000000000001",
+        "path": "manuscript/chapter-1.md",
+        "project": "contract",
+        "title": "Chapter one"
+      },
+      {
+        "noteId": "c0ffee00000000000000000000000002",
+        "path": "manuscript/chapter-2.md",
+        "project": "contract",
+        "title": "Chapter two"
+      },
+      {
+        "path": "reference-copy/sperm-whales.md",
+        "project": "contract",
+        "title": "Sperm whales"
+      },
+      {
+        "path": "reference/sperm-whales.md",
+        "project": "contract",
+        "title": "Sperm whales"
+      }
+    ]
+  },
+  {
+    "step": "history follows the renamed note",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "reference/sperm-whales.md",
+      "project": "contract"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"research\" to \"reference\"",
+        "path": "reference/sperm-whales.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"research/whales.md\" to \"research/sperm-whales.md\"",
+        "path": "research/sperm-whales.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update research/whales.md",
+        "path": "research/whales.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID2"
+      }
+    ]
+  }
+]

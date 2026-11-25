@@ -1,0 +1,882 @@
+[
+  {
+    "step": "upload an attachment",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BBSgFAAAAAIAAAAAAAADAAm0AM9gG4n0AAAAAElFTkSuQmCC",
+      "path": "assets/dot.png",
+      "project": "contract-history",
+      "revision": ""
+    },
+    "result": {
+      "path": "assets/dot.png",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "read_note at an unknown revision",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "revision REV2 is not in this notebook's history"
+  },
+  {
+    "step": "read_note at the all-zero revision",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV3"
+    },
+    "error": "revision REV3 is not in this notebook's history"
+  },
+  {
+    "step": "read_note at another notebook's revision",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "revision REV4 is not in this notebook's history"
+  },
+  {
+    "step": "read_note at an abbreviated head revision",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "<masked>"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "read_note at the upper-case head revision",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "<masked>"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "read_attachment at an unknown revision",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "path": "assets/dot.png",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "revision REV2 is not in this notebook's history"
+  },
+  {
+    "step": "read_document at an unknown revision",
+    "tool": "read_document",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "document_outline at an unknown revision",
+    "tool": "document_outline",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "list_documents at an unknown revision",
+    "tool": "list_documents",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "notebook_map at an unknown revision",
+    "tool": "notebook_map",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "find_term_mentions at an unknown revision",
+    "tool": "find_term_mentions",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV2",
+      "terms": [
+        {
+          "name": "alpha"
+        }
+      ]
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "resolve_notebook_link at an unknown revision",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "restore_note from an unknown revision",
+    "tool": "restore_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV1",
+      "sourceRevision": "REV2"
+    },
+    "error": "revision REV2 is not in this notebook's history"
+  },
+  {
+    "step": "save_note expecting an unknown revision",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Overwritten\n",
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "set_note_properties expecting an unknown revision",
+    "tool": "set_note_properties",
+    "as": "admin",
+    "arguments": {
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Changed"
+      },
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "set_note_container expecting an unknown revision",
+    "tool": "set_note_container",
+    "as": "admin",
+    "arguments": {
+      "container": "draft",
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "set_note_lock expecting an unknown revision",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": true,
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "add_comment expecting an unknown revision",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2",
+      "text": "Unknown base."
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "upload_attachment expecting an unknown revision",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BBQUoAAAAAIAAAAAAAADAAkoAM+yQlpvAAAAAElFTkSuQmCC",
+      "path": "assets/dot.png",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "set_project_instructions expecting an unknown revision",
+    "tool": "set_project_instructions",
+    "as": "admin",
+    "arguments": {
+      "content": "Unknown base.\n",
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "duplicate_notes expecting an unknown revision",
+    "tool": "duplicate_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2",
+      "to": "chapters/unknown-copy.md"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "move_notes expecting an unknown revision",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV2",
+      "to": "chapters/unknown-move.md"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "trash_notes expecting an unknown revision",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "chapters/alpha-live.md"
+      ],
+      "project": "contract-history",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "read_attachment at another notebook's revision",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "path": "assets/dot.png",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "revision REV4 is not in this notebook's history"
+  },
+  {
+    "step": "read_document at another notebook's revision",
+    "tool": "read_document",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "document_outline at another notebook's revision",
+    "tool": "document_outline",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "list_documents at another notebook's revision",
+    "tool": "list_documents",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "notebook_map at another notebook's revision",
+    "tool": "notebook_map",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "find_term_mentions at another notebook's revision",
+    "tool": "find_term_mentions",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV4",
+      "terms": [
+        {
+          "name": "alpha"
+        }
+      ]
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "resolve_notebook_link at another notebook's revision",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "restore_note from another notebook's revision",
+    "tool": "restore_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV1",
+      "sourceRevision": "REV4"
+    },
+    "error": "revision REV4 is not in this notebook's history"
+  },
+  {
+    "step": "save_note expecting another notebook's revision",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Overwritten\n",
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "set_note_properties expecting another notebook's revision",
+    "tool": "set_note_properties",
+    "as": "admin",
+    "arguments": {
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Changed"
+      },
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "set_note_container expecting another notebook's revision",
+    "tool": "set_note_container",
+    "as": "admin",
+    "arguments": {
+      "container": "draft",
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "set_note_lock expecting another notebook's revision",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": true,
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "add_comment expecting another notebook's revision",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4",
+      "text": "Unknown base."
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "upload_attachment expecting another notebook's revision",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BBQUoAAAAAIAAAAAAAADAAkoAM+yQlpvAAAAAElFTkSuQmCC",
+      "path": "assets/dot.png",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "set_project_instructions expecting another notebook's revision",
+    "tool": "set_project_instructions",
+    "as": "admin",
+    "arguments": {
+      "content": "Unknown base.\n",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "duplicate_notes expecting another notebook's revision",
+    "tool": "duplicate_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4",
+      "to": "chapters/unknown-copy.md"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "move_notes expecting another notebook's revision",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV4",
+      "to": "chapters/unknown-move.md"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "trash_notes expecting another notebook's revision",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "chapters/alpha-live.md"
+      ],
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "save_note expecting the all-zero revision",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Overwritten\n",
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV3"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "read_note spelled ./chapters/alpha-live.md",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "./chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "read_note spelled chapters//alpha-live.md",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters//alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "read_note spelled /chapters/alpha-live.md",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "/chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "read_note spelled chapters/../chapters/alpha-live.md",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/../chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "read_note spelled Chapters/alpha-live.md",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "Chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "read_note spelled chapters/./alpha-live.md",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/./alpha-live.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "note_history of chapters/missing.md",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/missing.md",
+      "project": "contract-history"
+    },
+    "result": []
+  },
+  {
+    "step": "note_history of chapters/",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "note_history of ./chapters",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "./chapters",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "note_history of nowhere",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "nowhere",
+      "project": "contract-history"
+    },
+    "result": []
+  },
+  {
+    "step": "list_comments of a missing note",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/missing.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "document_outline of a missing note",
+    "tool": "document_outline",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/missing.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "set_note_properties of a missing note",
+    "tool": "set_note_properties",
+    "as": "admin",
+    "arguments": {
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Missing"
+      },
+      "path": "chapters/missing.md",
+      "project": "contract-history",
+      "revision": "REV1"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "set_note_container of a missing note",
+    "tool": "set_note_container",
+    "as": "admin",
+    "arguments": {
+      "container": "draft",
+      "path": "chapters/missing.md",
+      "project": "contract-history",
+      "revision": "REV1"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "checkpoint_live_note of a missing note",
+    "tool": "checkpoint_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/missing.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "patch_live_note of a missing note",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "0:0",
+      "edits": [
+        {
+          "end": 0,
+          "old": "",
+          "start": 0,
+          "text": "x"
+        }
+      ],
+      "operationId": "history-missing",
+      "path": "chapters/missing.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "duplicate_notes of a missing note",
+    "tool": "duplicate_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/missing.md",
+      "project": "contract-history",
+      "revision": "REV1",
+      "to": "chapters/missing-copy.md"
+    },
+    "error": "stat <TMP>/projects/contract-history/workspace/chapters/missing.md: no such file or directory"
+  },
+  {
+    "step": "restore_note of a path absent at the source revision",
+    "tool": "restore_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history",
+      "revision": "REV1",
+      "sourceRevision": "REV5"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "read_attachment absent at an older revision",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "path": "assets/dot.png",
+      "project": "contract-history",
+      "revision": "REV5"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "verify_source of a missing note",
+    "tool": "verify_source",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/missing.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "/api/v1 class: read_note at an unknown revision",
+    "check": {
+      "arguments": {
+        "path": "chapters/alpha-live.md",
+        "project": "contract-history",
+        "revision": "REV2"
+      },
+      "code": "invalid_request",
+      "message": "revision REV2 is not in this notebook's history",
+      "status": 400,
+      "tool": "read_note"
+    }
+  },
+  {
+    "step": "/api/v1 class: read_note at another notebook's revision",
+    "check": {
+      "arguments": {
+        "path": "chapters/alpha-live.md",
+        "project": "contract-history",
+        "revision": "REV4"
+      },
+      "code": "invalid_request",
+      "message": "revision REV4 is not in this notebook's history",
+      "status": 400,
+      "tool": "read_note"
+    }
+  },
+  {
+    "step": "/api/v1 class: read_note of a missing note",
+    "check": {
+      "arguments": {
+        "path": "chapters/missing.md",
+        "project": "contract-history"
+      },
+      "code": "not_found",
+      "message": "file does not exist",
+      "status": 404,
+      "tool": "read_note"
+    }
+  },
+  {
+    "step": "/api/v1 class: read_note outside the notebook",
+    "check": {
+      "arguments": {
+        "path": "../escape.md",
+        "project": "contract-history"
+      },
+      "code": "forbidden",
+      "message": "this path is not accessible",
+      "status": 403,
+      "tool": "read_note"
+    }
+  },
+  {
+    "step": "/api/v1 class: save_note expecting an unknown revision",
+    "check": {
+      "arguments": {
+        "content": "# Overwritten\n",
+        "path": "chapters/alpha-live.md",
+        "project": "contract-history",
+        "revision": "REV2"
+      },
+      "code": "conflict",
+      "message": "the notebook changed; reload and reconcile your draft",
+      "status": 409,
+      "tool": "save_note"
+    }
+  },
+  {
+    "step": "/api/v1 class: move_notes of a missing note",
+    "check": {
+      "arguments": {
+        "from": "chapters/missing.md",
+        "project": "contract-history",
+        "revision": "REV1",
+        "to": "chapters/found.md"
+      },
+      "code": "not_found",
+      "message": "stat <TMP>/projects/contract-history/workspace/chapters/missing.md: no such file or directory",
+      "status": 404,
+      "tool": "move_notes"
+    }
+  },
+  {
+    "step": "/api/v1 class: trash_notes of a missing note",
+    "check": {
+      "arguments": {
+        "paths": [
+          "chapters/missing.md"
+        ],
+        "project": "contract-history",
+        "revision": "REV1"
+      },
+      "code": "not_found",
+      "message": "file does not exist",
+      "status": 404,
+      "tool": "trash_notes"
+    }
+  },
+  {
+    "step": "/api/v1 class: note_history of a missing note",
+    "check": {
+      "arguments": {
+        "path": "chapters/missing.md",
+        "project": "contract-history"
+      },
+      "code": "",
+      "message": "",
+      "status": 200,
+      "tool": "note_history"
+    }
+  },
+  {
+    "step": "/api/v1 class: restore_note from an unknown revision",
+    "check": {
+      "arguments": {
+        "path": "chapters/alpha-live.md",
+        "project": "contract-history",
+        "revision": "REV1",
+        "sourceRevision": "REV2"
+      },
+      "code": "invalid_request",
+      "message": "revision REV2 is not in this notebook's history",
+      "status": 400,
+      "tool": "restore_note"
+    }
+  },
+  {
+    "step": "/api/v1 class: read_attachment at an unknown revision",
+    "check": {
+      "arguments": {
+        "path": "assets/dot.png",
+        "project": "contract-history",
+        "revision": "REV2"
+      },
+      "code": "invalid_request",
+      "message": "revision REV2 is not in this notebook's history",
+      "status": 400,
+      "tool": "read_attachment"
+    }
+  }
+]

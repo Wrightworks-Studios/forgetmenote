@@ -1,0 +1,97 @@
+/* Focus mode: the note alone on a page. Navigation, chat, properties and editor
+   chrome are hidden; the header keeps save state, Edit/Read, Save, exit and the
+   page controls. With a mouse on a wide screen it becomes a toolbar below the
+   bottom edge that focus-mode.mjs reveals near the pointer, on keyboard focus
+   and while a save needs attention. Touch screens and phones keep it at the
+   top, where an on-screen keyboard cannot cover it. Conflicts, retained drafts
+   and notices stay where they are. Page settings arrive as --focus-* values. */
+body.focus-mode {
+  --text-scale: var(--focus-text-scale, 1);
+  /* About 70 characters per line in each reading font, before Page width. */
+  --reading-width: calc(var(--reading-size) * var(--text-scale) * 33 * var(--focus-page-width, 1));
+}
+body.focus-mode :is(#notebook-outline, #assistant-welcome, #mobile-navigation, #metadata-bar, #editor-tools, .editor-footer) { display: none; }
+/* Text size: the reader, and the editor's content (#editor) in each mode. */
+body.focus-mode #document .prose,
+body.focus-mode #editing[data-format="visual"] #editor { font-size: calc(var(--reading-size) * var(--text-scale)); }
+body.focus-mode #editor { background: transparent; font-size: calc(15px * var(--text-scale)); }
+body.focus-mode #main > header { border-bottom-color: transparent; background: var(--surface); }
+body.focus-mode #main > header > :not(.breadcrumb, .note-actions, #focus-controls),
+body.focus-mode #main > header .note-heading,
+body.focus-mode #main > header .note-actions > :not(#mode, #save, #focus-toggle) { display: none; }
+body.focus-mode #main > header .breadcrumb { flex: 0 1 auto; }
+#focus-toggle { white-space: nowrap; border-color: transparent; background-color: transparent; color: var(--text); }
+#focus-toggle:hover { background-color: var(--hover); }
+body.focus-mode #focus-toggle { color: var(--muted); font-size: var(--text-small); }
+
+#focus-controls { display: none; }
+body.focus-mode #focus-controls { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.focus-range { display: inline-grid; justify-items: center; padding: 0 4px; font-size: var(--text-caption); line-height: 1.2; color: var(--muted); }
+.focus-range input { width: 84px; margin: 2px 0; accent-color: var(--accent); }
+#focus-controls button { min-height: 32px; padding: 4px 10px; border-color: transparent; background: transparent; font-size: var(--text-small); white-space: nowrap; }
+#focus-controls button:not(:disabled):hover { background: var(--hover); }
+#focus-controls button[aria-pressed="true"] { background: var(--selection); color: var(--accent); }
+/* On/off settings carry a small switch, so an unpressed one still reads as a toggle. */
+#focus-controls button[aria-pressed] { display: inline-flex; align-items: center; gap: 6px; }
+#focus-controls button[aria-pressed]::before { content: ""; flex: none; width: 22px; height: 12px; border: 1.5px solid var(--control-border); border-radius: 6px; background: radial-gradient(circle at 4.5px 50%, var(--control-border) 2.5px, transparent 3px); }
+#focus-controls button[aria-pressed="true"]::before { border-color: var(--accent); background: radial-gradient(circle at calc(100% - 4.5px) 50%, var(--accent-text) 2.5px, transparent 3px) var(--accent); }
+.focus-value { font-variant-numeric: tabular-nums; color: var(--text); }
+/* The short save state; its title keeps the whole message. */
+body.focus-mode #save-state { font-size: 0; }
+body.focus-mode #save-state::after { content: attr(data-compact); font-size: var(--text-small); }
+#focus-words { margin-left: auto; font-variant-numeric: tabular-nums; }
+#focus-word-session { color: var(--muted); }
+
+/* Dim others leaves the block holding the caret bright (the editor marks its
+   lines); Typewriter leaves room to centre the last line. */
+body.focus-mode #editor > * { transition: opacity var(--motion-fast); }
+body.focus-mode #document[data-dim] #editor > :not(.fmn-current-block) { opacity: 0.38; }
+body.focus-mode #document[data-typewriter] #editor { padding-bottom: 50vh; }
+body.focus-mode #main[data-typing] #document,
+body.focus-mode #main[data-typing] #document * { cursor: none; }
+
+/* The page sits on a darker background at its chosen width and position. */
+@media (min-width: 721px) {
+  body.focus-mode { background: color-mix(in srgb, var(--bg), #000 var(--focus-background, 30%)); }
+  body.focus-mode #document {
+    --paper-width: min(100%, calc(var(--reading-width) + 160px));
+    width: var(--paper-width);
+    min-height: 100vh;
+    margin-left: calc((100% - var(--paper-width)) * var(--focus-page-position, 0.5));
+    background: var(--bg);
+  }
+}
+@media (hover: hover) and (min-width: 721px) {
+  body.focus-mode #main > header {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: var(--layer-controls);
+    flex-wrap: nowrap;
+    min-height: 0;
+    padding: 6px 16px;
+    gap: 6px 12px;
+    border-top: 1px solid var(--border);
+    transform: translateY(calc(100% + 1px));
+    transition: transform 180ms ease-out;
+  }
+  body.focus-mode #main > header:is([data-revealed], [data-attention]) { transform: none; box-shadow: var(--shadow-popover); }
+  /* One row: a long save state wraps onto two short lines, never truncates.
+     The short form is drawn by ::after, so it carries the measure. */
+  body.focus-mode #main > header .breadcrumb { min-width: 0; }
+  body.focus-mode .breadcrumb #save-state { white-space: normal; text-align: right; }
+  body.focus-mode .breadcrumb #save-state::after { display: block; max-width: 24ch; line-height: 1.3; }
+  body.focus-mode #main > header .note-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+  /* Notices sit above the toolbar so neither covers the other. */
+  body.focus-mode #feedback-tray { bottom: 96px; }
+}
+@media (hover: hover) and (min-width: 721px) and (prefers-reduced-motion: reduce) {
+  body.focus-mode #main > header { transition: none; }
+}
+/* Phones keep one header row: the full save state may wrap, never truncate. */
+@media (max-width: 720px) {
+  body.focus-mode #focus-controls { display: none; }
+  body.focus-mode #main > header { flex-wrap: nowrap; }
+  body.focus-mode #main > header .breadcrumb { flex: 1; }
+  body.focus-mode #main > header .note-actions { flex: 0 0 auto; }
+  body.focus-mode .breadcrumb #save-state { grid-row: 1; white-space: normal; overflow: visible; line-height: 1.3; }
+}

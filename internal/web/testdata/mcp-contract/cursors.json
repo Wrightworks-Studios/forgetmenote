@@ -1,0 +1,993 @@
+[
+  {
+    "step": "status for the cursor cases",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "changes since the first commit",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "since": "REV2"
+    },
+    "result": {
+      "commits": [
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV3",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV4",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "forgetmenote@localhost",
+          "authorName": "ForgetMeNote collaboration",
+          "authoredAt": "<TIME>",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV5",
+          "source": "collaboration"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV6",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV7",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV8",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV9",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV10",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV11",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV12",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV13",
+          "source": "mcp",
+          "userId": "ID1"
+        }
+      ],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "kind": "added",
+          "path": "chapters/alpha-copy.md"
+        },
+        {
+          "kind": "added",
+          "path": "chapters/alpha-live.md"
+        },
+        {
+          "kind": "added",
+          "path": "chapters/beta-restored.md"
+        },
+        {
+          "kind": "modified",
+          "path": "drafts/alpha.md"
+        }
+      ],
+      "freshReview": false,
+      "from": "REV2",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "changes across a rename",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV12",
+      "since": "REV13"
+    },
+    "result": {
+      "commits": [
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV12",
+          "source": "mcp",
+          "userId": "ID1"
+        }
+      ],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "from": "drafts/alpha.md",
+          "kind": "renamed",
+          "path": "drafts/alpha-renamed.md"
+        },
+        {
+          "kind": "modified",
+          "path": "drafts/beta.md"
+        }
+      ],
+      "freshReview": false,
+      "from": "REV13",
+      "revision": "REV12"
+    }
+  },
+  {
+    "step": "changes across a folder move",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV14",
+      "since": "REV15"
+    },
+    "result": {
+      "commits": [
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV14",
+          "source": "mcp",
+          "userId": "ID1"
+        }
+      ],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "from": "drafts/alpha-renamed.md",
+          "kind": "renamed",
+          "path": "chapters/alpha-renamed.md"
+        },
+        {
+          "from": "drafts/beta-renamed.md",
+          "kind": "renamed",
+          "path": "chapters/beta-renamed.md"
+        }
+      ],
+      "freshReview": false,
+      "from": "REV15",
+      "revision": "REV14"
+    }
+  },
+  {
+    "step": "changes across Trash and a restore to a new path",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV9",
+      "since": "REV10"
+    },
+    "result": {
+      "commits": [
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV9",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV16",
+          "source": "mcp",
+          "userId": "ID1"
+        }
+      ],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "from": "chapters/beta-3.md",
+          "kind": "renamed",
+          "path": "chapters/beta-restored.md"
+        }
+      ],
+      "freshReview": false,
+      "from": "REV10",
+      "revision": "REV9"
+    }
+  },
+  {
+    "step": "changes across a deletion",
+    "tool": "read_notebook_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV8",
+      "since": "REV9"
+    },
+    "result": {
+      "commits": [
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV8",
+          "source": "mcp",
+          "userId": "ID1"
+        }
+      ],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "kind": "deleted",
+          "path": "drafts/alpha.md"
+        }
+      ],
+      "freshReview": false,
+      "from": "REV9",
+      "revision": "REV8"
+    }
+  },
+  {
+    "step": "changes since the head are empty",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "since": "REV1"
+    },
+    "result": {
+      "commits": [],
+      "commitsTruncated": false,
+      "files": [],
+      "freshReview": false,
+      "from": "REV1",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "changes from a newer revision to an older one",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV12",
+      "since": "REV14"
+    },
+    "result": {
+      "commits": [],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "kind": "added",
+          "path": "drafts/alpha-renamed.md"
+        },
+        {
+          "kind": "added",
+          "path": "drafts/beta.md"
+        }
+      ],
+      "freshReview": true,
+      "from": "REV14",
+      "reason": "Checkpoint is missing or is not an ancestor; a fresh review is required.",
+      "revision": "REV12"
+    }
+  },
+  {
+    "step": "changes since another notebook's revision",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "since": "REV17"
+    },
+    "result": {
+      "commits": [],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "kind": "added",
+          "path": "chapters/alpha-copy.md"
+        },
+        {
+          "kind": "added",
+          "path": "chapters/alpha-live.md"
+        },
+        {
+          "kind": "added",
+          "path": "chapters/beta-restored.md"
+        },
+        {
+          "kind": "added",
+          "path": "drafts/alpha.md"
+        }
+      ],
+      "freshReview": true,
+      "from": "REV17",
+      "reason": "Checkpoint is missing or is not an ancestor; a fresh review is required.",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "changes up to an unknown revision",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV18",
+      "since": "REV2"
+    },
+    "error": "snapshot commit is unavailable"
+  },
+  {
+    "step": "a snapshot at an unknown revision",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV18",
+      "snapshot": true
+    },
+    "error": "snapshot commit is unavailable"
+  },
+  {
+    "step": "a snapshot before the folder move",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV12",
+      "snapshot": true
+    },
+    "result": {
+      "files": [
+        {
+          "content": "",
+          "hash": "f7b424a8d65ac13410b715b2e300c2cec28eac6746a729e659b74bddaa0b9760",
+          "metadata": {
+            "id": "c0ffee000000000000000000000000a1",
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": "Alpha"
+          },
+          "path": "drafts/alpha-renamed.md"
+        },
+        {
+          "content": "",
+          "hash": "HASH1",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "drafts/beta.md"
+        }
+      ],
+      "revision": "REV12",
+      "visibility": "HASH2"
+    }
+  },
+  {
+    "step": "a snapshot with a note in Trash",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV16",
+      "snapshot": true
+    },
+    "result": {
+      "files": [
+        {
+          "content": "",
+          "hash": "HASH3",
+          "metadata": {
+            "id": "ID2",
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": "Alpha"
+          },
+          "path": "chapters/alpha-copy.md"
+        },
+        {
+          "content": "",
+          "hash": "f7b424a8d65ac13410b715b2e300c2cec28eac6746a729e659b74bddaa0b9760",
+          "metadata": {
+            "id": "c0ffee000000000000000000000000a1",
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": "Alpha"
+          },
+          "path": "chapters/alpha-renamed.md"
+        },
+        {
+          "content": "",
+          "hash": "428273be51c67de2f0af89caff63bfe475c7f0c255bfb58b0313e1dae4d0deca",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "drafts/alpha.md"
+        }
+      ],
+      "revision": "REV16",
+      "visibility": "HASH2"
+    }
+  },
+  {
+    "step": "a new consumer of the audit notebook",
+    "tool": "consumer_checkpoint",
+    "as": "admin",
+    "arguments": {
+      "consumer": "history-review",
+      "project": "contract-history"
+    },
+    "result": {
+      "changes": {
+        "commits": [],
+        "commitsTruncated": false,
+        "files": [
+          {
+            "kind": "added",
+            "path": "chapters/alpha-copy.md"
+          },
+          {
+            "kind": "added",
+            "path": "chapters/alpha-live.md"
+          },
+          {
+            "kind": "added",
+            "path": "chapters/beta-restored.md"
+          },
+          {
+            "kind": "added",
+            "path": "drafts/alpha.md"
+          }
+        ],
+        "freshReview": true,
+        "from": "",
+        "reason": "No valid checkpoint; review the current snapshot.",
+        "revision": "REV1"
+      },
+      "checkpoint": {
+        "completedAt": "",
+        "consumer": "",
+        "revision": "",
+        "summary": "",
+        "user": ""
+      },
+      "completionMeaning": "Externally reported, not independently verified."
+    }
+  },
+  {
+    "step": "complete a workflow at an older revision",
+    "tool": "complete_workflow",
+    "as": "admin",
+    "arguments": {
+      "completion": {
+        "consumer": "history-review",
+        "previous": "",
+        "reset": false,
+        "revision": "REV14",
+        "summary": "Reviewed up to the folder move."
+      },
+      "project": "contract-history"
+    },
+    "result": {
+      "completedAt": "<TIME>",
+      "consumer": "history-review",
+      "revision": "REV14",
+      "summary": "Reviewed up to the folder move.",
+      "user": "@local-admin"
+    }
+  },
+  {
+    "step": "changes since that checkpoint",
+    "tool": "consumer_checkpoint",
+    "as": "admin",
+    "arguments": {
+      "consumer": "history-review",
+      "project": "contract-history"
+    },
+    "result": {
+      "changes": {
+        "commits": [
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV3",
+            "source": "mcp",
+            "userId": "ID1"
+          },
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV4",
+            "source": "mcp",
+            "userId": "ID1"
+          },
+          {
+            "authorEmail": "forgetmenote@localhost",
+            "authorName": "ForgetMeNote collaboration",
+            "authoredAt": "<TIME>",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV5",
+            "source": "collaboration"
+          },
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV6",
+            "source": "mcp",
+            "userId": "ID1"
+          },
+          {
+            "authorEmail": "forgetmenote@localhost",
+            "authorName": "ForgetMeNote collaboration",
+            "authoredAt": "<TIME>",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV19",
+            "source": "collaboration"
+          },
+          {
+            "authorEmail": "forgetmenote@localhost",
+            "authorName": "ForgetMeNote collaboration",
+            "authoredAt": "<TIME>",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV20",
+            "source": "collaboration"
+          },
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV7",
+            "source": "mcp",
+            "userId": "ID1"
+          },
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV8",
+            "source": "mcp",
+            "userId": "ID1"
+          },
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV9",
+            "source": "mcp",
+            "userId": "ID1"
+          },
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV10",
+            "source": "mcp",
+            "userId": "ID1"
+          },
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV21",
+            "source": "mcp",
+            "userId": "ID1"
+          },
+          {
+            "authorEmail": "ID1@users.gitnotes.invalid",
+            "authorName": "User USER1",
+            "authoredAt": "<TIME>",
+            "client": "contract-client",
+            "committerEmail": "forgetmenote@localhost",
+            "committerName": "ForgetMeNote",
+            "message": "",
+            "revision": "REV11",
+            "source": "mcp",
+            "userId": "ID1"
+          }
+        ],
+        "commitsTruncated": false,
+        "files": [
+          {
+            "kind": "added",
+            "path": "chapters/alpha-copy.md"
+          },
+          {
+            "from": "chapters/alpha-renamed.md",
+            "kind": "renamed",
+            "path": "chapters/alpha-live.md"
+          },
+          {
+            "from": "chapters/beta-renamed.md",
+            "kind": "renamed",
+            "path": "chapters/beta-restored.md"
+          },
+          {
+            "kind": "added",
+            "path": "drafts/alpha.md"
+          }
+        ],
+        "freshReview": false,
+        "from": "REV14",
+        "revision": "REV1"
+      },
+      "checkpoint": {
+        "completedAt": "<TIME>",
+        "consumer": "history-review",
+        "revision": "REV14",
+        "summary": "Reviewed up to the folder move.",
+        "user": "@local-admin"
+      },
+      "completionMeaning": "Externally reported, not independently verified."
+    }
+  },
+  {
+    "step": "completing at an unknown revision",
+    "tool": "complete_workflow",
+    "as": "admin",
+    "arguments": {
+      "completion": {
+        "consumer": "history-review",
+        "previous": "REV14",
+        "reset": false,
+        "revision": "REV18",
+        "summary": "Unknown."
+      },
+      "project": "contract-history"
+    },
+    "error": "snapshot is no longer in current history: the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "completing at another notebook's revision",
+    "tool": "complete_workflow",
+    "as": "admin",
+    "arguments": {
+      "completion": {
+        "consumer": "history-review",
+        "previous": "REV14",
+        "reset": false,
+        "revision": "REV17",
+        "summary": "Foreign."
+      },
+      "project": "contract-history"
+    },
+    "error": "snapshot is no longer in current history: the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "complete the workflow at the head",
+    "tool": "complete_workflow",
+    "as": "admin",
+    "arguments": {
+      "completion": {
+        "consumer": "history-review",
+        "previous": "REV14",
+        "reset": false,
+        "revision": "REV1",
+        "summary": "Reviewed everything."
+      },
+      "project": "contract-history"
+    },
+    "result": {
+      "completedAt": "<TIME>",
+      "consumer": "history-review",
+      "revision": "REV1",
+      "summary": "Reviewed everything.",
+      "user": "@local-admin"
+    }
+  },
+  {
+    "step": "the checkpoint at the head",
+    "tool": "consumer_checkpoint",
+    "as": "admin",
+    "arguments": {
+      "consumer": "history-review",
+      "project": "contract-history"
+    },
+    "result": {
+      "changes": {
+        "commits": [],
+        "commitsTruncated": false,
+        "files": [],
+        "freshReview": false,
+        "from": "REV1",
+        "revision": "REV1"
+      },
+      "checkpoint": {
+        "completedAt": "<TIME>",
+        "consumer": "history-review",
+        "revision": "REV1",
+        "summary": "Reviewed everything.",
+        "user": "@local-admin"
+      },
+      "completionMeaning": "Externally reported, not independently verified."
+    }
+  },
+  {
+    "step": "read a note to replace",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "# Third alpha\n",
+      "html": "<h1 id=\"h-third-alpha\">Third alpha</h1>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "drafts/alpha.md",
+      "revision": "REV1",
+      "title": "Third alpha",
+      "version": "REV7"
+    }
+  },
+  {
+    "step": "delete a note and add one with the same text in one group",
+    "tool": "submit_change_group",
+    "as": "admin",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "",
+            "delete": true,
+            "hash": "719ee49e3f6fc9c1f8d7eed213bbc12964a6672829f6cb30efcb0795efc47473",
+            "path": "drafts/alpha.md",
+            "revision": "REV1"
+          },
+          {
+            "content": "# Third alpha\n",
+            "hash": "",
+            "path": "drafts/gamma.md",
+            "revision": ""
+          }
+        ],
+        "id": "history-replace",
+        "summary": "Rename by hand"
+      },
+      "mode": "apply",
+      "project": "contract-history"
+    },
+    "result": {
+      "replayed": false,
+      "revision": "REV22"
+    }
+  },
+  {
+    "step": "changes across a delete and an add of the same text",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV22",
+      "since": "REV1"
+    },
+    "result": {
+      "commits": [
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV22",
+          "source": "mcp",
+          "userId": "ID1"
+        }
+      ],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "kind": "deleted",
+          "path": "drafts/alpha.md"
+        },
+        {
+          "kind": "added",
+          "path": "drafts/gamma.md"
+        }
+      ],
+      "freshReview": false,
+      "from": "REV1",
+      "revision": "REV22"
+    }
+  },
+  {
+    "step": "retrying an applied change group after later commits replays it",
+    "tool": "submit_change_group",
+    "as": "admin",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "",
+            "delete": true,
+            "hash": "428273be51c67de2f0af89caff63bfe475c7f0c255bfb58b0313e1dae4d0deca",
+            "path": "drafts/alpha.md",
+            "revision": "REV9"
+          }
+        ],
+        "id": "history-delete",
+        "summary": "Delete the reused note"
+      },
+      "mode": "apply",
+      "project": "contract-history"
+    },
+    "result": {
+      "replayed": true,
+      "revision": "REV8"
+    }
+  }
+]

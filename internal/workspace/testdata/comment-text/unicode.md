@@ -1,0 +1,7 @@
+Non breaking and ideographic　space and em space.
+
+Line separator and nextline and zero​width and bom﻿here.
+
+Café café 😀 emoji שלום.
+
+	tab	lead

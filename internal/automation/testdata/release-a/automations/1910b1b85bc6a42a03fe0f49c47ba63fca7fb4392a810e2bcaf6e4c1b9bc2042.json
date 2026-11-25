@@ -1,0 +1,52 @@
+{
+  "retryAt": "0001-01-01T00:00:00Z",
+  "version": 5,
+  "id": "1910b1b85bc6a42a03fe0f49c47ba63fca7fb4392a810e2bcaf6e4c1b9bc2042",
+  "spec": {
+    "id": "learn",
+    "kind": "learning",
+    "actor": "worker",
+    "project": "profiles",
+    "connections": [
+      "db"
+    ],
+    "aiConnection": "model",
+    "externalProcessing": true,
+    "learning": {
+      "captureInputs": true,
+      "folder": "learned",
+      "debounceSeconds": 120,
+      "maxWaitSeconds": 300,
+      "minExamples": 2,
+      "retentionHours": 24
+    }
+  },
+  "state": "queued",
+  "created": "2026-10-02T09:30:00Z",
+  "updated": "2026-10-02T09:30:00Z",
+  "attempts": 0,
+  "learning": {
+    "readyAt": "2026-10-02T09:32:00Z",
+    "expires": "2026-10-03T09:30:00Z",
+    "events": [
+      {
+        "id": "one",
+        "actor": "",
+        "account": "",
+        "epoch": 0,
+        "projectEpoch": 0,
+        "conversation": "",
+        "at": "2026-10-02T09:30:00Z",
+        "call": {
+          "connection": "",
+          "operation": "",
+          "arguments": null
+        },
+        "shape": "",
+        "outcome": "",
+        "durationMs": 0,
+        "complete": false
+      }
+    ]
+  }
+}

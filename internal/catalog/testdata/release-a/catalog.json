@@ -1,0 +1,65 @@
+{
+  "version": 10,
+  "users": null,
+  "projects": null,
+  "data": {
+    "groups": {
+      "team": {
+        "id": "team",
+        "name": "Team",
+        "members": [
+          "local-e94c1d7f75f074853f7413cfd99725ff"
+        ],
+        "revision": 5
+      }
+    },
+    "activitySequence": 8,
+    "instanceName": "Fixture Instance",
+    "instanceLogoHash": "e2cf58c1ffa575ac3b27bffad99c5713d779aced178ecb5efea870669b02ddd7",
+    "projectAccessEpoch": {
+      "work\u0000local-e94c1d7f75f074853f7413cfd99725ff": 1
+    },
+    "passwords": {
+      "admin": {
+        "user": "local-447a97a440db38b2886f0689189b5aca",
+        "hash": "pbkdf2-sha256:600000:26ecfd14fe5858475a3d4fc8720c99b2:ade1f2d273aeb47569246bd8e2999d3d9a7b4aec28a43248a2dcedfdd1aa18f9"
+      },
+      "bob": {
+        "user": "local-e94c1d7f75f074853f7413cfd99725ff",
+        "hash": "pbkdf2-sha256:600000:c97e204126baae7874b9533643770f3e:483b3fc28909da3d5aa557c44569f458e1a34703a9ceb66d9893a0f809a8ff19"
+      }
+    },
+    "users": {
+      "local-447a97a440db38b2886f0689189b5aca": {
+        "id": "local-447a97a440db38b2886f0689189b5aca",
+        "admin": true,
+        "disabled": false
+      },
+      "local-e94c1d7f75f074853f7413cfd99725ff": {
+        "id": "local-e94c1d7f75f074853f7413cfd99725ff",
+        "admin": false,
+        "disabled": false
+      }
+    },
+    "projects": {
+      "default": {
+        "id": "default",
+        "name": "My notes",
+        "members": {
+          "@local-admin": "owner"
+        }
+      },
+      "work": {
+        "groupRoles": {
+          "team": "read"
+        },
+        "id": "work",
+        "name": "Work",
+        "members": {
+          "local-447a97a440db38b2886f0689189b5aca": "owner",
+          "local-e94c1d7f75f074853f7413cfd99725ff": "read"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,552 @@
+[
+  {
+    "step": "browse a moved folder",
+    "tool": "browse_folder",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters",
+      "project": "contract-history"
+    },
+    "result": {
+      "items": [
+        {
+          "excerpt": "The second draft.",
+          "kind": "note",
+          "metadata": {
+            "id": "ID1",
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": "Alpha"
+          },
+          "path": "chapters/alpha-copy.md",
+          "title": "Alpha"
+        },
+        {
+          "excerpt": "Then the third draft, revised.",
+          "kind": "note",
+          "metadata": {
+            "id": "c0ffee000000000000000000000000a1",
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": "Alpha"
+          },
+          "path": "chapters/alpha-live.md",
+          "title": "Alpha"
+        },
+        {
+          "excerpt": "A note without an fmn-id links to Alpha.",
+          "kind": "note",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "chapters/beta-final-copy.md",
+          "title": "Beta"
+        },
+        {
+          "excerpt": "A note without an fmn-id links to Alpha.",
+          "kind": "note",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "chapters/beta-final.md",
+          "title": "Beta"
+        }
+      ],
+      "path": "chapters",
+      "revision": "REV1",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "browse the vacated folder",
+    "tool": "browse_folder",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts",
+      "project": "contract-history"
+    },
+    "result": {
+      "items": [
+        {
+          "kind": "note",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "drafts/gamma.md",
+          "title": "Third alpha"
+        }
+      ],
+      "path": "drafts",
+      "revision": "REV1",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "search including Trash",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "includeTrash": true,
+      "project": "contract-history",
+      "query": ""
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "The second draft.",
+        "metadata": {
+          "id": "ID1",
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": "Alpha"
+        },
+        "path": "chapters/alpha-copy.md",
+        "title": "Alpha"
+      },
+      {
+        "editable": false,
+        "excerpt": "Then the third draft, revised.",
+        "metadata": {
+          "id": "c0ffee000000000000000000000000a1",
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": "Alpha"
+        },
+        "path": "chapters/alpha-live.md",
+        "title": "Alpha"
+      },
+      {
+        "editable": false,
+        "excerpt": "A note without an fmn-id links to Alpha.",
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": ""
+        },
+        "path": "chapters/beta-final-copy.md",
+        "title": "Beta"
+      },
+      {
+        "editable": false,
+        "excerpt": "A note without an fmn-id links to Alpha.",
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": ""
+        },
+        "path": "chapters/beta-final.md",
+        "title": "Beta"
+      },
+      {
+        "editable": false,
+        "metadata": {
+          "kind": "",
+          "status": "",
+          "tags": [],
+          "title": ""
+        },
+        "path": "drafts/gamma.md",
+        "title": "Third alpha"
+      }
+    ]
+  },
+  {
+    "step": "collections after the moves",
+    "tool": "note_collections",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "archives": 0,
+      "drafts": 0,
+      "invalid": 0,
+      "notes": 5,
+      "revision": "REV1",
+      "version": 1,
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "link targets after renames, copies and Trash",
+    "tool": "find_notebook_link_targets",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "query": ""
+    },
+    "result": [
+      {
+        "noteId": "ID1",
+        "path": "chapters/alpha-copy.md",
+        "project": "contract-history",
+        "title": "Alpha"
+      },
+      {
+        "noteId": "c0ffee000000000000000000000000a1",
+        "path": "chapters/alpha-live.md",
+        "project": "contract-history",
+        "title": "Alpha"
+      },
+      {
+        "path": "chapters/beta-final-copy.md",
+        "project": "contract-history",
+        "title": "Beta"
+      },
+      {
+        "path": "chapters/beta-final.md",
+        "project": "contract-history",
+        "title": "Beta"
+      },
+      {
+        "path": "drafts/gamma.md",
+        "project": "contract-history",
+        "title": "Third alpha"
+      }
+    ]
+  },
+  {
+    "step": "backlinks after renames",
+    "tool": "get_note_sources",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "backlinks": [
+        {
+          "external": false,
+          "label": "Alpha",
+          "note": "chapters/beta-final-copy.md",
+          "path": "chapters/alpha-live.md",
+          "state": "Reference",
+          "url": "alpha-live.md"
+        },
+        {
+          "external": false,
+          "label": "Alpha",
+          "note": "chapters/beta-final.md",
+          "path": "chapters/alpha-live.md",
+          "state": "Reference",
+          "url": "alpha-live.md"
+        }
+      ],
+      "limitations": "Resolves Markdown links, reference-style links and [[Page title]] links. Raw HTML attributes are not resolved. Source changed is a content comparison, not a factual contradiction.",
+      "revision": "REV1",
+      "sources": []
+    }
+  },
+  {
+    "step": "hybrid search after renames",
+    "tool": "hybrid_search",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "query": {
+        "text": "draft"
+      }
+    },
+    "result": {
+      "contentScope": {
+        "collection": "all",
+        "policy": {
+          "archives": "exclude",
+          "drafts": "include",
+          "version": 1
+        }
+      },
+      "filters": {
+        "paths": [
+          "chapters/alpha-copy.md",
+          "chapters/alpha-live.md",
+          "chapters/beta-final-copy.md",
+          "chapters/beta-final.md",
+          "drafts/gamma.md"
+        ],
+        "statuses": [],
+        "tags": []
+      },
+      "matches": [
+        {
+          "current": false,
+          "excerpt": "Alpha The second draft.",
+          "path": "chapters/alpha-copy.md",
+          "revision": "REV1",
+          "score": 0.01639344262295082,
+          "text": "The second draft.",
+          "title": "Alpha"
+        },
+        {
+          "current": false,
+          "excerpt": "Alpha Then the third draft, revised.",
+          "path": "chapters/alpha-live.md",
+          "revision": "REV1",
+          "score": 0.016129032258064516,
+          "text": "Then the third draft, revised.",
+          "title": "Alpha"
+        },
+        {
+          "current": false,
+          "excerpt": "Third alpha",
+          "path": "drafts/gamma.md",
+          "revision": "REV1",
+          "score": 0.015873015873015872,
+          "text": "# Third alpha",
+          "title": "Third alpha"
+        }
+      ],
+      "message": "Semantic search is off. Showing text matches.",
+      "mode": "text",
+      "scope": "current",
+      "scopeId": "HASH2",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "search the notebook's history",
+    "tool": "search_notebooks",
+    "as": "admin",
+    "arguments": {
+      "history": true,
+      "projects": [
+        "contract-history"
+      ],
+      "query": "second draft"
+    },
+    "result": {
+      "notes": {
+        "contract-history": {
+          "contentScope": {
+            "collection": "all",
+            "policy": {
+              "archives": "exclude",
+              "drafts": "include",
+              "version": 1
+            }
+          },
+          "estimatedTokens": 240,
+          "history": {
+            "commits": 16,
+            "completedRevision": "",
+            "indexed": 0,
+            "revision": "REV1",
+            "state": "scanning",
+            "targetRevision": "REV1",
+            "total": 4,
+            "totalCommits": 35,
+            "versions": 7
+          },
+          "message": "BM25 retrieves matching committed passages; results are selected evidence, not exhaustive coverage. Historical scan is incomplete. Weak topical coverage: selected originals do not match every substantive question term. Semantic candidates may still answer a paraphrase; inspect their content. Missing matches do not establish absence from the notebook.",
+          "mode": "bm25",
+          "passages": null,
+          "reranked": false,
+          "revision": "REV1",
+          "scopeId": "HASH2",
+          "semantic": "disabled",
+          "visibility": "HASH1",
+          "weak": true
+        }
+      },
+      "results": [
+        {
+          "kind": "notes",
+          "note": {
+            "anchor": "alpha",
+            "citation": "/chapters/alpha-live.md?fmn-chars=1400&fmn-passage=HASH3&fmn-rev=REV2#alpha",
+            "hash": "HASH3",
+            "heading": "Alpha",
+            "id": "HASH4",
+            "noteHash": "HASH5",
+            "noteId": "c0ffee000000000000000000000000a1",
+            "path": "chapters/alpha-live.md",
+            "revision": "REV2",
+            "sectionHash": "HASH3",
+            "text": "# Alpha\n\nThen the third draft, revised."
+          },
+          "project": "contract-history",
+          "ref": {
+            "heading": "alpha",
+            "noteId": "c0ffee000000000000000000000000a1",
+            "origin": "notes",
+            "path": "chapters/alpha-live.md",
+            "project": "contract-history",
+            "revision": "REV2"
+          }
+        }
+      ],
+      "sources": {
+        "coverage": {
+          "contract-history": {
+            "chunks": 0,
+            "downloaded": "",
+            "embedded": 0,
+            "excluded": 0,
+            "indexed": "",
+            "message": "Repository integration is not configured",
+            "mode": ""
+          }
+        },
+        "reranked": false,
+        "results": null,
+        "truncated": false
+      },
+      "truncated": false
+    }
+  },
+  {
+    "step": "read a document at a revision before the renames",
+    "tool": "read_document",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV3"
+    },
+    "result": {
+      "citation": "/?note=drafts%2Falpha.md&noteId=c0ffee000000000000000000000000a1&project=contract-history&revision=REV3",
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "editable": false,
+      "hash": "f7b424a8d65ac13410b715b2e300c2cec28eac6746a729e659b74bddaa0b9760",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The second draft.</p>\n",
+      "noteId": "c0ffee000000000000000000000000a1",
+      "origin": "notes",
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV3"
+    }
+  },
+  {
+    "step": "an outline at a revision before the renames",
+    "tool": "document_outline",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV3"
+    },
+    "result": {
+      "citation": "/?note=drafts%2Falpha.md&noteId=c0ffee000000000000000000000000a1&project=contract-history&revision=REV3",
+      "hash": "f7b424a8d65ac13410b715b2e300c2cec28eac6746a729e659b74bddaa0b9760",
+      "noteId": "c0ffee000000000000000000000000a1",
+      "origin": "notes",
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV3",
+      "sections": [
+        {
+          "endByte": 89,
+          "kind": "heading",
+          "level": 1,
+          "startByte": 62,
+          "startLine": 5,
+          "subtreeWords": 4,
+          "title": "Alpha",
+          "words": 4
+        }
+      ],
+      "stats": {
+        "characters": 22,
+        "paragraphs": 1,
+        "readingMinutes": 0.017777777777777778,
+        "sentences": 1,
+        "words": 4
+      },
+      "total": 1,
+      "version": 1
+    }
+  },
+  {
+    "step": "documents at a revision before the folder move",
+    "tool": "list_documents",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "the map at a revision with a note in Trash",
+    "tool": "notebook_map",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV5"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "term mentions at a historical revision",
+    "tool": "find_term_mentions",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history",
+      "revision": "REV4",
+      "terms": [
+        {
+          "name": "draft"
+        }
+      ]
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "resolve the renamed note at its old path and revision",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "noteId": "c0ffee000000000000000000000000a1",
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV3"
+    },
+    "result": {
+      "headings": [
+        "alpha"
+      ],
+      "noteId": "c0ffee000000000000000000000000a1",
+      "notebook": "History notebook",
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV3",
+      "title": "Alpha",
+      "url": "/?note=drafts%2Falpha.md&noteId=c0ffee000000000000000000000000a1&project=contract-history&revision=REV3"
+    }
+  },
+  {
+    "step": "read an attachment at its revision",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "path": "assets/dot.png",
+      "project": "contract-history",
+      "revision": "REV1"
+    },
+    "result": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BBSgFAAAAAIAAAAAAAADAAm0AM9gG4n0AAAAAElFTkSuQmCC",
+      "encoding": "base64",
+      "mimeType": "image/png",
+      "nextOffset": 84,
+      "offset": 0,
+      "revision": "REV1",
+      "sha256": "1ad6cd238c05e5e1472658eb2966444feec95e1983005adbdae5ccbf613a9af9",
+      "total": 84
+    }
+  }
+]

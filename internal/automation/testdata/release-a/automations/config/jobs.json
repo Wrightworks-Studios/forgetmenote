@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "generation": 2,
+  "jobs": {
+    "daily": {
+      "generation": 1,
+      "id": "daily",
+      "kind": "digest",
+      "actor": "robot",
+      "project": "notes",
+      "output": "report.md",
+      "calls": [
+        {
+          "connection": "metrics",
+          "operation": "read",
+          "arguments": {
+            "days": 1,
+            "label": "Café “weekly” \u003cb\u003e\u0026\u003c/b\u003e"
+          }
+        }
+      ]
+    },
+    "summary": {
+      "generation": 2,
+      "id": "summary",
+      "kind": "task",
+      "actor": "robot",
+      "project": "notes",
+      "output": "summary.md",
+      "instruction": "Summarise “the week” — naïvely \u0026 \u003cbriefly\u003e\n\tthen stop",
+      "externalProcessing": true
+    }
+  }
+}

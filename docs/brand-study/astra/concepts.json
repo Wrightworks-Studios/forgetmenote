@@ -1,0 +1,24 @@
+[
+  {
+    "id": "01-corolla",
+    "name": "Corolla",
+    "copy": "Full petals with deeper, rounded clefts. The closest continuation of the original, with a clearer five-petal silhouette.",
+    "badge": "Closest to original"
+  },
+  {
+    "id": "02-field",
+    "name": "Field",
+    "copy": "Five individually shaped petals and a small golden throat. More botanical, with restrained asymmetry.",
+    "badge": "Recommended"
+  },
+  {
+    "id": "03-open",
+    "name": "Open",
+    "copy": "Broad petals meet a larger gold center, with clear channels between them. Airier and more articulate at small sizes."
+  },
+  {
+    "id": "04-pressed",
+    "name": "Pressed",
+    "copy": "Flatter petal crowns and softer corners give the flower a quieter, printed character."
+  }
+]

@@ -1,0 +1,563 @@
+[
+  {
+    "step": "the restored note has no discussion",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-restored.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "comments": [],
+      "people": {},
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "add an anchored comment",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "anchor": {
+        "prefix": "",
+        "quote": "A note without an fmn-id",
+        "suffix": ""
+      },
+      "path": "chapters/beta-restored.md",
+      "project": "contract-history",
+      "revision": "REV1",
+      "text": "Is this link still right?"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "A note without an fmn-id",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "resolved": false,
+          "text": "Is this link still right?"
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator"
+      },
+      "revision": "REV2"
+    }
+  },
+  {
+    "step": "rename the commented note",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/beta-restored.md",
+      "project": "contract-history",
+      "revision": "REV2",
+      "to": "chapters/beta-final.md"
+    },
+    "result": {
+      "from": "chapters/beta-restored.md",
+      "revision": "REV3",
+      "to": "chapters/beta-final.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "the discussion follows the renamed note",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-final.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "A note without an fmn-id",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "resolved": false,
+          "text": "Is this link still right?"
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator"
+      },
+      "revision": "REV3"
+    }
+  },
+  {
+    "step": "the vacated path's discussion",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-restored.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "duplicate the commented note",
+    "tool": "duplicate_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/beta-final.md",
+      "project": "contract-history",
+      "revision": "REV3",
+      "to": "chapters/beta-final-copy.md"
+    },
+    "result": {
+      "from": "chapters/beta-final.md",
+      "revision": "REV4",
+      "to": "chapters/beta-final-copy.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "a copy's discussion",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-final-copy.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "comments": [],
+      "people": {},
+      "revision": "REV4"
+    }
+  },
+  {
+    "step": "lock the folder",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": true,
+      "path": "chapters",
+      "project": "contract-history",
+      "revision": "REV4"
+    },
+    "result": {
+      "path": "chapters",
+      "revision": "REV5",
+      "rules": [
+        {
+          "path": "chapters"
+        }
+      ]
+    }
+  },
+  {
+    "step": "an editor replies on a note in a locked folder",
+    "tool": "add_comment",
+    "as": "editor",
+    "arguments": {
+      "path": "chapters/beta-final.md",
+      "project": "contract-history",
+      "replyTo": "ID1",
+      "revision": "REV5",
+      "text": "Still right."
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "A note without an fmn-id",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "replies": [
+            {
+              "author": "contract-editor",
+              "created": "<TIME>",
+              "id": "ID2",
+              "text": "Still right."
+            }
+          ],
+          "resolved": false,
+          "text": "Is this link still right?"
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator",
+        "contract-editor": "Contributor"
+      },
+      "revision": "REV6"
+    }
+  },
+  {
+    "step": "a note in a locked folder cannot be trashed",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "chapters/beta-final-copy.md"
+      ],
+      "project": "contract-history",
+      "revision": "REV6"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "locks for a missing path inside the locked folder",
+    "tool": "note_locks",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/missing.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "path": "chapters/missing.md",
+      "revision": "REV6",
+      "rules": [
+        {
+          "path": "chapters"
+        }
+      ]
+    }
+  },
+  {
+    "step": "unlock the folder",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": false,
+      "path": "chapters",
+      "project": "contract-history",
+      "revision": "REV6"
+    },
+    "result": {
+      "path": "chapters",
+      "revision": "REV7",
+      "rules": []
+    }
+  },
+  {
+    "step": "unlocking a path that is not locked",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": false,
+      "path": "chapters/beta-final.md",
+      "project": "contract-history",
+      "revision": "REV7"
+    },
+    "result": {
+      "path": "chapters/beta-final.md",
+      "revision": "REV7",
+      "rules": []
+    }
+  },
+  {
+    "step": "locking a missing path",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": true,
+      "path": "nowhere/missing.md",
+      "project": "contract-history",
+      "revision": "REV7"
+    },
+    "result": {
+      "path": "nowhere/missing.md",
+      "revision": "REV8",
+      "rules": [
+        {
+          "path": "nowhere/missing.md"
+        }
+      ]
+    }
+  },
+  {
+    "step": "trash the commented note",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "chapters/beta-final.md"
+      ],
+      "project": "contract-history",
+      "revision": "REV8"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID3",
+          "originalPath": "chapters/beta-final.md",
+          "path": "Trash/ID3.md",
+          "title": "Beta"
+        }
+      ],
+      "revision": "REV9"
+    }
+  },
+  {
+    "step": "the Trash listing with the commented note",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "confirmation": "HASH1",
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "ID4",
+          "id": "ID5",
+          "originalPath": "drafts/alpha.md",
+          "path": "Trash/ID5.md",
+          "title": "Another alpha"
+        },
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "ID4",
+          "id": "ID6",
+          "originalPath": "drafts/alpha.md",
+          "path": "Trash/ID6.md",
+          "title": "Third alpha"
+        },
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID3",
+          "originalPath": "chapters/beta-final.md",
+          "path": "Trash/ID3.md",
+          "title": "Beta"
+        }
+      ],
+      "revision": "REV9"
+    }
+  },
+  {
+    "step": "the discussion of a note in Trash",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "Trash/ID3.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "A note without an fmn-id",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "replies": [
+            {
+              "author": "contract-editor",
+              "created": "<TIME>",
+              "id": "ID2",
+              "text": "Still right."
+            }
+          ],
+          "resolved": false,
+          "text": "Is this link still right?"
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator",
+        "contract-editor": "Contributor"
+      },
+      "revision": "REV9"
+    }
+  },
+  {
+    "step": "the trashed note's old path has no discussion",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-final.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "restore the commented note",
+    "tool": "restore_trash",
+    "as": "admin",
+    "arguments": {
+      "id": "ID3",
+      "project": "contract-history",
+      "revision": "REV9"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID3",
+          "originalPath": "chapters/beta-final.md",
+          "path": "chapters/beta-final.md",
+          "title": "Beta"
+        }
+      ],
+      "revision": "REV10"
+    }
+  },
+  {
+    "step": "the discussion survives Trash and restore",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-final.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "A note without an fmn-id",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "replies": [
+            {
+              "author": "contract-editor",
+              "created": "<TIME>",
+              "id": "ID2",
+              "text": "Still right."
+            }
+          ],
+          "resolved": false,
+          "text": "Is this link still right?"
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator",
+        "contract-editor": "Contributor"
+      },
+      "revision": "REV10"
+    }
+  },
+  {
+    "step": "a comment on a missing note",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/missing.md",
+      "project": "contract-history",
+      "revision": "REV10",
+      "text": "Hello?"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "a reply to an unknown thread",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-final.md",
+      "project": "contract-history",
+      "replyTo": "ID7",
+      "revision": "REV10",
+      "text": "Reply"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "the Trash holds the change group's deletion",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "confirmation": "HASH2",
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "ID4",
+          "id": "ID5",
+          "originalPath": "drafts/alpha.md",
+          "path": "Trash/ID5.md",
+          "title": "Another alpha"
+        },
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "ID4",
+          "id": "ID6",
+          "originalPath": "drafts/alpha.md",
+          "path": "Trash/ID6.md",
+          "title": "Third alpha"
+        }
+      ],
+      "revision": "REV10"
+    }
+  },
+  {
+    "step": "empty the Trash",
+    "tool": "empty_trash",
+    "as": "admin",
+    "arguments": {
+      "confirmation": "HASH2",
+      "project": "contract-history",
+      "revision": "REV10"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "ID4",
+          "id": "ID5",
+          "originalPath": "drafts/alpha.md",
+          "path": "Trash/ID5.md",
+          "title": "Another alpha"
+        },
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "ID4",
+          "id": "ID6",
+          "originalPath": "drafts/alpha.md",
+          "path": "Trash/ID6.md",
+          "title": "Third alpha"
+        }
+      ],
+      "revision": "REV11"
+    }
+  },
+  {
+    "step": "the emptied Trash",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "confirmation": "HASH3",
+      "entries": [],
+      "revision": "REV11"
+    }
+  },
+  {
+    "step": "emptying an empty Trash",
+    "tool": "empty_trash",
+    "as": "admin",
+    "arguments": {
+      "confirmation": "HASH3",
+      "project": "contract-history",
+      "revision": "REV11"
+    },
+    "result": {
+      "entries": [],
+      "revision": "REV11"
+    }
+  }
+]

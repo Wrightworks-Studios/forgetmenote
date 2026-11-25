@@ -1,0 +1,34 @@
+{
+  "version": 10,
+  "users": null,
+  "projects": null,
+  "data": {
+    "remoteProjects": {
+      "field": "http://127.0.0.1:53108"
+    },
+    "users": {},
+    "projects": {
+      "default": {
+        "id": "default",
+        "name": "My notes",
+        "members": {
+          "@local-admin": "owner"
+        }
+      },
+      "field": {
+        "id": "field",
+        "name": "Field",
+        "members": {
+          "@local-admin": "owner"
+        }
+      },
+      "work": {
+        "id": "work",
+        "name": "Work",
+        "members": {
+          "@local-admin": "owner"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "retryAt": "0001-01-01T00:00:00Z",
+  "batch": {
+    "readyAt": "2026-10-02T09:31:00Z",
+    "expires": "2026-10-03T09:30:00Z",
+    "events": [
+      {
+        "id": "rev-a",
+        "project": "code",
+        "revision": "rev-a",
+        "at": "2026-10-02T09:30:00Z"
+      }
+    ]
+  },
+  "version": 5,
+  "id": "163392ed6f78dd73751304c333cb00b99bd33ac79073f3fd5e09ec3d612204c9",
+  "spec": {
+    "trigger": {
+      "kind": "repository.updated",
+      "project": "code",
+      "debounceSeconds": 60,
+      "maxWaitSeconds": 120
+    },
+    "readProjects": [
+      "code"
+    ],
+    "id": "curation",
+    "kind": "task",
+    "actor": "robot",
+    "project": "notes",
+    "output": "changes.md",
+    "instruction": "Summarize source changes",
+    "externalProcessing": true
+  },
+  "state": "queued",
+  "created": "2026-10-02T09:30:00Z",
+  "updated": "2026-10-02T09:30:00Z",
+  "attempts": 0
+}

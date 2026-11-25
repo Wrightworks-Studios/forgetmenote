@@ -1,0 +1,17 @@
+{
+  "name": "forgetmenote",
+  "version": "0.3.4",
+  "description": "Read, discuss, and edit Git-backed notes across authorized projects.",
+  "author": {"name": "ForgetMeNote contributors"},
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "ForgetMeNote",
+    "shortDescription": "Your notes, projects, and Git history.",
+    "longDescription": "Connect to your self-hosted ForgetMeNote instance to research, brainstorm, comment, and edit with project permissions and revision checks.",
+    "developerName": "ForgetMeNote contributors",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Help me organize my ForgetMeNote projects."
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "connections": [
+    {
+      "id": "private-mail",
+      "label": "Private Gmail",
+      "kind": "email",
+      "oauthRefresh": {
+        "tokenURL": "https://oauth2.googleapis.com/token",
+        "clientID": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+        "clientSecretEnv": "GOOGLE_CLIENT_SECRET",
+        "refreshTokenEnv": "GMAIL_REFRESH_TOKEN"
+      },
+      "projects": [
+        "private-notes"
+      ],
+      "externalProcessing": false,
+      "maxBytes": 1048576,
+      "timeoutSeconds": 30,
+      "email": {
+        "provider": "gmail",
+        "mailbox": "operations@example.test",
+        "workflow": "private-inbox",
+        "recipients": []
+      },
+      "operations": [
+        {
+          "name": "status",
+          "readOnly": true
+        },
+        {
+          "name": "messages",
+          "readOnly": true
+        },
+        {
+          "name": "message",
+          "readOnly": true
+        },
+        {
+          "name": "thread",
+          "readOnly": true
+        },
+        {
+          "name": "attachment",
+          "readOnly": true
+        },
+        {
+          "name": "changes",
+          "readOnly": true
+        },
+        {
+          "name": "selection",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "id": "private-sheet",
+      "label": "Private spreadsheet",
+      "kind": "sheets",
+      "oauthRefresh": {
+        "tokenURL": "https://oauth2.googleapis.com/token",
+        "clientID": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+        "clientSecretEnv": "GOOGLE_CLIENT_SECRET",
+        "refreshTokenEnv": "SHEETS_REFRESH_TOKEN"
+      },
+      "projects": [
+        "private-notes"
+      ],
+      "externalProcessing": false,
+      "maxRows": 1000,
+      "maxBytes": 1048576,
+      "timeoutSeconds": 30,
+      "sheets": {
+        "account": "operations@example.test",
+        "spreadsheet": "REPLACE_WITH_SPREADSHEET_ID",
+        "areas": [
+          {
+            "sheetID": 0,
+            "range": "'Records'!A1:J1000"
+          }
+        ]
+      },
+      "operations": [
+        {
+          "name": "status",
+          "readOnly": true
+        },
+        {
+          "name": "metadata",
+          "readOnly": true
+        },
+        {
+          "name": "read",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "id": "company-holidays",
+      "label": "Company holidays",
+      "kind": "calendar",
+      "oauthRefresh": {
+        "tokenURL": "https://oauth2.googleapis.com/token",
+        "clientID": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+        "clientSecretEnv": "GOOGLE_CLIENT_SECRET",
+        "refreshTokenEnv": "CALENDAR_REFRESH_TOKEN"
+      },
+      "externalProcessing": false,
+      "maxBytes": 1048576,
+      "timeoutSeconds": 30,
+      "calendar": {
+        "account": "operations@example.test",
+        "calendar": "REPLACE_WITH_CALENDAR_ID@group.calendar.google.com"
+      },
+      "operations": [
+        {
+          "name": "status",
+          "readOnly": true
+        },
+        {
+          "name": "events",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "id": "us-holidays",
+      "label": "US public holidays",
+      "kind": "calendar",
+      "oauthRefresh": {
+        "tokenURL": "https://oauth2.googleapis.com/token",
+        "clientID": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+        "clientSecretEnv": "GOOGLE_CLIENT_SECRET",
+        "refreshTokenEnv": "CALENDAR_REFRESH_TOKEN"
+      },
+      "externalProcessing": false,
+      "maxBytes": 1048576,
+      "timeoutSeconds": 30,
+      "calendar": {
+        "account": "operations@example.test",
+        "calendar": "en.usa.official#holiday@group.v.calendar.google.com"
+      },
+      "operations": [
+        {
+          "name": "status",
+          "readOnly": true
+        },
+        {
+          "name": "events",
+          "readOnly": true
+        }
+      ]
+    }
+  ]
+}

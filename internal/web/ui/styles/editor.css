@@ -1,0 +1,119 @@
+/* Editor toolbar, formatting toolbar, annotations and the comments panel. */
+/* Both editing formats share one document and one draft/save path. */
+#editor-tools { position: sticky; top: var(--reader-header-height, 60px); z-index: var(--layer-content); display: flex; flex-shrink: 0; align-items: center; gap: var(--space-3); padding: 6px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+#editor-tools > button:not(#formatting-expand) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; white-space: nowrap; font-size: var(--text-small); }
+.editor-format { display: flex; flex-shrink: 0; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-control); }
+.editor-format button.quiet { border-color: transparent; }
+#formatting-tools { min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+/* One look for every toolbar menu in both formats: quiet until hovered, as
+   wide as the chosen option rather than the longest one. */
+#editor-tools { container-type: inline-size; }
+.formatting-toolbar select { field-sizing: content; }
+/* Note link, Writing tools and Comment name themselves where the row has
+   room for the mode switch and the whole formatting toolbar beside them;
+   elsewhere their icons stand alone. Their names stay for assistive
+   technology: the labels as clipped text, the toolbar's in aria-label (a
+   clipped caption would escape the toolbar's scroller and widen the page). */
+#editor-tools > button:is(#notebook-link-insert, #writing-open) { width: auto; min-width: 34px; padding: 0 8px; }
+@container (max-width: 1100px) {
+  #editor-tools .tool-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@container (max-width: 1240px) {
+  #editor-tools .formatting-toolbar button > span { display: none; }
+}
+/* A desktop row too narrow for the toolbar wraps it by groups rather than
+   widen the page; a phone scrolls it until More tools wraps it. */
+@media (min-width: 721px) {
+  #formatting-tools .formatting-toolbar { flex-wrap: wrap; row-gap: 4px; }
+}
+.editor-format button { min-height: 32px; padding: 5px 12px; font-size: var(--text-small); }
+.editor-format button[aria-pressed="true"] { background: var(--selection); color: var(--accent); }
+#editor-hint { margin: 10px 28px 0; }
+@media (max-width: 720px) {
+  .prose { padding: var(--prose-top) 20px 64px; }
+  #editor-hint { margin-inline: 20px; }
+}
+
+.formatting-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: var(--surface);
+  font: 13px/1.3 Onest, sans-serif;
+}
+.formatting-group { display: flex; flex-shrink: 0; align-items: center; gap: 4px; }
+.formatting-group + .formatting-group { border-left: 1px solid var(--border); padding-left: 7px; }
+.formatting-toolbar button,
+.formatting-toolbar select {
+  width: auto;
+  min-width: 32px;
+  min-height: 32px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
+  background-color: transparent;
+  color: var(--text);
+  opacity: 1;
+  padding: 5px 7px;
+  font: inherit;
+  cursor: pointer;
+}
+.formatting-toolbar select { padding-right: 26px; }
+.formatting-toolbar option {
+  background-color: var(--surface);
+  color: var(--text);
+}
+.formatting-toolbar option:is(:checked, :hover, :focus) {
+  background-color: var(--hover);
+  color: var(--text);
+}
+.formatting-toolbar button:not(:disabled):hover,
+.formatting-toolbar select:not(:disabled):hover { background-color: var(--hover); border-color: var(--border); }
+.formatting-toolbar button[aria-pressed="true"] { color: var(--accent); background: var(--selection); border-color: var(--accent); }
+.formatting-toolbar button:disabled,
+.formatting-toolbar select:disabled { opacity: 0.38; cursor: default; }
+.formatting-toolbar :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.formatting-toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.formatting-toolbar svg { flex-shrink: 0; }
+@media (max-width: 720px) {
+  .formatting-toolbar { gap: 4px; }
+  .formatting-toolbar button { min-width: 36px; min-height: 36px; }
+  /* The toolbar is there in every mode, and so is the phone's More tools. */
+  #editor-tools:has(.formatting-toolbar) #formatting-expand { display: block; border: 0; font-size: var(--text-small); }
+}
+
+/* Passage annotations are UI overlays; Markdown remains unchanged. */
+::highlight(forgetmenote-comments) { background: var(--warning-bg); color: inherit; }
+.comment-highlight { background: var(--warning-bg); border-bottom: 2px solid var(--warning); cursor: pointer; }
+#document:not(.is-editing) { align-content: start; }
+#reading-actions { position: fixed; bottom: 24px; right: 24px; z-index: var(--layer-navigation); }
+#reading-actions button { background: var(--surface); border-color: var(--accent); color: var(--accent); box-shadow: var(--shadow-panel); }
+#comments-panel { position: fixed; inset: 0 0 0 auto; z-index: var(--layer-panel); width: 340px; max-width: 100vw; padding: 16px; overflow-y: auto; background: var(--surface); border-left: 1px solid var(--border); box-shadow: var(--shadow-overlay); }
+#comments-panel .dialog-title { position: sticky; top: -16px; background: var(--surface); z-index: var(--layer-content); padding: 8px 0; }
+#comments-panel h2 { font: 600 18px var(--ui-font); margin: 0; }
+#comments-note { overflow-wrap: anywhere; }
+body.comments-open #main { margin-right: 0; }
+.comment-thread { padding: 16px 0; border-bottom: 1px solid var(--border); scroll-margin: 64px; }
+.comment-thread:focus { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius-small); }
+.comment-meta { color: var(--muted); font-size: var(--text-small); }
+.comment-thread p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 12px; }
+.comment-quote, #comment-context { display: block; width: 100%; text-align: left; padding: 8px 12px; margin-bottom: 12px; border: 0; border-left: 3px solid var(--warning); border-radius: 0 4px 4px 0; background: var(--selection); color: var(--text); font-size: var(--text-small); font-weight: 400; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 140px; overflow: auto; }
+.comment-quote:disabled { opacity: 1; cursor: default; }
+.comment-reply { margin: 14px 0 0 10px; padding-left: 12px; border-left: 2px solid var(--border); }
+.comment-actions { display: flex; gap: 6px; }
+.comment-actions button, .comment-delete, #comment-reset { padding: 5px 9px; font-size: var(--text-small); }
+#comment-form { margin-top: 20px; }
+#comment-form label { display: block; margin: 12px 0 6px; }
+#comment-form > button:last-child { margin-top: 8px; }
+#comment-status { font-size: var(--text-small); }
+
+.history-attribution { display: block; margin-top: 5px; color: var(--muted); font-size: var(--text-small); font-weight: 400; overflow-wrap: anywhere; }
+#account-dialog, #settings-dialog { width: min(620px, 92vw); }
+#account-author, #account-local { overflow-wrap: anywhere; }
+#github-attribution-form { margin-top: 20px; }
+#github-attribution-form label { display: block; margin: 14px 0 6px; }
+#github-attribution-form input[type="email"] { width: 100%; }
+#github-attribution-form input[type="checkbox"] { width: auto; margin-right: 6px; }
+#account-status { font-size: var(--text-small); }

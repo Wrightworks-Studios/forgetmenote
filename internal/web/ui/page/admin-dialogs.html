@@ -1,0 +1,145 @@
+{{/* Administration, notebook creation and video dialogs. Rendered in place by index.html. */}}
+{{define "index-admin-dialogs"}}{{$brand := brand}}<dialog id="admin-dialog" aria-labelledby="admin-title">
+      <div class="dialog-title"><h2 id="admin-title">Administration</h2><button data-close="admin-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+      <nav class="category-navigation" data-settings-categories aria-label="Administration categories"><button class="quiet" data-settings-category="people">People</button><button class="quiet" data-settings-category="groups">Groups</button><button class="quiet" data-settings-category="ai">AI features</button><button class="quiet" data-settings-category="connections">Connections</button><button class="quiet" data-settings-category="chat-clients">Chat clients</button><button class="quiet" data-settings-category="automation">Automation</button><button class="quiet" data-settings-category="activity">Activity</button><button class="quiet" data-settings-category="instance">Instance</button></nav>
+      <section data-settings-panel="chat-clients" hidden><div id="chat-clients-panel"></div></section>
+      <section data-settings-panel="ai" hidden>
+        <h3>AI features</h3>
+        <p id="instance-ai-providers" class="small"></p>
+        <p class="small">Enabled features process notebook content with the configured providers. Private inboxes keep their own capture controls.</p>
+        <form id="instance-ai-form" class="settings-form">
+          <fieldset><legend>Search and indexing</legend>
+            <label class="check-row"><input id="instance-ai-embeddings" type="checkbox" /><span>Background embeddings</span></label>
+            <div id="instance-ai-embedding-options" hidden>
+              <div class="form-columns"><label>Embedding model<input id="instance-ai-model" maxlength="200" /></label><label>Dimensions<input id="instance-ai-dimensions" type="number" min="1" max="4096" /></label></div>
+              <label class="check-row"><input id="instance-ai-rebuild" type="checkbox" /><span>Rebuild incompatible indexes</span></label>
+            </div>
+            <label class="check-row"><input id="instance-ai-mapClassification" type="checkbox" /><span>Repository map classification</span></label>
+            <label class="check-row"><input id="instance-ai-rerank" type="checkbox" /><span>Search reranking</span></label>
+          </fieldset>
+          <fieldset><legend>Checks and automation</legend>
+            <label class="check-row"><input id="instance-ai-citations" type="checkbox" /><span>Check answer citations</span></label>
+            <label class="check-row"><input id="instance-ai-reviews" type="checkbox" /><span>Notebook reviews and automatic checks</span></label>
+            <label class="check-row"><input id="instance-ai-sourceOCR" type="checkbox"/><span>Let people send a source for hosted text recognition (OCR)</span></label>
+            <label class="check-row"><input id="instance-ai-sourceDescriptions" type="checkbox"/><span>Let people send a source for hosted figure descriptions</span></label>
+            <label class="check-row"><input id="instance-ai-sourceTranscription" type="checkbox"/><span>Let people send a source for hosted audio transcription</span></label>
+            <label class="check-row"><input id="instance-ai-writing" type="checkbox" /><span>Allow organization, writing and profile automations</span></label>
+          </fieldset>
+          <div class="actions"><button type="submit" class="primary">Save AI settings</button><button id="instance-ai-refresh" type="button" class="quiet">Refresh status</button></div>
+        </form>
+        <p id="instance-ai-status" role="status"></p>
+        <h4>Notebook processing</h4><div id="instance-ai-notebooks"></div>
+      </section>
+      <section id="instance-people" data-settings-panel="people">
+        <h3>People</h3>
+        <div class="people-management">
+          <div class="people-directory">
+            <label class="sr-only" for="user-search">Search users</label>
+            <input id="user-search" type="search" placeholder="Search people…" />
+            <div id="access-list" class="people-results"></div>
+          </div>
+          <div id="user-details" hidden>
+            <form id="user-form">
+              <h3 id="user-heading"></h3><p id="user-identity" class="small"></p><input id="user-id" type="hidden" />
+              <label for="user-display-name">Display name</label><input id="user-display-name" maxlength="120" />
+              <label><input id="user-admin" type="checkbox" /> Instance Admin</label>
+              <label><input id="user-create-workspaces" type="checkbox" /> Can create notebooks</label>
+              <label><input id="user-disabled" type="checkbox" /> Disable account</label>
+              <button type="submit" class="primary">Save changes</button>
+              <button type="button" id="user-revoke" class="quiet">Revoke browser and AI sessions</button>
+            </form>
+            <h4>Notebook access</h4><div id="user-workspaces"></div><div id="user-offboarding"></div>
+            <details id="work-notebook-provision"><summary>Provision a work notebook</summary>
+              <form id="work-notebook-form" class="settings-form">
+                <label for="work-notebook-name">Notebook name</label><input id="work-notebook-name" required maxlength="120">
+                <label for="work-notebook-id">Notebook ID</label><input id="work-notebook-id" required pattern="[a-z0-9][a-z0-9-]*" maxlength="64">
+                <p class="small">Owned by this person. Other employees have no access; instance Admins retain access.</p>
+                <button type="submit">Create work notebook</button>
+              </form>
+            </details>
+            <details id="local-reset" hidden><summary>Reset local password</summary>
+              <form id="local-reset-form"><input id="local-reset-user" type="hidden" />
+                <button type="submit">Create password reset link</button>
+              </form>
+            </details>
+          </div>
+          <p id="user-empty" class="small">Select a person to manage their account.</p>
+        </div>
+        <details id="invite-person"><summary>Invite a person</summary>
+          <form id="invitation-create-form"><label for="invitation-name">Name</label><input id="invitation-name" maxlength="120" required>
+            <fieldset><legend>Groups</legend><div id="invitation-groups" class="organization-choices"></div></fieldset>
+            <label for="invitation-projects">Notebooks</label><select id="invitation-projects" multiple size="4"></select>
+            <label for="invitation-role">Notebook role</label><select id="invitation-role"><option value="read">Reader</option><option value="comment">Commenter</option><option value="edit">Editor</option></select>
+            <button>Create invitation link</button>
+          </form>
+        </details><div id="invitation-list"></div>
+      </section>
+      <section data-settings-panel="groups" hidden><h3>Groups</h3>
+        <label for="group-select">Group</label><select id="group-select"><option value="">New group</option></select>
+        <form id="group-form"><label for="group-id">Group ID</label><input id="group-id" required pattern="[a-z0-9][a-z0-9-]{0,63}" maxlength="64" aria-describedby="group-id-help"><p id="group-id-help" class="small">Lowercase letters, numbers and hyphens, such as field-team. It can’t be changed later.</p>
+          <label for="group-name">Name</label><input id="group-name" required maxlength="120">
+          <fieldset><legend>Members</legend><div id="group-members" class="organization-choices"></div></fieldset>
+          <div class="actions"><button class="primary">Save group</button><button id="group-delete" type="button" class="quiet" hidden>Delete group and remove access</button></div>
+        </form>
+      </section>
+      <section data-settings-panel="automation" hidden><h3>Automation accounts</h3>
+        <form id="service-create-form"><label for="service-name">Name</label><input id="service-name" required maxlength="120"><label for="service-steward">Steward</label><select id="service-steward" required></select><button>Create account</button></form>
+        <div id="service-list"></div><div id="service-details"></div>
+        <h3>Automations</h3><div id="integration-jobs"></div>
+      </section>
+      <section data-settings-panel="connections" hidden><h3>Data connections</h3><div id="integration-connections"></div></section>
+      <section data-settings-panel="activity" hidden><div class="actions settings-heading"><h3>Activity</h3><button id="activity-export" class="quiet" type="button">Export JSON</button></div><div id="activity-list"></div><button id="activity-more" class="quiet" type="button">Show more</button></section>
+      <section data-settings-panel="instance" hidden><h3>Instance</h3>
+        <form id="instance-form">
+          <label for="instance-name">Organization name</label><input id="instance-name" maxlength="120" required>
+          <label for="instance-logo">Logo</label>
+          <div class="instance-logo-field"><img id="instance-logo-preview" src="{{$brand.Icon}}" width="48" height="48" alt="Logo preview"><input id="instance-logo" type="file" accept="image/png,image/jpeg" aria-describedby="instance-logo-help"></div>
+          <p id="instance-logo-help" class="small">PNG or JPEG · up to 1 MiB and 2048 × 2048 pixels.</p>
+          <div class="form-actions"><button type="submit" class="primary">Save branding</button><button type="button" id="instance-logo-reset" class="quiet">Use default logo</button></div>
+        </form><dl id="instance-status"></dl>
+        <h3>Notebooks</h3><div id="managed-workspaces"></div>
+        <button id="workspace-create-open" class="quiet" type="button">Create notebook</button>
+        <button id="workspace-import-open" class="quiet" type="button">Import notebook</button>
+      </section>
+      <div id="organization-secret" hidden><label for="organization-secret-value">Copy this private link or credential</label><input id="organization-secret-value" readonly autocomplete="off"><button id="organization-secret-copy" class="quiet" type="button">Copy</button><button id="organization-secret-close" class="quiet" type="button">Dismiss</button></div>
+      <p id="admin-status" role="status"></p>
+    </dialog>
+    <dialog id="workspace-create-dialog" aria-labelledby="workspace-create-title">
+      <div class="dialog-title"><h2 id="workspace-create-title">Create notebook</h2><button id="notebook-dialog-close" data-close="workspace-create-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+      <div class="notebook-modes" role="group" aria-label="New notebook options">
+        <button id="notebook-create-mode" class="quiet" type="button" aria-pressed="true">Blank notebook</button>
+        <button id="notebook-repository-mode" class="quiet" type="button" aria-pressed="false">GitHub repository</button>
+        <button id="notebook-import-mode" class="quiet" type="button" aria-pressed="false">Import bundle</button>
+      </div>
+      <form id="project-form">
+        <label for="project-name">Name</label><input id="project-name" required maxlength="120" />
+        <label for="project-id">Notebook ID</label><input id="project-id" required pattern="[a-z0-9][a-z0-9-]{0,63}" maxlength="64" />
+        <div id="notebook-repository-fields" hidden>
+          <p class="small">Read-only · follows the default branch</p>
+          <div id="notebook-repository-selection" hidden>
+            <label for="notebook-repository-choice">GitHub repository</label>
+            <select id="notebook-repository-choice"></select>
+            <p><a id="notebook-repository-install" target="_blank" rel="noopener noreferrer">Manage repository access on GitHub</a></p>
+            <label class="notebook-consent"><input id="notebook-repository-share" type="checkbox" /><span>Share source files with this notebook's members</span></label>
+          </div>
+        </div>
+        <div id="notebook-bundle-fields" hidden>
+          <label for="notebook-bundle">Notebook bundle</label>
+          <input id="notebook-bundle" type="file" accept=".bundle" aria-describedby="notebook-bundle-help" disabled />
+          <p id="notebook-bundle-help" class="small">Git bundle · Up to 32 MiB</p>
+        </div>
+        <button id="notebook-submit" class="primary" type="submit">Create notebook</button>
+      </form>
+      <p class="small">Access: you and instance Admins.</p>
+      <p id="workspace-create-status" role="status"></p>
+    </dialog>
+    <dialog id="video-dialog" aria-labelledby="video-heading">
+      <h2 id="video-heading">Insert video</h2>
+      <form id="video-form">
+        <label for="video-url">Video link</label>
+        <input id="video-url" type="text" required placeholder="https://www.youtube.com/watch?v=…" aria-describedby="video-help video-error" />
+        <p id="video-help" class="small">YouTube, Vimeo, or a notebook MP4/WebM file.</p>
+        <p id="video-error" role="alert"></p>
+        <div class="actions"><button type="button" class="quiet" data-close="video-dialog">Cancel</button><button type="submit" class="primary">Insert video</button></div>
+      </form>
+    </dialog>{{end}}

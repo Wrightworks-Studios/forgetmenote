@@ -1,0 +1,1823 @@
+[
+  {
+    "step": "notebook history",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": [
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to manuscript/chapter-1.md",
+        "revision": "REV1",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update AGENTS.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update AGENTS.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-1.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update assets/cover.png",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update assets/cover.png",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update comments/HASH1.json",
+        "revision": "REV7",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update comments/HASH1.json",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update comments/HASH1.json",
+        "revision": "REV9",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update comments/HASH1.json",
+        "revision": "REV10",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update comments/HASH1.json",
+        "revision": "REV11",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Contributor",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER2",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update comments/HASH1.json",
+        "revision": "REV12",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update comments/HASH1.json",
+        "revision": "REV13",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update .gitnotes-locks.json",
+        "revision": "REV14",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update .gitnotes-locks.json",
+        "revision": "REV15",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update .gitnotes-locks.json",
+        "revision": "REV16",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"manuscript/chapter-two.md\" to \"manuscript/chapter-2.md\"",
+        "revision": "REV17",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"manuscript/chapter-2.md\" to \"manuscript/chapter-two.md\"",
+        "revision": "REV18",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update .gitnotes-locks.json",
+        "revision": "REV19",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Duplicate \"reference\" to \"reference-copy\"",
+        "revision": "REV20",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Duplicate \"manuscript/chapter-1.md\" to \"manuscript/chapter-1-copy.md\"",
+        "revision": "REV21",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"research\" to \"reference\"",
+        "revision": "REV22",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"research/whales.md\" to \"research/sperm-whales.md\"",
+        "revision": "REV23",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update index.md",
+        "revision": "REV24",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV25",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV26",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV27",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update index.md",
+        "revision": "REV28",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update research/whales.md",
+        "revision": "REV29",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-2.md",
+        "revision": "REV30",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-1.md",
+        "revision": "REV31",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update index.md",
+        "revision": "REV32",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Initialize notes notebook",
+        "revision": "REV33"
+      }
+    ]
+  },
+  {
+    "step": "changes since the oldest commit",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "since": "REV33"
+    },
+    "result": {
+      "commits": [
+        {
+          "authorEmail": "forgetmenote@localhost",
+          "authorName": "ForgetMeNote collaboration",
+          "authoredAt": "<TIME>",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV1",
+          "source": "collaboration"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV2",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV3",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV4",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV5",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV6",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV17",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV18",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV20",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV21",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV22",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV23",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV24",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV25",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV26",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV27",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV28",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV30",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV31",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV32",
+          "source": "mcp",
+          "userId": "ID1"
+        }
+      ],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "kind": "added",
+          "path": "AGENTS.md"
+        },
+        {
+          "kind": "added",
+          "path": "assets/cover.png"
+        },
+        {
+          "kind": "added",
+          "path": "index.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-1-copy.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-1.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-2.md"
+        },
+        {
+          "kind": "added",
+          "path": "reference-copy/sperm-whales.md"
+        },
+        {
+          "kind": "added",
+          "path": "reference/sperm-whales.md"
+        }
+      ],
+      "freshReview": false,
+      "from": "REV33",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "changes between two commits",
+    "tool": "read_notebook_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "revision": "REV17",
+      "since": "REV33"
+    },
+    "result": {
+      "commits": [
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV17",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV18",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV20",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV21",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV22",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV23",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV24",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV25",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV26",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV27",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV28",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV30",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV31",
+          "source": "mcp",
+          "userId": "ID1"
+        },
+        {
+          "authorEmail": "ID1@users.gitnotes.invalid",
+          "authorName": "User USER1",
+          "authoredAt": "<TIME>",
+          "client": "contract-client",
+          "committerEmail": "forgetmenote@localhost",
+          "committerName": "ForgetMeNote",
+          "message": "",
+          "revision": "REV32",
+          "source": "mcp",
+          "userId": "ID1"
+        }
+      ],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "kind": "added",
+          "path": "index.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-1-copy.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-1.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-2.md"
+        },
+        {
+          "kind": "added",
+          "path": "reference-copy/sperm-whales.md"
+        },
+        {
+          "kind": "added",
+          "path": "reference/sperm-whales.md"
+        }
+      ],
+      "freshReview": false,
+      "from": "REV33",
+      "revision": "REV17"
+    }
+  },
+  {
+    "step": "a snapshot's metadata",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "snapshot": true
+    },
+    "result": {
+      "files": [
+        {
+          "content": "",
+          "hash": "9360b6f3c92a2fa60dca4ddec661e6635ddf59d6225c9b15d52358f5f5ac0c2d",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "AGENTS.md"
+        },
+        {
+          "content": "",
+          "hash": "db231c5cf3838c19b24d42d1baa3b59cf645c4fe1ee3b0701a7ad88e0347dacf",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "index.md"
+        },
+        {
+          "content": "",
+          "hash": "HASH2",
+          "metadata": {
+            "id": "ID3",
+            "kind": "",
+            "status": "draft",
+            "tags": [
+              "fiction",
+              "draft"
+            ],
+            "title": "Chapter one"
+          },
+          "path": "manuscript/chapter-1-copy.md"
+        },
+        {
+          "content": "",
+          "hash": "HASH3",
+          "metadata": {
+            "cover": "assets/cover.png",
+            "id": "c0ffee00000000000000000000000001",
+            "kind": "",
+            "status": "draft",
+            "tags": [
+              "fiction",
+              "draft"
+            ],
+            "title": "Chapter one"
+          },
+          "path": "manuscript/chapter-1.md"
+        },
+        {
+          "content": "",
+          "hash": "HASH4",
+          "metadata": {
+            "id": "c0ffee00000000000000000000000002",
+            "kind": "",
+            "status": "review",
+            "tags": [
+              "fiction"
+            ],
+            "title": "Chapter two: departure"
+          },
+          "path": "manuscript/chapter-2.md"
+        },
+        {
+          "content": "",
+          "hash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [
+              "research"
+            ],
+            "title": ""
+          },
+          "path": "reference-copy/sperm-whales.md"
+        },
+        {
+          "content": "",
+          "hash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [
+              "research"
+            ],
+            "title": ""
+          },
+          "path": "reference/sperm-whales.md"
+        }
+      ],
+      "revision": "REV1",
+      "visibility": "HASH5"
+    }
+  },
+  {
+    "step": "a historical snapshot's metadata",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "revision": "REV17",
+      "snapshot": true
+    },
+    "result": {
+      "files": [
+        {
+          "content": "",
+          "hash": "db231c5cf3838c19b24d42d1baa3b59cf645c4fe1ee3b0701a7ad88e0347dacf",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [],
+            "title": ""
+          },
+          "path": "index.md"
+        },
+        {
+          "content": "",
+          "hash": "HASH2",
+          "metadata": {
+            "id": "ID3",
+            "kind": "",
+            "status": "draft",
+            "tags": [
+              "fiction",
+              "draft"
+            ],
+            "title": "Chapter one"
+          },
+          "path": "manuscript/chapter-1-copy.md"
+        },
+        {
+          "content": "",
+          "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+          "metadata": {
+            "id": "c0ffee00000000000000000000000001",
+            "kind": "",
+            "status": "draft",
+            "tags": [
+              "fiction",
+              "draft"
+            ],
+            "title": "Chapter one"
+          },
+          "path": "manuscript/chapter-1.md"
+        },
+        {
+          "content": "",
+          "hash": "HASH4",
+          "metadata": {
+            "id": "c0ffee00000000000000000000000002",
+            "kind": "",
+            "status": "review",
+            "tags": [
+              "fiction"
+            ],
+            "title": "Chapter two: departure"
+          },
+          "path": "manuscript/chapter-2.md"
+        },
+        {
+          "content": "",
+          "hash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [
+              "research"
+            ],
+            "title": ""
+          },
+          "path": "reference-copy/sperm-whales.md"
+        },
+        {
+          "content": "",
+          "hash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+          "metadata": {
+            "kind": "",
+            "status": "",
+            "tags": [
+              "research"
+            ],
+            "title": ""
+          },
+          "path": "reference/sperm-whales.md"
+        }
+      ],
+      "revision": "REV17",
+      "visibility": "HASH5"
+    }
+  },
+  {
+    "step": "changes since an unknown commit ask for a fresh review",
+    "tool": "read_project_changes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "since": "REV34"
+    },
+    "result": {
+      "commits": [],
+      "commitsTruncated": false,
+      "files": [
+        {
+          "kind": "added",
+          "path": "AGENTS.md"
+        },
+        {
+          "kind": "added",
+          "path": "assets/cover.png"
+        },
+        {
+          "kind": "added",
+          "path": "index.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-1-copy.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-1.md"
+        },
+        {
+          "kind": "added",
+          "path": "manuscript/chapter-2.md"
+        },
+        {
+          "kind": "added",
+          "path": "reference-copy/sperm-whales.md"
+        },
+        {
+          "kind": "added",
+          "path": "reference/sperm-whales.md"
+        }
+      ],
+      "freshReview": true,
+      "from": "REV34",
+      "reason": "Checkpoint is missing or is not an ancestor; a fresh review is required.",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "a new consumer has no checkpoint",
+    "tool": "consumer_checkpoint",
+    "as": "admin",
+    "arguments": {
+      "consumer": "contract-review",
+      "project": "contract"
+    },
+    "result": {
+      "changes": {
+        "commits": [],
+        "commitsTruncated": false,
+        "files": [
+          {
+            "kind": "added",
+            "path": "AGENTS.md"
+          },
+          {
+            "kind": "added",
+            "path": "assets/cover.png"
+          },
+          {
+            "kind": "added",
+            "path": "index.md"
+          },
+          {
+            "kind": "added",
+            "path": "manuscript/chapter-1-copy.md"
+          },
+          {
+            "kind": "added",
+            "path": "manuscript/chapter-1.md"
+          },
+          {
+            "kind": "added",
+            "path": "manuscript/chapter-2.md"
+          },
+          {
+            "kind": "added",
+            "path": "reference-copy/sperm-whales.md"
+          },
+          {
+            "kind": "added",
+            "path": "reference/sperm-whales.md"
+          }
+        ],
+        "freshReview": true,
+        "from": "",
+        "reason": "No valid checkpoint; review the current snapshot.",
+        "revision": "REV1"
+      },
+      "checkpoint": {
+        "completedAt": "",
+        "consumer": "",
+        "revision": "",
+        "summary": "",
+        "user": ""
+      },
+      "completionMeaning": "Externally reported, not independently verified."
+    }
+  },
+  {
+    "step": "complete a workflow at the head",
+    "tool": "complete_workflow",
+    "as": "admin",
+    "arguments": {
+      "completion": {
+        "consumer": "contract-review",
+        "previous": "",
+        "reset": false,
+        "revision": "REV1",
+        "summary": "Reviewed every chapter."
+      },
+      "project": "contract"
+    },
+    "result": {
+      "completedAt": "<TIME>",
+      "consumer": "contract-review",
+      "revision": "REV1",
+      "summary": "Reviewed every chapter.",
+      "user": "@local-admin"
+    }
+  },
+  {
+    "step": "completing from a stale checkpoint conflicts",
+    "tool": "complete_workflow",
+    "as": "admin",
+    "arguments": {
+      "completion": {
+        "consumer": "contract-review",
+        "previous": "",
+        "reset": false,
+        "revision": "REV1",
+        "summary": "Again."
+      },
+      "project": "contract"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "the consumer's checkpoint and changes since it",
+    "tool": "consumer_checkpoint",
+    "as": "admin",
+    "arguments": {
+      "consumer": "contract-review",
+      "project": "contract"
+    },
+    "result": {
+      "changes": {
+        "commits": [],
+        "commitsTruncated": false,
+        "files": [],
+        "freshReview": false,
+        "from": "REV1",
+        "revision": "REV1"
+      },
+      "checkpoint": {
+        "completedAt": "<TIME>",
+        "consumer": "contract-review",
+        "revision": "REV1",
+        "summary": "Reviewed every chapter.",
+        "user": "@local-admin"
+      },
+      "completionMeaning": "Externally reported, not independently verified."
+    }
+  },
+  {
+    "step": "read chapter two for a proposal",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../reference/sperm-whales.md\" rel=\"nofollow\">the whale notes</a> twice.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "review",
+        "tags": [
+          "fiction"
+        ],
+        "title": "Chapter two: departure"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV1",
+      "title": "Chapter two: departure",
+      "version": "REV17"
+    }
+  },
+  {
+    "step": "a reader cannot propose",
+    "tool": "submit_change_group",
+    "as": "reader",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+            "hash": "HASH4",
+            "path": "manuscript/chapter-2.md",
+            "revision": "REV1"
+          }
+        ],
+        "id": "contract-proposal",
+        "summary": "Count the readings"
+      },
+      "mode": "proposal",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "propose a change group",
+    "tool": "submit_change_group",
+    "as": "admin",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+            "hash": "HASH4",
+            "path": "manuscript/chapter-2.md",
+            "revision": "REV1"
+          }
+        ],
+        "id": "contract-proposal",
+        "summary": "Count the readings"
+      },
+      "mode": "proposal",
+      "project": "contract"
+    },
+    "result": {
+      "acceptedIdentity": {
+        "email": "",
+        "id": "",
+        "name": ""
+      },
+      "author": "@local-admin",
+      "before": {
+        "manuscript/chapter-2.md": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n"
+      },
+      "created": "<TIME>",
+      "group": {
+        "edits": [
+          {
+            "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+            "hash": "HASH4",
+            "path": "manuscript/chapter-2.md",
+            "revision": "REV1"
+          }
+        ],
+        "id": "proposal-HASH6",
+        "summary": "Count the readings"
+      },
+      "id": "HASH6",
+      "provenance": {
+        "client": "contract-client",
+        "email": "ID1@users.gitnotes.invalid",
+        "id": "ID1",
+        "name": "User USER1",
+        "source": "mcp"
+      },
+      "requestHash": "HASH7",
+      "stale": false,
+      "status": "proposed"
+    }
+  },
+  {
+    "step": "the inbox lists the proposal",
+    "tool": "review_inbox",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "checkpoints": [
+        {
+          "completedAt": "<TIME>",
+          "consumer": "contract-review",
+          "revision": "REV1",
+          "summary": "Reviewed every chapter.",
+          "user": "@local-admin"
+        }
+      ],
+      "completionMeaning": "Reported by the external consumer; not independently verified.",
+      "findings": [
+        {
+          "comment": {
+            "author": "@local-admin",
+            "created": "<TIME>",
+            "finding": {
+              "evidence": [
+                {
+                  "explanation": "Mentions the whale's return.",
+                  "hash": "HASH4",
+                  "path": "manuscript/chapter-2.md",
+                  "revision": "REV9"
+                }
+              ],
+              "key": "dawn-check",
+              "noteHash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+              "origin": "agent",
+              "path": "manuscript/chapter-1.md",
+              "requestHash": "HASH8",
+              "sourcePath": "manuscript/chapter-1.md",
+              "sourceRevision": "REV9",
+              "stale": true,
+              "title": "Timing of the sighting"
+            },
+            "id": "HASH9",
+            "resolved": true,
+            "text": "Chapter two says the whale returned later; check dawn."
+          },
+          "path": "manuscript/chapter-1.md",
+          "revision": "REV1"
+        }
+      ],
+      "proposals": [
+        {
+          "acceptedIdentity": {
+            "email": "",
+            "id": "",
+            "name": ""
+          },
+          "author": "@local-admin",
+          "before": {
+            "manuscript/chapter-2.md": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n"
+          },
+          "created": "<TIME>",
+          "group": {
+            "edits": [
+              {
+                "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+                "hash": "HASH4",
+                "path": "manuscript/chapter-2.md",
+                "revision": "REV1"
+              }
+            ],
+            "id": "proposal-HASH6",
+            "summary": "Count the readings"
+          },
+          "id": "HASH6",
+          "provenance": {
+            "client": "contract-client",
+            "email": "ID1@users.gitnotes.invalid",
+            "id": "ID1",
+            "name": "User USER1",
+            "source": "mcp"
+          },
+          "requestHash": "HASH7",
+          "stale": false,
+          "status": "proposed"
+        }
+      ]
+    }
+  },
+  {
+    "step": "accept the proposal",
+    "tool": "review_decision",
+    "as": "admin",
+    "arguments": {
+      "decision": "accept",
+      "id": "HASH6",
+      "kind": "proposal",
+      "project": "contract"
+    },
+    "result": {
+      "acceptedBy": "@local-admin",
+      "acceptedIdentity": {
+        "client": "contract-client",
+        "email": "ID1@users.gitnotes.invalid",
+        "id": "ID1",
+        "name": "User USER1",
+        "source": "mcp"
+      },
+      "author": "@local-admin",
+      "before": {
+        "manuscript/chapter-2.md": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n"
+      },
+      "created": "<TIME>",
+      "group": {
+        "edits": [
+          {
+            "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+            "hash": "HASH4",
+            "path": "manuscript/chapter-2.md",
+            "revision": "REV1"
+          }
+        ],
+        "id": "proposal-HASH6",
+        "summary": "Count the readings"
+      },
+      "id": "HASH6",
+      "provenance": {
+        "client": "contract-client",
+        "email": "ID1@users.gitnotes.invalid",
+        "id": "ID1",
+        "name": "User USER1",
+        "source": "mcp"
+      },
+      "requestHash": "HASH7",
+      "revision": "REV35",
+      "stale": false,
+      "status": "applied",
+      "updated": "<TIME>"
+    }
+  },
+  {
+    "step": "accepting again is idempotent",
+    "tool": "review_decision",
+    "as": "admin",
+    "arguments": {
+      "decision": "accept",
+      "id": "HASH6",
+      "kind": "proposal",
+      "project": "contract"
+    },
+    "result": {
+      "acceptedBy": "@local-admin",
+      "acceptedIdentity": {
+        "client": "contract-client",
+        "email": "ID1@users.gitnotes.invalid",
+        "id": "ID1",
+        "name": "User USER1",
+        "source": "mcp"
+      },
+      "author": "@local-admin",
+      "before": {
+        "manuscript/chapter-2.md": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n"
+      },
+      "created": "<TIME>",
+      "group": {
+        "edits": [
+          {
+            "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+            "hash": "HASH4",
+            "path": "manuscript/chapter-2.md",
+            "revision": "REV1"
+          }
+        ],
+        "id": "proposal-HASH6",
+        "summary": "Count the readings"
+      },
+      "id": "HASH6",
+      "provenance": {
+        "client": "contract-client",
+        "email": "ID1@users.gitnotes.invalid",
+        "id": "ID1",
+        "name": "User USER1",
+        "source": "mcp"
+      },
+      "requestHash": "HASH7",
+      "revision": "REV35",
+      "stale": false,
+      "status": "applied",
+      "updated": "<TIME>"
+    }
+  },
+  {
+    "step": "chapter two after acceptance",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../reference/sperm-whales.md\" rel=\"nofollow\">the whale notes</a> three times.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "review",
+        "tags": [
+          "fiction"
+        ],
+        "title": "Chapter two: departure"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV35",
+      "title": "Chapter two: departure",
+      "version": "REV35"
+    }
+  },
+  {
+    "step": "applying from a stale base conflicts",
+    "tool": "submit_change_group",
+    "as": "admin",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "# Stale\n",
+            "hash": "HASH4",
+            "path": "manuscript/chapter-2.md",
+            "revision": "REV1"
+          }
+        ],
+        "id": "contract-stale",
+        "summary": "Stale apply"
+      },
+      "mode": "apply",
+      "project": "contract"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "read the index for a group",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Start with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV35",
+      "title": "Contract notebook",
+      "version": "REV24"
+    }
+  },
+  {
+    "step": "an editor cannot apply deletions",
+    "tool": "submit_change_group",
+    "as": "editor",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "",
+            "delete": true,
+            "hash": "db231c5cf3838c19b24d42d1baa3b59cf645c4fe1ee3b0701a7ad88e0347dacf",
+            "path": "index.md",
+            "revision": "REV35"
+          }
+        ],
+        "id": "contract-delete",
+        "summary": "Delete the index"
+      },
+      "mode": "apply",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "apply a change group as one commit",
+    "tool": "submit_change_group",
+    "as": "editor",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n\nRead the [epilogue](epilogue.md).\n",
+            "hash": "db231c5cf3838c19b24d42d1baa3b59cf645c4fe1ee3b0701a7ad88e0347dacf",
+            "path": "index.md",
+            "revision": "REV35"
+          },
+          {
+            "content": "# Epilogue\n\nThe whale was never seen again.\n",
+            "hash": "",
+            "path": "epilogue.md",
+            "revision": ""
+          }
+        ],
+        "id": "contract-apply",
+        "summary": "Add an epilogue and link it"
+      },
+      "mode": "apply",
+      "project": "contract"
+    },
+    "result": {
+      "replayed": false,
+      "revision": "REV36"
+    }
+  },
+  {
+    "step": "retrying the same group replays it",
+    "tool": "submit_change_group",
+    "as": "editor",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n\nRead the [epilogue](epilogue.md).\n",
+            "hash": "db231c5cf3838c19b24d42d1baa3b59cf645c4fe1ee3b0701a7ad88e0347dacf",
+            "path": "index.md",
+            "revision": "REV35"
+          },
+          {
+            "content": "# Epilogue\n\nThe whale was never seen again.\n",
+            "hash": "",
+            "path": "epilogue.md",
+            "revision": ""
+          }
+        ],
+        "id": "contract-apply",
+        "summary": "Add an epilogue and link it"
+      },
+      "mode": "apply",
+      "project": "contract"
+    },
+    "result": {
+      "replayed": true,
+      "revision": "REV36"
+    }
+  },
+  {
+    "step": "an unknown mode is refused",
+    "tool": "submit_change_group",
+    "as": "admin",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n\nRead the [epilogue](epilogue.md).\n",
+            "hash": "db231c5cf3838c19b24d42d1baa3b59cf645c4fe1ee3b0701a7ad88e0347dacf",
+            "path": "index.md",
+            "revision": "REV35"
+          },
+          {
+            "content": "# Epilogue\n\nThe whale was never seen again.\n",
+            "hash": "",
+            "path": "epilogue.md",
+            "revision": ""
+          }
+        ],
+        "id": "contract-apply",
+        "summary": "Add an epilogue and link it"
+      },
+      "mode": "merge",
+      "project": "contract"
+    },
+    "error": "choose proposal or apply"
+  },
+  {
+    "step": "history shows the grouped commit",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "epilogue.md",
+      "project": "contract"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Contributor",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER2",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Add an epilogue and link it",
+        "path": "epilogue.md",
+        "revision": "REV36",
+        "source": "mcp",
+        "userId": "ID2"
+      }
+    ]
+  }
+]

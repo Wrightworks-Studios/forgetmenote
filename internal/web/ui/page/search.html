@@ -1,0 +1,41 @@
+{{/* Search view: query, scope, filters and results. Rendered in place by index.html. */}}
+{{define "index-search"}}<section id="search-view" hidden aria-labelledby="search-results-title">
+      <div class="search-row"><label class="search"
+        ><span class="sr-only">Search notes</span
+        ><input
+          id="search"
+          type="search"
+          placeholder="Search your notes…"
+          autocomplete="off"
+      /></label>
+        <button id="search-options-toggle" class="quiet" title="Search options" aria-label="Search filters" aria-expanded="false" aria-controls="note-filters"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8Z"/></svg> Filters</button>
+      </div>
+      <div class="search-corpus-controls">
+        <label>Search in <select id="search-corpus"><option value="notes">Notes</option><option value="repository">Source</option><option value="both">Notes and source</option></select></label>
+        <fieldset id="search-projects-label" hidden><legend>Notebooks</legend><div id="search-projects" class="notebook-scope"></div></fieldset>
+      </div>
+      <div id="note-filters" hidden>
+        <div class="filter-fields">
+          <label for="folder-filter">Folder</label><div class="select-picker"><select id="folder-filter"><option value="">All folders</option></select></div>
+          <label for="tag-filter">Tag</label><div class="select-picker"><select id="tag-filter"><option value="">All tags</option></select></div>
+          <label for="status-filter">Status</label><div class="select-picker"><select id="status-filter"><option value="">All statuses</option></select></div>
+          <button id="clear-filters" class="quiet" type="button">Clear filters</button>
+        </div>
+        <details id="advanced-search"><summary>Advanced options</summary>
+          <label class="history-option"><input id="search-scope" type="checkbox" />Include previous versions</label>
+          <label class="history-option"><input id="include-trash" type="checkbox" />Include trash</label>
+          <fieldset id="search-modes"><legend>Matching</legend>
+            <label><input id="search-all" type="radio" name="search-mode" value="all" checked/><span>Automatic</span></label>
+            <label><input type="radio" name="search-mode" value="text"/><span>Text</span></label>
+            <label><input id="search-meaning" type="radio" name="search-mode" value="meaning" disabled/><span>Meaning</span></label>
+          </fieldset>
+          <div class="filter-fields">
+            <label for="search-archives">Archives ranking</label><div class="select-picker"><select id="search-archives"><option value="">Notebook default</option><option value="include">Include</option><option value="lower">Lower priority</option><option value="exclude">Exclude</option></select></div>
+            <label for="search-drafts">Drafts ranking</label><div class="select-picker"><select id="search-drafts"><option value="">Notebook default</option><option value="include">Include</option><option value="lower">Lower priority</option><option value="exclude">Exclude</option></select></div>
+          </div>
+        </details>
+      </div>
+      <div id="active-search-options" aria-label="Active search options" hidden></div>
+      <p id="search-status" class="small" role="status" aria-live="polite"></p>
+        <div id="search-results"></div>
+      </section>{{end}}

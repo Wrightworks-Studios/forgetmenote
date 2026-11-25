@@ -1,0 +1,41 @@
+{
+  "linked discussions": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# A\n",
+        "comments": "<mode 120000> outside-target"
+      }
+    },
+    {
+      "name": "a linked discussions folder",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a copy",
+      "result": {
+        "from": "a.md",
+        "to": "b.md",
+        "revision": "<rev 1>",
+        "updatedLinks": 0
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Duplicate \"a.md\" to \"b.md\"\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "b.md": "# A\n"
+      }
+    }
+  ]
+}

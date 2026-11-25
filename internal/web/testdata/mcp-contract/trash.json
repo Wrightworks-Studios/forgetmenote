@@ -1,0 +1,507 @@
+[
+  {
+    "step": "an empty trash",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "confirmation": "HASH1",
+      "entries": [],
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "status before trashing",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "an editor cannot trash notes",
+    "tool": "trash_notes",
+    "as": "editor",
+    "arguments": {
+      "paths": [
+        "manuscript/chapter-1-copy.md"
+      ],
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "trash two notes",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "manuscript/chapter-1-copy.md",
+        "reference-copy/sperm-whales.md"
+      ],
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID1",
+          "originalPath": "manuscript/chapter-1-copy.md",
+          "path": "Trash/ID1.md",
+          "title": "Chapter one"
+        },
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID2",
+          "originalPath": "reference-copy/sperm-whales.md",
+          "path": "Trash/ID2.md",
+          "title": "Sperm whales"
+        }
+      ],
+      "revision": "REV2"
+    }
+  },
+  {
+    "step": "trashing with a stale revision conflicts",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "epilogue.md"
+      ],
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "trashing a missing note",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "missing.md"
+      ],
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "list the trash",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "confirmation": "HASH2",
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID1",
+          "originalPath": "manuscript/chapter-1-copy.md",
+          "path": "Trash/ID1.md",
+          "title": "Chapter one"
+        },
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID2",
+          "originalPath": "reference-copy/sperm-whales.md",
+          "path": "Trash/ID2.md",
+          "title": "Sperm whales"
+        }
+      ],
+      "revision": "REV2"
+    }
+  },
+  {
+    "step": "ordinary search excludes Trash",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": "harbour"
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dusk. No one on the quay believed him.",
+        "metadata": {
+          "cover": "assets/cover.png",
+          "id": "c0ffee00000000000000000000000001",
+          "kind": "",
+          "status": "draft",
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        "path": "manuscript/chapter-1.md",
+        "title": "Chapter one"
+      },
+      {
+        "editable": false,
+        "excerpt": "Original file Extracted content Harbour log, morning watch. A large whale sighted off the quay.",
+        "metadata": {
+          "kind": "archived-source",
+          "source": {
+            "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+            "extraction": "extracted",
+            "extractor": "ForgetMeNote Text text v1",
+            "finalURL": "",
+            "id": "ID3",
+            "importedBy": "ID4",
+            "method": "uploaded",
+            "mime": "text/plain",
+            "original": "assets/sources/ID3/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt",
+            "sha256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+            "textSHA256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+            "url": "",
+            "warning": ""
+          },
+          "status": "unreviewed",
+          "tags": [],
+          "title": "Harbour log"
+        },
+        "path": "sources/ID3.md",
+        "title": "Harbour log"
+      }
+    ]
+  },
+  {
+    "step": "search including Trash",
+    "tool": "search_notes",
+    "as": "admin",
+    "arguments": {
+      "includeTrash": true,
+      "project": "contract",
+      "query": "harbour"
+    },
+    "result": [
+      {
+        "editable": false,
+        "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+        "metadata": {
+          "id": "ID5",
+          "kind": "",
+          "status": "draft",
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        "path": "Trash/ID1.md",
+        "title": "Chapter one",
+        "trashId": "ID1"
+      },
+      {
+        "editable": false,
+        "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dusk. No one on the quay believed him.",
+        "metadata": {
+          "cover": "assets/cover.png",
+          "id": "c0ffee00000000000000000000000001",
+          "kind": "",
+          "status": "draft",
+          "tags": [
+            "fiction",
+            "draft"
+          ],
+          "title": "Chapter one"
+        },
+        "path": "manuscript/chapter-1.md",
+        "title": "Chapter one"
+      },
+      {
+        "editable": false,
+        "excerpt": "Original file Extracted content Harbour log, morning watch. A large whale sighted off the quay.",
+        "metadata": {
+          "kind": "archived-source",
+          "source": {
+            "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+            "extraction": "extracted",
+            "extractor": "ForgetMeNote Text text v1",
+            "finalURL": "",
+            "id": "ID3",
+            "importedBy": "ID4",
+            "method": "uploaded",
+            "mime": "text/plain",
+            "original": "assets/sources/ID3/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt",
+            "sha256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+            "textSHA256": "bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb",
+            "url": "",
+            "warning": ""
+          },
+          "status": "unreviewed",
+          "tags": [],
+          "title": "Harbour log"
+        },
+        "path": "sources/ID3.md",
+        "title": "Harbour log"
+      }
+    ]
+  },
+  {
+    "step": "a trashed note cannot be read at its old path",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1-copy.md",
+      "project": "contract"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "a link into Trash does not resolve",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "path": "Trash/ID1.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "the instructions file does not resolve as a link",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "path": "AGENTS.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "link targets exclude Trash and instructions",
+    "tool": "find_notebook_link_targets",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": ""
+    },
+    "result": [
+      {
+        "path": "epilogue.md",
+        "project": "contract",
+        "title": "Epilogue"
+      },
+      {
+        "path": "index.md",
+        "project": "contract",
+        "title": "Contract notebook"
+      },
+      {
+        "noteId": "c0ffee00000000000000000000000001",
+        "path": "manuscript/chapter-1.md",
+        "project": "contract",
+        "title": "Chapter one"
+      },
+      {
+        "noteId": "c0ffee00000000000000000000000002",
+        "path": "manuscript/chapter-2.md",
+        "project": "contract",
+        "title": "Chapter two"
+      },
+      {
+        "path": "reference/sperm-whales.md",
+        "project": "contract",
+        "title": "Sperm whales"
+      },
+      {
+        "path": "sources/ID3.md",
+        "project": "contract",
+        "title": "Harbour log"
+      }
+    ]
+  },
+  {
+    "step": "restore one note to its original path",
+    "tool": "restore_trash",
+    "as": "admin",
+    "arguments": {
+      "id": "ID2",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID2",
+          "originalPath": "reference-copy/sperm-whales.md",
+          "path": "reference-copy/sperm-whales.md",
+          "title": "Sperm whales"
+        }
+      ],
+      "revision": "REV3"
+    }
+  },
+  {
+    "step": "restoring with a stale revision conflicts",
+    "tool": "restore_trash",
+    "as": "admin",
+    "arguments": {
+      "id": "ID1",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "restoring onto an occupied path is refused",
+    "tool": "restore_trash",
+    "as": "admin",
+    "arguments": {
+      "id": "ID1",
+      "project": "contract",
+      "revision": "REV3",
+      "to": "index.md"
+    },
+    "error": "restore destination is occupied: the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "restore an unknown item",
+    "tool": "restore_trash",
+    "as": "admin",
+    "arguments": {
+      "id": "ID6",
+      "project": "contract",
+      "revision": "REV3"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "preview emptying",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "confirmation": "HASH3",
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID1",
+          "originalPath": "manuscript/chapter-1-copy.md",
+          "path": "Trash/ID1.md",
+          "title": "Chapter one"
+        }
+      ],
+      "revision": "REV3"
+    }
+  },
+  {
+    "step": "a wrong confirmation is refused",
+    "tool": "empty_trash",
+    "as": "admin",
+    "arguments": {
+      "confirmation": "yes",
+      "project": "contract",
+      "revision": "REV3"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "a stale preview is refused",
+    "tool": "empty_trash",
+    "as": "admin",
+    "arguments": {
+      "confirmation": "HASH2",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "empty the trash",
+    "tool": "empty_trash",
+    "as": "admin",
+    "arguments": {
+      "confirmation": "HASH3",
+      "project": "contract",
+      "revision": "REV3"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID1",
+          "originalPath": "manuscript/chapter-1-copy.md",
+          "path": "Trash/ID1.md",
+          "title": "Chapter one"
+        }
+      ],
+      "revision": "REV4"
+    }
+  },
+  {
+    "step": "the trash is empty",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "confirmation": "HASH4",
+      "entries": [],
+      "revision": "REV4"
+    }
+  },
+  {
+    "step": "history keeps the emptied note",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1-copy.md",
+      "project": "contract"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID4@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move notes to Trash",
+        "path": "manuscript/chapter-1-copy.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID4"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID4@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Duplicate \"manuscript/chapter-1.md\" to \"manuscript/chapter-1-copy.md\"",
+        "path": "manuscript/chapter-1-copy.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID4"
+      }
+    ]
+  }
+]

@@ -1,0 +1,358 @@
+[
+  {
+    "step": "read a note live",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "liveRevision": "ID1:0",
+      "path": "manuscript/chapter-1.md",
+      "pending": false,
+      "revision": "REV1",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "a reader cannot patch",
+    "tool": "patch_live_note",
+    "as": "reader",
+    "arguments": {
+      "base": "ID1:0",
+      "edits": [
+        {
+          "end": 220,
+          "old": "dawn",
+          "start": 216,
+          "text": "dusk"
+        }
+      ],
+      "operationId": "contract-reader-1",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "patch one word",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:0",
+      "edits": [
+        {
+          "end": 220,
+          "old": "dawn",
+          "start": 216,
+          "text": "dusk"
+        }
+      ],
+      "operationId": "contract-op-1",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dusk.\nNobody on the quay believed him.\n",
+      "liveRevision": "ID1:1",
+      "path": "manuscript/chapter-1.md",
+      "pending": true,
+      "revision": "REV1",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "an identical retry replays",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:0",
+      "edits": [
+        {
+          "end": 220,
+          "old": "dawn",
+          "start": 216,
+          "text": "dusk"
+        }
+      ],
+      "operationId": "contract-op-1",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dusk.\nNobody on the quay believed him.\n",
+      "liveRevision": "ID1:1",
+      "path": "manuscript/chapter-1.md",
+      "pending": true,
+      "revision": "REV1",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "reusing an operation ID for different edits conflicts",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:0",
+      "edits": [
+        {
+          "end": 220,
+          "old": "dawn",
+          "start": 216,
+          "text": "noon"
+        }
+      ],
+      "operationId": "contract-op-1",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "an overlapping edit from the old base conflicts",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:0",
+      "edits": [
+        {
+          "end": 220,
+          "old": "dawn",
+          "start": 216,
+          "text": "night"
+        }
+      ],
+      "operationId": "contract-op-2",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "error": "another editor deleted or replaced the original target; reconcile the live note: the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "old text that does not match is refused",
+    "tool": "patch_live_note",
+    "as": "admin",
+    "arguments": {
+      "base": "ID1:1",
+      "edits": [
+        {
+          "end": 3,
+          "old": "xyz",
+          "start": 0,
+          "text": "abc"
+        }
+      ],
+      "operationId": "contract-op-3",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "error": "patch ranges or expected text do not match: the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "a disjoint edit from the old base rebases",
+    "tool": "patch_live_note",
+    "as": "editor",
+    "arguments": {
+      "base": "ID1:0",
+      "edits": [
+        {
+          "end": 228,
+          "old": "Nobody",
+          "start": 222,
+          "text": "No one"
+        }
+      ],
+      "operationId": "contract-op-4",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dusk.\nNo one on the quay believed him.\n",
+      "liveRevision": "ID1:2",
+      "path": "manuscript/chapter-1.md",
+      "pending": true,
+      "revision": "REV1",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "Git still has the committed text",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "metadata": {
+        "cover": "assets/cover.png",
+        "id": "c0ffee00000000000000000000000001",
+        "kind": "",
+        "status": "draft",
+        "tags": [
+          "fiction",
+          "draft"
+        ],
+        "title": "Chapter one"
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV1",
+      "title": "Chapter one",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "live text is pending",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dusk.\nNo one on the quay believed him.\n",
+      "liveRevision": "ID1:2",
+      "path": "manuscript/chapter-1.md",
+      "pending": true,
+      "revision": "REV1",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "checkpoint the live edits",
+    "tool": "checkpoint_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dusk.\nNo one on the quay believed him.\n",
+      "liveRevision": "ID1:2",
+      "path": "manuscript/chapter-1.md",
+      "pending": false,
+      "revision": "REV3",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "an unchanged checkpoint makes no commit",
+    "tool": "checkpoint_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dusk.\nNo one on the quay believed him.\n",
+      "liveRevision": "ID1:2",
+      "path": "manuscript/chapter-1.md",
+      "pending": false,
+      "revision": "REV3",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "Git has the checkpointed text",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dusk.\nNo one on the quay believed him.\n",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dusk.\nNo one on the quay believed him.</p>\n",
+      "metadata": {
+        "cover": "assets/cover.png",
+        "id": "c0ffee00000000000000000000000001",
+        "kind": "",
+        "status": "draft",
+        "tags": [
+          "fiction",
+          "draft"
+        ],
+        "title": "Chapter one"
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV3",
+      "title": "Chapter one",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "history records the checkpoint",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": [
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to manuscript/chapter-1.md",
+        "path": "manuscript/chapter-1.md",
+        "revision": "REV3",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-1.md",
+        "path": "manuscript/chapter-1.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID2"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-1.md",
+        "path": "manuscript/chapter-1.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID2"
+      }
+    ]
+  },
+  {
+    "step": "read a missing note live",
+    "tool": "read_live_note",
+    "as": "admin",
+    "arguments": {
+      "path": "missing.md",
+      "project": "contract"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "a reader cannot checkpoint",
+    "tool": "checkpoint_live_note",
+    "as": "reader",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  }
+]

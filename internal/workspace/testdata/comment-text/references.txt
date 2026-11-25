@@ -1,0 +1,1 @@
+See a, b, Ref and [missing][none].[^1] [^1]: A footnote with emphasis. Shortcut and shortcut and SHORTCUT. and

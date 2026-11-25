@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "learn-data-profiles",
+      "kind": "learning",
+      "actor": "REPLACE_WITH_SERVICE_ACCOUNT_ID",
+      "project": "profiles",
+      "connections": ["warehouse"],
+      "aiConnection": "REPLACE_WITH_CHAT_CONNECTION_ID",
+      "externalProcessing": true,
+      "timeoutSeconds": 300,
+      "maxRounds": 6,
+      "instruction": "Maintain reusable read-only data access instructions. Preserve business scope, filters and units; explain unsupported assumptions. Prefer existing profiles when they cover the same task.",
+      "learning": {
+        "captureInputs": true,
+        "folder": "learned",
+        "debounceSeconds": 120,
+        "maxWaitSeconds": 900,
+        "minExamples": 2,
+        "retentionHours": 24,
+        "jev": true
+      }
+    }
+  ]
+}

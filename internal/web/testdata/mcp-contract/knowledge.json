@@ -1,0 +1,1235 @@
+[
+  {
+    "step": "knowledge status",
+    "tool": "knowledge_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "groupedEdits": true,
+      "instructionsTool": "project_instructions",
+      "notifications": "Standard resource subscription hints; use Git checkpoints for catch-up. They do not launch agents.",
+      "reviewFindings": "comments",
+      "revisionResource": "forgetmenote://projects/contract/revision",
+      "searchTool": "hybrid_search",
+      "semantic": {
+        "browserSearch": false,
+        "config": {
+          "dimensions": 0,
+          "enabled": false,
+          "endpoint": false,
+          "model": "",
+          "passageRunes": 0,
+          "splitter": ""
+        },
+        "configId": "HASH1",
+        "indexed": 0,
+        "indexedRevision": "",
+        "revision": "",
+        "state": "disabled",
+        "total": 0
+      },
+      "semanticSetupRole": "owner",
+      "semanticSetupTool": "configure_semantic_search",
+      "snapshots": true
+    }
+  },
+  {
+    "step": "retrieval settings",
+    "tool": "get_retrieval_settings",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "id": "HASH2",
+      "settings": {
+        "ai": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        },
+        "search": {
+          "archives": "exclude",
+          "drafts": "include",
+          "version": 1
+        },
+        "version": 1
+      }
+    }
+  },
+  {
+    "step": "an editor cannot change retrieval settings",
+    "tool": "set_retrieval_settings",
+    "as": "editor",
+    "arguments": {
+      "expectedId": "HASH2",
+      "project": "contract",
+      "settings": {
+        "ai": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        },
+        "search": {
+          "archives": "exclude",
+          "drafts": "include",
+          "version": 1
+        },
+        "version": 1
+      }
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "set retrieval settings",
+    "tool": "set_retrieval_settings",
+    "as": "admin",
+    "arguments": {
+      "expectedId": "HASH2",
+      "project": "contract",
+      "settings": {
+        "ai": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        },
+        "search": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        },
+        "version": 1
+      }
+    },
+    "result": {
+      "id": "HASH3",
+      "settings": {
+        "ai": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        },
+        "search": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        },
+        "version": 1
+      }
+    }
+  },
+  {
+    "step": "stale retrieval settings conflict",
+    "tool": "set_retrieval_settings",
+    "as": "admin",
+    "arguments": {
+      "expectedId": "HASH2",
+      "project": "contract",
+      "settings": {
+        "ai": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        },
+        "search": {
+          "archives": "exclude",
+          "drafts": "include",
+          "version": 1
+        },
+        "version": 1
+      }
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "hybrid search",
+    "tool": "hybrid_search",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": {
+        "text": "whale"
+      }
+    },
+    "result": {
+      "contentScope": {
+        "collection": "all",
+        "policy": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        }
+      },
+      "filters": {
+        "paths": [
+          "AGENTS.md",
+          "epilogue.md",
+          "index.md",
+          "manuscript/chapter-1-copy.md",
+          "manuscript/chapter-1.md",
+          "manuscript/chapter-2.md",
+          "reference-copy/sperm-whales.md",
+          "reference/sperm-whales.md"
+        ],
+        "statuses": [
+          "draft",
+          "review"
+        ],
+        "tags": [
+          "draft",
+          "fiction",
+          "research"
+        ]
+      },
+      "matches": [
+        {
+          "current": false,
+          "excerpt": "Epilogue The whale was never seen again.",
+          "path": "epilogue.md",
+          "revision": "REV1",
+          "score": 0.01639344262295082,
+          "text": "The whale was never seen again.",
+          "title": "Epilogue"
+        },
+        {
+          "current": false,
+          "excerpt": "Departure They sailed before the whale returned.",
+          "path": "manuscript/chapter-2.md",
+          "revision": "REV1",
+          "score": 0.016129032258064516,
+          "text": "They sailed before the whale returned.",
+          "title": "Chapter two: departure"
+        },
+        {
+          "current": false,
+          "excerpt": "The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+          "path": "manuscript/chapter-1-copy.md",
+          "revision": "REV1",
+          "score": 0.015873015873015872,
+          "text": "The whale appeared at dawn.",
+          "title": "Chapter one"
+        },
+        {
+          "current": false,
+          "excerpt": "The harbour The whale appeared at dusk. No one on the quay believed him.",
+          "path": "manuscript/chapter-1.md",
+          "revision": "REV1",
+          "score": 0.015625,
+          "text": "The whale appeared at dusk.",
+          "title": "Chapter one"
+        },
+        {
+          "current": false,
+          "excerpt": "Sperm whales dive deeper than a mile. See https://example.org/whales for the survey.",
+          "path": "reference-copy/sperm-whales.md",
+          "revision": "REV1",
+          "score": 0.015384615384615385,
+          "text": "# Sperm whales",
+          "title": "Sperm whales"
+        },
+        {
+          "current": false,
+          "excerpt": "Sperm whales dive deeper than a mile. See https://example.org/whales for the survey.",
+          "path": "reference/sperm-whales.md",
+          "revision": "REV1",
+          "score": 0.015151515151515152,
+          "text": "# Sperm whales",
+          "title": "Sperm whales"
+        }
+      ],
+      "message": "Semantic search is off. Showing text matches.",
+      "mode": "text",
+      "scope": "current",
+      "scopeId": "HASH4",
+      "visibility": "HASH5"
+    }
+  },
+  {
+    "step": "literal text search",
+    "tool": "hybrid_search",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": {
+        "mode": "text",
+        "text": "appeared at"
+      }
+    },
+    "result": {
+      "contentScope": {
+        "collection": "all",
+        "policy": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        }
+      },
+      "filters": {
+        "paths": [
+          "AGENTS.md",
+          "epilogue.md",
+          "index.md",
+          "manuscript/chapter-1-copy.md",
+          "manuscript/chapter-1.md",
+          "manuscript/chapter-2.md",
+          "reference-copy/sperm-whales.md",
+          "reference/sperm-whales.md"
+        ],
+        "statuses": [
+          "draft",
+          "review"
+        ],
+        "tags": [
+          "draft",
+          "fiction",
+          "research"
+        ]
+      },
+      "matches": [
+        {
+          "current": false,
+          "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+          "path": "manuscript/chapter-1-copy.md",
+          "revision": "REV1",
+          "score": 0.01639344262295082,
+          "text": "The whale appeared at dawn.",
+          "title": "Chapter one"
+        },
+        {
+          "current": false,
+          "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dusk. No one on the quay believed him.",
+          "path": "manuscript/chapter-1.md",
+          "revision": "REV1",
+          "score": 0.016129032258064516,
+          "text": "The whale appeared at dusk.",
+          "title": "Chapter one"
+        }
+      ],
+      "mode": "text",
+      "scope": "current",
+      "scopeId": "HASH4",
+      "visibility": "HASH5"
+    }
+  },
+  {
+    "step": "hybrid search filtered by path",
+    "tool": "hybrid_search",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": {
+        "path": "manuscript/",
+        "text": "whale"
+      }
+    },
+    "result": {
+      "contentScope": {
+        "collection": "all",
+        "policy": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        }
+      },
+      "filters": {
+        "paths": [
+          "AGENTS.md",
+          "epilogue.md",
+          "index.md",
+          "manuscript/chapter-1-copy.md",
+          "manuscript/chapter-1.md",
+          "manuscript/chapter-2.md",
+          "reference-copy/sperm-whales.md",
+          "reference/sperm-whales.md"
+        ],
+        "statuses": [
+          "draft",
+          "review"
+        ],
+        "tags": [
+          "draft",
+          "fiction",
+          "research"
+        ]
+      },
+      "matches": [
+        {
+          "current": false,
+          "excerpt": "Departure They sailed before the whale returned.",
+          "path": "manuscript/chapter-2.md",
+          "revision": "REV1",
+          "score": 0.01639344262295082,
+          "text": "They sailed before the whale returned.",
+          "title": "Chapter two: departure"
+        },
+        {
+          "current": false,
+          "excerpt": "The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+          "path": "manuscript/chapter-1-copy.md",
+          "revision": "REV1",
+          "score": 0.016129032258064516,
+          "text": "The whale appeared at dawn.",
+          "title": "Chapter one"
+        },
+        {
+          "current": false,
+          "excerpt": "The harbour The whale appeared at dusk. No one on the quay believed him.",
+          "path": "manuscript/chapter-1.md",
+          "revision": "REV1",
+          "score": 0.015873015873015872,
+          "text": "The whale appeared at dusk.",
+          "title": "Chapter one"
+        }
+      ],
+      "message": "Semantic search is off. Showing text matches.",
+      "mode": "text",
+      "scope": "current",
+      "scopeId": "HASH4",
+      "visibility": "HASH5"
+    }
+  },
+  {
+    "step": "hybrid search needs text",
+    "tool": "hybrid_search",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": {}
+    },
+    "error": "enter search text of 1–200 bytes; filters exceed limits if longer than 200 bytes (path: 512)"
+  },
+  {
+    "step": "semantic search without an embedding endpoint or vector",
+    "tool": "semantic_search",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": {
+        "text": "whale"
+      }
+    },
+    "error": "semantic search is disabled"
+  },
+  {
+    "step": "an editor cannot configure semantic search",
+    "tool": "configure_semantic_search",
+    "as": "editor",
+    "arguments": {
+      "dimensions": 3,
+      "model": "contract-fixture-v1",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "configure agent-supplied embeddings",
+    "tool": "configure_semantic_search",
+    "as": "admin",
+    "arguments": {
+      "dimensions": 3,
+      "model": "contract-fixture-v1",
+      "project": "contract"
+    },
+    "result": {
+      "browserSearch": false,
+      "config": {
+        "dimensions": 3,
+        "enabled": true,
+        "endpoint": false,
+        "model": "contract-fixture-v1",
+        "passageRunes": 1400,
+        "splitter": "markdown-heading-v1"
+      },
+      "configId": "HASH6",
+      "indexed": 0,
+      "indexedRevision": "",
+      "message": "Use a connected agent to supply compatible document and query embeddings.",
+      "revision": "REV1",
+      "state": "agent-required",
+      "total": 11
+    }
+  },
+  {
+    "step": "passages missing embeddings",
+    "tool": "get_indexing_passages",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "passages": [
+        {
+          "citation": "/AGENTS.md?fmn-chars=1400&fmn-passage=HASH7&fmn-rev=REV1",
+          "hash": "HASH7",
+          "heading": "",
+          "id": "HASH8",
+          "noteHash": "9360b6f3c92a2fa60dca4ddec661e6635ddf59d6225c9b15d52358f5f5ac0c2d",
+          "path": "AGENTS.md",
+          "revision": "REV1",
+          "sectionHash": "HASH7",
+          "text": "Write in British English.\nNever change dialogue.\nKeep chapter titles."
+        },
+        {
+          "anchor": "epilogue",
+          "citation": "/epilogue.md?fmn-chars=1400&fmn-passage=HASH9&fmn-rev=REV1#epilogue",
+          "hash": "HASH9",
+          "heading": "Epilogue",
+          "id": "HASH10",
+          "noteHash": "HASH11",
+          "path": "epilogue.md",
+          "revision": "REV1",
+          "sectionHash": "HASH9",
+          "text": "# Epilogue\n\nThe whale was never seen again."
+        },
+        {
+          "anchor": "contract-notebook",
+          "citation": "/index.md?fmn-chars=1400&fmn-passage=HASH12&fmn-rev=REV1#contract-notebook",
+          "hash": "HASH12",
+          "heading": "Contract notebook",
+          "id": "HASH13",
+          "noteHash": "HASH14",
+          "path": "index.md",
+          "revision": "REV1",
+          "sectionHash": "HASH12",
+          "text": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n\nRead the [epilogue](epilogue.md)."
+        },
+        {
+          "anchor": "chapter-one",
+          "citation": "/manuscript/chapter-1-copy.md?fmn-chars=1400&fmn-passage=HASH15&fmn-rev=REV1#chapter-one",
+          "hash": "HASH15",
+          "heading": "Chapter one",
+          "id": "HASH16",
+          "noteHash": "HASH17",
+          "noteId": "ID1",
+          "path": "manuscript/chapter-1-copy.md",
+          "revision": "REV1",
+          "sectionHash": "HASH15",
+          "text": "# Chapter one\n\nIshmael walked to the harbour."
+        },
+        {
+          "anchor": "the-harbour",
+          "citation": "/manuscript/chapter-1-copy.md?fmn-chars=1400&fmn-passage=HASH18&fmn-rev=REV1#the-harbour",
+          "hash": "HASH18",
+          "heading": "The harbour",
+          "id": "HASH19",
+          "noteHash": "HASH17",
+          "noteId": "ID1",
+          "path": "manuscript/chapter-1-copy.md",
+          "revision": "REV1",
+          "sectionHash": "HASH18",
+          "text": "## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him."
+        },
+        {
+          "anchor": "the-harbour",
+          "citation": "/manuscript/chapter-1.md?fmn-chars=1400&fmn-passage=HASH20&fmn-rev=REV1#the-harbour",
+          "hash": "HASH20",
+          "heading": "The harbour",
+          "id": "HASH21",
+          "noteHash": "HASH22",
+          "noteId": "c0ffee00000000000000000000000001",
+          "path": "manuscript/chapter-1.md",
+          "revision": "REV1",
+          "sectionHash": "HASH20",
+          "text": "## The harbour\n\nThe whale appeared at dusk.\nNo one on the quay believed him."
+        },
+        {
+          "anchor": "chapter-two",
+          "citation": "/manuscript/chapter-2.md?fmn-chars=1400&fmn-passage=HASH23&fmn-rev=REV1#chapter-two",
+          "hash": "HASH23",
+          "heading": "Chapter two",
+          "id": "HASH24",
+          "noteHash": "HASH25",
+          "noteId": "c0ffee00000000000000000000000002",
+          "path": "manuscript/chapter-2.md",
+          "revision": "REV1",
+          "sectionHash": "HASH23",
+          "text": "# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times."
+        },
+        {
+          "anchor": "departure",
+          "citation": "/manuscript/chapter-2.md?fmn-chars=1400&fmn-passage=HASH26&fmn-rev=REV1#departure",
+          "hash": "HASH26",
+          "heading": "Departure",
+          "id": "HASH27",
+          "noteHash": "HASH25",
+          "noteId": "c0ffee00000000000000000000000002",
+          "path": "manuscript/chapter-2.md",
+          "revision": "REV1",
+          "sectionHash": "HASH26",
+          "text": "## Departure\n\nThey sailed before the whale returned."
+        },
+        {
+          "anchor": "sperm-whales",
+          "citation": "/reference-copy/sperm-whales.md?fmn-chars=1400&fmn-passage=HASH28&fmn-rev=REV1#sperm-whales",
+          "hash": "HASH28",
+          "heading": "Sperm whales",
+          "id": "HASH29",
+          "noteHash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+          "path": "reference-copy/sperm-whales.md",
+          "revision": "REV1",
+          "sectionHash": "HASH28",
+          "text": "# Sperm whales\n\nSperm whales dive deeper than a mile. See https://example.org/whales for the survey."
+        }
+      ],
+      "status": {
+        "browserSearch": false,
+        "config": {
+          "dimensions": 3,
+          "enabled": true,
+          "endpoint": false,
+          "model": "contract-fixture-v1",
+          "passageRunes": 1400,
+          "splitter": "markdown-heading-v1"
+        },
+        "configId": "HASH6",
+        "indexed": 0,
+        "indexedRevision": "",
+        "message": "Use a connected agent to supply compatible document and query embeddings.",
+        "revision": "REV1",
+        "state": "agent-required",
+        "total": 11
+      }
+    }
+  },
+  {
+    "step": "a reader cannot submit embeddings",
+    "tool": "submit_embeddings",
+    "as": "reader",
+    "arguments": {
+      "project": "contract",
+      "submission": {
+        "configId": "HASH6",
+        "revision": "REV1",
+        "vectors": [
+          {
+            "hash": "HASH7",
+            "id": "HASH8",
+            "noteHash": "9360b6f3c92a2fa60dca4ddec661e6635ddf59d6225c9b15d52358f5f5ac0c2d",
+            "vector": [
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "hash": "HASH9",
+            "id": "HASH10",
+            "noteHash": "HASH11",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH12",
+            "id": "HASH13",
+            "noteHash": "HASH14",
+            "vector": [
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "hash": "HASH15",
+            "id": "HASH16",
+            "noteHash": "HASH17",
+            "vector": [
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "hash": "HASH18",
+            "id": "HASH19",
+            "noteHash": "HASH17",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH20",
+            "id": "HASH21",
+            "noteHash": "HASH22",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH23",
+            "id": "HASH24",
+            "noteHash": "HASH25",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH26",
+            "id": "HASH27",
+            "noteHash": "HASH25",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH28",
+            "id": "HASH29",
+            "noteHash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "submit embeddings",
+    "tool": "submit_embeddings",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "submission": {
+        "configId": "HASH6",
+        "revision": "REV1",
+        "vectors": [
+          {
+            "hash": "HASH7",
+            "id": "HASH8",
+            "noteHash": "9360b6f3c92a2fa60dca4ddec661e6635ddf59d6225c9b15d52358f5f5ac0c2d",
+            "vector": [
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "hash": "HASH9",
+            "id": "HASH10",
+            "noteHash": "HASH11",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH12",
+            "id": "HASH13",
+            "noteHash": "HASH14",
+            "vector": [
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "hash": "HASH15",
+            "id": "HASH16",
+            "noteHash": "HASH17",
+            "vector": [
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "hash": "HASH18",
+            "id": "HASH19",
+            "noteHash": "HASH17",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH20",
+            "id": "HASH21",
+            "noteHash": "HASH22",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH23",
+            "id": "HASH24",
+            "noteHash": "HASH25",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH26",
+            "id": "HASH27",
+            "noteHash": "HASH25",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          },
+          {
+            "hash": "HASH28",
+            "id": "HASH29",
+            "noteHash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+            "vector": [
+              0.9,
+              0.1,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "result": {
+      "browserSearch": false,
+      "config": {
+        "dimensions": 3,
+        "enabled": true,
+        "endpoint": false,
+        "model": "contract-fixture-v1",
+        "passageRunes": 1400,
+        "splitter": "markdown-heading-v1"
+      },
+      "configId": "HASH6",
+      "indexed": 11,
+      "indexedRevision": "REV1",
+      "revision": "REV1",
+      "state": "ready",
+      "total": 11
+    }
+  },
+  {
+    "step": "embeddings with the wrong dimensions are refused",
+    "tool": "submit_embeddings",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "submission": {
+        "configId": "HASH6",
+        "revision": "REV1",
+        "vectors": [
+          {
+            "hash": "HASH7",
+            "id": "HASH8",
+            "noteHash": "9360b6f3c92a2fa60dca4ddec661e6635ddf59d6225c9b15d52358f5f5ac0c2d",
+            "vector": [
+              1,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "error": "embedding dimensions do not match the active configuration"
+  },
+  {
+    "step": "knowledge status after indexing",
+    "tool": "knowledge_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "groupedEdits": true,
+      "instructionsTool": "project_instructions",
+      "notifications": "Standard resource subscription hints; use Git checkpoints for catch-up. They do not launch agents.",
+      "reviewFindings": "comments",
+      "revisionResource": "forgetmenote://projects/contract/revision",
+      "searchTool": "hybrid_search",
+      "semantic": {
+        "browserSearch": false,
+        "config": {
+          "dimensions": 3,
+          "enabled": true,
+          "endpoint": false,
+          "model": "contract-fixture-v1",
+          "passageRunes": 1400,
+          "splitter": "markdown-heading-v1"
+        },
+        "configId": "HASH6",
+        "indexed": 11,
+        "indexedRevision": "REV1",
+        "revision": "REV1",
+        "state": "ready",
+        "total": 11
+      },
+      "semanticSetupRole": "owner",
+      "semanticSetupTool": "configure_semantic_search",
+      "snapshots": true
+    }
+  },
+  {
+    "step": "semantic search by vector",
+    "tool": "semantic_search",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": {
+        "configId": "HASH6",
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    "result": [
+      {
+        "citation": "/AGENTS.md?fmn-chars=1400&fmn-passage=HASH7&fmn-rev=REV1",
+        "hash": "HASH7",
+        "heading": "",
+        "id": "HASH8",
+        "noteHash": "9360b6f3c92a2fa60dca4ddec661e6635ddf59d6225c9b15d52358f5f5ac0c2d",
+        "path": "AGENTS.md",
+        "revision": "REV1",
+        "score": 1,
+        "sectionHash": "HASH7",
+        "text": "Write in British English.\nNever change dialogue.\nKeep chapter titles."
+      },
+      {
+        "anchor": "chapter-one",
+        "citation": "/manuscript/chapter-1-copy.md?fmn-chars=1400&fmn-passage=HASH15&fmn-rev=REV1#chapter-one",
+        "hash": "HASH15",
+        "heading": "Chapter one",
+        "id": "HASH16",
+        "noteHash": "HASH17",
+        "noteId": "ID1",
+        "path": "manuscript/chapter-1-copy.md",
+        "revision": "REV1",
+        "score": 1,
+        "sectionHash": "HASH15",
+        "text": "# Chapter one\n\nIshmael walked to the harbour."
+      },
+      {
+        "anchor": "chapter-one",
+        "citation": "/manuscript/chapter-1.md?fmn-chars=1400&fmn-passage=HASH15&fmn-rev=REV1#chapter-one",
+        "hash": "HASH15",
+        "heading": "Chapter one",
+        "id": "HASH30",
+        "noteHash": "HASH22",
+        "noteId": "c0ffee00000000000000000000000001",
+        "path": "manuscript/chapter-1.md",
+        "revision": "REV1",
+        "score": 1,
+        "sectionHash": "HASH15",
+        "text": "# Chapter one\n\nIshmael walked to the harbour."
+      },
+      {
+        "anchor": "epilogue",
+        "citation": "/epilogue.md?fmn-chars=1400&fmn-passage=HASH9&fmn-rev=REV1#epilogue",
+        "hash": "HASH9",
+        "heading": "Epilogue",
+        "id": "HASH10",
+        "noteHash": "HASH11",
+        "path": "epilogue.md",
+        "revision": "REV1",
+        "score": 0.9938837289810181,
+        "sectionHash": "HASH9",
+        "text": "# Epilogue\n\nThe whale was never seen again."
+      },
+      {
+        "anchor": "the-harbour",
+        "citation": "/manuscript/chapter-1-copy.md?fmn-chars=1400&fmn-passage=HASH18&fmn-rev=REV1#the-harbour",
+        "hash": "HASH18",
+        "heading": "The harbour",
+        "id": "HASH19",
+        "noteHash": "HASH17",
+        "noteId": "ID1",
+        "path": "manuscript/chapter-1-copy.md",
+        "revision": "REV1",
+        "score": 0.9938837289810181,
+        "sectionHash": "HASH18",
+        "text": "## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him."
+      },
+      {
+        "anchor": "the-harbour",
+        "citation": "/manuscript/chapter-1.md?fmn-chars=1400&fmn-passage=HASH20&fmn-rev=REV1#the-harbour",
+        "hash": "HASH20",
+        "heading": "The harbour",
+        "id": "HASH21",
+        "noteHash": "HASH22",
+        "noteId": "c0ffee00000000000000000000000001",
+        "path": "manuscript/chapter-1.md",
+        "revision": "REV1",
+        "score": 0.9938837289810181,
+        "sectionHash": "HASH20",
+        "text": "## The harbour\n\nThe whale appeared at dusk.\nNo one on the quay believed him."
+      },
+      {
+        "anchor": "chapter-two",
+        "citation": "/manuscript/chapter-2.md?fmn-chars=1400&fmn-passage=HASH23&fmn-rev=REV1#chapter-two",
+        "hash": "HASH23",
+        "heading": "Chapter two",
+        "id": "HASH24",
+        "noteHash": "HASH25",
+        "noteId": "c0ffee00000000000000000000000002",
+        "path": "manuscript/chapter-2.md",
+        "revision": "REV1",
+        "score": 0.9938837289810181,
+        "sectionHash": "HASH23",
+        "text": "# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) three times."
+      },
+      {
+        "anchor": "departure",
+        "citation": "/manuscript/chapter-2.md?fmn-chars=1400&fmn-passage=HASH26&fmn-rev=REV1#departure",
+        "hash": "HASH26",
+        "heading": "Departure",
+        "id": "HASH27",
+        "noteHash": "HASH25",
+        "noteId": "c0ffee00000000000000000000000002",
+        "path": "manuscript/chapter-2.md",
+        "revision": "REV1",
+        "score": 0.9938837289810181,
+        "sectionHash": "HASH26",
+        "text": "## Departure\n\nThey sailed before the whale returned."
+      },
+      {
+        "anchor": "sperm-whales",
+        "citation": "/reference-copy/sperm-whales.md?fmn-chars=1400&fmn-passage=HASH28&fmn-rev=REV1#sperm-whales",
+        "hash": "HASH28",
+        "heading": "Sperm whales",
+        "id": "HASH29",
+        "noteHash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+        "path": "reference-copy/sperm-whales.md",
+        "revision": "REV1",
+        "score": 0.9938837289810181,
+        "sectionHash": "HASH28",
+        "text": "# Sperm whales\n\nSperm whales dive deeper than a mile. See https://example.org/whales for the survey."
+      },
+      {
+        "anchor": "sperm-whales",
+        "citation": "/reference/sperm-whales.md?fmn-chars=1400&fmn-passage=HASH28&fmn-rev=REV1#sperm-whales",
+        "hash": "HASH28",
+        "heading": "Sperm whales",
+        "id": "HASH31",
+        "noteHash": "0d1bf1cadc39c37f70b639d565486b67e6555bb014043e162b8a7aef2ec66a4d",
+        "path": "reference/sperm-whales.md",
+        "revision": "REV1",
+        "score": 0.9938837289810181,
+        "sectionHash": "HASH28",
+        "text": "# Sperm whales\n\nSperm whales dive deeper than a mile. See https://example.org/whales for the survey."
+      },
+      {
+        "anchor": "contract-notebook",
+        "citation": "/index.md?fmn-chars=1400&fmn-passage=HASH12&fmn-rev=REV1#contract-notebook",
+        "hash": "HASH12",
+        "heading": "Contract notebook",
+        "id": "HASH13",
+        "noteHash": "HASH14",
+        "path": "index.md",
+        "revision": "REV1",
+        "score": 0,
+        "sectionHash": "HASH12",
+        "text": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n\nRead the [epilogue](epilogue.md)."
+      }
+    ]
+  },
+  {
+    "step": "meaning search by vector",
+    "tool": "hybrid_search",
+    "as": "admin",
+    "arguments": {
+      "project": "contract",
+      "query": {
+        "configId": "HASH6",
+        "mode": "meaning",
+        "text": "whale",
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    "result": {
+      "contentScope": {
+        "collection": "all",
+        "policy": {
+          "archives": "exclude",
+          "drafts": "exclude",
+          "version": 1
+        }
+      },
+      "filters": {
+        "paths": [
+          "AGENTS.md",
+          "epilogue.md",
+          "index.md",
+          "manuscript/chapter-1-copy.md",
+          "manuscript/chapter-1.md",
+          "manuscript/chapter-2.md",
+          "reference-copy/sperm-whales.md",
+          "reference/sperm-whales.md"
+        ],
+        "statuses": [
+          "draft",
+          "review"
+        ],
+        "tags": [
+          "draft",
+          "fiction",
+          "research"
+        ]
+      },
+      "matches": [
+        {
+          "current": false,
+          "excerpt": "Write in British English. Never change dialogue. Keep chapter titles.",
+          "path": "AGENTS.md",
+          "revision": "REV1",
+          "score": 0.01639344262295082,
+          "text": "Write in British English. Never change dialogue. Keep chapter titles.",
+          "title": "Write in British English. Never change dialogue. Keep chapter titles."
+        },
+        {
+          "current": false,
+          "excerpt": "Chapter one Ishmael walked to the harbour.",
+          "path": "manuscript/chapter-1-copy.md",
+          "revision": "REV1",
+          "score": 0.016129032258064516,
+          "text": "# Chapter one Ishmael walked to the harbour.",
+          "title": "Chapter one"
+        },
+        {
+          "current": false,
+          "excerpt": "Chapter one Ishmael walked to the harbour.",
+          "path": "manuscript/chapter-1.md",
+          "revision": "REV1",
+          "score": 0.015873015873015872,
+          "text": "# Chapter one Ishmael walked to the harbour.",
+          "title": "Chapter one"
+        },
+        {
+          "current": false,
+          "excerpt": "Epilogue The whale was never seen again.",
+          "path": "epilogue.md",
+          "revision": "REV1",
+          "score": 0.015625,
+          "text": "The whale was never seen again.",
+          "title": "Epilogue"
+        },
+        {
+          "current": false,
+          "excerpt": "Chapter two The captain read the whale notes three times.",
+          "path": "manuscript/chapter-2.md",
+          "revision": "REV1",
+          "score": 0.015384615384615385,
+          "text": "The captain read [the whale notes](../reference/sperm-whales.md) three times.",
+          "title": "Chapter two: departure"
+        },
+        {
+          "current": false,
+          "excerpt": "Sperm whales Sperm whales dive deeper than a mile. See https://example.org/whales for the survey.",
+          "path": "reference-copy/sperm-whales.md",
+          "revision": "REV1",
+          "score": 0.015151515151515152,
+          "text": "# Sperm whales",
+          "title": "Sperm whales"
+        },
+        {
+          "current": false,
+          "excerpt": "Sperm whales Sperm whales dive deeper than a mile. See https://example.org/whales for the survey.",
+          "path": "reference/sperm-whales.md",
+          "revision": "REV1",
+          "score": 0.014925373134328358,
+          "text": "# Sperm whales",
+          "title": "Sperm whales"
+        },
+        {
+          "current": false,
+          "excerpt": "Contract notebook Start with Chapter one. Read the epilogue.",
+          "path": "index.md",
+          "revision": "REV1",
+          "score": 0.014705882352941176,
+          "text": "# Contract notebook Start with [Chapter one](manuscript/chapter-1.md). Read the [epilogue](epilogue.md).",
+          "title": "Contract notebook"
+        }
+      ],
+      "message": "Semantic indexing is incomplete.",
+      "mode": "meaning",
+      "scope": "current",
+      "scopeId": "HASH4",
+      "visibility": "HASH5"
+    }
+  },
+  {
+    "step": "sources and backlinks of a note",
+    "tool": "get_note_sources",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "result": {
+      "backlinks": [],
+      "limitations": "Resolves Markdown links, reference-style links and [[Page title]] links. Raw HTML attributes are not resolved. Source changed is a content comparison, not a factual contradiction.",
+      "revision": "REV1",
+      "sources": [
+        {
+          "external": false,
+          "label": "the whale notes",
+          "note": "manuscript/chapter-2.md",
+          "path": "reference/sperm-whales.md",
+          "scope": "note",
+          "state": "Live reference; no recorded revision",
+          "url": "../reference/sperm-whales.md"
+        }
+      ]
+    }
+  },
+  {
+    "step": "backlinks of a linked note",
+    "tool": "get_note_sources",
+    "as": "admin",
+    "arguments": {
+      "path": "reference/sperm-whales.md",
+      "project": "contract"
+    },
+    "result": {
+      "backlinks": [
+        {
+          "external": false,
+          "label": "the whale notes",
+          "note": "manuscript/chapter-2.md",
+          "path": "reference/sperm-whales.md",
+          "state": "Reference",
+          "url": "../reference/sperm-whales.md"
+        }
+      ],
+      "limitations": "Resolves Markdown links, reference-style links and [[Page title]] links. Raw HTML attributes are not resolved. Source changed is a content comparison, not a factual contradiction.",
+      "revision": "REV1",
+      "sources": []
+    }
+  },
+  {
+    "step": "sources of a missing note",
+    "tool": "get_note_sources",
+    "as": "admin",
+    "arguments": {
+      "path": "missing.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  }
+]

@@ -1,0 +1,1880 @@
+[
+  {
+    "step": "create the audit notebook",
+    "tool": "create_project",
+    "as": "admin",
+    "arguments": {
+      "id": "contract-history",
+      "name": "History notebook"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "step": "create a note with an fmn-id",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe first draft.\n",
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": ""
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe first draft.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The first draft.</p>\n",
+      "metadata": {
+        "id": "c0ffee000000000000000000000000a1",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "drafts/alpha.md",
+      "revision": "REV1",
+      "title": "Alpha",
+      "version": "REV1"
+    }
+  },
+  {
+    "step": "create a linking note without an fmn-id",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Beta\n\nA note without an fmn-id links to [Alpha](alpha.md).\n",
+      "path": "drafts/beta.md",
+      "project": "contract-history",
+      "revision": ""
+    },
+    "result": {
+      "content": "# Beta\n\nA note without an fmn-id links to [Alpha](alpha.md).\n",
+      "html": "<h1 id=\"h-beta\">Beta</h1>\n<p>A note without an fmn-id links to <a href=\"alpha.md\" rel=\"nofollow\">Alpha</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "drafts/beta.md",
+      "revision": "REV2",
+      "title": "Beta",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "edit the note with an fmn-id",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV1"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The second draft.</p>\n",
+      "metadata": {
+        "id": "c0ffee000000000000000000000000a1",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "drafts/alpha.md",
+      "revision": "REV3",
+      "title": "Alpha",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "rename the note with an fmn-id; the linking note is rewritten",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV3",
+      "to": "drafts/alpha-renamed.md"
+    },
+    "result": {
+      "from": "drafts/alpha.md",
+      "revision": "REV4",
+      "to": "drafts/alpha-renamed.md",
+      "updatedLinks": 1
+    }
+  },
+  {
+    "step": "history follows a renamed note with an fmn-id",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "history of the vacated path",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "a renamed note's version is the move",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The second draft.</p>\n",
+      "metadata": {
+        "id": "c0ffee000000000000000000000000a1",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "drafts/alpha-renamed.md",
+      "revision": "REV4",
+      "title": "Alpha",
+      "version": "REV4"
+    }
+  },
+  {
+    "step": "a rewritten linking note's version is the move",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/beta.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "# Beta\n\nA note without an fmn-id links to [Alpha](alpha-renamed.md).\n",
+      "html": "<h1 id=\"h-beta\">Beta</h1>\n<p>A note without an fmn-id links to <a href=\"alpha-renamed.md\" rel=\"nofollow\">Alpha</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "drafts/beta.md",
+      "revision": "REV4",
+      "title": "Beta",
+      "version": "REV4"
+    }
+  },
+  {
+    "step": "rename the note without an fmn-id",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "drafts/beta.md",
+      "project": "contract-history",
+      "revision": "REV4",
+      "to": "drafts/beta-renamed.md"
+    },
+    "result": {
+      "from": "drafts/beta.md",
+      "revision": "REV5",
+      "to": "drafts/beta-renamed.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "history follows a renamed note without an fmn-id",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/beta-renamed.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/beta.md\" to \"drafts/beta-renamed.md\"",
+        "path": "drafts/beta-renamed.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/beta.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/beta.md",
+        "path": "drafts/beta.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "move the folder",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "drafts",
+      "project": "contract-history",
+      "revision": "REV5",
+      "to": "chapters"
+    },
+    "result": {
+      "from": "drafts",
+      "revision": "REV6",
+      "to": "chapters",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "history follows a note through a folder move",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "history of the moved folder",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/beta.md\" to \"drafts/beta-renamed.md\"",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/beta.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "history of the vacated folder",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/beta.md\" to \"drafts/beta-renamed.md\"",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/beta.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "a note's version after a folder move",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-renamed.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "# Beta\n\nA note without an fmn-id links to [Alpha](alpha-renamed.md).\n",
+      "html": "<h1 id=\"h-beta\">Beta</h1>\n<p>A note without an fmn-id links to <a href=\"alpha-renamed.md\" rel=\"nofollow\">Alpha</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "chapters/beta-renamed.md",
+      "revision": "REV6",
+      "title": "Beta",
+      "version": "REV6"
+    }
+  },
+  {
+    "step": "read the old path at a revision before the moves",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": "REV3"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee000000000000000000000000a1\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The second draft.</p>\n",
+      "metadata": {
+        "id": "c0ffee000000000000000000000000a1",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "drafts/alpha.md",
+      "revision": "REV3",
+      "title": "Alpha",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "the old path is absent at the head",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "a new note takes the vacated path",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Another alpha\n\nUnrelated to the first.\n",
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": ""
+    },
+    "result": {
+      "content": "# Another alpha\n\nUnrelated to the first.\n",
+      "html": "<h1 id=\"h-another-alpha\">Another alpha</h1>\n<p>Unrelated to the first.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "drafts/alpha.md",
+      "revision": "REV7",
+      "title": "Another alpha",
+      "version": "REV7"
+    }
+  },
+  {
+    "step": "history of the reused path",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV7",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "the renamed note's history is unchanged by the reuse",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "rename the note again (1)",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/beta-renamed.md",
+      "project": "contract-history",
+      "revision": "REV7",
+      "to": "chapters/beta-2.md"
+    },
+    "result": {
+      "from": "chapters/beta-renamed.md",
+      "revision": "REV8",
+      "to": "chapters/beta-2.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "rename the note again (2)",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/beta-2.md",
+      "project": "contract-history",
+      "revision": "REV8",
+      "to": "chapters/beta-3.md"
+    },
+    "result": {
+      "from": "chapters/beta-2.md",
+      "revision": "REV9",
+      "to": "chapters/beta-3.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "history follows a chain of renames",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-3.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/beta-2.md\" to \"chapters/beta-3.md\"",
+        "path": "chapters/beta-3.md",
+        "revision": "REV9",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/beta-renamed.md\" to \"chapters/beta-2.md\"",
+        "path": "chapters/beta-2.md",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/beta-renamed.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/beta.md\" to \"drafts/beta-renamed.md\"",
+        "path": "drafts/beta-renamed.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/beta.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/beta.md",
+        "path": "drafts/beta.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "duplicate a renamed note",
+    "tool": "duplicate_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "chapters/alpha-renamed.md",
+      "project": "contract-history",
+      "revision": "REV9",
+      "to": "chapters/alpha-copy.md"
+    },
+    "result": {
+      "from": "chapters/alpha-renamed.md",
+      "revision": "REV10",
+      "to": "chapters/alpha-copy.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "history of a copy",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-copy.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Duplicate \"chapters/alpha-renamed.md\" to \"chapters/alpha-copy.md\"",
+        "path": "chapters/alpha-copy.md",
+        "revision": "REV10",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "a copy's version is the duplication",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-copy.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "---\nfmn-id: ID2\ntitle: Alpha\n---\n# Alpha\n\nThe second draft.\n",
+      "html": "<h1 id=\"h-alpha\">Alpha</h1>\n<p>The second draft.</p>\n",
+      "metadata": {
+        "id": "ID2",
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Alpha"
+      },
+      "path": "chapters/alpha-copy.md",
+      "revision": "REV10",
+      "title": "Alpha",
+      "version": "REV10"
+    }
+  },
+  {
+    "step": "trash a renamed note",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "chapters/beta-3.md"
+      ],
+      "project": "contract-history",
+      "revision": "REV10"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID3",
+          "originalPath": "chapters/beta-3.md",
+          "path": "Trash/ID3.md",
+          "title": "Beta"
+        }
+      ],
+      "revision": "REV11"
+    }
+  },
+  {
+    "step": "the trashed note in the listing",
+    "tool": "list_trash",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "confirmation": "HASH1",
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID3",
+          "originalPath": "chapters/beta-3.md",
+          "path": "Trash/ID3.md",
+          "title": "Beta"
+        }
+      ],
+      "revision": "REV11"
+    }
+  },
+  {
+    "step": "history of a trashed note at its Trash path",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "Trash/ID3.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move notes to Trash",
+        "path": "Trash/ID3.md",
+        "revision": "REV11",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/beta-2.md\" to \"chapters/beta-3.md\"",
+        "path": "chapters/beta-3.md",
+        "revision": "REV9",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/beta-renamed.md\" to \"chapters/beta-2.md\"",
+        "path": "chapters/beta-2.md",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/beta-renamed.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/beta.md\" to \"drafts/beta-renamed.md\"",
+        "path": "drafts/beta-renamed.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/beta.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/beta.md",
+        "path": "drafts/beta.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "restore it to a new path",
+    "tool": "restore_trash",
+    "as": "admin",
+    "arguments": {
+      "id": "ID3",
+      "project": "contract-history",
+      "revision": "REV11",
+      "to": "chapters/beta-restored.md"
+    },
+    "result": {
+      "entries": [
+        {
+          "deletedAt": "<TIME>",
+          "deletedBy": "@local-admin",
+          "id": "ID3",
+          "originalPath": "chapters/beta-3.md",
+          "path": "chapters/beta-restored.md",
+          "title": "Beta"
+        }
+      ],
+      "revision": "REV12"
+    }
+  },
+  {
+    "step": "history follows a note through Trash and a restore to a new path",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-restored.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Restore note from Trash",
+        "path": "chapters/beta-restored.md",
+        "revision": "REV12",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move notes to Trash",
+        "path": "Trash/ID3.md",
+        "revision": "REV11",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/beta-2.md\" to \"chapters/beta-3.md\"",
+        "path": "chapters/beta-3.md",
+        "revision": "REV9",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/beta-renamed.md\" to \"chapters/beta-2.md\"",
+        "path": "chapters/beta-2.md",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/beta-renamed.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/beta.md\" to \"drafts/beta-renamed.md\"",
+        "path": "drafts/beta-renamed.md",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/beta.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/beta.md",
+        "path": "drafts/beta.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "a restored note's version is the restore",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-restored.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "# Beta\n\nA note without an fmn-id links to [Alpha](alpha-renamed.md).\n",
+      "html": "<h1 id=\"h-beta\">Beta</h1>\n<p>A note without an fmn-id links to <a href=\"alpha-renamed.md\" rel=\"nofollow\">Alpha</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "chapters/beta-restored.md",
+      "revision": "REV12",
+      "title": "Beta",
+      "version": "REV12"
+    }
+  },
+  {
+    "step": "read the reused path before deleting it",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history"
+    },
+    "result": {
+      "content": "# Another alpha\n\nUnrelated to the first.\n",
+      "html": "<h1 id=\"h-another-alpha\">Another alpha</h1>\n<p>Unrelated to the first.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "drafts/alpha.md",
+      "revision": "REV12",
+      "title": "Another alpha",
+      "version": "REV7"
+    }
+  },
+  {
+    "step": "delete a note through a change group",
+    "tool": "submit_change_group",
+    "as": "admin",
+    "arguments": {
+      "group": {
+        "edits": [
+          {
+            "content": "",
+            "delete": true,
+            "hash": "428273be51c67de2f0af89caff63bfe475c7f0c255bfb58b0313e1dae4d0deca",
+            "path": "drafts/alpha.md",
+            "revision": "REV12"
+          }
+        ],
+        "id": "history-delete",
+        "summary": "Delete the reused note"
+      },
+      "mode": "apply",
+      "project": "contract-history"
+    },
+    "result": {
+      "replayed": false,
+      "revision": "REV13"
+    }
+  },
+  {
+    "step": "history of a deleted note",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Delete the reused note",
+        "path": "drafts/alpha.md",
+        "revision": "REV13",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV7",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "recreate the deleted path",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Third alpha\n",
+      "path": "drafts/alpha.md",
+      "project": "contract-history",
+      "revision": ""
+    },
+    "result": {
+      "content": "# Third alpha\n",
+      "html": "<h1 id=\"h-third-alpha\">Third alpha</h1>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "drafts/alpha.md",
+      "revision": "REV14",
+      "title": "Third alpha",
+      "version": "REV14"
+    }
+  },
+  {
+    "step": "history of a path deleted and recreated",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "drafts/alpha.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV14",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Delete the reused note",
+        "path": "drafts/alpha.md",
+        "revision": "REV13",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV7",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "an fmn-id link resolves after the moves",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "noteId": "c0ffee000000000000000000000000a1",
+      "project": "contract-history"
+    },
+    "result": {
+      "headings": [
+        "alpha"
+      ],
+      "noteId": "c0ffee000000000000000000000000a1",
+      "notebook": "History notebook",
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history",
+      "title": "Alpha",
+      "url": "/?note=chapters%2Falpha-renamed.md&noteId=c0ffee000000000000000000000000a1&project=contract-history"
+    }
+  },
+  {
+    "step": "the notebook's history",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "revision": "REV14",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Delete the reused note",
+        "revision": "REV13",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Restore note from Trash",
+        "revision": "REV12",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move notes to Trash",
+        "revision": "REV11",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Duplicate \"chapters/alpha-renamed.md\" to \"chapters/alpha-copy.md\"",
+        "revision": "REV10",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/beta-2.md\" to \"chapters/beta-3.md\"",
+        "revision": "REV9",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/beta-renamed.md\" to \"chapters/beta-2.md\"",
+        "revision": "REV8",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "revision": "REV7",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/beta.md\" to \"drafts/beta-renamed.md\"",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/beta.md",
+        "revision": "REV2",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Initialize notes notebook",
+        "revision": "REV15"
+      }
+    ]
+  },
+  {
+    "step": "a reader sees the same history",
+    "tool": "note_history",
+    "as": "reader",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV6",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV3",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV1",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "a non-member cannot read history",
+    "tool": "note_history",
+    "as": "outsider",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history"
+    },
+    "error": "this path is not accessible"
+  }
+]

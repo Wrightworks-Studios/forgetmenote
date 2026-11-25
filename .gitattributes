@@ -1,0 +1,2 @@
+# Fixtures are binary documents; PDF cross-reference whitespace is significant.
+*.pdf binary

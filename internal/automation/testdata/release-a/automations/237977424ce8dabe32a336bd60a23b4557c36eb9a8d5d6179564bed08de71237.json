@@ -1,0 +1,24 @@
+{
+  "retryAt": "0001-01-01T00:00:00Z",
+  "version": 6,
+  "id": "237977424ce8dabe32a336bd60a23b4557c36eb9a8d5d6179564bed08de71237",
+  "spec": {
+    "id": "ask",
+    "kind": "assistant",
+    "actor": "alice",
+    "project": "default",
+    "instruction": "Summarise “the week” — naïvely \u0026 \u003cbriefly\u003e\n\tthen stop",
+    "externalProcessing": true,
+    "delivery": {
+      "client": "slack",
+      "channel": "D123",
+      "thread": "",
+      "user": "U123",
+      "direct": true
+    }
+  },
+  "state": "queued",
+  "created": "2026-11-04T05:00:38.604798Z",
+  "updated": "2026-11-04T05:00:38.604798Z",
+  "attempts": 0
+}

@@ -1,0 +1,3 @@
+# Operator only: parse Authelia's supported YAML backend and generate Argon2id hashes.
+PyYAML==6.0.3
+argon2-cffi==25.1.0

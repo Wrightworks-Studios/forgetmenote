@@ -1,0 +1,2 @@
+# Browser fixtures are notes whose exact bytes the specs test.
+scripts/browser/fixtures/

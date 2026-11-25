@@ -1,0 +1,26 @@
+{{/* Writing tools panel. Rendered in place by index.html. */}}
+{{define "index-writing-panel"}}<aside id="writing-panel" aria-labelledby="writing-title" hidden>
+      <div class="writing-heading"><h2 id="writing-title">Writing tools</h2><button id="writing-close" class="quiet" aria-label="Close writing tools" data-icon="close"></button></div>
+      <p id="writing-scope" class="small"></p>
+      <div class="writing-tabs" role="tablist" aria-label="Writing tools">
+        <button id="writing-tab-overview" class="quiet" role="tab" data-writing-tab="overview" aria-controls="writing-overview">Overview</button>
+        <button id="writing-tab-checks" class="quiet" role="tab" data-writing-tab="checks" aria-controls="writing-checks">Checks</button>
+        <button id="writing-tab-terms" class="quiet" role="tab" data-writing-tab="terms" aria-controls="writing-terms">Terms</button>
+      </div>
+      <p id="writing-status" class="small" role="status"></p>
+      <section id="writing-overview" role="tabpanel" aria-labelledby="writing-tab-overview" data-writing-content="overview"><dl id="writing-stats"></dl><h3>Outline</h3><ol id="writing-outline"></ol><button id="writing-outline-more" class="quiet" hidden>More sections</button></section>
+      <section id="writing-checks" role="tabpanel" aria-labelledby="writing-tab-checks" data-writing-content="checks" hidden>
+        <fieldset class="writing-rules"><legend class="sr-only">Local checks</legend>
+          <label><input type="checkbox" data-writing-rule="spacing,punctuation,duplicate" checked /> Spacing &amp; repeated words</label>
+          <label><input type="checkbox" data-writing-rule="repetition,phrase" checked /> Repetition hints</label>
+          <label><input type="checkbox" data-writing-rule="sentence,paragraph" checked /> Long passages</label>
+        </fieldset>
+        <p id="writing-check-status" class="small"></p><ul id="writing-findings"></ul>
+      </section>
+      <section id="writing-terms" role="tabpanel" aria-labelledby="writing-tab-terms" data-writing-content="terms" hidden>
+        <label for="writing-term-input">Terms &amp; aliases</label><textarea id="writing-term-input" rows="4" placeholder="Elizabeth Bennet | Elizabeth | Lizzy" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true"></textarea>
+        <div class="writing-scan-controls"><label for="writing-term-scope" class="sr-only">Term search scope</label><select id="writing-term-scope"><option value="document">This document</option><option value="notebook">Notebook · Notes collection</option></select><button id="writing-scan" hidden>Search</button></div>
+        <p id="writing-term-status" class="small" role="status"></p><ul id="writing-mentions"></ul><button id="writing-mentions-previous" class="quiet" hidden>Previous matches</button><button id="writing-mentions-more" class="quiet" hidden>More matches</button>
+        <details><summary>Glossary note</summary><label for="writing-glossary-path" class="sr-only">Glossary note path</label><input id="writing-glossary-path" placeholder="Writing glossary.md" /><div class="writing-scan-controls"><button id="writing-glossary-load" class="quiet">Load</button><button id="writing-glossary-save" class="quiet">Save glossary</button></div></details>
+      </section>
+    </aside>{{end}}

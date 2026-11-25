@@ -1,0 +1,1187 @@
+{
+  "trash mutations": [
+    {
+      "name": "fixture"
+    },
+    {
+      "name": "save notes/a.md",
+      "result": {
+        "path": "notes/a.md",
+        "content": "LS0tCnRpdGxlOiBUaXRsZWQgQQp0YWdzOiBba2VlcF0Kc3RhdHVzOiBkcmFmdAotLS0KIyBBCgpTZWUgW2JdKGIubWQpIGFuZCBbb3RoZXJdKC4uL290aGVyLm1kKS4K",
+        "revision": "<rev 1>",
+        "version": "<rev 1>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update notes/a.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "notes/a.md": "---\ntitle: Titled A\ntags: [keep]\nstatus: draft\n---\n# A\n\nSee [b](b.md) and [other](../other.md).\n"
+      }
+    },
+    {
+      "name": "save notes/b.md",
+      "result": {
+        "path": "notes/b.md",
+        "content": "IyBCCgpBIG5lZWRsZSBpbiBbYV0oYS5tZCkuCg==",
+        "revision": "<rev 2>",
+        "version": "<rev 2>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 2>",
+          "parents": [
+            "<rev 1>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update notes/b.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "notes/b.md": "# B\n\nA needle in [a](a.md).\n"
+      }
+    },
+    {
+      "name": "save other.md",
+      "result": {
+        "path": "other.md",
+        "content": "IyBPdGhlcgoKQW5vdGhlciBuZWVkbGUuCg==",
+        "revision": "<rev 3>",
+        "version": "<rev 3>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 3>",
+          "parents": [
+            "<rev 2>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update other.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "other.md": "# Other\n\nAnother needle.\n"
+      }
+    },
+    {
+      "name": "save untitled.md",
+      "result": {
+        "path": "untitled.md",
+        "content": "T25seSB0ZXh0Lgo=",
+        "revision": "<rev 4>",
+        "version": "<rev 4>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 4>",
+          "parents": [
+            "<rev 3>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update untitled.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "untitled.md": "Only text.\n"
+      }
+    },
+    {
+      "name": "save locked/c.md",
+      "result": {
+        "path": "locked/c.md",
+        "content": "IyBDCg==",
+        "revision": "<rev 5>",
+        "version": "<rev 5>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 5>",
+          "parents": [
+            "<rev 4>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update locked/c.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "locked/c.md": "# C\n"
+      }
+    },
+    {
+      "name": "save comments/b33a8099b01219568f1660eb604d897c0ac5db4fdd84c142337f129d5a0fca4d.json",
+      "result": {
+        "path": "comments/<discussion of notes/a.md>.json",
+        "content": "W3siZmluZGluZyI6eyJrZXkiOiJrIiwicGF0aCI6Im5vdGVzL2EubWQiLCJ0aXRsZSI6IkNoZWNrIn0sImlkIjoiZjEiLCJhdXRob3IiOiJhZ2VudCIsInRleHQiOiJDaGVjayB0aGlzIiwiY3JlYXRlZCI6IjIwMjYtMTEtMjJUMDA6MDA6MDBaIiwicmVzb2x2ZWQiOmZhbHNlfV0=",
+        "revision": "<rev 6>",
+        "version": "<rev 6>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 6>",
+          "parents": [
+            "<rev 5>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[{\"finding\":{\"key\":\"k\",\"path\":\"notes/a.md\",\"title\":\"Check\"},\"id\":\"f1\",\"author\":\"agent\",\"text\":\"Check this\",\"created\":\"<time>\",\"resolved\":false}]"
+      }
+    },
+    {
+      "name": "comment",
+      "result": {
+        "comments": [
+          {
+            "finding": {
+              "key": "k",
+              "path": "notes/a.md",
+              "title": "Check",
+              "origin": "",
+              "sourceRevision": "",
+              "noteHash": "",
+              "evidence": null,
+              "requestHash": "",
+              "stale": false
+            },
+            "replies": [
+              {
+                "id": "<id 1>",
+                "author": "reviewer",
+                "text": "Keep this discussion",
+                "created": "<time>"
+              }
+            ],
+            "id": "f1",
+            "author": "agent",
+            "text": "Check this",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 7>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 7>",
+          "parents": [
+            "<rev 6>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[\n  {\n    \"finding\": {\n      \"key\": \"k\",\n      \"path\": \"notes/a.md\",\n      \"title\": \"Check\",\n      \"origin\": \"\",\n      \"sourceRevision\": \"\",\n      \"noteHash\": \"\",\n      \"evidence\": null,\n      \"requestHash\": \"\",\n      \"stale\": false\n    },\n    \"replies\": [\n      {\n        \"id\": \"<id 1>\",\n        \"author\": \"reviewer\",\n        \"text\": \"Keep this discussion\",\n        \"created\": \"<time>\"\n      }\n    ],\n    \"id\": \"f1\",\n    \"author\": \"agent\",\n    \"text\": \"Check this\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+      }
+    },
+    {
+      "name": "lock",
+      "result": {
+        "path": "locked",
+        "revision": "<rev 8>",
+        "rules": [
+          {
+            "path": "locked"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 8>",
+          "parents": [
+            "<rev 7>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update .gitnotes-locks.json\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"locked\"\n  ]\n}\n"
+      }
+    },
+    {
+      "name": "trash no notes",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "choose 1–50 notes"
+    },
+    {
+      "name": "trash 51 notes",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "choose 1–50 notes"
+    },
+    {
+      "name": "trash twice",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "trash guidance",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "trash the Trash",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "trash locked",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "trash missing",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "trash a folder",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "trash not a note",
+      "result": {
+        "revision": "",
+        "entries": []
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "trash invalid",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "trash stale",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "trash",
+      "result": {
+        "revision": "<rev 9>",
+        "entries": [
+          {
+            "id": "<id 2>",
+            "path": "Trash/<id 2>.md",
+            "originalPath": "notes/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 3>",
+            "path": "Trash/<id 3>.md",
+            "originalPath": "other.md",
+            "title": "Other",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 4>",
+            "path": "Trash/<id 4>.md",
+            "originalPath": "untitled.md",
+            "title": "Only text.",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 9>",
+          "parents": [
+            "<rev 8>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move notes to Trash\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"notes/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ]\n      }\n    },\n    {\n      \"id\": \"<id 3>\",\n      \"path\": \"Trash/<id 3>.md\",\n      \"originalPath\": \"other.md\",\n      \"title\": \"Other\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"other.md\": [\n          \"<rev 3>\"\n        ]\n      }\n    },\n    {\n      \"id\": \"<id 4>\",\n      \"path\": \"Trash/<id 4>.md\",\n      \"originalPath\": \"untitled.md\",\n      \"title\": \"Only text.\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"untitled.md\": [\n          \"<rev 4>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 2>.md": "---\ntitle: Titled A\ntags: [keep]\nstatus: draft\n---\n# A\n\nSee [b](../notes/b.md) and [other](../other.md).\n",
+        "Trash/<id 3>.md": "# Other\n\nAnother needle.\n",
+        "Trash/<id 4>.md": "Only text.\n",
+        "comments/<discussion of Trash/<id 2>.md>.json": "[\n  {\n    \"finding\": {\n      \"key\": \"k\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"title\": \"Check\",\n      \"origin\": \"\",\n      \"sourceRevision\": \"\",\n      \"noteHash\": \"\",\n      \"evidence\": null,\n      \"requestHash\": \"\",\n      \"stale\": false\n    },\n    \"replies\": [\n      {\n        \"id\": \"<id 1>\",\n        \"author\": \"reviewer\",\n        \"text\": \"Keep this discussion\",\n        \"created\": \"<time>\"\n      }\n    ],\n    \"id\": \"f1\",\n    \"author\": \"agent\",\n    \"text\": \"Check this\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "comments/<discussion of notes/a.md>.json": null,
+        "notes/a.md": null,
+        "other.md": null,
+        "untitled.md": null
+      }
+    },
+    {
+      "name": "list",
+      "result": {
+        "revision": "<rev 9>",
+        "entries": [
+          {
+            "id": "<id 2>",
+            "path": "Trash/<id 2>.md",
+            "originalPath": "notes/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 3>",
+            "path": "Trash/<id 3>.md",
+            "originalPath": "other.md",
+            "title": "Other",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 4>",
+            "path": "Trash/<id 4>.md",
+            "originalPath": "untitled.md",
+            "title": "Only text.",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ],
+        "confirmation": ""
+      }
+    },
+    {
+      "name": "policy",
+      "result": {
+        "version": 1,
+        "records": [
+          {
+            "id": "<id 2>",
+            "path": "Trash/<id 2>.md",
+            "originalPath": "notes/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "notes/a.md": [
+                "<rev 1>"
+              ]
+            }
+          },
+          {
+            "id": "<id 3>",
+            "path": "Trash/<id 3>.md",
+            "originalPath": "other.md",
+            "title": "Other",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "other.md": [
+                "<rev 3>"
+              ]
+            }
+          },
+          {
+            "id": "<id 4>",
+            "path": "Trash/<id 4>.md",
+            "originalPath": "untitled.md",
+            "title": "Only text.",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "untitled.md": [
+                "<rev 4>"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "search [\"needle\" \"\" \"\" \"\"]",
+      "result": [
+        "{\"trashId\":\"<id 3>\",\"title\":\"Other\",\"excerpt\":\"Another needle.\",\"path\":\"Trash/<id 3>.md\",\"editable\":false,\"metadata\":{\"title\":\"\",\"kind\":\"\",\"status\":\"\",\"tags\":[]}}"
+      ]
+    },
+    {
+      "name": "search [\"\" \"keep\" \"\" \"\"]",
+      "result": [
+        "{\"trashId\":\"<id 2>\",\"title\":\"A\",\"excerpt\":\"See b and other.\",\"path\":\"Trash/<id 2>.md\",\"editable\":false,\"metadata\":{\"title\":\"Titled A\",\"kind\":\"\",\"status\":\"draft\",\"tags\":[\"keep\"]}}"
+      ]
+    },
+    {
+      "name": "search [\"\" \"\" \"DRAFT\" \"\"]",
+      "result": [
+        "{\"trashId\":\"<id 2>\",\"title\":\"A\",\"excerpt\":\"See b and other.\",\"path\":\"Trash/<id 2>.md\",\"editable\":false,\"metadata\":{\"title\":\"Titled A\",\"kind\":\"\",\"status\":\"draft\",\"tags\":[\"keep\"]}}"
+      ]
+    },
+    {
+      "name": "search [\"\" \"\" \"\" \"Trash/\"]",
+      "result": [
+        "{\"trashId\":\"<id 2>\",\"title\":\"A\",\"excerpt\":\"See b and other.\",\"path\":\"Trash/<id 2>.md\",\"editable\":false,\"metadata\":{\"title\":\"Titled A\",\"kind\":\"\",\"status\":\"draft\",\"tags\":[\"keep\"]}}",
+        "{\"trashId\":\"<id 3>\",\"title\":\"Other\",\"excerpt\":\"Another needle.\",\"path\":\"Trash/<id 3>.md\",\"editable\":false,\"metadata\":{\"title\":\"\",\"kind\":\"\",\"status\":\"\",\"tags\":[]}}",
+        "{\"trashId\":\"<id 4>\",\"title\":\"Only text.\",\"excerpt\":\"Only text.\",\"path\":\"Trash/<id 4>.md\",\"editable\":false,\"metadata\":{\"title\":\"\",\"kind\":\"\",\"status\":\"\",\"tags\":[]}}"
+      ]
+    },
+    {
+      "name": "search [\"notes/a\" \"\" \"\" \"\"]",
+      "result": [
+        "{\"trashId\":\"<id 2>\",\"title\":\"A\",\"excerpt\":\"See b and other.\",\"path\":\"Trash/<id 2>.md\",\"editable\":false,\"metadata\":{\"title\":\"Titled A\",\"kind\":\"\",\"status\":\"draft\",\"tags\":[\"keep\"]}}"
+      ]
+    },
+    {
+      "name": "search [\"titled a\" \"\" \"\" \"\"]",
+      "result": [
+        "{\"trashId\":\"<id 2>\",\"title\":\"A\",\"excerpt\":\"See b and other.\",\"path\":\"Trash/<id 2>.md\",\"editable\":false,\"metadata\":{\"title\":\"Titled A\",\"kind\":\"\",\"status\":\"draft\",\"tags\":[\"keep\"]}}"
+      ]
+    },
+    {
+      "name": "search [\"\" \"\" \"\" \"notes\"]",
+      "result": []
+    },
+    {
+      "name": "search [\"only text\" \"\" \"\" \"\"]",
+      "result": [
+        "{\"trashId\":\"<id 4>\",\"title\":\"Only text.\",\"excerpt\":\"Only text.\",\"path\":\"Trash/<id 4>.md\",\"editable\":false,\"metadata\":{\"title\":\"\",\"kind\":\"\",\"status\":\"\",\"tags\":[]}}"
+      ]
+    },
+    {
+      "name": "discussion in the Trash",
+      "result": {
+        "comments": [
+          {
+            "finding": {
+              "key": "k",
+              "path": "Trash/<id 2>.md",
+              "title": "Check",
+              "origin": "",
+              "sourceRevision": "",
+              "noteHash": "",
+              "evidence": null,
+              "requestHash": "",
+              "stale": false
+            },
+            "replies": [
+              {
+                "id": "<id 1>",
+                "author": "reviewer",
+                "text": "Keep this discussion",
+                "created": "<time>"
+              }
+            ],
+            "id": "f1",
+            "author": "agent",
+            "text": "Check this",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 9>"
+      }
+    },
+    {
+      "name": "comment in the Trash",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "edit in the Trash",
+      "result": {
+        "path": "",
+        "content": null,
+        "revision": "",
+        "version": ""
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "restore a folder",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "restore invalid",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "restore into the Trash",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "restore into a Trash folder",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "restore locked",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "restore not a note",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "restore occupied",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "restore destination is occupied: the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "restore onto guidance",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "restore unknown",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "restore stale",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "restore",
+      "result": {
+        "revision": "<rev 10>",
+        "entries": [
+          {
+            "id": "<id 2>",
+            "path": "restored/a.md",
+            "originalPath": "notes/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 10>",
+          "parents": [
+            "<rev 9>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Restore note from Trash\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"notes/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 3>\",\n      \"path\": \"Trash/<id 3>.md\",\n      \"originalPath\": \"other.md\",\n      \"title\": \"Other\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"other.md\": [\n          \"<rev 3>\"\n        ]\n      }\n    },\n    {\n      \"id\": \"<id 4>\",\n      \"path\": \"Trash/<id 4>.md\",\n      \"originalPath\": \"untitled.md\",\n      \"title\": \"Only text.\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"untitled.md\": [\n          \"<rev 4>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 2>.md": null,
+        "comments/<discussion of Trash/<id 2>.md>.json": null,
+        "comments/<discussion of restored/a.md>.json": "[\n  {\n    \"finding\": {\n      \"key\": \"k\",\n      \"path\": \"restored/a.md\",\n      \"title\": \"Check\",\n      \"origin\": \"\",\n      \"sourceRevision\": \"\",\n      \"noteHash\": \"\",\n      \"evidence\": null,\n      \"requestHash\": \"\",\n      \"stale\": false\n    },\n    \"replies\": [\n      {\n        \"id\": \"<id 1>\",\n        \"author\": \"reviewer\",\n        \"text\": \"Keep this discussion\",\n        \"created\": \"<time>\"\n      }\n    ],\n    \"id\": \"f1\",\n    \"author\": \"agent\",\n    \"text\": \"Check this\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "restored/a.md": "---\ntitle: Titled A\ntags: [keep]\nstatus: draft\n---\n# A\n\nSee [b](../notes/b.md) and [other](../other.md).\n"
+      }
+    },
+    {
+      "name": "restore twice",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "restore to the original path",
+      "result": {
+        "revision": "<rev 11>",
+        "entries": [
+          {
+            "id": "<id 3>",
+            "path": "other.md",
+            "originalPath": "other.md",
+            "title": "Other",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 11>",
+          "parents": [
+            "<rev 10>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Restore note from Trash\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"notes/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 3>\",\n      \"path\": \"Trash/<id 3>.md\",\n      \"originalPath\": \"other.md\",\n      \"title\": \"Other\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"other.md\": [\n          \"<rev 3>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 4>\",\n      \"path\": \"Trash/<id 4>.md\",\n      \"originalPath\": \"untitled.md\",\n      \"title\": \"Only text.\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"untitled.md\": [\n          \"<rev 4>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 3>.md": null,
+        "other.md": "# Other\n\nAnother needle.\n"
+      }
+    },
+    {
+      "name": "restored note",
+      "result": {
+        "path": "restored/a.md",
+        "content": "LS0tCnRpdGxlOiBUaXRsZWQgQQp0YWdzOiBba2VlcF0Kc3RhdHVzOiBkcmFmdAotLS0KIyBBCgpTZWUgW2JdKC4uL25vdGVzL2IubWQpIGFuZCBbb3RoZXJdKC4uL290aGVyLm1kKS4K",
+        "revision": "<rev 11>",
+        "version": "<rev 10>"
+      }
+    },
+    {
+      "name": "restored discussion",
+      "result": {
+        "comments": [
+          {
+            "finding": {
+              "key": "k",
+              "path": "restored/a.md",
+              "title": "Check",
+              "origin": "",
+              "sourceRevision": "",
+              "noteHash": "",
+              "evidence": null,
+              "requestHash": "",
+              "stale": false
+            },
+            "replies": [
+              {
+                "id": "<id 1>",
+                "author": "reviewer",
+                "text": "Keep this discussion",
+                "created": "<time>"
+              }
+            ],
+            "id": "f1",
+            "author": "agent",
+            "text": "Check this",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 11>"
+      }
+    },
+    {
+      "name": "trash again",
+      "result": {
+        "revision": "<rev 12>",
+        "entries": [
+          {
+            "id": "<id 5>",
+            "path": "Trash/<id 5>.md",
+            "originalPath": "restored/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 12>",
+          "parents": [
+            "<rev 11>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move notes to Trash\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"notes/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 3>\",\n      \"path\": \"Trash/<id 3>.md\",\n      \"originalPath\": \"other.md\",\n      \"title\": \"Other\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"other.md\": [\n          \"<rev 3>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 4>\",\n      \"path\": \"Trash/<id 4>.md\",\n      \"originalPath\": \"untitled.md\",\n      \"title\": \"Only text.\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"untitled.md\": [\n          \"<rev 4>\"\n        ]\n      }\n    },\n    {\n      \"id\": \"<id 5>\",\n      \"path\": \"Trash/<id 5>.md\",\n      \"originalPath\": \"restored/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ],\n        \"restored/a.md\": [\n          \"<rev 10>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 5>.md": "---\ntitle: Titled A\ntags: [keep]\nstatus: draft\n---\n# A\n\nSee [b](../notes/b.md) and [other](../other.md).\n",
+        "comments/<discussion of Trash/<id 5>.md>.json": "[\n  {\n    \"finding\": {\n      \"key\": \"k\",\n      \"path\": \"Trash/<id 5>.md\",\n      \"title\": \"Check\",\n      \"origin\": \"\",\n      \"sourceRevision\": \"\",\n      \"noteHash\": \"\",\n      \"evidence\": null,\n      \"requestHash\": \"\",\n      \"stale\": false\n    },\n    \"replies\": [\n      {\n        \"id\": \"<id 1>\",\n        \"author\": \"reviewer\",\n        \"text\": \"Keep this discussion\",\n        \"created\": \"<time>\"\n      }\n    ],\n    \"id\": \"f1\",\n    \"author\": \"agent\",\n    \"text\": \"Check this\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "comments/<discussion of restored/a.md>.json": null,
+        "restored/a.md": null
+      }
+    },
+    {
+      "name": "policy after a restore",
+      "result": {
+        "version": 1,
+        "records": [
+          {
+            "id": "<id 2>",
+            "path": "Trash/<id 2>.md",
+            "originalPath": "notes/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "notes/a.md": [
+                "<rev 1>"
+              ]
+            },
+            "restored": true
+          },
+          {
+            "id": "<id 3>",
+            "path": "Trash/<id 3>.md",
+            "originalPath": "other.md",
+            "title": "Other",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "other.md": [
+                "<rev 3>"
+              ]
+            },
+            "restored": true
+          },
+          {
+            "id": "<id 4>",
+            "path": "Trash/<id 4>.md",
+            "originalPath": "untitled.md",
+            "title": "Only text.",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "untitled.md": [
+                "<rev 4>"
+              ]
+            }
+          },
+          {
+            "id": "<id 5>",
+            "path": "Trash/<id 5>.md",
+            "originalPath": "restored/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "notes/a.md": [
+                "<rev 1>"
+              ],
+              "restored/a.md": [
+                "<rev 10>"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "list again",
+      "result": {
+        "revision": "<rev 12>",
+        "entries": [
+          {
+            "id": "<id 4>",
+            "path": "Trash/<id 4>.md",
+            "originalPath": "untitled.md",
+            "title": "Only text.",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 5>",
+            "path": "Trash/<id 5>.md",
+            "originalPath": "restored/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ],
+        "confirmation": ""
+      }
+    },
+    {
+      "name": "trash one more",
+      "result": {
+        "revision": "<rev 13>",
+        "entries": [
+          {
+            "id": "<id 6>",
+            "path": "Trash/<id 6>.md",
+            "originalPath": "notes/b.md",
+            "title": "B",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 13>",
+          "parents": [
+            "<rev 12>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move notes to Trash\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"notes/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 3>\",\n      \"path\": \"Trash/<id 3>.md\",\n      \"originalPath\": \"other.md\",\n      \"title\": \"Other\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"other.md\": [\n          \"<rev 3>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 4>\",\n      \"path\": \"Trash/<id 4>.md\",\n      \"originalPath\": \"untitled.md\",\n      \"title\": \"Only text.\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"untitled.md\": [\n          \"<rev 4>\"\n        ]\n      }\n    },\n    {\n      \"id\": \"<id 5>\",\n      \"path\": \"Trash/<id 5>.md\",\n      \"originalPath\": \"restored/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ],\n        \"restored/a.md\": [\n          \"<rev 10>\"\n        ]\n      }\n    },\n    {\n      \"id\": \"<id 6>\",\n      \"path\": \"Trash/<id 6>.md\",\n      \"originalPath\": \"notes/b.md\",\n      \"title\": \"B\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/b.md\": [\n          \"<rev 2>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 6>.md": "# B\n\nA needle in [a](../notes/a.md).\n",
+        "notes/b.md": null
+      }
+    },
+    {
+      "name": "empty unconfirmed",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "empty with a stale confirmation",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "list before emptying",
+      "result": {
+        "revision": "<rev 13>",
+        "entries": [
+          {
+            "id": "<id 4>",
+            "path": "Trash/<id 4>.md",
+            "originalPath": "untitled.md",
+            "title": "Only text.",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 5>",
+            "path": "Trash/<id 5>.md",
+            "originalPath": "restored/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 6>",
+            "path": "Trash/<id 6>.md",
+            "originalPath": "notes/b.md",
+            "title": "B",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ],
+        "confirmation": ""
+      }
+    },
+    {
+      "name": "empty another revision",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "empty",
+      "result": {
+        "revision": "<rev 14>",
+        "entries": [
+          {
+            "id": "<id 4>",
+            "path": "Trash/<id 4>.md",
+            "originalPath": "untitled.md",
+            "title": "Only text.",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 5>",
+            "path": "Trash/<id 5>.md",
+            "originalPath": "restored/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          },
+          {
+            "id": "<id 6>",
+            "path": "Trash/<id 6>.md",
+            "originalPath": "notes/b.md",
+            "title": "B",
+            "deletedAt": "<time>",
+            "deletedBy": "owner"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 14>",
+          "parents": [
+            "<rev 13>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Empty Trash\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"notes/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 3>\",\n      \"path\": \"Trash/<id 3>.md\",\n      \"originalPath\": \"other.md\",\n      \"title\": \"Other\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"other.md\": [\n          \"<rev 3>\"\n        ]\n      },\n      \"restored\": true\n    },\n    {\n      \"id\": \"<id 4>\",\n      \"path\": \"Trash/<id 4>.md\",\n      \"originalPath\": \"untitled.md\",\n      \"title\": \"Only text.\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"untitled.md\": [\n          \"<rev 4>\"\n        ]\n      },\n      \"emptied\": true\n    },\n    {\n      \"id\": \"<id 5>\",\n      \"path\": \"Trash/<id 5>.md\",\n      \"originalPath\": \"restored/a.md\",\n      \"title\": \"Titled A\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/a.md\": [\n          \"<rev 1>\"\n        ],\n        \"restored/a.md\": [\n          \"<rev 10>\"\n        ]\n      },\n      \"emptied\": true\n    },\n    {\n      \"id\": \"<id 6>\",\n      \"path\": \"Trash/<id 6>.md\",\n      \"originalPath\": \"notes/b.md\",\n      \"title\": \"B\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"owner\",\n      \"history\": {\n        \"notes/b.md\": [\n          \"<rev 2>\"\n        ]\n      },\n      \"emptied\": true\n    }\n  ]\n}\n",
+        "Trash/<id 4>.md": null,
+        "Trash/<id 5>.md": null,
+        "Trash/<id 6>.md": null,
+        "comments/<discussion of Trash/<id 5>.md>.json": null
+      }
+    },
+    {
+      "name": "list emptied",
+      "result": {
+        "revision": "<rev 14>",
+        "entries": [],
+        "confirmation": ""
+      }
+    },
+    {
+      "name": "empty an empty Trash",
+      "result": {
+        "revision": "<rev 14>",
+        "entries": []
+      }
+    },
+    {
+      "name": "restore emptied",
+      "result": {
+        "revision": "",
+        "entries": null
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "policy after emptying",
+      "result": {
+        "version": 1,
+        "records": [
+          {
+            "id": "<id 2>",
+            "path": "Trash/<id 2>.md",
+            "originalPath": "notes/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "notes/a.md": [
+                "<rev 1>"
+              ]
+            },
+            "restored": true
+          },
+          {
+            "id": "<id 3>",
+            "path": "Trash/<id 3>.md",
+            "originalPath": "other.md",
+            "title": "Other",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "other.md": [
+                "<rev 3>"
+              ]
+            },
+            "restored": true
+          },
+          {
+            "id": "<id 4>",
+            "path": "Trash/<id 4>.md",
+            "originalPath": "untitled.md",
+            "title": "Only text.",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "untitled.md": [
+                "<rev 4>"
+              ]
+            },
+            "emptied": true
+          },
+          {
+            "id": "<id 5>",
+            "path": "Trash/<id 5>.md",
+            "originalPath": "restored/a.md",
+            "title": "Titled A",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "notes/a.md": [
+                "<rev 1>"
+              ],
+              "restored/a.md": [
+                "<rev 10>"
+              ]
+            },
+            "emptied": true
+          },
+          {
+            "id": "<id 6>",
+            "path": "Trash/<id 6>.md",
+            "originalPath": "notes/b.md",
+            "title": "B",
+            "deletedAt": "<time>",
+            "deletedBy": "owner",
+            "history": {
+              "notes/b.md": [
+                "<rev 2>"
+              ]
+            },
+            "emptied": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "search emptied",
+      "result": []
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# Security and supported deployment
+
+Run one ForgetMeNote process per data directory on durable local storage. Terminate public TLS at a maintained reverse proxy; do not trust identity headers from arbitrary peers. Keep the recovery key, OIDC secrets, and full-instance backups private. Follow [deployment](docs/deployment.md) and [authentication](docs/authentication.md).
+
+Report a suspected vulnerability through this repository's GitHub **Security → Report a vulnerability** when private reporting is enabled. If unavailable, contact the repository owner privately through their published contact details; do not open a public issue containing exploit details, tokens, or private notes. Operators distributing this application should publish and maintain a working private reporting channel.
+
+The current CI runs behavioral, race, formatting and static verification, plus a known-advisory scan of reachable Go symbols (`govulncheck`) and locked production npm packages (`npm audit`) on every pull request, every push to `main` and `next`, and a weekly schedule. It does not scan the container's Debian packages; check them against the [Debian security tracker](https://security-tracker.debian.org/tracker/) when changing the pinned snapshot. Locked dependencies, advisory scans and reviewed changes do not establish a security audit. Only deployments built from a reviewed revision and passing the documented verification gate should be treated as release candidates. No guaranteed support period or response-time SLA is currently offered.

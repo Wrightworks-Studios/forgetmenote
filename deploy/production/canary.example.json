@@ -1,0 +1,7 @@
+[
+  {"action":"list_projects","assertions":[{"pointer":"","notEmpty":true}]},
+  {"action":"notebook_map","arguments":{"project":"application-source","origin":"repository"},"assertions":[{"pointer":"/revision","notEmpty":true},{"pointer":"/entries","notEmpty":true}]},
+  {"action":"search_notebooks","arguments":{"projects":["application-source"],"corpora":["repository"],"query":"application startup","mode":"automatic","limit":5},"assertions":[{"pointer":"/results","notEmpty":true}]},
+  {"action":"find_recipes","arguments":{"project":"profiles"},"assertions":[{"pointer":"","notEmpty":true}]},
+  {"action":"call_data_operation","arguments":{"connection":"redshift","operation":"query","arguments":{"sql":"SELECT :value::integer AS value","params":{"value":"7"}}},"assertions":[{"pointer":"/data/rows/0/0","equals":7},{"pointer":"/receipt/complete","equals":true}]}
+]

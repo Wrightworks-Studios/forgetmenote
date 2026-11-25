@@ -1,0 +1,127 @@
+/* Repository documents, administration, writing tools and automation forms. */
+/* Repository documents share the main reading surface and stay bounded on phones. */
+#source-browser,#source-document{padding:clamp(20px,4vw,56px);max-width:1400px;margin:0 auto;width:100%;box-sizing:border-box;min-width:0}
+#source-browser .search{display:block;margin:20px 0}#source-files{padding:0;list-style:none}#source-files li{padding:12px 0;border-bottom:1px solid var(--border);overflow-wrap:anywhere}#source-files a{display:inline-block;padding:4px 0}
+.document-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px}#source-document-meta{flex:1;min-width:160px;overflow-wrap:anywhere}
+#source-markdown{max-width:850px;margin:28px auto;line-height:1.7;overflow-wrap:anywhere}#source-markdown img{max-width:100%;height:auto}#source-markdown pre{overflow:auto;padding:16px;background:var(--surface)}#source-markdown table{display:block;max-width:100%;overflow:auto}
+#source-code{border:1px solid var(--border);border-radius: var(--radius-card);overflow:hidden;max-width:100%;margin-bottom:16px}#source-code pre{overflow:auto}
+.source-active .note-actions,.source-active #folder-crumbs,.source-active #note-back,.repository-notebook .review-destination{display:none!important}
+#notebook-outline { padding:12px clamp(20px,4vw,56px); border-bottom:1px solid var(--border); }
+#notebook-outline:not([open]) { padding-block: 10px 0; border-bottom-color: transparent; }
+#notebook-outline summary { cursor:pointer; }
+#notebook-outline > summary { font-size: var(--text-small); color:var(--muted); }
+#notebook-outline[open] > summary { margin-bottom:12px; }
+#notebook-outline .document-toolbar { margin-bottom:8px; }
+#outline-status { margin:8px 0; }
+#outline-entries { list-style:none; padding:0 8px 0 0; margin:8px 0; max-height:min(24dvh,200px); overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+#outline-entries li { padding:6px 0; overflow-wrap:anywhere; }
+#outline-entries details > button, #outline-entries details > a { margin:8px; }
+#outline-query { max-width:100%; flex:1; min-width:160px; }
+@media(max-width:600px){#source-browser,#source-document{padding:20px 16px 96px}.document-toolbar{gap:8px}#source-document-meta{flex-basis:100%}#source-code{font-size: var(--text-small)}#source-browser .folder-heading{align-items:flex-start}}
+
+.search-active #source-browser, .search-active #source-document, .search-active #notebook-outline { display:none; }
+#managed-backup form { margin-block:1rem; }
+#managed-backup form label { margin-block:.65rem; }
+#managed-backup-controls { display:flex; flex-wrap:wrap; gap:.5rem; }
+#managed-backup-controls[hidden] { display:none; }
+
+/* Instance controls stay inside the existing dialogs and typography. */
+.organization-choices { display:grid; gap:6px; max-height:240px; overflow:auto; }
+.organization-choices label { display:flex; align-items:center; gap:6px; }
+.organization-choices input[type=checkbox] { width:auto; margin:0; }
+#admin-dialog select[multiple] { min-height:100px; width:100%; }
+#admin-dialog fieldset { border:1px solid var(--border); border-radius: var(--radius-control); padding:12px; }
+#organization-secret { margin-top:16px; padding:16px; border:1px solid var(--accent); border-radius: var(--radius-control); }
+#organization-secret-value { width:100%; }
+.activity-row { display:grid; gap:4px; padding:12px 0; border-bottom:1px solid var(--border); overflow-wrap:anywhere; }
+.activity-row time { font-size: var(--text-caption); color:var(--muted); }
+#instance-status { display:grid; grid-template-columns:minmax(100px,1fr) 1fr; gap:8px; }
+#instance-status dd { margin:0; }
+#service-details form, #user-offboarding form { margin-top:16px; }
+#service-details > .small { overflow-wrap:anywhere; }
+#admin-dialog .category-navigation { overflow-x:auto; flex-wrap:wrap; }
+@media(max-width:600px){#admin-dialog .person-row{flex-wrap:wrap;}#admin-dialog .person-row>span{flex-basis:100%;}}
+
+/* Writing tools share the reader's tokens and leave the manuscript in place. */
+#writing-panel { position: fixed; inset: 0 0 0 auto; width: 360px; z-index: var(--layer-panel); background: var(--surface); border-left: 1px solid var(--border); padding: 20px; overflow-y: auto; overscroll-behavior: contain; }
+#writing-panel[hidden] { display: none; }
+body.writing-open #main { margin-right: 360px; }
+body.writing-open #writing-open { display: none; }
+.writing-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.writing-heading h2 { margin: 0; font-size: var(--text-control); }
+.writing-heading button { font-size: var(--text-reading); }
+.writing-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.writing-tabs button { flex: 1; border-radius: 0; }
+.writing-tabs [aria-selected="true"] { color: var(--accent); border-bottom: 2px solid var(--accent); }
+#writing-stats { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+#writing-stats dt { color: var(--muted); }
+#writing-stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+#writing-outline, #writing-findings, #writing-mentions { list-style: none; padding: 0; margin: 12px 0; }
+#writing-outline li, #writing-findings li, #writing-mentions li { display: flex; flex-direction: column; align-items: start; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+#writing-outline button, #writing-findings button { max-width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+#writing-outline small { color: var(--muted); }
+#writing-outline button { border: 0; padding: 4px 0; background: transparent; }
+#writing-outline [data-level="2"] { padding-left: 12px; }
+#writing-outline [data-level="3"], #writing-outline [data-level="4"], #writing-outline [data-level="5"], #writing-outline [data-level="6"], #writing-outline [data-level="7"] { padding-left: 24px; }
+.writing-rules { border: 0; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+.writing-rules label { display: flex; align-items: center; gap: 8px; }
+.writing-rules input { width: auto; margin: 0; }
+#writing-panel textarea, #writing-panel input:not([type=checkbox]), #writing-panel select { width: 100%; min-width: 0; margin: 8px 0; }
+.writing-scan-controls { display: flex; align-items: center; gap: 8px; }
+#writing-findings .writing-fix { color: var(--accent); border: 1px solid var(--border); }
+#writing-mentions p { margin: 0; font-size: var(--text-small); color: var(--muted); }
+#word-count { color: var(--muted); padding: 0; min-height: 32px; }
+@media (max-width: 900px) {
+ #writing-panel { inset: 12dvh 0 0; width: 100%; padding: 20px 20px max(24px, env(safe-area-inset-bottom)); border: 1px solid var(--border); border-radius: var(--radius-panel) var(--radius-panel) 0 0; box-shadow: var(--shadow-overlay); }
+ body.writing-open #main { margin-right: 0; }
+ body.writing-open { overflow: hidden; }
+ #writing-panel button { min-height: 44px; }
+}
+
+/* Check controls share one layout across static and generated settings forms. */
+:is(dialog, [popover]) :is(form, fieldset) { min-width: 0; }
+:is(dialog, [popover]) :is(input, select, textarea) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+:is(dialog, [popover]) label:has(> input:is([type="checkbox"], [type="radio"])):not(:where(.theme-options label, #search-modes label, #archive-mode label)) {
+  display: flex; flex-direction: row; flex-wrap: nowrap; align-items: flex-start; gap: 10px;
+  font-weight: 500; line-height: 1.5; cursor: pointer; overflow-wrap: anywhere;
+}
+:is(dialog, [popover]) label > input:is([type="checkbox"], [type="radio"]):not(:where(.theme-options input, #search-modes input, #archive-mode input)) {
+  flex: 0 0 18px; width: 18px; height: 18px; min-height: 18px; padding: 0; margin: 3px 0 0;
+  order: -1; accent-color: var(--accent);
+}
+:is(dialog, [popover]) label > span { min-width: 0; }
+:is(dialog, [popover]) :is(.actions, .knowledge-actions, .jev-actions) { gap: 10px; flex-wrap: wrap; }
+:is(dialog, [popover]) summary { cursor: pointer; line-height: 1.5; overflow-wrap: anywhere; }
+.settings-form fieldset { border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 12px 0 16px; margin: 8px 0; }
+.settings-form legend { font-weight: 600; padding: 0 6px; }
+.chat-client-form > label:not(.check-row), .chat-client-form fieldset > label:not(.check-row), .chat-client-form .form-columns > label { display: grid; gap: 6px; margin-block: 12px; }
+.chat-client-form .form-columns { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; align-items: end; gap: 12px; }
+.chat-client-form .form-columns button { margin-bottom: 12px; }
+.chat-client-form :is(input:not([type=checkbox]),textarea,select) { width: 100%; }
+.chat-client-form .check-row { margin-block: 12px; }
+.chat-client-form textarea { font-family: var(--font-mono,monospace); }
+#instance-ai-form .check-row { margin: 10px 0; }
+#instance-ai-form .form-columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(90px, 1fr); gap: 16px; }
+#instance-ai-form .form-columns label { display: grid; gap: 6px; margin-bottom: 12px; }
+.ai-notebook-status { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+#instance-ai-status { white-space: pre-wrap; }
+@media (max-width: 480px) {
+  .chat-client-form .form-columns { grid-template-columns: minmax(0,1fr); gap: 0; }
+  #instance-ai-form .form-columns { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .settings-form fieldset { padding-inline: 12px; }
+  .category-navigation { gap: 4px; }
+  .category-navigation button { padding-inline: 10px; }
+}
+.automation-card { border: 0; background: var(--bg); border-radius: var(--radius-card); padding: 16px; margin-block: 12px; min-width: 0; overflow-wrap: anywhere; }
+.automation-card h4 { margin-top: 0; }
+.automation-card pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow-y: auto; }
+.automation-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.automation-fields > label { display: flex; flex-direction: column; gap: 6px; margin: 0; min-width: 0; }
+.automation-fields input, .automation-fields select, .automation-fields textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.automation-checks { display: grid; gap: 12px; margin-block: 20px; }
+.automation-checks > label { display: flex; align-items: center; gap: 10px; margin: 0; }
+.automation-checks input[type="checkbox"] { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; }
+.automation-editor details { margin-block: 16px; }
+.automation-editor details textarea { width: 100%; box-sizing: border-box; font-family: monospace; margin-block: 12px; }
+.automation-editor .dialog-actions, .automation-card .dialog-actions { flex-wrap: wrap; }
+@media (max-width: 600px) { .automation-fields { grid-template-columns: minmax(0, 1fr); } }

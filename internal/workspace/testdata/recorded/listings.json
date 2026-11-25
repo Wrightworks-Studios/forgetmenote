@@ -1,0 +1,1521 @@
+{
+  "listings": [
+    {
+      "name": "fixture",
+      "files": {
+        ".gitnotes-locks.json": "{\"version\":1,\"paths\":[\"Inbox/deep\"]}",
+        "AGENTS.md": "# Instructions\n",
+        "Inbox/deep/third.md": "---\nfmn-container: draft\n---\n# Third\n",
+        "Inbox/first.md": "---\ntitle: First\ntags: [one, Two]\nstatus: active\n---\n# Heading\n\nBody text.\n",
+        "Inbox/second.md": "# Second\n\nMore body.\n",
+        "archive.md": "---\nfmn-container: archive\n---\nArchived\n",
+        "assets/image.png": "�PNG\r\n",
+        "broken.md": "---\ntags: [broken\n---\nBroken\n",
+        "invalid.md": "---\nfmn-container: future\n---\nRepair\n",
+        "link.md": "<mode 120000> Inbox/first.md",
+        "private/hidden.md": "# Hidden\n",
+        "run.md": "<mode 100755> # Run\n",
+        "same-a.md": "# Same\n",
+        "same-b.md": "# Same\n"
+      }
+    },
+    {
+      "name": "list",
+      "result": [
+        {
+          "title": "Instructions",
+          "path": "AGENTS.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Third",
+          "path": "Inbox/deep/third.md",
+          "editable": false,
+          "metadata": {
+            "container": "draft",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Heading",
+          "excerpt": "Body text.",
+          "path": "Inbox/first.md",
+          "editable": true,
+          "metadata": {
+            "title": "First",
+            "kind": "",
+            "status": "active",
+            "tags": [
+              "one",
+              "Two"
+            ]
+          }
+        },
+        {
+          "title": "Second",
+          "excerpt": "More body.",
+          "path": "Inbox/second.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Archived",
+          "excerpt": "Archived",
+          "path": "archive.md",
+          "editable": true,
+          "metadata": {
+            "container": "archive",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "path": "assets/image.png",
+          "editable": true
+        },
+        {
+          "path": "broken.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": null
+          },
+          "metadataError": "tags: unclosed tag list"
+        },
+        {
+          "path": "invalid.md",
+          "editable": true,
+          "metadata": {
+            "containerError": "fmn-container must be draft or archive; remove the field for Notes",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          },
+          "metadataError": "fmn-container must be draft or archive; remove the field for Notes"
+        },
+        {
+          "title": "Run",
+          "path": "run.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Same",
+          "path": "same-a.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Same",
+          "path": "same-b.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "collection ",
+      "result": [
+        {
+          "title": "Instructions",
+          "path": "AGENTS.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Third",
+          "path": "Inbox/deep/third.md",
+          "editable": false,
+          "metadata": {
+            "container": "draft",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Heading",
+          "excerpt": "Body text.",
+          "path": "Inbox/first.md",
+          "editable": true,
+          "metadata": {
+            "title": "First",
+            "kind": "",
+            "status": "active",
+            "tags": [
+              "one",
+              "Two"
+            ]
+          }
+        },
+        {
+          "title": "Second",
+          "excerpt": "More body.",
+          "path": "Inbox/second.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Archived",
+          "excerpt": "Archived",
+          "path": "archive.md",
+          "editable": true,
+          "metadata": {
+            "container": "archive",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "path": "assets/image.png",
+          "editable": true
+        },
+        {
+          "path": "broken.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": null
+          },
+          "metadataError": "tags: unclosed tag list"
+        },
+        {
+          "path": "invalid.md",
+          "editable": true,
+          "metadata": {
+            "containerError": "fmn-container must be draft or archive; remove the field for Notes",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          },
+          "metadataError": "fmn-container must be draft or archive; remove the field for Notes"
+        },
+        {
+          "title": "Run",
+          "path": "run.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Same",
+          "path": "same-a.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Same",
+          "path": "same-b.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "browse  in ",
+      "result": {
+        "visibility": "<hash 1>",
+        "path": "",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox",
+            "kind": "folder",
+            "title": "Inbox",
+            "count": 3
+          },
+          {
+            "path": "archive.md",
+            "kind": "note",
+            "title": "Archived",
+            "excerpt": "Archived",
+            "metadata": {
+              "container": "archive",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "broken.md",
+            "kind": "note",
+            "title": "broken",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": null
+            }
+          },
+          {
+            "path": "AGENTS.md",
+            "kind": "note",
+            "title": "Instructions",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "invalid.md",
+            "kind": "note",
+            "title": "invalid",
+            "metadata": {
+              "containerError": "fmn-container must be draft or archive; remove the field for Notes",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "run.md",
+            "kind": "note",
+            "title": "Run",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "same-a.md",
+            "kind": "note",
+            "title": "Same",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "same-b.md",
+            "kind": "note",
+            "title": "Same",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox in ",
+      "result": {
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep",
+            "kind": "folder",
+            "title": "deep",
+            "count": 1
+          },
+          {
+            "path": "Inbox/first.md",
+            "kind": "note",
+            "title": "First",
+            "excerpt": "Body text.",
+            "metadata": {
+              "title": "First",
+              "kind": "",
+              "status": "active",
+              "tags": [
+                "one",
+                "Two"
+              ]
+            }
+          },
+          {
+            "path": "Inbox/second.md",
+            "kind": "note",
+            "title": "Second",
+            "excerpt": "More body.",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox/ in ",
+      "result": {
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep",
+            "kind": "folder",
+            "title": "deep",
+            "count": 1
+          },
+          {
+            "path": "Inbox/first.md",
+            "kind": "note",
+            "title": "First",
+            "excerpt": "Body text.",
+            "metadata": {
+              "title": "First",
+              "kind": "",
+              "status": "active",
+              "tags": [
+                "one",
+                "Two"
+              ]
+            }
+          },
+          {
+            "path": "Inbox/second.md",
+            "kind": "note",
+            "title": "Second",
+            "excerpt": "More body.",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox/deep in ",
+      "result": {
+        "visibility": "<hash 1>",
+        "path": "Inbox/deep",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep/third.md",
+            "kind": "note",
+            "title": "Third",
+            "metadata": {
+              "container": "draft",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse missing in ",
+      "result": {
+        "visibility": "<hash 1>",
+        "path": "missing",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse ../x in ",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "collection all",
+      "result": [
+        {
+          "title": "Instructions",
+          "path": "AGENTS.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Third",
+          "path": "Inbox/deep/third.md",
+          "editable": false,
+          "metadata": {
+            "container": "draft",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Heading",
+          "excerpt": "Body text.",
+          "path": "Inbox/first.md",
+          "editable": true,
+          "metadata": {
+            "title": "First",
+            "kind": "",
+            "status": "active",
+            "tags": [
+              "one",
+              "Two"
+            ]
+          }
+        },
+        {
+          "title": "Second",
+          "excerpt": "More body.",
+          "path": "Inbox/second.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Archived",
+          "excerpt": "Archived",
+          "path": "archive.md",
+          "editable": true,
+          "metadata": {
+            "container": "archive",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "path": "assets/image.png",
+          "editable": true
+        },
+        {
+          "path": "broken.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": null
+          },
+          "metadataError": "tags: unclosed tag list"
+        },
+        {
+          "path": "invalid.md",
+          "editable": true,
+          "metadata": {
+            "containerError": "fmn-container must be draft or archive; remove the field for Notes",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          },
+          "metadataError": "fmn-container must be draft or archive; remove the field for Notes"
+        },
+        {
+          "title": "Run",
+          "path": "run.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Same",
+          "path": "same-a.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Same",
+          "path": "same-b.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "browse  in all",
+      "result": {
+        "collection": "all",
+        "visibility": "<hash 1>",
+        "path": "",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox",
+            "kind": "folder",
+            "title": "Inbox",
+            "count": 3
+          },
+          {
+            "path": "archive.md",
+            "kind": "note",
+            "title": "Archived",
+            "excerpt": "Archived",
+            "metadata": {
+              "container": "archive",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "broken.md",
+            "kind": "note",
+            "title": "broken",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": null
+            }
+          },
+          {
+            "path": "AGENTS.md",
+            "kind": "note",
+            "title": "Instructions",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "invalid.md",
+            "kind": "note",
+            "title": "invalid",
+            "metadata": {
+              "containerError": "fmn-container must be draft or archive; remove the field for Notes",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "run.md",
+            "kind": "note",
+            "title": "Run",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "same-a.md",
+            "kind": "note",
+            "title": "Same",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "same-b.md",
+            "kind": "note",
+            "title": "Same",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox in all",
+      "result": {
+        "collection": "all",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep",
+            "kind": "folder",
+            "title": "deep",
+            "count": 1
+          },
+          {
+            "path": "Inbox/first.md",
+            "kind": "note",
+            "title": "First",
+            "excerpt": "Body text.",
+            "metadata": {
+              "title": "First",
+              "kind": "",
+              "status": "active",
+              "tags": [
+                "one",
+                "Two"
+              ]
+            }
+          },
+          {
+            "path": "Inbox/second.md",
+            "kind": "note",
+            "title": "Second",
+            "excerpt": "More body.",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox/ in all",
+      "result": {
+        "collection": "all",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep",
+            "kind": "folder",
+            "title": "deep",
+            "count": 1
+          },
+          {
+            "path": "Inbox/first.md",
+            "kind": "note",
+            "title": "First",
+            "excerpt": "Body text.",
+            "metadata": {
+              "title": "First",
+              "kind": "",
+              "status": "active",
+              "tags": [
+                "one",
+                "Two"
+              ]
+            }
+          },
+          {
+            "path": "Inbox/second.md",
+            "kind": "note",
+            "title": "Second",
+            "excerpt": "More body.",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox/deep in all",
+      "result": {
+        "collection": "all",
+        "visibility": "<hash 1>",
+        "path": "Inbox/deep",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep/third.md",
+            "kind": "note",
+            "title": "Third",
+            "metadata": {
+              "container": "draft",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse missing in all",
+      "result": {
+        "collection": "all",
+        "visibility": "<hash 1>",
+        "path": "missing",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse ../x in all",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "collection notes",
+      "result": [
+        {
+          "title": "Instructions",
+          "path": "AGENTS.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Heading",
+          "excerpt": "Body text.",
+          "path": "Inbox/first.md",
+          "editable": true,
+          "metadata": {
+            "title": "First",
+            "kind": "",
+            "status": "active",
+            "tags": [
+              "one",
+              "Two"
+            ]
+          }
+        },
+        {
+          "title": "Second",
+          "excerpt": "More body.",
+          "path": "Inbox/second.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "path": "broken.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": null
+          },
+          "metadataError": "tags: unclosed tag list"
+        },
+        {
+          "path": "invalid.md",
+          "editable": true,
+          "metadata": {
+            "containerError": "fmn-container must be draft or archive; remove the field for Notes",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          },
+          "metadataError": "fmn-container must be draft or archive; remove the field for Notes"
+        },
+        {
+          "title": "Run",
+          "path": "run.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Same",
+          "path": "same-a.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        },
+        {
+          "title": "Same",
+          "path": "same-b.md",
+          "editable": true,
+          "metadata": {
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "browse  in notes",
+      "result": {
+        "collection": "notes",
+        "visibility": "<hash 1>",
+        "path": "",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox",
+            "kind": "folder",
+            "title": "Inbox",
+            "count": 2
+          },
+          {
+            "path": "broken.md",
+            "kind": "note",
+            "title": "broken",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": null
+            }
+          },
+          {
+            "path": "AGENTS.md",
+            "kind": "note",
+            "title": "Instructions",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "invalid.md",
+            "kind": "note",
+            "title": "invalid",
+            "metadata": {
+              "containerError": "fmn-container must be draft or archive; remove the field for Notes",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "run.md",
+            "kind": "note",
+            "title": "Run",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "same-a.md",
+            "kind": "note",
+            "title": "Same",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          },
+          {
+            "path": "same-b.md",
+            "kind": "note",
+            "title": "Same",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox in notes",
+      "result": {
+        "collection": "notes",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/first.md",
+            "kind": "note",
+            "title": "First",
+            "excerpt": "Body text.",
+            "metadata": {
+              "title": "First",
+              "kind": "",
+              "status": "active",
+              "tags": [
+                "one",
+                "Two"
+              ]
+            }
+          },
+          {
+            "path": "Inbox/second.md",
+            "kind": "note",
+            "title": "Second",
+            "excerpt": "More body.",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox/ in notes",
+      "result": {
+        "collection": "notes",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/first.md",
+            "kind": "note",
+            "title": "First",
+            "excerpt": "Body text.",
+            "metadata": {
+              "title": "First",
+              "kind": "",
+              "status": "active",
+              "tags": [
+                "one",
+                "Two"
+              ]
+            }
+          },
+          {
+            "path": "Inbox/second.md",
+            "kind": "note",
+            "title": "Second",
+            "excerpt": "More body.",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox/deep in notes",
+      "result": {
+        "collection": "notes",
+        "visibility": "<hash 1>",
+        "path": "Inbox/deep",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse missing in notes",
+      "result": {
+        "collection": "notes",
+        "visibility": "<hash 1>",
+        "path": "missing",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse ../x in notes",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "collection drafts",
+      "result": [
+        {
+          "title": "Third",
+          "path": "Inbox/deep/third.md",
+          "editable": false,
+          "metadata": {
+            "container": "draft",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "browse  in drafts",
+      "result": {
+        "collection": "drafts",
+        "visibility": "<hash 1>",
+        "path": "",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox",
+            "kind": "folder",
+            "title": "Inbox",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox in drafts",
+      "result": {
+        "collection": "drafts",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep",
+            "kind": "folder",
+            "title": "deep",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox/ in drafts",
+      "result": {
+        "collection": "drafts",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep",
+            "kind": "folder",
+            "title": "deep",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox/deep in drafts",
+      "result": {
+        "collection": "drafts",
+        "visibility": "<hash 1>",
+        "path": "Inbox/deep",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/deep/third.md",
+            "kind": "note",
+            "title": "Third",
+            "metadata": {
+              "container": "draft",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse missing in drafts",
+      "result": {
+        "collection": "drafts",
+        "visibility": "<hash 1>",
+        "path": "missing",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse ../x in drafts",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "collection archives",
+      "result": [
+        {
+          "title": "Archived",
+          "excerpt": "Archived",
+          "path": "archive.md",
+          "editable": true,
+          "metadata": {
+            "container": "archive",
+            "title": "",
+            "kind": "",
+            "status": "",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "browse  in archives",
+      "result": {
+        "collection": "archives",
+        "visibility": "<hash 1>",
+        "path": "",
+        "revision": "",
+        "items": [
+          {
+            "path": "archive.md",
+            "kind": "note",
+            "title": "Archived",
+            "excerpt": "Archived",
+            "metadata": {
+              "container": "archive",
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse Inbox in archives",
+      "result": {
+        "collection": "archives",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse Inbox/ in archives",
+      "result": {
+        "collection": "archives",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse Inbox/deep in archives",
+      "result": {
+        "collection": "archives",
+        "visibility": "<hash 1>",
+        "path": "Inbox/deep",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse missing in archives",
+      "result": {
+        "collection": "archives",
+        "visibility": "<hash 1>",
+        "path": "missing",
+        "revision": "",
+        "items": []
+      }
+    },
+    {
+      "name": "browse ../x in archives",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "collection other",
+      "result": null,
+      "error": "unknown note collection"
+    },
+    {
+      "name": "browse  in other",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "unknown note collection"
+    },
+    {
+      "name": "browse Inbox in other",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "unknown note collection"
+    },
+    {
+      "name": "browse Inbox/ in other",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "unknown note collection"
+    },
+    {
+      "name": "browse Inbox/deep in other",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "unknown note collection"
+    },
+    {
+      "name": "browse missing in other",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "unknown note collection"
+    },
+    {
+      "name": "browse ../x in other",
+      "result": {
+        "path": "",
+        "revision": "",
+        "items": null
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "collections",
+      "result": {
+        "version": 1,
+        "revision": "",
+        "visibility": "<hash 1>",
+        "notes": 8,
+        "drafts": 1,
+        "archives": 1,
+        "invalid": 1
+      }
+    },
+    {
+      "name": "find scoped",
+      "result": {
+        "revision": "",
+        "visibility": "<hash 1>",
+        "scopeId": "<hash 2>",
+        "entries": [
+          {
+            "title": "Heading",
+            "excerpt": "Body text.",
+            "path": "Inbox/first.md",
+            "editable": false,
+            "metadata": {
+              "title": "First",
+              "kind": "",
+              "status": "active",
+              "tags": [
+                "one",
+                "Two"
+              ]
+            }
+          },
+          {
+            "title": "Second",
+            "excerpt": "More body.",
+            "path": "Inbox/second.md",
+            "editable": false,
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "browse scoped",
+      "result": {
+        "scopeId": "<hash 2>",
+        "collection": "all",
+        "visibility": "<hash 1>",
+        "path": "Inbox",
+        "revision": "",
+        "items": [
+          {
+            "path": "Inbox/first.md",
+            "kind": "note",
+            "title": "First",
+            "excerpt": "Body text.",
+            "metadata": {
+              "title": "First",
+              "kind": "",
+              "status": "active",
+              "tags": [
+                "one",
+                "Two"
+              ]
+            }
+          },
+          {
+            "path": "Inbox/second.md",
+            "kind": "note",
+            "title": "Second",
+            "excerpt": "More body.",
+            "metadata": {
+              "title": "",
+              "kind": "",
+              "status": "",
+              "tags": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "visible history paths",
+      "result": {
+        "Inbox/first.md": true,
+        "Trash/x.md": true
+      }
+    },
+    {
+      "name": "visibility",
+      "result": "<hash 1>"
+    }
+  ]
+}

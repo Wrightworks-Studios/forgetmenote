@@ -1,0 +1,3 @@
+Synthetic speech fixture, generated locally with macOS say (Samantha, 140 words/minute, mono 16 kHz PCM). No personal recording.
+
+The blue notebook contains the project report. Our meeting starts on Tuesday at nine.

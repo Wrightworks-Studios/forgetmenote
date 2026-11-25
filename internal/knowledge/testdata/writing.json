@@ -1,0 +1,8 @@
+[
+  {"name":"metadata and destinations","markdown":"---\ntitle: Hidden words\n---\n# Chapter one\n\nRead [the guide](https://example.com) and **enjoy** it.\n\n```text\nHidden code\n```\n<!-- hidden -->\n","words":8},
+  {"name":"lists and tables","markdown":"- Alpha beta\n- Gamma delta\n\n| Name | Place |\n| --- | --- |\n| Lizzy | Home |\n","words":8},
+  {"name":"unicode and autolinks","markdown":"Café l’été 王国へ 42.\n\n<reader@example.com> <https://example.com>\n","words":4},
+  {"name":"inline HTML","markdown":"One<!-- hidden -->word and <em>two</em> words.\n","words":4},
+  {"name":"escaped punctuation and entities","markdown":"Use foo\\_bar and A&amp;B.\n","words":6},
+  {"name":"reference links and image alt","markdown":"Read [the guide][guide] and ![hidden words](image.png).\n\n[guide]: https://example.com\n","words":4}
+]

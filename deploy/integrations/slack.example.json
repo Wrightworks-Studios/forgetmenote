@@ -1,0 +1,22 @@
+{
+  "team": "REPLACE_WITH_SLACK_TEAM_ID",
+  "signingSecretFile": "/run/secrets/slack-signing",
+  "botTokenFile": "/run/secrets/slack-bot-token",
+  "users": {"REPLACE_WITH_SLACK_USER_ID": "REPLACE_WITH_FORGETMENOTE_USER_ID"},
+  "directMessages": {
+    "REPLACE_WITH_SLACK_USER_ID": {
+      "project": "operations", "readProjects": ["product-source", "analytics-profiles"],
+      "connections": ["warehouse", "logs"], "externalProcessing": true,
+      "threadHistory": true, "attachments": true
+    }
+  },
+  "channels": {
+    "REPLACE_WITH_CHANNEL_ID": {
+      "project": "operations", "readProjects": ["product-source", "analytics-profiles"],
+      "connections": ["warehouse", "logs"], "externalProcessing": true,
+      "shared": true, "audienceApproved": true,
+      "actors": ["REPLACE_WITH_FORGETMENOTE_USER_ID"],
+      "threadHistory": true, "attachments": true
+    }
+  }
+}

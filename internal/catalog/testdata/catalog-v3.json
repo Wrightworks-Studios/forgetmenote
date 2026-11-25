@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "users": null,
+  "projects": null,
+  "data": {
+    "users": {
+      "alice": {
+        "id": "alice",
+        "displayName": "Alice"
+      }
+    },
+    "projects": {
+      "default": {
+        "id": "default",
+        "name": "Legacy notes",
+        "members": {
+          "alice": "edit"
+        }
+      }
+    },
+    "activitySequence": 7,
+    "activity": [
+      {
+        "id": 7,
+        "time": "2026-10-09T00:00:00Z",
+        "actor": "alice",
+        "action": "legacy.test",
+        "target": "default",
+        "outcome": "succeeded"
+      }
+    ]
+  }
+}

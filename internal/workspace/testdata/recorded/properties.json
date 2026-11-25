@@ -1,0 +1,224 @@
+{
+  "properties": [
+    {
+      "name": "fixture",
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"locked.md\"\n  ]\n}\n",
+        "Archives/note.md": "---\r\nstatus: draft\r\ncustom:\r\n  nested: keep\r\n---\r\n# Exact text\r\n[Link](other.md)\r\n",
+        "assets/cover.png": "image",
+        "invalid.md": "---\nfmn-container: future\n---\nBody\n",
+        "locked.md": "# Locked\n",
+        "props.md": "---\ntitle: 'Old title'\nstatus: provisional\ntags:\n  - Fire\n  - 'old tongue'\ncustom:\n  nested: [keep, exactly]\n# keep this comment\n---\n\n# Human text\nExact body.\n"
+      }
+    },
+    {
+      "name": "container draft",
+      "result": {
+        "path": "Archives/note.md",
+        "content": "LS0tDQpzdGF0dXM6IGRyYWZ0DQpjdXN0b206DQogIG5lc3RlZDoga2VlcA0KZm1uLWNvbnRhaW5lcjogZHJhZnQNCi0tLQ0KIyBFeGFjdCB0ZXh0DQpbTGlua10ob3RoZXIubWQpDQo=",
+        "revision": "<rev 1>",
+        "version": "<rev 1>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update Archives/note.md\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "Archives/note.md": "---\r\nstatus: draft\r\ncustom:\r\n  nested: keep\r\nfmn-container: draft\r\n---\r\n# Exact text\r\n[Link](other.md)\r\n"
+      }
+    },
+    {
+      "name": "container archive",
+      "result": {
+        "path": "Archives/note.md",
+        "content": "LS0tDQpzdGF0dXM6IGRyYWZ0DQpjdXN0b206DQogIG5lc3RlZDoga2VlcA0KZm1uLWNvbnRhaW5lcjogYXJjaGl2ZQ0KLS0tDQojIEV4YWN0IHRleHQNCltMaW5rXShvdGhlci5tZCkNCg==",
+        "revision": "<rev 2>",
+        "version": "<rev 2>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 2>",
+          "parents": [
+            "<rev 1>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update Archives/note.md\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "Archives/note.md": "---\r\nstatus: draft\r\ncustom:\r\n  nested: keep\r\nfmn-container: archive\r\n---\r\n# Exact text\r\n[Link](other.md)\r\n"
+      }
+    },
+    {
+      "name": "container archive",
+      "result": {
+        "path": "Archives/note.md",
+        "content": "LS0tDQpzdGF0dXM6IGRyYWZ0DQpjdXN0b206DQogIG5lc3RlZDoga2VlcA0KZm1uLWNvbnRhaW5lcjogYXJjaGl2ZQ0KLS0tDQojIEV4YWN0IHRleHQNCltMaW5rXShvdGhlci5tZCkNCg==",
+        "revision": "<rev 2>",
+        "version": "<rev 2>"
+      }
+    },
+    {
+      "name": "container ",
+      "result": {
+        "path": "Archives/note.md",
+        "content": "LS0tDQpzdGF0dXM6IGRyYWZ0DQpjdXN0b206DQogIG5lc3RlZDoga2VlcA0KLS0tDQojIEV4YWN0IHRleHQNCltMaW5rXShvdGhlci5tZCkNCg==",
+        "revision": "<rev 3>",
+        "version": "<rev 3>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 3>",
+          "parents": [
+            "<rev 2>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update Archives/note.md\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "Archives/note.md": "---\r\nstatus: draft\r\ncustom:\r\n  nested: keep\r\n---\r\n# Exact text\r\n[Link](other.md)\r\n"
+      }
+    },
+    {
+      "name": "properties",
+      "result": {
+        "path": "props.md",
+        "content": "LS0tCnRpdGxlOiAiTmV3IHRpdGxlIgpzdGF0dXM6ICJjYW5vbiIKdGFnczogWyJGaXJlIiwicmVzZWFyY2giXQpjdXN0b206CiAgbmVzdGVkOiBba2VlcCwgZXhhY3RseV0KIyBrZWVwIHRoaXMgY29tbWVudAotLS0KCiMgSHVtYW4gdGV4dApFeGFjdCBib2R5Lgo=",
+        "revision": "<rev 4>",
+        "version": "<rev 4>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 4>",
+          "parents": [
+            "<rev 3>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update props.md\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "props.md": "---\ntitle: \"New title\"\nstatus: \"canon\"\ntags: [\"Fire\",\"research\"]\ncustom:\n  nested: [keep, exactly]\n# keep this comment\n---\n\n# Human text\nExact body.\n"
+      }
+    },
+    {
+      "name": "properties",
+      "result": {
+        "path": "props.md",
+        "content": "LS0tCnRpdGxlOiAiTmV3IHRpdGxlIgpzdGF0dXM6ICJjYW5vbiIKdGFnczogWyJGaXJlIiwicmVzZWFyY2giXQpjdXN0b206CiAgbmVzdGVkOiBba2VlcCwgZXhhY3RseV0KIyBrZWVwIHRoaXMgY29tbWVudApjb3ZlcjogImFzc2V0cy9jb3Zlci5wbmciCi0tLQoKIyBIdW1hbiB0ZXh0CkV4YWN0IGJvZHkuCg==",
+        "revision": "<rev 5>",
+        "version": "<rev 5>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 5>",
+          "parents": [
+            "<rev 4>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update props.md\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\n"
+        }
+      ],
+      "files": {
+        "props.md": "---\ntitle: \"New title\"\nstatus: \"canon\"\ntags: [\"Fire\",\"research\"]\ncustom:\n  nested: [keep, exactly]\n# keep this comment\ncover: \"assets/cover.png\"\n---\n\n# Human text\nExact body.\n"
+      }
+    },
+    {
+      "name": "properties",
+      "result": {
+        "path": "props.md",
+        "content": "LS0tCnRpdGxlOiAiTmV3IHRpdGxlIgpzdGF0dXM6ICJjYW5vbiIKdGFnczogWyJGaXJlIiwicmVzZWFyY2giXQpjdXN0b206CiAgbmVzdGVkOiBba2VlcCwgZXhhY3RseV0KIyBrZWVwIHRoaXMgY29tbWVudApjb3ZlcjogImFzc2V0cy9jb3Zlci5wbmciCi0tLQoKIyBIdW1hbiB0ZXh0CkV4YWN0IGJvZHkuCg==",
+        "revision": "<rev 5>",
+        "version": "<rev 5>"
+      }
+    },
+    {
+      "name": "an unknown container",
+      "error": "choose Notes, Drafts, or Archives"
+    },
+    {
+      "name": "a container outside the notebook",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a container of instructions",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a container of a missing note",
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "an invalid container to replace",
+      "error": "fmn-container must be draft or archive; remove the field for Notes"
+    },
+    {
+      "name": "a stale container",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "a locked container",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "stale properties",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "locked properties",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a missing cover",
+      "error": "cover image is unavailable; upload it first"
+    },
+    {
+      "name": "a cover outside assets",
+      "error": "cover must be an image path under assets/"
+    },
+    {
+      "name": "a multi-line title",
+      "error": "properties must be single-line text of at most 500 bytes"
+    },
+    {
+      "name": "properties of a file that is no note",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{{/* Account dialogs: setup, personal settings and knowledge. Rendered in place by index.html. */}}
+{{define "index-account-dialogs"}}<dialog id="setup-dialog" aria-labelledby="setup-title">
+      <div class="dialog-title"><h2 id="setup-title">Create your administrator account</h2><button data-close="setup-dialog" class="quiet">Later</button></div>
+      <p>Signed in with the recovery key.</p>
+      <form id="setup-form">
+        <label for="setup-username">Username</label><input id="setup-username" autocomplete="username" required pattern="[a-zA-Z][a-zA-Z0-9_.-]{0,63}" maxlength="64" />
+        <label for="setup-password">Password</label><input id="setup-password" type="password" autocomplete="new-password" required minlength="12" maxlength="256" />
+        <label for="setup-confirm">Confirm password</label><input id="setup-confirm" type="password" autocomplete="new-password" required minlength="12" maxlength="256" />
+        <button>Create administrator and sign in</button>
+      </form>
+      <p id="setup-status" role="status"></p>
+    </dialog>
+    <dialog id="account-dialog">
+      <div class="dialog-title"><h2>Your settings</h2><button data-close="account-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+      <nav class="category-navigation" data-settings-categories aria-label="Your settings categories"><button class="quiet" data-settings-category="appearance">Appearance</button><button class="quiet" data-settings-category="account">Account</button><button class="quiet" data-settings-category="connections">AI connections</button></nav>
+      <section data-settings-panel="appearance">
+      <h3>Appearance</h3>
+      <fieldset id="theme" class="theme-options">
+        <legend>Theme</legend>
+        <label><input type="radio" name="theme-choice" value="system" checked /><span class="theme-swatch swatch-system" aria-hidden="true"></span>System</label>
+        <label><input type="radio" name="theme-choice" value="light" /><span class="theme-swatch swatch-light" aria-hidden="true"></span>Light</label>
+        <label><input type="radio" name="theme-choice" value="dark" /><span class="theme-swatch swatch-dark" aria-hidden="true"></span>Dark</label>
+        <label><input type="radio" name="theme-choice" value="parchment" /><span class="theme-swatch swatch-parchment" aria-hidden="true"></span>Parchment</label>
+      </fieldset>
+      <div class="appearance-fields">
+        <div><label for="reading-font">Reading font</label><select id="reading-font"><option value="serif">Source Serif 4 (default)</option><option value="onest">Onest</option><option value="system">System sans</option></select></div>
+        <div><label for="font-size">Reading size</label><select id="font-size"><option value="17px">Compact</option><option value="19px" selected>Comfortable</option><option value="22px">Large</option></select></div>
+      </div>
+      <p class="small">Saved in this browser.</p>
+      </section>
+      <section data-settings-panel="account">
+      <h3>Account</h3>
+      <p id="account-summary"></p>
+      <button id="setup-open" hidden>Create your administrator account</button>
+      <p id="github-summary" class="small" hidden></p>
+      <details id="identity-details" class="settings-details">
+      <summary>Sign-in and authorship details</summary>
+      <h3>Git authorship</h3>
+      <p id="account-author"></p>
+      <p id="account-local" class="small"></p>
+      <h3>Sign-in identity</h3>
+      <p id="account-user"></p><p id="oidc-identities" class="small"></p>
+      <form method="post" action="/account/oidc/link" id="oidc-link" hidden><button>Link OIDC to this account</button></form>
+      </details>
+      <details id="password-settings" class="settings-details" hidden>
+      <summary>Change password</summary>
+      <form id="password-form" hidden>
+        <label for="password-current">Current password</label><input id="password-current" type="password" autocomplete="current-password" required maxlength="256" />
+        <label for="password-new">New password</label><input id="password-new" type="password" autocomplete="new-password" required minlength="12" maxlength="256" />
+        <label for="password-confirm">Confirm new password</label><input id="password-confirm" type="password" autocomplete="new-password" required minlength="12" maxlength="256" />
+        <button>Change password and sign out</button>
+        <p class="small">Signs out all browser and AI sessions.</p>
+      </form>
+      </details>
+      <button id="sessions-revoke" class="quiet">Revoke your browser and AI sessions</button>
+      <details id="github-details" class="settings-details">
+      <summary>GitHub attribution</summary>
+      <p id="github-connection"></p>
+      <button id="github-connect" hidden>Connect GitHub</button>
+      <button id="github-disconnect" class="quiet" hidden>Disconnect GitHub</button>
+      <form id="github-attribution-form" hidden>
+        <label><input type="checkbox" id="github-attribution-enabled"> Use GitHub attribution for future commits</label>
+        <label for="github-email">GitHub noreply address</label>
+        <input id="github-email" type="email" autocomplete="off" spellcheck="false">
+        <p class="small"><a href="https://github.com/settings/emails" target="_blank" rel="noopener noreferrer">Find your GitHub noreply address</a></p>
+        <button class="primary">Save attribution</button>
+      </form>
+      </details>
+      </section>
+      <section data-settings-panel="connections">
+      <button id="jev-settings-open" class="quiet">Evidence checks</button>
+      <section id="ai-connection">
+      <h3>Connect your AI</h3>
+      <a href="/account/connect">Choose your client and connect</a>
+
+      </section>
+      </section>
+      <p id="account-status" role="status"></p>
+    </dialog>
+    <dialog id="knowledge-dialog" aria-labelledby="knowledge-title">
+      <div class="dialog-title"><h2 id="knowledge-title">Knowledge</h2><button data-close="knowledge-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+      <nav id="review-sections" class="category-navigation" aria-label="Review sections" hidden><button class="quiet" data-review-section="findings">Findings</button><button class="quiet" data-review-section="proposals">Proposed changes</button><button class="quiet" id="jev-review-open" data-review-section="checks">Notebook checks</button><button class="quiet" data-review-section="activity">Activity</button></nav>
+      <p id="knowledge-error" role="alert" hidden></p><div id="knowledge-body"></div><div id="review-checks" hidden></div>
+    </dialog>{{end}}

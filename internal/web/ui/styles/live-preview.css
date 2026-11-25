@@ -1,0 +1,66 @@
+/* The note editor: one CodeMirror view (#editor is its content) in every mode.
+   Visual is the live preview, set in the reader's type and measure; Source and
+   Side by side show the Markdown in monospace (reader.css #editor). */
+#editor-panes { display: flex; flex: 1; min-width: 0; }
+#note-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+}
+#note-editor .cm-editor { flex: 1; }
+#editing[data-format="visual"] #editor {
+  font: var(--reading-size) / 1.65 var(--reading-font);
+  /* As .prose: unhinted glyph advances keep the reading fonts' spacing. */
+  text-rendering: geometricPrecision;
+  padding-bottom: 96px;
+}
+/* Text starts at the reading column's edge, as in the reader. */
+#editing[data-format="visual"] #editor .cm-line { padding-inline: 0; overflow-wrap: anywhere; }
+#editing[data-format="visual"] #editor .cm-line.cm-lp-list { padding-left: var(--lp-hang); }
+#editing[data-format="visual"] #editor .cm-line.cm-lp-h4,
+#editing[data-format="visual"] #editor .cm-line.cm-lp-h5,
+#editing[data-format="visual"] #editor .cm-line.cm-lp-h6 { line-height: 1.4; padding-top: 0.4em; }
+/* Inline marks, code, quotes and tables as the reader sets them (reader.css). */
+#editing[data-format="visual"] #editor .cm-lp-strong { font-weight: 600; }
+#editing[data-format="visual"] #editor .cm-lp-inline-code {
+  font: 0.82em/1.6 ui-monospace, monospace;
+  padding: 2px 5px;
+  color: inherit;
+  background: var(--sidebar);
+  border-radius: var(--radius-small);
+}
+#editing[data-format="visual"] #editor .cm-line.cm-lp-quote {
+  --lp-quote-step: 24px;
+  color: var(--text);
+  font-style: italic;
+  padding-left: calc(var(--lp-quote-depth) * var(--lp-quote-step));
+  background-image: repeating-linear-gradient(90deg, var(--leaf) 0 2px, transparent 2px var(--lp-quote-step));
+  background-size: calc(var(--lp-quote-depth) * var(--lp-quote-step)) 100%;
+}
+#editing[data-format="visual"] #editor .cm-line.cm-lp-quote.cm-lp-list { padding-left: calc(var(--lp-quote-depth) * var(--lp-quote-step) + var(--lp-hang)); }
+/* A table's own width never widens the note: without inline-size containment
+   its min-content width becomes the content element's (a flex item), and on a
+   phone every line then wraps wider than the screen. The table scrolls in its
+   box instead. */
+#editing[data-format="visual"] #editor .cm-lp-table-wrap { margin: 0; padding: 0.75em 0; contain: inline-size; }
+#editing[data-format="visual"] #editor .cm-lp-table { width: 100%; table-layout: auto; border-collapse: collapse; font-size: 0.9em; line-height: 1.55; overflow-wrap: normal; word-break: normal; }
+#editing[data-format="visual"] #editor .cm-lp-table :is(td, th) {
+  min-width: 6rem;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+#editing[data-format="visual"] #editor .cm-lp-table :is(td, th):first-child { padding-left: 0; }
+#editing[data-format="visual"] #editor .cm-lp-table :is(td, th):last-child { padding-right: 0; }
+#editing[data-format="visual"] #editor .cm-lp-table th { border-bottom-color: var(--control-border); font-weight: 600; white-space: nowrap; }
+#editing[data-format="visual"] #editor .cm-lp-table :is(td, th).numeric { text-align: right; font-variant-numeric: tabular-nums; }
+#editing[data-format="visual"] #editor .cm-lp-hr { margin: var(--space-6) 0; border-top: 1px solid var(--border); }
+@media (max-width: 720px) {
+  #editing[data-format="visual"] #editor { padding-inline: 20px; padding-bottom: 64px; }
+}
+/* Side by side needs room for two columns (decision 2). */
+@media (max-width: 899px) { #format-split { display: none; } }

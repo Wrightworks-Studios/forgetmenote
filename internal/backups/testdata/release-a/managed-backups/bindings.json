@@ -1,0 +1,90 @@
+{
+  "version": 2,
+  "bindings": {
+    "journal": {
+      "project": "journal",
+      "actor": "alice",
+      "owner": "local",
+      "epoch": 0,
+      "authority": 0,
+      "installation": 7,
+      "repository": {
+        "id": 42,
+        "full_name": "example/backup",
+        "default_branch": "main",
+        "size": 0,
+        "permissions": {
+          "push": true,
+          "admin": false
+        },
+        "private": true,
+        "description": ""
+      },
+      "branch": "backups/journal",
+      "generation": 2,
+      "connected": true,
+      "enabled": false,
+      "request": 1,
+      "lastSuccess": "0001-01-01T00:00:00Z",
+      "lastAttempt": "2026-11-04T05:02:34.466262Z",
+      "error": "Backup upload failed; the worker will retry"
+    },
+    "notes": {
+      "handoff": "cccccccccccccccccccccccccccccccc",
+      "authorityTarget": true,
+      "project": "notes",
+      "actor": "alice",
+      "owner": "local",
+      "epoch": 2,
+      "authority": 1,
+      "installation": 7,
+      "repository": {
+        "id": 42,
+        "full_name": "example/backup",
+        "default_branch": "main",
+        "size": 0,
+        "permissions": {
+          "push": true,
+          "admin": false
+        },
+        "private": true,
+        "description": ""
+      },
+      "branch": "main",
+      "generation": 2,
+      "connected": true,
+      "enabled": false,
+      "request": 1,
+      "lastRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lastSuccess": "2026-11-04T05:02:34.443522Z",
+      "lastAttempt": "2026-11-04T05:02:34.43032Z"
+    },
+    "old-notes": {
+      "project": "old-notes",
+      "actor": "alice",
+      "owner": "local",
+      "epoch": 0,
+      "authority": 0,
+      "installation": 7,
+      "repository": {
+        "id": 42,
+        "full_name": "example/backup",
+        "default_branch": "main",
+        "size": 0,
+        "permissions": {
+          "push": true,
+          "admin": false
+        },
+        "private": true,
+        "description": ""
+      },
+      "branch": "backups/old",
+      "generation": 2,
+      "connected": false,
+      "enabled": false,
+      "request": 1,
+      "lastSuccess": "0001-01-01T00:00:00Z",
+      "lastAttempt": "0001-01-01T00:00:00Z"
+    }
+  }
+}

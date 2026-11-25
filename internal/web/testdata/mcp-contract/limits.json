@@ -1,0 +1,271 @@
+[
+  {
+    "step": "create a notebook for limits",
+    "tool": "create_project",
+    "as": "admin",
+    "arguments": {
+      "id": "contract-limits",
+      "name": "Limits notebook"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "step": "create the note",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Log\n\nEntry 0.\n",
+      "path": "log.md",
+      "project": "contract-limits",
+      "revision": ""
+    },
+    "result": {
+      "content": "# Log\n\nEntry 0.\n",
+      "html": "<h1 id=\"h-log\">Log</h1>\n<p>Entry 0.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "log.md",
+      "revision": "REV1",
+      "title": "Log",
+      "version": "REV1"
+    }
+  },
+  {
+    "step": "the note's 52 revisions, oldest first",
+    "check": [
+      "REV1",
+      "REV2",
+      "REV3",
+      "REV4",
+      "REV5",
+      "REV6",
+      "REV7",
+      "REV8",
+      "REV9",
+      "REV10",
+      "REV11",
+      "REV12",
+      "REV13",
+      "REV14",
+      "REV15",
+      "REV16",
+      "REV17",
+      "REV18",
+      "REV19",
+      "REV20",
+      "REV21",
+      "REV22",
+      "REV23",
+      "REV24",
+      "REV25",
+      "REV26",
+      "REV27",
+      "REV28",
+      "REV29",
+      "REV30",
+      "REV31",
+      "REV32",
+      "REV33",
+      "REV34",
+      "REV35",
+      "REV36",
+      "REV37",
+      "REV38",
+      "REV39",
+      "REV40",
+      "REV41",
+      "REV42",
+      "REV43",
+      "REV44",
+      "REV45",
+      "REV46",
+      "REV47",
+      "REV48",
+      "REV49",
+      "REV50",
+      "REV51",
+      "REV52"
+    ]
+  },
+  {
+    "step": "note history lists the newest 50",
+    "check": {
+      "count": 50,
+      "newest": "REV52",
+      "oldest": "REV3",
+      "tool": "note_history"
+    }
+  },
+  {
+    "step": "notebook history lists the newest 50",
+    "check": {
+      "count": 50,
+      "newest": "REV52",
+      "oldest": "REV3",
+      "tool": "note_history"
+    }
+  },
+  {
+    "step": "changes since the first revision list all 51 later commits",
+    "check": {
+      "count": 51,
+      "files": [
+        {
+          "kind": "modified",
+          "path": "log.md"
+        }
+      ],
+      "newest": "REV52",
+      "oldest": "REV2",
+      "tool": "read_project_changes",
+      "truncated": false
+    }
+  },
+  {
+    "step": "create a second note",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Other\n",
+      "path": "other.md",
+      "project": "contract-limits",
+      "revision": ""
+    },
+    "result": {
+      "content": "# Other\n",
+      "html": "<h1 id=\"h-other\">Other</h1>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "other.md",
+      "revision": "REV53",
+      "title": "Other",
+      "version": "REV53"
+    }
+  },
+  {
+    "step": "a save from an older revision of a note unchanged since",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Log\n\nEntry 52.\n",
+      "path": "log.md",
+      "project": "contract-limits",
+      "revision": "REV52"
+    },
+    "result": {
+      "content": "# Log\n\nEntry 52.\n",
+      "html": "<h1 id=\"h-log\">Log</h1>\n<p>Entry 52.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "log.md",
+      "revision": "REV54",
+      "title": "Log",
+      "version": "REV54"
+    }
+  },
+  {
+    "step": "a save from that revision again conflicts",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Log\n\nEntry 53.\n",
+      "path": "log.md",
+      "project": "contract-limits",
+      "revision": "REV52"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "a comment from an older revision",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "path": "other.md",
+      "project": "contract-limits",
+      "revision": "REV53",
+      "text": "From an older revision."
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "properties from an older revision of a note unchanged since",
+    "tool": "set_note_properties",
+    "as": "admin",
+    "arguments": {
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Other"
+      },
+      "path": "other.md",
+      "project": "contract-limits",
+      "revision": "REV53"
+    },
+    "result": {
+      "content": "---\ntitle: \"Other\"\n---\n# Other\n",
+      "html": "<h1 id=\"h-other\">Other</h1>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": "Other"
+      },
+      "path": "other.md",
+      "revision": "REV55",
+      "title": "Other",
+      "version": "REV55"
+    }
+  },
+  {
+    "step": "a lock from an older revision",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": false,
+      "path": "other.md",
+      "project": "contract-limits",
+      "revision": "REV53"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "a move from an older revision",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "other.md",
+      "project": "contract-limits",
+      "revision": "REV53",
+      "to": "other-moved.md"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "Trash from an older revision",
+    "tool": "trash_notes",
+    "as": "admin",
+    "arguments": {
+      "paths": [
+        "log.md"
+      ],
+      "project": "contract-limits",
+      "revision": "REV53"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  }
+]

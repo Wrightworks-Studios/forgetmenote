@@ -1,0 +1,27 @@
+{
+  "retryAt": "0001-01-01T00:00:00Z",
+  "version": 5,
+  "id": "664034a2c08e9cdde96cc5e3fe6a89d5d54c91284fe30916872368d3b283a8f0",
+  "spec": {
+    "id": "daily",
+    "kind": "digest",
+    "actor": "robot",
+    "project": "notes",
+    "output": "report.md",
+    "calls": [
+      {
+        "connection": "metrics",
+        "operation": "read",
+        "arguments": {
+          "days": 1,
+          "label": "Café “weekly” \u003cb\u003e\u0026\u003c/b\u003e"
+        }
+      }
+    ]
+  },
+  "state": "failed",
+  "created": "2026-11-04T05:00:38.479893Z",
+  "updated": "2026-11-04T05:00:38.495804Z",
+  "error": "metrics connection refused: 503 \u003cService Unavailable\u003e",
+  "attempts": 1
+}

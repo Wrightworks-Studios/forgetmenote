@@ -1,0 +1,362 @@
+[
+  {
+    "step": "no attachments yet",
+    "tool": "list_attachments",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": []
+  },
+  {
+    "step": "upload an image",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BMgeHgAAAAIAAAAAAAADAA0uAQtI8sQBAAAAAElFTkSuQmCC",
+      "path": "assets/cover.png",
+      "project": "contract",
+      "revision": ""
+    },
+    "result": {
+      "path": "assets/cover.png",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "uploading over an existing file needs its revision",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BB4eyAAAAAIAAAAAAAADAAvaAQvRfMTZAAAAAElFTkSuQmCC",
+      "path": "assets/cover.png",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "an attachment outside assets/ is refused",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BMgeHgAAAAIAAAAAAAADAA0uAQtI8sQBAAAAAElFTkSuQmCC",
+      "path": "manuscript/cover.png",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "attachment path must be under assets/ with a supported media extension"
+  },
+  {
+    "step": "an unsupported media type is refused",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "IyEvYmluL3NoCg==",
+      "path": "assets/run.sh",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "attachment path must be under assets/ with a supported media extension"
+  },
+  {
+    "step": "invalid base64 is refused",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "not base64!",
+      "path": "assets/broken.png",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "data must be valid base64"
+  },
+  {
+    "step": "a reader cannot upload",
+    "tool": "upload_attachment",
+    "as": "reader",
+    "arguments": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BMgeHgAAAAIAAAAAAAADAA0uAQtI8sQBAAAAAElFTkSuQmCC",
+      "path": "assets/reader.png",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "list attachments",
+    "tool": "list_attachments",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": [
+      {
+        "editable": true,
+        "path": "assets/cover.png"
+      }
+    ]
+  },
+  {
+    "step": "read the first chunk",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "limit": 32,
+      "path": "assets/cover.png",
+      "project": "contract"
+    },
+    "result": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jo=",
+      "encoding": "base64",
+      "mimeType": "image/png",
+      "nextOffset": 32,
+      "offset": 0,
+      "revision": "REV1",
+      "sha256": "daf5e4fcbe03b0bd10d6322813fa99305e7d375e2c1118551e41a5335ccb7281",
+      "total": 84
+    }
+  },
+  {
+    "step": "read the rest at the pinned revision",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "offset": 32,
+      "path": "assets/cover.png",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "result": {
+      "data": "cwAAABtJREFUeJwADgDx/wTIHh4AAAACAAAAAAAAAwANLgELSPLEAQAAAABJRU5ErkJggg==",
+      "encoding": "base64",
+      "mimeType": "image/png",
+      "nextOffset": 84,
+      "offset": 32,
+      "revision": "REV1",
+      "sha256": "daf5e4fcbe03b0bd10d6322813fa99305e7d375e2c1118551e41a5335ccb7281",
+      "total": 84
+    }
+  },
+  {
+    "step": "a later chunk needs the revision",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "offset": 32,
+      "path": "assets/cover.png",
+      "project": "contract"
+    },
+    "error": "provide a supported assets/ path and pin revision after the first chunk"
+  },
+  {
+    "step": "an oversized chunk limit is refused",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "limit": 262145,
+      "path": "assets/cover.png",
+      "project": "contract"
+    },
+    "error": "invalid offset or limit; maximum chunk size is 262144 bytes"
+  },
+  {
+    "step": "read a missing attachment",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "path": "assets/missing.png",
+      "project": "contract"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "replace the image with its revision",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BB4eyAAAAAIAAAAAAAADAAvaAQvRfMTZAAAAAElFTkSuQmCC",
+      "path": "assets/cover.png",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "result": {
+      "path": "assets/cover.png",
+      "revision": "REV2"
+    }
+  },
+  {
+    "step": "read the old image at its first revision",
+    "tool": "read_attachment",
+    "as": "admin",
+    "arguments": {
+      "path": "assets/cover.png",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "result": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAG0lEQVR4nAAOAPH/BMgeHgAAAAIAAAAAAAADAA0uAQtI8sQBAAAAAElFTkSuQmCC",
+      "encoding": "base64",
+      "mimeType": "image/png",
+      "nextOffset": 84,
+      "offset": 0,
+      "revision": "REV1",
+      "sha256": "daf5e4fcbe03b0bd10d6322813fa99305e7d375e2c1118551e41a5335ccb7281",
+      "total": 84
+    }
+  },
+  {
+    "step": "read chapter one before setting a cover",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000001",
+        "kind": "",
+        "status": "draft",
+        "tags": [
+          "fiction",
+          "draft"
+        ],
+        "title": "Chapter one"
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV2",
+      "title": "Chapter one",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "use the image as a cover",
+    "tool": "set_note_properties",
+    "as": "admin",
+    "arguments": {
+      "metadata": {
+        "cover": "assets/cover.png",
+        "kind": "",
+        "status": "draft",
+        "tags": [
+          "fiction",
+          "draft"
+        ],
+        "title": "Chapter one"
+      },
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\ncover: \"assets/cover.png\"\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "metadata": {
+        "cover": "assets/cover.png",
+        "id": "c0ffee00000000000000000000000001",
+        "kind": "",
+        "status": "draft",
+        "tags": [
+          "fiction",
+          "draft"
+        ],
+        "title": "Chapter one"
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV4",
+      "title": "Chapter one",
+      "version": "REV4"
+    }
+  },
+  {
+    "step": "browse shows the cover",
+    "tool": "browse_folder",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript",
+      "project": "contract"
+    },
+    "result": {
+      "items": [
+        {
+          "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+          "kind": "note",
+          "metadata": {
+            "id": "ID1",
+            "kind": "",
+            "status": "draft",
+            "tags": [
+              "fiction",
+              "draft"
+            ],
+            "title": "Chapter one"
+          },
+          "path": "manuscript/chapter-1-copy.md",
+          "title": "Chapter one"
+        },
+        {
+          "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
+          "kind": "note",
+          "metadata": {
+            "cover": "assets/cover.png",
+            "id": "c0ffee00000000000000000000000001",
+            "kind": "",
+            "status": "draft",
+            "tags": [
+              "fiction",
+              "draft"
+            ],
+            "title": "Chapter one"
+          },
+          "path": "manuscript/chapter-1.md",
+          "title": "Chapter one"
+        },
+        {
+          "excerpt": "The captain read the whale notes twice. Departure They sailed before the whale returned.",
+          "kind": "note",
+          "metadata": {
+            "id": "c0ffee00000000000000000000000002",
+            "kind": "",
+            "status": "review",
+            "tags": [
+              "fiction"
+            ],
+            "title": "Chapter two: departure"
+          },
+          "path": "manuscript/chapter-2.md",
+          "title": "Chapter two: departure"
+        }
+      ],
+      "path": "manuscript",
+      "revision": "REV4",
+      "visibility": "HASH1"
+    }
+  },
+  {
+    "step": "an attachment over the file limit is refused",
+    "tool": "upload_attachment",
+    "as": "admin",
+    "arguments": {
+      "data": "<2844 chars, normalized sha256 f7b92ffe483a968f>",
+      "path": "assets/large.png",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "attachment exceeds 32 MiB"
+  },
+  {
+    "step": "a note over the file limit is refused",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "<2409 chars, normalized sha256 0f52903852dc0c96>",
+      "path": "large.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "file exceeds FMN_LIMIT_FILE_BYTES"
+  }
+]

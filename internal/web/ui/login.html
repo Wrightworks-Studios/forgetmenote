@@ -1,0 +1,38 @@
+{{$brand := brand}}
+<!doctype html>
+<html lang="en" data-instance-name="{{$brand.Name}}">
+  <head>{{template "brand-icons" $brand}}
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sign in · {{$brand.Name}}</title>
+    <link rel="preload" href="{{asset "/static/fonts/Onest.woff2"}}" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="{{asset "/static/fonts/Fraunces.woff2"}}" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="{{asset "/static/style.css"}}" />
+  </head>
+  <body class="login">
+    <main>
+      <h1 class="login-brand"><img src="{{$brand.Icon}}" width="40" height="40" alt="" />{{$brand.Name}}</h1>
+      {{if .OIDC}}<form method="post" action="/auth/oidc/login"><input type="hidden" name="next" value="{{.Next}}"><button class="primary">Sign in with your identity provider</button></form>{{end}}
+ {{if .Local}}<form method="post" action="/auth/password/login">
+        <input type="hidden" name="next" value="{{.Next}}" />
+        <label for="username">Username</label><input id="username" name="username" autocomplete="username" required maxlength="64" />
+        <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256" />
+        <button class="{{if .OIDC}}quiet{{else}}primary{{end}}">Sign in</button>
+      </form><p class="small">Contact your administrator for an account or password reset.</p>{{end}}
+      {{if .Proxy}}<p>Sign in through your configured authentication proxy. Local password sign-in is disabled.</p>{{end}}
+ <details><summary>Recovery administrator<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><form method="post" action="/login">
+        <input type="hidden" name="next" value="{{.Next}}" /><label for="token"
+          >Access key</label
+        ><input
+          id="token"
+          name="token"
+          type="password"
+          autocomplete="current-password"
+          required
+          autofocus
+        /><button class="{{if or .OIDC .Local}}quiet{{else}}primary{{end}}">Open notebook</button>
+      </form>
+      <small>Use the access key from your server’s admin.token file.</small></details>
+    </main>
+  </body>
+</html>

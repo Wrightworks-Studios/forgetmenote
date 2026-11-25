@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "database-recipe", "kind": "recipe", "actor": "REPLACE_WITH_SERVICE_ACCOUNT_ID",
+      "project": "profiles", "recipe": "database-health.md", "intervalSeconds": 3600,
+      "connections": ["warehouse"], "timeoutSeconds": 120,
+      "usage": {"errors":true,"slowMs":5000,"cooldownSeconds":3600},
+      "checks": [{
+        "name": "read-only-connection", "block": "read-only",
+        "maxDurationMs": 5000,
+        "call": {"connection": "warehouse", "operation": "query", "arguments": {}},
+        "assertions": [{"pointer": "/rows/0/0", "equals": "on"}]
+      }]
+    },
+    {
+      "id": "daily-operations", "kind": "digest", "actor": "REPLACE_WITH_SERVICE_ACCOUNT_ID",
+      "project": "operations", "output": "daily-status.md", "intervalSeconds": 86400,
+      "connections": ["cluster"], "calls": [{"connection": "cluster", "operation": "pods", "arguments": {}}]
+    }
+  ]
+}

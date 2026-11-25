@@ -1,0 +1,18 @@
+/* Bundled by esbuild in this order; the order is the cascade. Each file holds one
+   contiguous part of the stylesheet, named for what it mostly styles. */
+@import "./styles/base.css";
+@import "./styles/shell.css";
+@import "./styles/reader.css";
+@import "./styles/dialogs.css";
+@import "./styles/editor.css";
+@import "./styles/live-preview.css";
+@import "./styles/side-by-side.css";
+@import "./styles/settings.css";
+@import "./styles/library.css";
+@import "./styles/people.css";
+@import "./styles/chat.css";
+@import "./styles/reading-room.css";
+@import "./styles/tools.css";
+@import "./styles/pages.css";
+@import "./styles/wiki.css";
+@import "./styles/focus.css";

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "fonts": [
+    {
+      "source": "Fraunces.ttf",
+      "compressed": "Fraunces.woff2",
+      "sourceSHA256": "177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb",
+      "compressedSHA256": "7dc0dd18aeeae3204d5cc26679b5f41d8be1e622bd3bd39fef574346c99508e8",
+      "sourceBytes": 360440,
+      "compressedBytes": 195012,
+      "glyphs": 698
+    },
+    {
+      "source": "Onest.ttf",
+      "compressed": "Onest.woff2",
+      "sourceSHA256": "966c5c29b4755da84b6854d5c21dd4eaa2420225d0e9874de602de176d4a9f31",
+      "compressedSHA256": "cb4d777c1b146887a2902ef01ba91cb3fb0c85e9804e95794eb289a1966c0782",
+      "sourceBytes": 193056,
+      "compressedBytes": 83980,
+      "glyphs": 876
+    },
+    {
+      "source": "SourceSerif4-Italic.ttf",
+      "compressed": "SourceSerif4-Italic.woff2",
+      "sourceSHA256": "6a059a64838978d54e8fab71ed86b0d82e948c0e12b2664d0c15166326dcff82",
+      "compressedSHA256": "546d8c22ff1045f64a7445b1d41d3fa054589afe90d872382f712abe444c9158",
+      "sourceBytes": 850036,
+      "compressedBytes": 345772,
+      "glyphs": 1093
+    },
+    {
+      "source": "SourceSerif4-Roman.ttf",
+      "compressed": "SourceSerif4-Roman.woff2",
+      "sourceSHA256": "14d360ee1b76655da9276628b229e11671bc1f5d1083636144db6677d452cf55",
+      "compressedSHA256": "11267224fc8bf91f48325914eebfe713f33d67b4a532df32fc459e8003d2b9f1",
+      "sourceBytes": 1204208,
+      "compressedBytes": 427956,
+      "glyphs": 1464
+    }
+  ]
+}

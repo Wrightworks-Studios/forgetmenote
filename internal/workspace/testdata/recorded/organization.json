@@ -1,0 +1,432 @@
+{
+  "organization": [
+    {
+      "name": "fixture",
+      "files": {
+        "a.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "backlink.md": "[note](notes/m.md)\n",
+        "comments/<discussion of notes/m.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "dest/index.md": "# Destination\n",
+        "links.md": "[current](b.md)\n",
+        "notes/m.md": "# Original\n[image](../assets/picture.png)\n",
+        "relate.md": "# Relate\n",
+        "tag.md": "# Tag me\n",
+        "target.md": "# Target\n"
+      }
+    },
+    {
+      "name": "a tag preview",
+      "result": {
+        "revision": "<base>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "tag.md",
+            "before": "# Tag me\n",
+            "after": "---\ntags: [\"workshop\"]\n---\n# Tag me\n"
+          }
+        ]
+      }
+    },
+    {
+      "name": "tags",
+      "result": {
+        "revision": "<rev 1>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "tag.md",
+            "before": "# Tag me\n",
+            "after": "---\ntags: [\"workshop\"]\n---\n# Tag me\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: tags\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 1>\nGitnotes-Request: <hash 2>\n"
+        }
+      ],
+      "files": {
+        "tag.md": "---\ntags: [\"workshop\"]\n---\n# Tag me\n"
+      }
+    },
+    {
+      "name": "a replay",
+      "result": {
+        "revision": "<rev 1>",
+        "replayed": true,
+        "files": [
+          {
+            "path": "tag.md",
+            "before": "# Tag me\n",
+            "after": "---\ntags: [\"workshop\"]\n---\n# Tag me\n"
+          }
+        ]
+      }
+    },
+    {
+      "name": "links",
+      "result": {
+        "revision": "<rev 2>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "relate.md",
+            "before": "# Relate\n",
+            "after": "# Relate\n\n\nRelated: [Related note](<target.md>)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 2>",
+          "parents": [
+            "<rev 1>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: links\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 3>\nGitnotes-Request: <hash 4>\n"
+        }
+      ],
+      "files": {
+        "relate.md": "# Relate\n\n\nRelated: [Related note](<target.md>)\n"
+      }
+    },
+    {
+      "name": "a move preview",
+      "result": {
+        "revision": "<rev 2>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "backlink.md",
+            "before": "[note](notes/m.md)\n",
+            "after": "[note](dest/m.md)\n"
+          },
+          {
+            "path": "comments/<discussion of notes/m.md>.json",
+            "before": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+            "after": null
+          },
+          {
+            "path": "comments/<hash 5>.json",
+            "before": null,
+            "after": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+          },
+          {
+            "path": "dest/m.md",
+            "before": null,
+            "after": "# Original\n[image](../assets/picture.png)\n"
+          },
+          {
+            "path": "notes/m.md",
+            "before": "# Original\n[image](../assets/picture.png)\n",
+            "after": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a move",
+      "result": {
+        "revision": "<rev 3>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "backlink.md",
+            "before": "[note](notes/m.md)\n",
+            "after": "[note](dest/m.md)\n"
+          },
+          {
+            "path": "comments/<discussion of notes/m.md>.json",
+            "before": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+            "after": null
+          },
+          {
+            "path": "comments/<hash 5>.json",
+            "before": null,
+            "after": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+          },
+          {
+            "path": "dest/m.md",
+            "before": null,
+            "after": "# Original\n[image](../assets/picture.png)\n"
+          },
+          {
+            "path": "notes/m.md",
+            "before": "# Original\n[image](../assets/picture.png)\n",
+            "after": null
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 3>",
+          "parents": [
+            "<rev 2>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move \"notes/m.md\" to \"dest/m.md\"\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 6>\nGitnotes-Request: <hash 7>\n"
+        }
+      ],
+      "files": {
+        "backlink.md": "[note](dest/m.md)\n",
+        "comments/<discussion of notes/m.md>.json": null,
+        "comments/<hash 5>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "dest/m.md": "# Original\n[image](../assets/picture.png)\n",
+        "notes/m.md": null
+      }
+    },
+    {
+      "name": "the moved note's discussion",
+      "result": {
+        "comments": [
+          {
+            "id": "<id 1>",
+            "author": "reader",
+            "text": "Discussion moves with the note",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 3>"
+      }
+    },
+    {
+      "name": "a duplicate",
+      "result": {
+        "revision": "<rev 4>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "Trash/<id 2>.md",
+            "before": null,
+            "after": "# Shared fact\nWorkshop begins at 09:00.\n"
+          },
+          {
+            "path": "b.md",
+            "before": "# Shared fact\nWorkshop begins at 09:00.\n",
+            "after": null
+          },
+          {
+            "path": "links.md",
+            "before": "[current](b.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ],
+        "trash": {
+          "id": "<id 2>",
+          "path": "Trash/<id 2>.md",
+          "originalPath": "b.md",
+          "title": "Shared fact",
+          "deletedAt": "<time>",
+          "deletedBy": "organizer-test"
+        }
+      },
+      "commits": [
+        {
+          "revision": "<rev 4>",
+          "parents": [
+            "<rev 3>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Organize note: duplicate\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 8>\nGitnotes-Request: <hash 9>\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"b.md\",\n      \"title\": \"Shared fact\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"organizer-test\",\n      \"history\": {\n        \"b.md\": [\n          \"<base~5>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 2>.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "b.md": null,
+        "links.md": "[current](a.md)\n"
+      }
+    },
+    {
+      "name": "a receipt",
+      "result": {
+        "revision": "<rev 4>",
+        "replayed": true,
+        "files": [
+          {
+            "path": "Trash/<id 2>.md",
+            "before": null,
+            "after": "# Shared fact\nWorkshop begins at 09:00.\n"
+          },
+          {
+            "path": "b.md",
+            "before": "# Shared fact\nWorkshop begins at 09:00.\n",
+            "after": null
+          },
+          {
+            "path": "links.md",
+            "before": "[current](b.md)\n",
+            "after": "[current](a.md)\n"
+          }
+        ],
+        "trash": {
+          "id": "<id 2>",
+          "path": "Trash/<id 2>.md",
+          "originalPath": "b.md",
+          "title": "Shared fact",
+          "deletedAt": "<time>",
+          "deletedBy": "organizer-test"
+        }
+      }
+    },
+    {
+      "name": "a receipt of an action never applied",
+      "result": {
+        "revision": "",
+        "replayed": false,
+        "files": null
+      }
+    },
+    {
+      "name": "undoing the duplicate",
+      "result": {
+        "revision": "<rev 5>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "Trash/<id 2>.md",
+            "before": "# Shared fact\nWorkshop begins at 09:00.\n",
+            "after": null
+          },
+          {
+            "path": "b.md",
+            "before": null,
+            "after": "# Shared fact\nWorkshop begins at 09:00.\n"
+          },
+          {
+            "path": "links.md",
+            "before": "[current](a.md)\n",
+            "after": "[current](b.md)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 5>",
+          "parents": [
+            "<rev 4>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Undo organization: duplicate\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 10>\nGitnotes-Request: <hash 11>\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"b.md\",\n      \"title\": \"Shared fact\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"organizer-test\",\n      \"history\": {\n        \"b.md\": [\n          \"<base~5>\"\n        ]\n      },\n      \"restored\": true\n    }\n  ]\n}\n",
+        "Trash/<id 2>.md": null,
+        "b.md": "# Shared fact\nWorkshop begins at 09:00.\n",
+        "links.md": "[current](b.md)\n"
+      }
+    },
+    {
+      "name": "the Trash after the undo",
+      "result": {
+        "revision": "<rev 5>",
+        "entries": [],
+        "confirmation": ""
+      }
+    },
+    {
+      "name": "undoing the move",
+      "result": {
+        "revision": "<rev 6>",
+        "replayed": false,
+        "files": [
+          {
+            "path": "backlink.md",
+            "before": "[note](dest/m.md)\n",
+            "after": "[note](notes/m.md)\n"
+          },
+          {
+            "path": "comments/<discussion of notes/m.md>.json",
+            "before": null,
+            "after": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+          },
+          {
+            "path": "comments/<hash 5>.json",
+            "before": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+            "after": null
+          },
+          {
+            "path": "dest/m.md",
+            "before": "# Original\n[image](../assets/picture.png)\n",
+            "after": null
+          },
+          {
+            "path": "notes/m.md",
+            "before": null,
+            "after": "# Original\n[image](../assets/picture.png)\n"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 6>",
+          "parents": [
+            "<rev 5>"
+          ],
+          "author": "Synthetic <synthetic@example.invalid>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Move \"dest/m.md\" to \"notes/m.md\"\n\nGitnotes-Source: jev\nGitnotes-User: organizer-test\nGitnotes-Operation: <hash 12>\nGitnotes-Request: <hash 13>\n"
+        }
+      ],
+      "files": {
+        "backlink.md": "[note](notes/m.md)\n",
+        "comments/<discussion of notes/m.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "comments/<hash 5>.json": null,
+        "dest/m.md": null,
+        "notes/m.md": "# Original\n[image](../assets/picture.png)\n"
+      }
+    },
+    {
+      "name": "an undo replay",
+      "result": {
+        "revision": "<rev 6>",
+        "replayed": true,
+        "files": [
+          {
+            "path": "backlink.md",
+            "before": "[note](dest/m.md)\n",
+            "after": "[note](notes/m.md)\n"
+          },
+          {
+            "path": "comments/<discussion of notes/m.md>.json",
+            "before": null,
+            "after": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+          },
+          {
+            "path": "comments/<hash 5>.json",
+            "before": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion moves with the note\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+            "after": null
+          },
+          {
+            "path": "dest/m.md",
+            "before": "# Original\n[image](../assets/picture.png)\n",
+            "after": null
+          },
+          {
+            "path": "notes/m.md",
+            "before": null,
+            "after": "# Original\n[image](../assets/picture.png)\n"
+          }
+        ]
+      }
+    },
+    {
+      "name": "current sources",
+      "result": null
+    }
+  ]
+}

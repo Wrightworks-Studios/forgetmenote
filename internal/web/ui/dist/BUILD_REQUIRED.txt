@@ -1,0 +1,2 @@
+Browser assets are generated with npm ci && npm run build before building
+the server. This tracked placeholder allows Go-only tooling in a fresh clone.

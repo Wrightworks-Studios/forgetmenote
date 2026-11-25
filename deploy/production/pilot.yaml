@@ -1,0 +1,93 @@
+# Render placeholders before deployment. Use this OR a Duplo-managed service
+# with these settings, never two controllers for the same workload.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: forgetmenote-pilot
+  namespace: duploservices-notes
+  # Add the approved IRSA role annotation for Redshift Data API when configured.
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: forgetmenote-pilot
+  namespace: duploservices-notes
+spec:
+  accessModes: [ReadWriteOncePod]
+  # Select the cluster's encrypted, snapshot-capable EBS CSI storage class.
+  storageClassName: REPLACE_WITH_EBS_CSI_STORAGE_CLASS
+  resources:
+    requests: {storage: 50Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgetmenote-pilot
+  namespace: duploservices-notes
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: forgetmenote-pilot}
+  template:
+    metadata:
+      labels: {app: forgetmenote-pilot}
+    spec:
+      serviceAccountName: forgetmenote-pilot
+      automountServiceAccountToken: false
+      imagePullSecrets: [{name: forgetmenote-ghcr}]
+      terminationGracePeriodSeconds: 120
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000}
+      containers:
+        - name: forgetmenote
+          image: REPLACE_WITH_GHCR_IMAGE_AT_SHA256_DIGEST
+          args: [serve, --headless]
+          ports: [{name: http, containerPort: 8080}]
+          env:
+            - {name: DATA_DIR, value: /data}
+            - {name: PUBLIC_URL, value: 'https://notes-pilot.example.com'}
+            - {name: DATA_CONNECTIONS_CONFIG_FILE, value: /etc/forgetmenote/connections.json}
+          # Optional settings (chat, GitHub, Slack, OIDC, jobs) are loaded
+          # from an operator-created ConfigMap after identity/grant bootstrap.
+          envFrom: [{configMapRef: {name: forgetmenote-pilot-env}}]
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+              httpHeaders: [{name: Host, value: notes-pilot.example.com}]
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: '1', memory: 2Gi}
+            limits: {cpu: '4', memory: 8Gi}
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: temp, mountPath: /tmp}
+            - {name: config, mountPath: /etc/forgetmenote, readOnly: true}
+            - {name: secrets, mountPath: /run/secrets, readOnly: true}
+      volumes:
+        - {name: data, persistentVolumeClaim: {claimName: forgetmenote-pilot}}
+        - {name: temp, emptyDir: {sizeLimit: 4Gi}}
+        - {name: config, configMap: {name: forgetmenote-pilot-config}}
+        - {name: secrets, secret: {secretName: forgetmenote-pilot-runtime, defaultMode: 0440}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: forgetmenote-pilot
+  namespace: duploservices-notes
+spec:
+  type: ClusterIP
+  selector: {app: forgetmenote-pilot}
+  ports: [{name: http, port: 8080, targetPort: http}]

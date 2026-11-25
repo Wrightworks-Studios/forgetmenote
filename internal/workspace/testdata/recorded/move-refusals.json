@@ -1,0 +1,156 @@
+{
+  "move refusals": [
+    {
+      "name": "fixture",
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"locked\",\n    \"old/locked.md\",\n    \"ref.md\"\n  ]\n}\n",
+        "assets/set/image.png": "image",
+        "assets/set/note.md": "---\ncover: assets/set/image.png\ncustom: keep\n---\n# Note\nExact body.",
+        "box/inner": "<mode 120000> outside-target",
+        "box/note.md": "# Boxed\n",
+        "comments/<discussion of old/a.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Feedback\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  },\n  {\n    \"finding\": {\n      \"key\": \"k1\",\n      \"path\": \"old/a.md\",\n      \"title\": \"Check the claim\",\n      \"origin\": \"\",\n      \"sourceRevision\": \"\",\n      \"noteHash\": \"\",\n      \"evidence\": null,\n      \"requestHash\": \"\",\n      \"stale\": false\n    },\n    \"id\": \"f1\",\n    \"author\": \"agent\",\n    \"text\": \"It needs a source.\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "comments/<hash 1>.json": "[]",
+        "linked": "<mode 120000> outside-target",
+        "locked/child.md": "Protected text\n",
+        "lone.md": "# Lone\n",
+        "old/a.md": "# An original note\n\nSeveral lines of original content.\n\n[Other](../other.md#section)\n![Image](media/pic.png)\n",
+        "old/kept.md": "---\nfmn-id: <id 2>\n---\n# Kept\n\nAn identity.\n",
+        "old/locked.md": "# Keep this text unchanged\n",
+        "old/media/pic.png": "image bytes",
+        "other.md": "# References\n\n[Read](old/a.md#heading)\n\n[ref]: old/a.md \"A title\"\n\n`[code](old/a.md)`\n\n```md\n[code](old/a.md)\n```\n",
+        "outside.md": "---\ncover: assets/set/image.png\n---\nOutside.",
+        "plain.txt": "text\n",
+        "ref.md": "[A](lone.md)\n",
+        "sources/a.md": "# Source\n",
+        "summary.md": "[Evidence](sources/a.md?fmn-rev=<base~12>#source)\n"
+      }
+    },
+    {
+      "name": "an escape",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a folder into itself",
+      "error": "choose a different destination outside this folder"
+    },
+    {
+      "name": "onto a note",
+      "error": "destination already exists or is inaccessible"
+    },
+    {
+      "name": "a hidden path",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a stale revision",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "a missing source",
+      "error": "stat <root>/missing: no such file or directory",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "a note losing .md",
+      "error": "notes must keep the .md extension"
+    },
+    {
+      "name": "a file that is no note",
+      "error": "notes must keep the .md extension"
+    },
+    {
+      "name": "into a note",
+      "error": "lstat <root>/lone.md/child.md: not a directory"
+    },
+    {
+      "name": "onto itself",
+      "error": "choose a different destination outside this folder"
+    },
+    {
+      "name": "a locked backlink",
+      "error": "updating links would edit locked note ref.md; unlock it first: this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "into the Trash",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "through a symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "through a nested symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "into a nested note",
+      "error": "lstat <root>/box/note.md/lone.md: not a directory"
+    },
+    {
+      "name": "onto a nested symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a folder with a symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a copy through a symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a copy into a nested note",
+      "error": "lstat <root>/box/note.md/lone.md: not a directory"
+    },
+    {
+      "name": "a copied folder with a symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "onto a path with a discussion",
+      "error": "destination already has a discussion"
+    }
+  ]
+}

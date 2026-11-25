@@ -1,0 +1,216 @@
+{
+  "groups": [
+    {
+      "name": "fixture",
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"manuscript\"\n  ]\n}\n",
+        "a.md": "A\n",
+        "b.md": "B\n",
+        "box/inner": "<mode 120000> outside-target",
+        "box/note.md": "# Boxed\n",
+        "comments/<discussion of notes/discard.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion goes to the Trash too\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "manuscript/chapter.md": "# Chapter\n",
+        "notes/discard.md": "# Recover this note\n\n[A](../a.md)\n",
+        "reverted.md": "Original\n"
+      }
+    },
+    {
+      "name": "a group",
+      "result": {
+        "revision": "<rev 1>",
+        "replayed": false
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "Alice <alice@example.test>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Connect related notes\n\nGitnotes-Source: mcp\nGitnotes-User: alice\nGitnotes-Client: agent-a\nGitnotes-Operation: <hash 1>\nGitnotes-Request: <hash 2>\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-trash.json": "{\n  \"version\": 1,\n  \"records\": [\n    {\n      \"id\": \"<id 2>\",\n      \"path\": \"Trash/<id 2>.md\",\n      \"originalPath\": \"notes/discard.md\",\n      \"title\": \"Recover this note\",\n      \"deletedAt\": \"<time>\",\n      \"deletedBy\": \"alice\",\n      \"history\": {\n        \"notes/discard.md\": [\n          \"<base~6>\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "Trash/<id 2>.md": "# Recover this note\n\n[A](../a.md)\n",
+        "a.md": "A2\n",
+        "b.md": "B2\n",
+        "comments/<discussion of Trash/<id 2>.md>.json": "[\n  {\n    \"id\": \"<id 1>\",\n    \"author\": \"reader\",\n    \"text\": \"Discussion goes to the Trash too\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]",
+        "comments/<discussion of notes/discard.md>.json": null,
+        "new.md": "# New\n",
+        "notes/discard.md": null
+      }
+    },
+    {
+      "name": "the Trash",
+      "result": {
+        "revision": "<rev 1>",
+        "entries": [
+          {
+            "id": "<id 2>",
+            "path": "Trash/<id 2>.md",
+            "originalPath": "notes/discard.md",
+            "title": "Recover this note",
+            "deletedAt": "<time>",
+            "deletedBy": "alice"
+          }
+        ],
+        "confirmation": ""
+      }
+    },
+    {
+      "name": "a replay",
+      "result": {
+        "revision": "<rev 1>",
+        "replayed": true
+      }
+    },
+    {
+      "name": "a receipt",
+      "result": {
+        "revision": "<rev 1>",
+        "replayed": true
+      }
+    },
+    {
+      "name": "a receipt of a group never applied",
+      "result": {
+        "revision": "",
+        "replayed": false
+      }
+    },
+    {
+      "name": "change a note",
+      "result": {
+        "path": "reverted.md",
+        "content": "Q2hhbmdlZAo=",
+        "revision": "<rev 2>",
+        "version": "<rev 2>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 2>",
+          "parents": [
+            "<rev 1>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update reverted.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "reverted.md": "Changed\n"
+      }
+    },
+    {
+      "name": "revert it",
+      "result": {
+        "path": "reverted.md",
+        "content": "T3JpZ2luYWwK",
+        "revision": "<rev 3>",
+        "version": "<rev 3>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 3>",
+          "parents": [
+            "<rev 2>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update reverted.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "reverted.md": "Original\n"
+      }
+    },
+    {
+      "name": "a changed retry",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "a stale group",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "a changed then reverted note",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "a new note that exists",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "an unknown base",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "a locked note",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a malformed container",
+      "error": "use one unquoted top-level fmn-container key; edit it in Markdown"
+    },
+    {
+      "name": "a duplicate path",
+      "error": "duplicate path in group"
+    },
+    {
+      "name": "instructions",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "no summary",
+      "error": "group needs an ID, a summary (up to 300 bytes), and 1–50 edits"
+    },
+    {
+      "name": "invalid text",
+      "error": "notes must be UTF-8 text"
+    },
+    {
+      "name": "a deleted note that never was",
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "a new note through a nested symbolic link",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "a new note in a nested note",
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    }
+  ]
+}

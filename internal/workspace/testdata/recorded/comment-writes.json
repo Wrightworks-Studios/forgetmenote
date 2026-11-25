@@ -1,0 +1,597 @@
+{
+  "comment writes": [
+    {
+      "name": "fixture"
+    },
+    {
+      "name": "a note",
+      "result": {
+        "path": "notes/a.md",
+        "content": "LS0tCnRpdGxlOiBQcml2YXRlIG1ldGFkYXRhCi0tLQojIEhlYWRpbmcKCkEgKipicmlnaHQgc3RhcioqIHNoaW5lcy4gQSBzdGFyLgo=",
+        "revision": "<rev 1>",
+        "version": "<rev 1>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 1>",
+          "parents": [
+            "<base>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update notes/a.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "notes/a.md": "---\ntitle: Private metadata\n---\n# Heading\n\nA **bright star** shines. A star.\n"
+      }
+    },
+    {
+      "name": "another note",
+      "result": {
+        "path": "notes/b.md",
+        "content": "IyBCCg==",
+        "revision": "<rev 2>",
+        "version": "<rev 2>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 2>",
+          "parents": [
+            "<rev 1>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update notes/b.md\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "notes/b.md": "# B\n"
+      }
+    },
+    {
+      "name": "no discussion",
+      "result": {
+        "comments": [],
+        "revision": "<rev 2>"
+      }
+    },
+    {
+      "name": "ambiguous passage",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "passage changed or is ambiguous; select it again"
+    },
+    {
+      "name": "anchored reply",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "replies use their thread's passage"
+    },
+    {
+      "name": "empty text",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "comments must contain 1–10000 bytes"
+    },
+    {
+      "name": "long text",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "comments must contain 1–10000 bytes"
+    },
+    {
+      "name": "missing note",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "missing thread",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "not a note",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "stale revision",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "two option sets",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "one comment option set required"
+    },
+    {
+      "name": "anchored thread",
+      "result": {
+        "comments": [
+          {
+            "anchor": {
+              "quote": "bright star",
+              "prefix": "Heading A ",
+              "suffix": " shines.",
+              "revision": "<rev 2>"
+            },
+            "id": "<id 1>",
+            "author": "reviewer",
+            "text": "Check this passage",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 3>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 3>",
+          "parents": [
+            "<rev 2>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[\n  {\n    \"anchor\": {\n      \"quote\": \"bright star\",\n      \"prefix\": \"Heading A \",\n      \"suffix\": \" shines.\",\n      \"revision\": \"<rev 2>\"\n    },\n    \"id\": \"<id 1>\",\n    \"author\": \"reviewer\",\n    \"text\": \"Check this passage\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+      }
+    },
+    {
+      "name": "reply with an anchor",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "replies use their thread's passage"
+    },
+    {
+      "name": "reply",
+      "result": {
+        "comments": [
+          {
+            "anchor": {
+              "quote": "bright star",
+              "prefix": "Heading A ",
+              "suffix": " shines.",
+              "revision": "<rev 2>"
+            },
+            "replies": [
+              {
+                "id": "<id 2>",
+                "author": "second",
+                "text": "Reply without editing",
+                "created": "<time>"
+              }
+            ],
+            "id": "<id 1>",
+            "author": "reviewer",
+            "text": "Check this passage",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 4>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 4>",
+          "parents": [
+            "<rev 3>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[\n  {\n    \"anchor\": {\n      \"quote\": \"bright star\",\n      \"prefix\": \"Heading A \",\n      \"suffix\": \" shines.\",\n      \"revision\": \"<rev 2>\"\n    },\n    \"replies\": [\n      {\n        \"id\": \"<id 2>\",\n        \"author\": \"second\",\n        \"text\": \"Reply without editing\",\n        \"created\": \"<time>\"\n      }\n    ],\n    \"id\": \"<id 1>\",\n    \"author\": \"reviewer\",\n    \"text\": \"Check this passage\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+      }
+    },
+    {
+      "name": "second thread",
+      "result": {
+        "comments": [
+          {
+            "anchor": {
+              "quote": "bright star",
+              "prefix": "Heading A ",
+              "suffix": " shines.",
+              "revision": "<rev 2>"
+            },
+            "replies": [
+              {
+                "id": "<id 2>",
+                "author": "second",
+                "text": "Reply without editing",
+                "created": "<time>"
+              }
+            ],
+            "id": "<id 1>",
+            "author": "reviewer",
+            "text": "Check this passage",
+            "created": "<time>",
+            "resolved": false
+          },
+          {
+            "id": "<id 3>",
+            "author": "other",
+            "text": "A second thread",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 5>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 5>",
+          "parents": [
+            "<rev 4>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[\n  {\n    \"anchor\": {\n      \"quote\": \"bright star\",\n      \"prefix\": \"Heading A \",\n      \"suffix\": \" shines.\",\n      \"revision\": \"<rev 2>\"\n    },\n    \"replies\": [\n      {\n        \"id\": \"<id 2>\",\n        \"author\": \"second\",\n        \"text\": \"Reply without editing\",\n        \"created\": \"<time>\"\n      }\n    ],\n    \"id\": \"<id 1>\",\n    \"author\": \"reviewer\",\n    \"text\": \"Check this passage\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  },\n  {\n    \"id\": \"<id 3>\",\n    \"author\": \"other\",\n    \"text\": \"A second thread\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+      }
+    },
+    {
+      "name": "resolve another's thread",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "resolve a missing thread",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "resolve stale",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "resolve",
+      "result": {
+        "comments": [
+          {
+            "anchor": {
+              "quote": "bright star",
+              "prefix": "Heading A ",
+              "suffix": " shines.",
+              "revision": "<rev 2>"
+            },
+            "replies": [
+              {
+                "id": "<id 2>",
+                "author": "second",
+                "text": "Reply without editing",
+                "created": "<time>"
+              }
+            ],
+            "id": "<id 1>",
+            "author": "reviewer",
+            "text": "Check this passage",
+            "created": "<time>",
+            "resolved": false
+          },
+          {
+            "id": "<id 3>",
+            "author": "other",
+            "text": "A second thread",
+            "created": "<time>",
+            "resolved": true
+          }
+        ],
+        "revision": "<rev 6>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 6>",
+          "parents": [
+            "<rev 5>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[\n  {\n    \"anchor\": {\n      \"quote\": \"bright star\",\n      \"prefix\": \"Heading A \",\n      \"suffix\": \" shines.\",\n      \"revision\": \"<rev 2>\"\n    },\n    \"replies\": [\n      {\n        \"id\": \"<id 2>\",\n        \"author\": \"second\",\n        \"text\": \"Reply without editing\",\n        \"created\": \"<time>\"\n      }\n    ],\n    \"id\": \"<id 1>\",\n    \"author\": \"reviewer\",\n    \"text\": \"Check this passage\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  },\n  {\n    \"id\": \"<id 3>\",\n    \"author\": \"other\",\n    \"text\": \"A second thread\",\n    \"created\": \"<time>\",\n    \"resolved\": true\n  }\n]"
+      }
+    },
+    {
+      "name": "reply to a resolved thread",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "this thread is resolved"
+    },
+    {
+      "name": "delete another's reply",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "delete a thread with replies",
+      "result": {
+        "comments": [
+          {
+            "anchor": {
+              "quote": "bright star",
+              "prefix": "Heading A ",
+              "suffix": " shines.",
+              "revision": "<rev 2>"
+            },
+            "replies": [
+              {
+                "id": "<id 2>",
+                "author": "second",
+                "text": "Reply without editing",
+                "created": "<time>"
+              }
+            ],
+            "id": "<id 1>",
+            "author": "reviewer",
+            "text": "",
+            "created": "<time>",
+            "resolved": false,
+            "deleted": true
+          },
+          {
+            "id": "<id 3>",
+            "author": "other",
+            "text": "A second thread",
+            "created": "<time>",
+            "resolved": true
+          }
+        ],
+        "revision": "<rev 7>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 7>",
+          "parents": [
+            "<rev 6>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[\n  {\n    \"anchor\": {\n      \"quote\": \"bright star\",\n      \"prefix\": \"Heading A \",\n      \"suffix\": \" shines.\",\n      \"revision\": \"<rev 2>\"\n    },\n    \"replies\": [\n      {\n        \"id\": \"<id 2>\",\n        \"author\": \"second\",\n        \"text\": \"Reply without editing\",\n        \"created\": \"<time>\"\n      }\n    ],\n    \"id\": \"<id 1>\",\n    \"author\": \"reviewer\",\n    \"text\": \"\",\n    \"created\": \"<time>\",\n    \"resolved\": false,\n    \"deleted\": true\n  },\n  {\n    \"id\": \"<id 3>\",\n    \"author\": \"other\",\n    \"text\": \"A second thread\",\n    \"created\": \"<time>\",\n    \"resolved\": true\n  }\n]"
+      }
+    },
+    {
+      "name": "delete a placeholder",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "delete a missing reply",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "file does not exist",
+      "is": [
+        "not exist"
+      ]
+    },
+    {
+      "name": "delete stale",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "the notebook changed; reload and reconcile your draft",
+      "is": [
+        "conflict"
+      ]
+    },
+    {
+      "name": "moderate the last reply",
+      "result": {
+        "comments": [
+          {
+            "id": "<id 3>",
+            "author": "other",
+            "text": "A second thread",
+            "created": "<time>",
+            "resolved": true
+          }
+        ],
+        "revision": "<rev 8>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 8>",
+          "parents": [
+            "<rev 7>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[\n  {\n    \"id\": \"<id 3>\",\n    \"author\": \"other\",\n    \"text\": \"A second thread\",\n    \"created\": \"<time>\",\n    \"resolved\": true\n  }\n]"
+      }
+    },
+    {
+      "name": "delete another's thread",
+      "result": {
+        "comments": null,
+        "revision": ""
+      },
+      "error": "this path is not accessible",
+      "is": [
+        "forbidden"
+      ]
+    },
+    {
+      "name": "delete the last thread",
+      "result": {
+        "comments": [],
+        "revision": "<rev 9>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 9>",
+          "parents": [
+            "<rev 8>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[]"
+      }
+    },
+    {
+      "name": "lock the folder",
+      "result": {
+        "path": "notes",
+        "revision": "<rev 10>",
+        "rules": [
+          {
+            "path": "notes"
+          }
+        ]
+      },
+      "commits": [
+        {
+          "revision": "<rev 10>",
+          "parents": [
+            "<rev 9>"
+          ],
+          "author": "Ada Lovelace <ada@example.com>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update .gitnotes-locks.json\n\nGitnotes-Source: browser\nGitnotes-User: u-1\n"
+        }
+      ],
+      "files": {
+        ".gitnotes-locks.json": "{\n  \"version\": 1,\n  \"paths\": [\n    \"notes\"\n  ]\n}\n"
+      }
+    },
+    {
+      "name": "comment on a locked note",
+      "result": {
+        "comments": [
+          {
+            "id": "<id 4>",
+            "author": "reviewer",
+            "text": "Still open for discussion",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 11>"
+      },
+      "commits": [
+        {
+          "revision": "<rev 11>",
+          "parents": [
+            "<rev 10>"
+          ],
+          "author": "ForgetMeNote <forgetmenote@localhost>",
+          "committer": "ForgetMeNote <forgetmenote@localhost>",
+          "message": "Update comments/<discussion of notes/a.md>.json\n\nGitnotes-Source: system\n"
+        }
+      ],
+      "files": {
+        "comments/<discussion of notes/a.md>.json": "[\n  {\n    \"id\": \"<id 4>\",\n    \"author\": \"reviewer\",\n    \"text\": \"Still open for discussion\",\n    \"created\": \"<time>\",\n    \"resolved\": false\n  }\n]"
+      }
+    },
+    {
+      "name": "the discussion",
+      "result": {
+        "comments": [
+          {
+            "id": "<id 4>",
+            "author": "reviewer",
+            "text": "Still open for discussion",
+            "created": "<time>",
+            "resolved": false
+          }
+        ],
+        "revision": "<rev 11>"
+      }
+    }
+  ]
+}

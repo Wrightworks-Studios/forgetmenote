@@ -1,0 +1,621 @@
+[
+  {
+    "step": "an empty discussion",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "comments": [],
+      "people": {},
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "a reader cannot comment",
+    "tool": "add_comment",
+    "as": "reader",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV1",
+      "text": "Reader remark"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "add an anchored comment",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "anchor": {
+        "prefix": "",
+        "quote": "The whale appeared at dawn.",
+        "suffix": ""
+      },
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV1",
+      "text": "Is dawn right here?"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "The whale appeared at dawn.",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "resolved": false,
+          "text": "Is dawn right here?"
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator"
+      },
+      "revision": "REV2"
+    }
+  },
+  {
+    "step": "a stale discussion revision conflicts",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV1",
+      "text": "Late remark"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "an anchor that is not in the note is refused",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "anchor": {
+        "quote": "This text is absent."
+      },
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV2",
+      "text": "Where?"
+    },
+    "error": "passage changed or is ambiguous; select it again"
+  },
+  {
+    "step": "reply to the thread",
+    "tool": "add_comment",
+    "as": "editor",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "replyTo": "ID1",
+      "revision": "REV2",
+      "text": "Dawn matches chapter two."
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "The whale appeared at dawn.",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "replies": [
+            {
+              "author": "contract-editor",
+              "created": "<TIME>",
+              "id": "ID2",
+              "text": "Dawn matches chapter two."
+            }
+          ],
+          "resolved": false,
+          "text": "Is dawn right here?"
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator",
+        "contract-editor": "Contributor"
+      },
+      "revision": "REV3"
+    }
+  },
+  {
+    "step": "add a plain comment",
+    "tool": "add_comment",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV3",
+      "text": "Tighten the harbour scene."
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "The whale appeared at dawn.",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "replies": [
+            {
+              "author": "contract-editor",
+              "created": "<TIME>",
+              "id": "ID2",
+              "text": "Dawn matches chapter two."
+            }
+          ],
+          "resolved": false,
+          "text": "Is dawn right here?"
+        },
+        {
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID3",
+          "resolved": false,
+          "text": "Tighten the harbour scene."
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator",
+        "contract-editor": "Contributor"
+      },
+      "revision": "REV4"
+    }
+  },
+  {
+    "step": "a reader cannot resolve",
+    "tool": "resolve_comment",
+    "as": "reader",
+    "arguments": {
+      "id": "ID1",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV4"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "resolve the thread",
+    "tool": "resolve_comment",
+    "as": "admin",
+    "arguments": {
+      "id": "ID1",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV4"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "The whale appeared at dawn.",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "replies": [
+            {
+              "author": "contract-editor",
+              "created": "<TIME>",
+              "id": "ID2",
+              "text": "Dawn matches chapter two."
+            }
+          ],
+          "resolved": true,
+          "text": "Is dawn right here?"
+        },
+        {
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID3",
+          "resolved": false,
+          "text": "Tighten the harbour scene."
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator",
+        "contract-editor": "Contributor"
+      },
+      "revision": "REV5"
+    }
+  },
+  {
+    "step": "delete with a stale revision",
+    "tool": "delete_comment",
+    "as": "admin",
+    "arguments": {
+      "id": "ID1",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "replyId": "ID2",
+      "revision": "REV4"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "delete the reply as a moderator",
+    "tool": "delete_comment",
+    "as": "admin",
+    "arguments": {
+      "id": "ID1",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "replyId": "ID2",
+      "revision": "REV5"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "The whale appeared at dawn.",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "resolved": true,
+          "text": "Is dawn right here?"
+        },
+        {
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID3",
+          "resolved": false,
+          "text": "Tighten the harbour scene."
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator"
+      },
+      "revision": "REV6"
+    }
+  },
+  {
+    "step": "delete a missing comment",
+    "tool": "delete_comment",
+    "as": "admin",
+    "arguments": {
+      "id": "ID4",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV6"
+    },
+    "error": "file does not exist"
+  },
+  {
+    "step": "the discussion after changes",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "The whale appeared at dawn.",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "resolved": true,
+          "text": "Is dawn right here?"
+        },
+        {
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID3",
+          "resolved": false,
+          "text": "Tighten the harbour scene."
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator"
+      },
+      "revision": "REV6"
+    }
+  },
+  {
+    "step": "a reader reads the discussion",
+    "tool": "list_comments",
+    "as": "reader",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "The whale appeared at dawn.",
+            "revision": "REV1"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID1",
+          "resolved": true,
+          "text": "Is dawn right here?"
+        },
+        {
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID3",
+          "resolved": false,
+          "text": "Tighten the harbour scene."
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator"
+      },
+      "revision": "REV6"
+    }
+  },
+  {
+    "step": "read the note under review",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-1.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000001\ntitle: Chapter one\ntags: [fiction, draft]\nstatus: draft\n---\n# Chapter one\n\nIshmael walked to the harbour.\n\n## The harbour\n\nThe whale appeared at dawn.\nNobody on the quay believed him.\n",
+      "html": "<h1 id=\"h-chapter-one\">Chapter one</h1>\n<p>Ishmael walked to the harbour.</p>\n<h2 id=\"h-the-harbour\">The harbour</h2>\n<p>The whale appeared at dawn.\nNobody on the quay believed him.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000001",
+        "kind": "",
+        "status": "draft",
+        "tags": [
+          "fiction",
+          "draft"
+        ],
+        "title": "Chapter one"
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV6",
+      "title": "Chapter one",
+      "version": "REV7"
+    }
+  },
+  {
+    "step": "file a review finding",
+    "tool": "file_review_finding",
+    "as": "admin",
+    "arguments": {
+      "finding": {
+        "evidence": [
+          {
+            "explanation": "Mentions the whale's return.",
+            "path": "manuscript/chapter-2.md"
+          }
+        ],
+        "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+        "key": "dawn-check",
+        "path": "manuscript/chapter-1.md",
+        "revision": "REV6",
+        "text": "Chapter two says the whale returned later; check dawn.",
+        "title": "Timing of the sighting"
+      },
+      "project": "contract"
+    },
+    "result": {
+      "comment": {
+        "author": "@local-admin",
+        "created": "<TIME>",
+        "finding": {
+          "evidence": [
+            {
+              "explanation": "Mentions the whale's return.",
+              "hash": "HASH1",
+              "path": "manuscript/chapter-2.md",
+              "revision": "REV6"
+            }
+          ],
+          "key": "dawn-check",
+          "noteHash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+          "origin": "agent",
+          "path": "manuscript/chapter-1.md",
+          "requestHash": "HASH2",
+          "sourcePath": "manuscript/chapter-1.md",
+          "sourceRevision": "REV6",
+          "stale": false,
+          "title": "Timing of the sighting"
+        },
+        "id": "HASH3",
+        "resolved": false,
+        "text": "Chapter two says the whale returned later; check dawn."
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV8"
+    }
+  },
+  {
+    "step": "retrying the same finding replays it",
+    "tool": "file_review_finding",
+    "as": "admin",
+    "arguments": {
+      "finding": {
+        "evidence": [
+          {
+            "explanation": "Mentions the whale's return.",
+            "path": "manuscript/chapter-2.md"
+          }
+        ],
+        "hash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+        "key": "dawn-check",
+        "path": "manuscript/chapter-1.md",
+        "revision": "REV6",
+        "text": "Chapter two says the whale returned later; check dawn.",
+        "title": "Timing of the sighting"
+      },
+      "project": "contract"
+    },
+    "result": {
+      "comment": {
+        "author": "@local-admin",
+        "created": "<TIME>",
+        "finding": {
+          "evidence": [
+            {
+              "explanation": "Mentions the whale's return.",
+              "hash": "HASH1",
+              "path": "manuscript/chapter-2.md",
+              "revision": "REV6"
+            }
+          ],
+          "key": "dawn-check",
+          "noteHash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+          "origin": "agent",
+          "path": "manuscript/chapter-1.md",
+          "requestHash": "HASH2",
+          "sourcePath": "manuscript/chapter-1.md",
+          "sourceRevision": "REV6",
+          "stale": false,
+          "title": "Timing of the sighting"
+        },
+        "id": "HASH3",
+        "resolved": false,
+        "text": "Chapter two says the whale returned later; check dawn."
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV8"
+    }
+  },
+  {
+    "step": "a finding with a stale note hash conflicts",
+    "tool": "file_review_finding",
+    "as": "admin",
+    "arguments": {
+      "finding": {
+        "evidence": [
+          {
+            "explanation": "Mentions the whale's return.",
+            "path": "manuscript/chapter-2.md"
+          }
+        ],
+        "hash": "HASH4",
+        "key": "stale-hash",
+        "path": "manuscript/chapter-1.md",
+        "revision": "REV6",
+        "text": "Chapter two says the whale returned later; check dawn.",
+        "title": "Timing of the sighting"
+      },
+      "project": "contract"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "the review inbox lists the finding",
+    "tool": "review_inbox",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "checkpoints": [],
+      "completionMeaning": "Reported by the external consumer; not independently verified.",
+      "findings": [
+        {
+          "comment": {
+            "author": "@local-admin",
+            "created": "<TIME>",
+            "finding": {
+              "evidence": [
+                {
+                  "explanation": "Mentions the whale's return.",
+                  "hash": "HASH1",
+                  "path": "manuscript/chapter-2.md",
+                  "revision": "REV6"
+                }
+              ],
+              "key": "dawn-check",
+              "noteHash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+              "origin": "agent",
+              "path": "manuscript/chapter-1.md",
+              "requestHash": "HASH2",
+              "sourcePath": "manuscript/chapter-1.md",
+              "sourceRevision": "REV6",
+              "stale": false,
+              "title": "Timing of the sighting"
+            },
+            "id": "HASH3",
+            "resolved": false,
+            "text": "Chapter two says the whale returned later; check dawn."
+          },
+          "path": "manuscript/chapter-1.md",
+          "revision": "REV8"
+        }
+      ],
+      "proposals": []
+    }
+  },
+  {
+    "step": "resolve the finding",
+    "tool": "review_decision",
+    "as": "admin",
+    "arguments": {
+      "decision": "resolve",
+      "id": "HASH3",
+      "kind": "finding",
+      "path": "manuscript/chapter-1.md",
+      "project": "contract",
+      "revision": "REV8"
+    },
+    "result": {
+      "comment": {
+        "author": "@local-admin",
+        "created": "<TIME>",
+        "finding": {
+          "evidence": [
+            {
+              "explanation": "Mentions the whale's return.",
+              "hash": "HASH1",
+              "path": "manuscript/chapter-2.md",
+              "revision": "REV6"
+            }
+          ],
+          "key": "dawn-check",
+          "noteHash": "dc459ef1e5b597965aa8cca1d594a25a571c38d55fc9a8b748ba58c0d55f393b",
+          "origin": "agent",
+          "path": "manuscript/chapter-1.md",
+          "requestHash": "HASH2",
+          "sourcePath": "manuscript/chapter-1.md",
+          "sourceRevision": "REV6",
+          "stale": false,
+          "title": "Timing of the sighting"
+        },
+        "id": "HASH3",
+        "resolved": true,
+        "text": "Chapter two says the whale returned later; check dawn."
+      },
+      "path": "manuscript/chapter-1.md",
+      "revision": "REV9"
+    }
+  },
+  {
+    "step": "an unknown decision kind is refused",
+    "tool": "review_decision",
+    "as": "admin",
+    "arguments": {
+      "decision": "resolve",
+      "id": "HASH3",
+      "kind": "verdict",
+      "project": "contract"
+    },
+    "error": "choose finding or proposal"
+  }
+]

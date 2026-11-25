@@ -1,0 +1,153 @@
+# Archived sources
+
+Source processing stays bound to the selected notebook and current permissions.
+A job's original, page checkpoints and result are private objects in the
+instance's blob storage, so any gateway serves, resumes and retires it. Jobs
+recover interrupted admission and retirement (see
+[source job files](postgres.md#source-job-files)), and cancel execution by their
+absolute 24-hour expiry. Expired work
+remains cancelable while its processes drain. Saving accepts the existing result
+into ordinary notebook Markdown, attachments and Git history.
+
+The operator budgets `FMN_LIMIT_SOURCE_JOB_BYTES` (default 2 GiB) and
+`FMN_LIMIT_SOURCE_JOB_COUNT` (default 100) bound all retained jobs, independently
+of the one worker and four waiting slots. Queued and running jobs reserve space
+for originals, conversion copies, encoded checkpoints/results and rendering
+scratch; terminal jobs charge the objects they stored, each charged before it
+is stored. Reaching these limits
+refuses admission without deleting another user's pending work. Increase the
+budgets explicitly when the instance's storage supports it.
+
+Use **+ → Source** in the sidebar's creation dialog, or **Sources → Archive source** beside an external reference. Upload a supported document, image, saved email, or short recording, or capture a public URL that serves one. The file picker and `source_formats` expose the current formats. Preview the extracted content, confirm the title, and choose **Archive source**. **Upload file** shows the file picker; expand **Source URL (optional)** to record where the file came from. **From URL** shows a required page or file URL to fetch. Switching to the **Note** tab and back preserves selected files and source inputs. An uploaded file remains recorded as an upload, not as a server-verified retrieval from its optional URL. Replacing an uploaded source preserves that URL in the form.
+
+**Save in** chooses the source note’s destination from the project’s existing note folders or **Project root**. It starts in the folder you are viewing, or the current note’s folder. The name `sources` is not reserved. Refreshing a source keeps its existing path; use the normal Move action to relocate it. Original files continue to live under `assets/sources/`, independently of the note’s folder.
+
+The original and a searchable source note are committed together using the authenticated user's Git authorship. Uploads and completed local pages stay in private processing jobs outside notebook repositories for at most 24 hours. Nothing is committed during preview. Preview signatures expire after 15 minutes; jobs and previews are bound to the user and project. Retrying the same confirmed preview does not create a second source.
+
+After import, **Insert citation** adds a revision-pinned Markdown link to the current editable note's draft. Save that note to persist the citation. **Copy citation** works independently, and **Open source** opens the source note. Existing drafts are retained. No existing external reference is rewritten automatically.
+
+## Portable storage and provenance
+
+A new capture stores:
+
+- `<chosen-folder>/<random-id>.md` (or `<random-id>.md` at the project root): ordinary Markdown containing provenance in flat `source_*` frontmatter and the extracted text.
+- `assets/sources/<random-id>/<sha256>.<format-extension>`: original bytes, without sanitizing or rewriting them. HTTP captures preserve the decoded response body; they are not full HTTP/WARC archives.
+
+Source records contain the original and final URL, UTC capture time, stable internal importer ID, capture method, MIME type, original SHA-256, extraction method/version, extraction status and warning, and extracted-text SHA-256. Git history records authorship and browser/MCP origin. `status: unreviewed` is separate from successful extraction: change the note's status in Properties after reviewing its evidence.
+
+Originals and text remain in the project's existing local Git repository, including Git bundle exports and full-instance backups. Repeated identical originals within the same source reuse the same file. A changed original gets a different hash-named file; earlier files and Git revisions remain available. Binary captures grow Git history, so the import limit is intentionally smaller than the general attachment limit.
+
+Expand **Archived source** above the note to download the original, visit the original website, inspect provenance and checksum comparisons, or choose a page, heading, chapter, sheet, or row section and copy a pinned citation. The source can be renamed like an ordinary note; pinned citations keep their historical path and revision. History remains the authority for earlier names and content.
+
+Hashes, extractor details, and verification results appear in collapsed **Technical details**. Successful verification stays quiet; detected changes and unavailable verification remain visible outside that disclosure and in the archived-source summary. Extraction warnings remain alongside the source actions.
+
+Checksums detect differences from the recorded bytes. They do not establish factual accuracy, independent authenticity, or tamper-proof custody: people who can edit the repository can edit records, and those edits appear in Git. Editing extracted text causes its checksum comparison to report a change. Keep commentary and conclusions in separate notes linked to the source.
+
+## New versions and citations
+
+**Update source** fetches the URL again for a web capture, or accepts a new file for an uploaded source. Refreshing requires the existing source note's current revision and respects its locks. It replaces that source note's generated content and starts it as unreviewed; preview warns about the replacement. Keep annotations you want to retain in separate linked notes. Concurrent edits conflict instead of being overwritten.
+
+Use a pinned citation for evidence that must refer to a particular capture:
+
+```markdown
+[Grammar, page 12](/sources/<id>.md?fmn-rev=<40-character-commit>#page-12)
+```
+
+Page numbers refer to physical PDF pages or image frames, not printed page labels. Presentation anchors use physical slide numbers, including blank slides. Transcripts use numbered segments with approximate timestamps relative to the decoded audio track; these are not speaker labels or video-frame citations. Webpage and DOCX section anchors derive from extracted headings. EPUB uses chapter headings in reading order, not e-reader page numbers or EPUB CFIs. Spreadsheets use sheet and numbered row-section headings; these are extracted sections, not live cell links. Cited revisions open read-only; archived citations also provide a download of the original at that revision. An ordinary unpinned link follows the current source note.
+
+The evidence panel matches external URLs against visible archived source records (original and final URLs, ignoring fragments). It offers an archived copy without claiming that the external citation used that capture. If multiple copies exist, it offers the most recent recorded capture. Existing URL-only citations remain unpinned until explicitly changed.
+
+## Extraction, search, and limits
+
+- Sources default to **64 MiB** per original and **4 MiB** of extracted Markdown. Operators can set `FMN_LIMIT_SOURCE_BYTES` and `FMN_LIMIT_SOURCE_TEXT_BYTES`; format discovery advertises the original-byte budget and the browser uses it. Browser previews show up to 8,000 characters; the full extracted text is archived. Archived original reads and bundle restores honor the source budget independently of the ordinary note-file budget.
+- Docker includes **Poppler and direct English Tesseract OCR**, with pinned `tessdata_fast` data. General AI inference is hosted and optional; no local general-purpose models are installed. Captures record the parser version and pinned OCR/runtime dependency versions. Native installations need Poppler/Tesseract for PDF/image extraction and the libetonyek adapter for Apple formats.
+- PDF extraction keeps native text first, then OCRs rendered image regions with native word boxes masked to avoid duplicates. Physical page headings include blanks. Tables, equations, merged cells and reading order are imperfect; successful extraction does not certify accuracy. Missing tools or page failures retain the original with a visible warning and partial result.
+- One durable source worker admits four waiting jobs. Local pages checkpoint incrementally; shutdown cancels complete process groups, and restart requires explicit resume. Render one page at a time, at most 4096 pixels per dimension and 64 MiB of scratch, with one Tesseract thread. PDF inventory rejects more than 10,000 physical pages instead of silently truncating. Text still must fit the configured budget. Saving a completed job reuses extraction.
+- Poor OCR never triggers an upload. Explicit hosted OCR or figure interpretation requires Administration policy, configured models, notebook access, source visibility, private Inbox consent and permission at upload and result acceptance. Select at most eight physical pages/images. Hosted transcription requires a separate explicit choice. Local-only policy prohibits all hosted source processing, independently of chat enablement.
+- Paid attempts and usage are recorded in the existing decision ledger. An attempted job cannot resume, including after restart; an uncertain response requires a new explicit user attempt. A completed paid result can be saved without another request. Canceled jobs commit nothing; failed local PDF extraction can still retain the original in a completed partial preview.
+- Web capture downloads a **single public HTML page**. It does not execute JavaScript, log in, crawl linked pages, download styles/images, or mirror interactive sites. Visible text and headings are converted to inert Markdown; navigation, scripts, forms, and other non-content elements are omitted. Captures may be incomplete or contain a login/challenge page even when the server returns HTTP 200; review the preview. Non-UTF-8 HTML is currently rejected explicitly, as is HTML with more than 100,000 tokens, one token over `FMN_LIMIT_SOURCE_TEXT_BYTES` such as a long comment or inline image, nesting too deep to parse, or extracted text over that limit.
+- Original documents are download-only with restrictive response headers; they are never rendered as active HTML inside ForgetMeNote. The app displays sanitized Markdown made from extracted text.
+- URL capture uses HTTP/HTTPS on ports 80/443, validates every redirect and resolved address, and dials the validated public IP. It does not send browser cookies, proxy credentials, or authentication headers, and rejects private, loopback, link-local, and special-use networks. There is no trusted-private-network override. Download timeout is 25 seconds, with at most five redirects.
+
+### Local extractor sandbox
+
+Poppler, Tesseract, FFmpeg/ffprobe and the libetonyek adapter parse untrusted files. Each invocation runs through the hidden `forgetmenote sandbox-exec` helper: the server re-executes its own binary, which lowers resource limits, confines itself and then executes the tool in place. The tool keeps the same PID, process group, scrubbed environment and pipes, so cancellation still kills the whole group. Extracted results are unchanged.
+
+- **Resource limits** apply on every platform: 50 CPU-seconds (below the 60-second deadline per invocation), 64 MiB per written file, no core dumps and 4096 processes; Linux also limits heap and other private writable memory (`RLIMIT_DATA`) to 1 GiB. That bounds a parser's allocations without counting reserved address space, which emulators such as Rosetta need far beyond the budget. `RLIMIT_NPROC` counts every task of the server's user ID in its user namespace, so where other workloads share that UID on a host or node it is only a fork-bomb guard. Prefer a dedicated UID.
+- **Landlock** (Linux 5.13 or newer) sets `no_new_privs`, allows reading and executing only `/usr`, `/lib`, `/lib64`, `/bin`, `/sbin`, `/etc`, `/var/cache/fontconfig`, `/dev/urandom`, CPU topology (`/sys/devices/system/cpu`, `/proc/cpuinfo`), the forgetmenote binary's directory, `TESSDATA_PREFIX` and the tool itself, and allows writing only the invocation's private scratch directory (which holds the copy of the input and any rendered pages or audio segments) and `/dev/null`. A compromised parser cannot read `DATA_DIR` (catalog, OAuth state, secrets, other notebooks), create symlinks, devices, FIFOs or sockets, or link and rename files across directories. Landlock ABI 4 (Linux 6.7) also denies TCP bind and connect; ABI 6 (Linux 6.12) blocks abstract Unix sockets and signals to processes outside the sandbox. UDP and pathname Unix sockets are not covered, so keep the container network policy.
+- Tools and their libraries must be installed under those system directories or beside the forgetmenote binary. Landlock rules do not reliably match files on FUSE or virtiofs mounts (for example Docker Desktop bind mounts); keep tools in the image filesystem.
+- Landlock is best effort. When the kernel lacks it, or a seccomp profile denies `landlock_create_ruleset`, `landlock_add_rule` and `landlock_restrict_self`, extraction continues with the resource limits only and the server logs `local extractor sandbox` once with the reason. Docker 29's default seccomp profile allows these calls. For the full sandbox, check that your Docker, Kubernetes `RuntimeDefault` or custom profile allows all three and `prctl`; the resource limits apply regardless.
+- macOS and other platforms apply only the portable limits: no memory limit and no Landlock.
+- Python automation packages run through this helper unless their installation sets `"sandbox": false`. They use strict mode, which refuses to run without Landlock and also denies sockets and path truncation; see the [package sandbox](automation-packages.md#package-sandbox).
+
+### Documents and spreadsheets
+
+These imports preserve the original file and produce a readable, searchable Markdown extract. They do not provide Word, spreadsheet, or e-book editing. The existing DOCX, XLSX, EPUB, text, and delimited-data imports keep their lightweight Go parsers. PPTX, OpenDocument and email use bounded native Go parsers; Apple containers use the concrete libetonyek adapter. No service is added.
+
+| Format | Extracted content | Practical limits |
+| --- | --- | --- |
+| TXT | Unicode text | UTF-8, or UTF-16 with a byte-order mark; other encodings are rejected. |
+| DOCX | Main document paragraphs, direct heading/outline styles, and simple tables | No exact pagination, custom style inheritance, headers, footnotes, drawings, or nested tables. Tracked deletions are omitted; current/inserted text is retained. |
+| EPUB | HTML/XHTML chapters in the spine's reading order, including supplementary entries | No DRM decryption, media, scripts, interactive content, or exact pagination. |
+| XLSX | Sheet names and stored cell values, including hidden sheets/rows/columns; shared and inline strings | Formulas never execute. Cached results are labeled and may be stale; formulas without results are shown as literal text. Dates, percentages, and other formatted numbers may be raw values. Charts, formatting, merged-cell layout, and external data refresh are not extracted. |
+| CSV / TSV | Numbered records in tables, including quoted multiline values | Comma or tab delimiter respectively; no delimiter guessing. First record stays data, so headers are not silently assumed. Formula-like text is never evaluated. UTF-8 or BOM-marked UTF-16. |
+| PPTX | Slide text, headings, and tables | Slide anchors include blank slides. Embedded audio/video and speaker notes are not transcribed. Opt-in image descriptions are available. |
+| ODT / ODS / ODP | Document paragraphs, stored spreadsheet values, or slide content | No layout recreation, formula recalculation, or embedded media transcription. |
+| Pages / Keynote | Document text or slide content | libetonyek handles legacy XML and modern IWA containers; both have real fixture coverage. Tables become plain text; complex layouts may be omitted. |
+| EML / MSG | Message headers and body | Lists attachment names; does not recursively import attachments or fetch linked resources. |
+| PNG / JPEG / TIFF / WebP / BMP | English OCR, with one page anchor per frame | Each decoded frame is limited to 16 million pixels and reduced to a 4096-pixel maximum dimension for OCR. Descriptions are optional. |
+| WAV / MP3 / M4A / AAC / Ogg / FLAC | Explicit hosted transcript with 30-second segments | Up to five minutes and the configured source byte budget. No speaker identification; speech recognition can be inaccurate. |
+| MP4 / MOV / AVI | Explicit hosted transcript of the first audio track | Same recording limits; video frames are not analyzed. |
+
+For PDFs, images, and PPTX, an explicitly selected hosted interpretation adds clearly labeled, unverified figure descriptions. It is off by default. PDF/image hosted OCR replaces only the selected physical pages, preserving unselected local extraction. Neither is a factual verification. Audio/video can be archived locally without transcription; selected hosted transcription processes at most five minutes in 30-second mono audio chunks and does not analyze video frames. Operator configuration selects an existing Responses/image connection and explicit vision/transcription models:
+
+```json
+"sources": {"connection": "openai", "model": "YOUR_ALLOWED_VISION_MODEL", "transcriptionModel": "YOUR_TRANSCRIPTION_MODEL"}
+```
+
+Enable only the desired source capabilities in Administration after configuration. An existing key alone grants no upload consent. Source processing is independent of the chat/writing feature flag.
+
+DOCX/XLSX/CSV/TSV tables show original row/record numbers and column letters, split into sections of up to 100 rows for citation. XLSX sheets have separate headings. Blank CSV lines are skipped by the CSV parser; record numbers are not physical text-file line numbers. Deliberate limits are 10,000 stored rows per table/sheet, 128 columns, and 100,000 cells per table (including padding) or explicit workbook cells. Extracted text still must fit within 4 MiB.
+
+OpenDocument tables have the same row, column, and logical-cell limits, checked before parsing. Repeated empty or formatting-only rows and columns also count; large unused formatted areas can cause an ODS file to be rejected.
+
+ZIP-based documents are read in memory, never expanded onto the filesystem. Entry count is bounded by `FMN_LIMIT_IMPORT_OBJECTS` (default 100,000); total declared expansion and cumulative part reads by `FMN_LIMIT_IMPORT_BYTES` (default 256 MiB); and each XML/chapter part by twice `FMN_LIMIT_SOURCE_TEXT_BYTES` (default 8 MiB). Unsafe paths, symlinks, duplicate entries, invalid XML, external document-part references, and encrypted chapters fail explicitly. These bounds can reject image-heavy or otherwise large documents even when the compressed original fits the source byte budget. Unsupported or malformed imports are rejected before any commit; PDF's original-with-warning fallback remains available. A refused document, URL or page selection is HTTP 400 `invalid_request`, and a source job's warning starts with `Rejected:`. A converter that is missing, blocked or killed also commits nothing, and stays a server error, as does a fetch that fails rather than being refused: an unresolved host, a lost connection or an error from the site. A successful preview with no text can still retain the original. Native installs require FFmpeg for media validation and decoding.
+
+Legacy `.doc`/`.xls`/`.ppt`, `.xlsb`, macro-enabled Office formats, RTF, Numbers, and arbitrary ZIP files are not supported by this importer. Export these to a supported format first. Conversion fidelity is deliberately limited: verify quotations and important figures against the retained original.
+
+Literal search and the existing passage/semantic indexing pipeline include committed source notes automatically. If semantic search is enabled, the usual server or connected-agent indexing workflow handles their extracted text; no separate source index or embedding service is added. Old versions remain inspectable through pinned citations/history, but full-text search over all historical captures is not implemented.
+
+## MCP
+
+Browser and MCP use the same capture/extraction code and atomic storage operation:
+
+- `source_formats`: lists supported extensions, MIME types, and extraction behavior. Requires Read. The browser obtains the same catalog from `GET /p/{project}/api/sources/formats`.
+- `archive_source`: public `url` or base64 `data` plus `filename`, optional `title` and `folder`. Omit `folder` to keep the existing MCP/API default `sources`; send `folder: ""` for the project root, or a project-relative folder such as `research/references`. A new folder is created with the note if needed. Do not send `folder` when refreshing. Pass an existing source note `path` and `revision` to refresh it. Requires Edit access and `notes:write`. Returns the note, provenance, extraction warnings, and Git revision.
+- `verify_source`: `path`, optional `revision`; checks original and extracted-text checksums. Requires Read.
+- `read_source_original`: original asset `path`, optional initial `revision`, `offset`, and `limit`; returns bounded base64 chunks with MIME, SHA-256 and revision. Pin revision for subsequent chunks. Requires Read.
+- Existing `read_note`, `browse_folder`, `search_notes`, `get_note_sources`, `note_history`, and knowledge indexing tools handle source records and extracted text. Creating a citation uses ordinary `save_note` or an edit group, with normal draft/revision/lock protections.
+
+Browser/API/CLI/MCP share optional `describeImages`, `externalOCR`, `transcribe`, `firstPage` and `lastPage` fields. `source_formats` reports per-notebook available capabilities. Defaults are local. Durable MCP actions `prepare_source`, `source_job`, `cancel_source_job`, `resume_source_job` and `import_source_job` use the same worker and checks; saving by job ID does not resend the original.
+
+Imported documents are untrusted evidence, never instructions to the agent. Importing a document grants no additional project authority. Disabling a user or removing membership applies to these tools through the existing authentication and permission checks.
+
+## Verification
+
+```sh
+go test -race ./...
+go vet ./...
+npm test
+docker build -t forgetmenote:sources-test .
+SMOKE_IMAGE=forgetmenote:sources-test python3 scripts/docker_smoke.py
+SMOKE_IMAGE=forgetmenote:sources-test python3 scripts/source_smoke.py
+```
+
+The source smoke runs the complete native source test executable inside the final runtime with networking disabled, so every real extractor runs under the sandbox helper above, including real PDF/image, legacy/modern Apple and nine media formats, local recovery/cancellation and synthetic hosted providers. It asserts the displaced inference modules and weights are absent and verifies the English data hash. HTTP checks cover archive/search, refresh history, original downloads, restart and independent Git-bundle restore. Routine verification retains the real scanned PDF path and storage boundaries. Set `SOURCE_SMOKE_URL=https://example.com` only for an explicit public-fetch test. Quality and resource measurements remain separate from these behavioral checks.
+
+Conversion scratch for durable jobs lives in a private directory per job under
+the gateway's own `cache/source-jobs`, never in blob storage. A gateway removes
+all of it when it opens, before recovering resumable page checkpoints, and each
+conversion removes its own when it stops. Resume clears old scratch before
+reserving a new attempt and refuses admission when cleanup fails. Failed
+cleanup remains charged to the retained storage budget on that gateway. Shared
+system temporary directories are never swept.

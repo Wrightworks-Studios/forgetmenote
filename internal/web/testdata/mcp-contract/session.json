@@ -1,0 +1,383 @@
+[
+  {
+    "step": "create the fixture notebook",
+    "tool": "create_project",
+    "as": "admin",
+    "arguments": {
+      "id": "contract",
+      "name": "Contract notebook"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "step": "list accessible notebooks",
+    "tool": "list_projects",
+    "as": "admin",
+    "arguments": {},
+    "result": [
+      {
+        "authority": {
+          "generation": 1,
+          "type": "forgetmenote"
+        },
+        "capabilities": {
+          "backup": true,
+          "edit": true,
+          "manage": true,
+          "read": true,
+          "refresh": true
+        },
+        "id": "contract",
+        "name": "Contract notebook",
+        "role": "owner"
+      },
+      {
+        "authority": {
+          "generation": 1,
+          "type": "forgetmenote"
+        },
+        "capabilities": {
+          "backup": true,
+          "edit": true,
+          "manage": true,
+          "read": true,
+          "refresh": true
+        },
+        "id": "default",
+        "name": "My notes",
+        "role": "owner"
+      }
+    ]
+  },
+  {
+    "step": "list accessible notebooks by the notebook name",
+    "tool": "list_notebooks",
+    "as": "admin",
+    "arguments": {},
+    "result": [
+      {
+        "authority": {
+          "generation": 1,
+          "type": "forgetmenote"
+        },
+        "capabilities": {
+          "backup": true,
+          "edit": true,
+          "manage": true,
+          "read": true,
+          "refresh": true
+        },
+        "id": "contract",
+        "name": "Contract notebook",
+        "role": "owner"
+      },
+      {
+        "authority": {
+          "generation": 1,
+          "type": "forgetmenote"
+        },
+        "capabilities": {
+          "backup": true,
+          "edit": true,
+          "manage": true,
+          "read": true,
+          "refresh": true
+        },
+        "id": "default",
+        "name": "My notes",
+        "role": "owner"
+      }
+    ]
+  },
+  {
+    "step": "an editor sees only granted notebooks",
+    "tool": "list_projects",
+    "as": "editor",
+    "arguments": {},
+    "result": [
+      {
+        "authority": {
+          "generation": 1,
+          "type": "forgetmenote"
+        },
+        "capabilities": {
+          "backup": false,
+          "edit": true,
+          "manage": false,
+          "read": true,
+          "refresh": false
+        },
+        "id": "contract",
+        "name": "Contract notebook",
+        "role": "edit"
+      }
+    ]
+  },
+  {
+    "step": "create a second notebook by the notebook name",
+    "tool": "create_notebook",
+    "as": "admin",
+    "arguments": {
+      "id": "contract-scratch",
+      "name": "Scratch notebook"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "step": "provision a work notebook for a person",
+    "tool": "provision_work_notebook",
+    "as": "admin",
+    "arguments": {
+      "id": "contract-work",
+      "name": "Work notebook",
+      "user": "contract-person"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "step": "provisioning again is idempotent",
+    "tool": "provision_work_notebook",
+    "as": "admin",
+    "arguments": {
+      "id": "contract-work",
+      "name": "Work notebook",
+      "user": "contract-person"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "step": "creating an existing notebook is refused",
+    "tool": "create_project",
+    "as": "admin",
+    "arguments": {
+      "id": "contract",
+      "name": "Again"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "notebook authority",
+    "tool": "notebook_authority_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "authority": {
+        "generation": 1,
+        "type": "forgetmenote"
+      },
+      "capabilities": {
+        "backup": true,
+        "edit": true,
+        "manage": true,
+        "read": true,
+        "refresh": true
+      },
+      "changing": false,
+      "project": "contract",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "managed backup status",
+    "tool": "managed_backup_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "configured": false
+    }
+  },
+  {
+    "step": "discover capabilities",
+    "tool": "capabilities",
+    "as": "admin",
+    "arguments": {},
+    "result": {
+      "admin": true,
+      "apiVersion": 1,
+      "canAdministerInstance": true,
+      "canCreateProjects": true,
+      "dataReadConsent": false,
+      "embeddingEndpointAvailable": false,
+      "headless": false,
+      "instance": "<masked>",
+      "managementConsent": true,
+      "memory": {
+        "recallTool": "recall_memory",
+        "rememberTool": "remember",
+        "statusTool": "assistant_status"
+      },
+      "personalAssistant": {
+        "contextTool": "assistant_context",
+        "setupURL": "<ORIGIN>/account/assistant",
+        "statusTool": "assistant_status"
+      },
+      "projects": [
+        {
+          "allowed": {
+            "comment": true,
+            "edit": true,
+            "manageMembers": true,
+            "owner": true,
+            "read": true
+          },
+          "authority": {
+            "generation": 1,
+            "type": "forgetmenote"
+          },
+          "capabilities": {
+            "backup": true,
+            "edit": true,
+            "manage": true,
+            "read": true,
+            "refresh": true
+          },
+          "id": "contract",
+          "kind": "",
+          "name": "Contract notebook",
+          "role": "owner"
+        },
+        {
+          "allowed": {
+            "comment": true,
+            "edit": true,
+            "manageMembers": true,
+            "owner": true,
+            "read": true
+          },
+          "authority": {
+            "generation": 1,
+            "type": "forgetmenote"
+          },
+          "capabilities": {
+            "backup": true,
+            "edit": true,
+            "manage": true,
+            "read": true,
+            "refresh": true
+          },
+          "id": "default",
+          "kind": "",
+          "name": "My notes",
+          "role": "owner"
+        },
+        {
+          "allowed": {
+            "comment": true,
+            "edit": true,
+            "manageMembers": true,
+            "owner": true,
+            "read": true
+          },
+          "authority": {
+            "generation": 1,
+            "type": "forgetmenote"
+          },
+          "capabilities": {
+            "backup": true,
+            "edit": true,
+            "manage": true,
+            "read": true,
+            "refresh": true
+          },
+          "id": "contract-scratch",
+          "kind": "",
+          "name": "Scratch notebook",
+          "role": "owner"
+        },
+        {
+          "allowed": {
+            "comment": true,
+            "edit": true,
+            "manageMembers": true,
+            "owner": true,
+            "read": true
+          },
+          "authority": {
+            "generation": 1,
+            "type": "forgetmenote"
+          },
+          "capabilities": {
+            "backup": true,
+            "edit": true,
+            "manage": true,
+            "read": true,
+            "refresh": true
+          },
+          "id": "contract-work",
+          "kind": "notes",
+          "name": "Work notebook",
+          "role": "owner"
+        }
+      ],
+      "user": "@local-admin",
+      "writeConsent": true
+    }
+  },
+  {
+    "step": "a reader's capabilities",
+    "tool": "capabilities",
+    "as": "reader",
+    "arguments": {},
+    "result": {
+      "admin": false,
+      "apiVersion": 1,
+      "canAdministerInstance": false,
+      "canCreateProjects": false,
+      "dataReadConsent": false,
+      "embeddingEndpointAvailable": false,
+      "headless": false,
+      "instance": "<masked>",
+      "managementConsent": false,
+      "memory": {
+        "recallTool": "recall_memory",
+        "rememberTool": "remember",
+        "statusTool": "assistant_status"
+      },
+      "personalAssistant": {
+        "contextTool": "assistant_context",
+        "setupURL": "<ORIGIN>/account/assistant",
+        "statusTool": "assistant_status"
+      },
+      "projects": [
+        {
+          "allowed": {
+            "comment": false,
+            "edit": false,
+            "manageMembers": false,
+            "owner": false,
+            "read": true
+          },
+          "authority": {
+            "generation": 1,
+            "type": "forgetmenote"
+          },
+          "capabilities": {
+            "backup": false,
+            "edit": false,
+            "manage": false,
+            "read": true,
+            "refresh": false
+          },
+          "id": "contract",
+          "kind": "",
+          "name": "Contract notebook",
+          "role": "read"
+        }
+      ],
+      "user": "contract-reader",
+      "writeConsent": true
+    }
+  }
+]

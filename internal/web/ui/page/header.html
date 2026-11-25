@@ -1,0 +1,54 @@
+{{/* Page header: back, breadcrumb, save state and note actions. Rendered in place by index.html. */}}
+{{define "index-header"}}<header>
+        <button id="note-back" class="quiet" data-icon="back" hidden>Back</button><button id="search-close" class="quiet" data-icon="back">Back</button><h1 id="search-results-title"></h1>
+        <button
+          id="menu"
+          class="quiet"
+          aria-label="Hide sidebar"
+          aria-controls="sidebar"
+          aria-expanded="true"
+          title="Hide sidebar"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M9 4v16" />
+          </svg>
+        </button>
+        <nav id="folder-crumbs" aria-label="Folder location"></nav>
+        <div id="focus-controls" role="group" aria-label="Focus page">
+          <label class="focus-range"><input id="focus-text-size" type="range" min="80" max="200" step="10" value="100" /><span>Text size <span class="focus-value" aria-hidden="true"></span></span></label>
+          <label class="focus-range"><input id="focus-page-width" type="range" min="60" max="160" step="5" value="100" /><span>Page width <span class="focus-value" aria-hidden="true"></span></span></label>
+          <label class="focus-range"><input id="focus-page-position" type="range" min="0" max="100" step="5" value="50" /><span>Position <span class="focus-value" aria-hidden="true"></span></span></label>
+          <button id="focus-typewriter" class="quiet" aria-pressed="false" title="Keep the line you are typing in the middle of the screen">Typewriter</button>
+          <button id="focus-dim" class="quiet" aria-pressed="false" title="Dim all but the paragraph you are writing">Dim others</button>
+          <button id="focus-goto" class="quiet">Go to</button>
+          <button id="focus-context" class="quiet" aria-controls="comments-panel">Context</button>
+          <button id="focus-words" class="quiet"><span id="focus-word-total">Counting…</span> <span id="focus-word-session" title="Words added this session" hidden></span></button>
+          <label class="focus-range"><input id="focus-background" type="range" min="0" max="100" step="5" value="30" /><span>Background <span class="focus-value" aria-hidden="true"></span></span></label>
+          <button id="focus-fullscreen" class="quiet" aria-pressed="false" hidden>Full screen</button>
+        </div>
+        <div class="breadcrumb">
+          <div class="note-heading"><span id="note-folder"></span><span id="path">Your notebook</span></div
+          ><form id="filename-form" hidden aria-label="Rename filename"><div class="filename-controls"><input id="filename-input" aria-label="Filename" autocomplete="off" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true" /><button id="filename-save" class="primary" type="submit">Rename</button><button id="filename-cancel" type="button" class="quiet">Cancel</button></div><span id="filename-error" role="alert"></span></form><span id="note-path" class="small sr-only" hidden></span><span id="save-state" role="status" aria-live="polite" data-idle="true">Ready</span>
+        </div>
+        <button id="chat-open" class="quiet" aria-label="Ask notebook" aria-expanded="false" aria-controls="chat-panel">Ask notebook</button>
+        <div class="actions note-actions">
+          <button id="note-context-toggle" class="quiet" data-icon="list" disabled aria-expanded="false" aria-controls="comments-panel" aria-label="Note context">Context</button>
+          <button id="mode" class="quiet" data-icon="edit" disabled>Edit</button><button id="save" class="primary" hidden disabled>Save</button><button id="focus-toggle" class="quiet" hidden aria-keyshortcuts="Control+Shift+. Meta+Shift+.">Focus</button>
+          <div class="sidebar-disclosure note-details">
+            <button id="note-details-toggle" class="quiet" data-icon="more" disabled aria-expanded="false" aria-controls="note-details-actions" data-sidebar-toggle>More</button>
+            <div id="note-details-actions" class="sidebar-actions" hidden>
+              <button id="properties-open" class="quiet" data-icon="tag" disabled>Properties</button>
+              <button id="writing-menu-open" class="quiet" data-icon="edit">Writing tools</button>
+              <button id="sources-open" class="quiet" data-icon="link" disabled>References</button>
+              <button id="comments-open" class="quiet" data-icon="chat" disabled>Comments</button>
+              <button id="history-open" class="quiet" data-icon="history" disabled>History</button>
+              <button id="filename-open" class="quiet" data-icon="rename" hidden>Rename…</button>
+              <button id="protection-open" class="quiet" hidden aria-label="Note protection" title="Note protection">
+                <svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path id="lock-shackle" d="M8 10V7a4 4 0 018 0v3"/></svg>
+                <span id="protection-label">Lock…</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>{{end}}

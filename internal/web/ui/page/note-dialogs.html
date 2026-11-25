@@ -1,0 +1,212 @@
+{{/* Note dialogs: creation, properties, trash, file actions, history, permanent erasure and protection. Rendered in place by index.html. */}}
+{{define "index-note-dialogs"}}<dialog id="new-dialog" aria-labelledby="creation-title">
+      <div class="dialog-title"><h2 id="creation-title">New note</h2><button id="creation-close" class="quiet close-control" type="button" data-icon="close" aria-label="Close"></button></div>
+      <div id="creation-tabs" role="tablist" aria-label="Create">
+        <button id="create-note-tab" class="quiet" type="button" role="tab" aria-selected="true" aria-controls="new-note-panel">Note</button>
+        <button id="create-source-tab" class="quiet" type="button" role="tab" aria-selected="false" aria-controls="new-source-panel" tabindex="-1">Import source</button>
+      </div>
+      <section id="new-note-panel" role="tabpanel" aria-labelledby="create-note-tab">
+        <form id="new-form">
+          <label for="new-name">Note name</label><input id="new-name" placeholder="An idea worth keeping" required autocomplete="off" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true"/>
+          <label for="new-folder">Folder</label>
+          <div id="new-folder-picker" class="folder-picker">
+            <div class="folder-picker-input">
+              <input id="new-folder" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="new-folder-options" autocomplete="off" placeholder="Search folders…" disabled/>
+              <button id="new-folder-toggle" class="quiet" type="button" aria-label="Choose folder" disabled></button>
+            </div>
+            <div id="new-folder-options" role="listbox" aria-label="Destination folders" hidden></div>
+          </div>
+          <p id="new-folder-status" class="small" role="status"></p>
+          <label for="new-container">Save to</label><div class="select-picker"><select id="new-container"><option value="">Notes</option><option value="draft">Drafts</option></select></div>
+          <p id="new-error" role="alert" hidden></p>
+          <div class="dialog-actions"><button id="new-submit" class="primary" type="submit" disabled>Start writing</button></div>
+        </form>
+      </section>
+      <section id="new-source-panel" role="tabpanel" aria-labelledby="create-source-tab" hidden>
+      <form id="archive-form">
+        <div id="archive-inputs">
+          <fieldset id="archive-mode">
+            <legend class="sr-only">Source type</legend>
+            <label><input id="archive-upload" type="radio" name="archive-mode" value="file" checked/><span>Upload file</span></label>
+            <label><input id="archive-fetch" type="radio" name="archive-mode" value="url"/><span>From URL</span></label>
+          </fieldset>
+          <div id="archive-file-field">
+            <label for="archive-file">File</label><input id="archive-file" type="file" aria-describedby="archive-formats" required/><p id="archive-formats" class="small"></p>
+            <details id="archive-origin-details"><summary>Source URL (optional)</summary><label for="archive-origin-url" class="sr-only">Source URL for the uploaded file</label><input id="archive-origin-url" type="url" placeholder="https://…"/></details>
+          </div>
+          <div id="archive-url-field" hidden><label for="archive-url">Page or file URL</label><input id="archive-url" type="url" placeholder="https://…" disabled/></div>
+          <div id="archive-folder-field"><label for="archive-folder">Folder</label><div class="select-picker"><select id="archive-folder" aria-label="Destination folder"></select></div></div>
+          <label id="archive-describe-field" hidden><input id="archive-describe" type="checkbox"/>Upload images for hosted interpretation</label>
+          <label id="archive-ocr-field" hidden><input id="archive-ocr" type="checkbox"/>Upload selected pages for hosted OCR</label>
+          <label id="archive-transcribe-field" hidden><input id="archive-transcribe" type="checkbox"/>Upload audio for hosted transcription</label>
+          <div id="archive-page-range" hidden><label>Selected physical pages/images (up to eight)</label><div class="archive-links"><input id="archive-first-page" type="number" min="1" max="10000" placeholder="First" aria-label="First physical page"/><input id="archive-last-page" type="number" min="1" max="10000" placeholder="Last" aria-label="Last physical page"/></div><p class="small">Leave empty for documents with up to eight pages. Hosted options send content to the configured provider.</p></div>
+          <button id="archive-preview-button" class="primary" type="submit">Preview source</button>
+        </div>
+        <p id="archive-job-status" class="small" role="status"></p>
+        <div class="archive-links"><button id="archive-cancel" type="button" class="quiet" hidden>Cancel processing</button><button id="archive-resume" type="button" class="quiet" hidden>Resume processing</button></div>
+        <div id="archive-preview" hidden>
+          <label for="archive-title">Title</label><input id="archive-title" maxlength="300" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true"/>
+          <p id="archive-warning" class="small"></p><div id="archive-preview-text" class="prose"></div>
+        </div>
+        <p id="archive-error" role="alert" hidden></p>
+        <button id="archive-save" class="primary" type="button" hidden>Archive source</button>
+        <div id="archive-saved" hidden>
+          <p>Source archived.</p><textarea id="archive-result" readonly aria-label="Pinned source citation"></textarea>
+          <div class="archive-links"><button id="archive-insert" type="button">Insert citation</button><button id="archive-copy" type="button" class="quiet">Copy citation</button><button id="archive-view" type="button" class="quiet">Open source</button></div>
+        </div>
+      </form>
+      </section>
+    </dialog>
+    <dialog id="properties-dialog">
+      <form id="properties-form">
+        <div class="dialog-title"><h2>Note properties</h2><button type="button" data-close="properties-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+        <p id="properties-path" class="small"></p>
+        <div class="container-actions" aria-label="Note collection"><button id="note-container-notes" type="button" class="quiet">Return to Notes</button><button id="note-container-draft" type="button" class="quiet">Move to Drafts</button><button id="note-container-archive" type="button" class="quiet">Move to Archives</button></div>
+        <label for="property-title">Display title (optional)</label><input id="property-title" maxlength="500" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true" />
+        <label for="property-kind">Kind</label><input id="property-kind" maxlength="500" placeholder="e.g. character, research, journal" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true" />
+        <label for="property-status">Status</label><input id="property-status" maxlength="500" placeholder="e.g. provisional, canon, draft" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true" />
+        <label for="property-tags">Tags · one per line</label><textarea id="property-tags" rows="4" placeholder="language&#10;research" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true"></textarea>
+        <label for="property-cover">Cover image</label><div class="cover-picker"><select id="property-cover"><option value="">No cover</option></select><button id="cover-upload-open" type="button" class="quiet">Upload image</button></div>
+        <input id="cover-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden />
+        <img id="cover-preview" alt="Cover preview" hidden />
+        <p id="properties-error" role="alert" hidden></p>
+        <div class="dialog-actions properties-actions"><button id="note-trash" type="button" hidden>Move to Trash</button><button id="properties-save" class="primary">Save properties</button></div>
+      </form>
+    </dialog>
+    <dialog id="trash-dialog" aria-labelledby="trash-title">
+      <div class="dialog-title"><h2 id="trash-title">Trash</h2><button id="trash-close" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+      <ul id="trash-list" aria-label="Trashed notes"></ul>
+      <pre id="trash-preview" aria-label="Trashed note content" tabindex="0"></pre>
+      <div id="trash-restore-fields" hidden><label for="trash-destination">Restore to</label><input id="trash-destination" placeholder="notes/example.md" /><button id="trash-restore" class="primary">Restore</button></div>
+      <p id="trash-error" role="alert" hidden></p>
+      <div class="dialog-actions trash-actions"><button id="trash-reload" class="quiet">Refresh</button><button id="trash-empty" class="quiet">Empty Trash…</button></div>
+    </dialog>
+    <dialog id="trash-empty-dialog" aria-labelledby="trash-empty-title">
+      <h2 id="trash-empty-title">Empty Trash?</h2><p id="trash-empty-question"></p><p>Older versions remain in Git history and backups.</p>
+      <p id="trash-empty-error" role="alert"></p><div class="dialog-actions"><button id="trash-empty-cancel" class="quiet">Cancel</button><button id="trash-empty-confirm">Empty Trash</button></div>
+    </dialog>
+    <div id="file-menu" popover="auto" role="menu" aria-label="Note actions" tabindex="-1">
+      <div class="menu-group" role="group" aria-label="Organize">
+        <button data-file-action="rename" role="menuitem" class="quiet" tabindex="-1" data-icon="rename">Rename…</button>
+        <button data-file-action="move" role="menuitem" class="quiet" tabindex="-1" data-icon="folder">Move to folder…</button>
+        <button data-file-action="duplicate" role="menuitem" class="quiet" tabindex="-1" data-icon="copy">Duplicate…</button>
+      </div>
+      <div class="menu-group" role="group" aria-label="Collection">
+        <button data-file-action="container-notes" role="menuitem" aria-describedby="file-menu-collection-hint" class="quiet" tabindex="-1" data-icon="document">Return to Notes</button>
+        <button data-file-action="container-draft" role="menuitem" aria-describedby="file-menu-collection-hint" class="quiet" tabindex="-1" data-icon="draft">Move to Drafts</button>
+        <button data-file-action="container-archive" role="menuitem" aria-describedby="file-menu-collection-hint" class="quiet" tabindex="-1" data-icon="archive">Move to Archives</button>
+        <p id="file-menu-collection-hint" class="menu-hint" hidden></p>
+      </div>
+      <div class="menu-group" role="group" aria-label="Protection">
+        <button data-file-action="protection" role="menuitem" class="quiet" tabindex="-1" data-icon="lock">Lock…</button>
+      </div>
+      <div class="menu-group" role="group" aria-label="Trash">
+        <button data-file-action="trash" role="menuitem" class="quiet menu-danger" tabindex="-1" data-icon="delete" aria-describedby="file-menu-trash-hint">Move to Trash</button>
+        <p id="file-menu-trash-hint" class="menu-hint" hidden></p>
+        <button data-file-action="purge" role="menuitem" class="quiet menu-danger" tabindex="-1" data-icon="delete">Permanently erase…</button>
+      </div>
+      <p id="file-menu-error" role="alert" hidden></p>
+    </div>
+    <dialog id="file-action-dialog">
+      <form id="file-action-form">
+        <div class="dialog-title"><h2 id="file-action-title">Rename note</h2><button type="button" data-close="file-action-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+        <p id="file-action-source" class="small"></p>
+        <fieldset id="file-action-fields">
+          <div id="file-name-field">
+            <label for="file-name">Name</label>
+            <div class="file-name-input"><input id="file-name" maxlength="250" autocomplete="off" autocorrect="off" autocapitalize="off" writingsuggestions="false" spellcheck="true" /><span id="file-extension">.md</span></div>
+          </div>
+          <section id="folder-picker" aria-label="Destination folder">
+            <label>Destination folder</label>
+            <nav id="folder-breadcrumbs" aria-label="Folder location"></nav>
+            <div id="folder-choices"></div>
+          </section>
+        </fieldset>
+        <div class="destination-preview"><span>New location</span><output id="file-action-preview"></output></div>
+        <p id="file-action-error" role="status"></p>
+        <div id="file-action-drafts" class="file-action-list"></div>
+        <div class="dialog-actions"><button id="file-action-submit" class="primary">Rename</button></div>
+      </form>
+    </dialog>
+    <dialog id="history-dialog">
+      <div class="dialog-title">
+        <h2>Version history</h2>
+        <button data-close="history-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button>
+      </div>
+      <label for="history-scope">History scope</label><select id="history-scope"></select>
+      <p id="history-help" class="small" role="status"></p>
+      <div id="history-list"></div>
+      <div class="dialog-actions"><button id="history-purge" class="quiet menu-danger" hidden>Permanently erase versions…</button></div>
+    </dialog>
+    <dialog id="purge-dialog" aria-labelledby="purge-title">
+      <div class="dialog-title"><h2 id="purge-title">Permanently erase</h2><button id="purge-close" type="button" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+      <p class="purge-warning">Erasing removes content from every version of this notebook, not only the current one, and rewrites its history. It cannot be undone. To remove a note while keeping its history, move it to Trash instead.</p>
+      <form id="purge-scope" novalidate>
+        <fieldset id="purge-kinds">
+          <legend>What to erase</legend>
+          <label><input type="radio" name="purge-kind" value="note" /> This whole note, from every version</label>
+          <label><input type="radio" name="purge-kind" value="versions" /> Chosen versions of this note</label>
+          <label><input type="radio" name="purge-kind" value="text" /> Text in chosen notes, from every version</label>
+          <label><input type="radio" name="purge-kind" value="notebook" /> Text everywhere in this notebook, from every version</label>
+        </fieldset>
+        <p id="purge-target" class="small"></p>
+        <fieldset id="purge-versions-field" hidden>
+          <legend>Versions to erase</legend>
+          <ul id="purge-versions" aria-label="Versions of this note"></ul>
+        </fieldset>
+        <div id="purge-text-field" hidden>
+          <label for="purge-text">Exact text to erase</label>
+          <input id="purge-text" autocomplete="off" spellcheck="false" placeholder="for example, a leaked API key" />
+          <label class="purge-check"><input type="checkbox" id="purge-pattern" /> Treat it as a pattern (an RE2 regular expression)</label>
+          <div id="purge-paths-field">
+            <label for="purge-paths">Notes, one path per line</label>
+            <textarea id="purge-paths" rows="3" spellcheck="false"></textarea>
+          </div>
+        </div>
+        <div class="dialog-actions"><button id="purge-review" class="primary">Review the plan</button></div>
+        <details id="purge-history" hidden>
+          <summary>Earlier purges of this notebook</summary>
+          <ul id="purge-receipts"></ul>
+        </details>
+      </form>
+      <section id="purge-plan" hidden aria-labelledby="purge-plan-title">
+        <h3 id="purge-plan-title">What this erases</h3>
+        <p id="purge-prepared" class="purge-prepared" hidden></p>
+        <p id="purge-what"></p>
+        <ul id="purge-summary"></ul>
+        <ul id="purge-warnings" aria-label="Before you erase" hidden></ul>
+        <div id="purge-elsewhere-field" hidden>
+          <p id="purge-elsewhere-title">The text also appears outside what you chose:</p>
+          <ul id="purge-elsewhere" aria-labelledby="purge-elsewhere-title"></ul>
+          <button id="purge-include" type="button" class="quiet">Include these notes too</button>
+        </div>
+        <p id="purge-blocked" role="alert" hidden></p>
+        <div class="purge-exposure">
+          <h4>What erasing cannot do</h4>
+          <ul>
+            <li>It cannot undo exposure. Anything already pushed, downloaded or sent elsewhere is leaked: rotate a leaked secret regardless.</li>
+            <li>GitHub may keep cached views of old commits for a while; clearing them may need GitHub Support.</li>
+            <li>Downloads, earlier backups and database dumps taken before now still hold the content.</li>
+          </ul>
+        </div>
+        <label for="purge-reason">Reason, kept in the purge receipt (do not quote what you erase)</label>
+        <textarea id="purge-reason" rows="2" maxlength="1000"></textarea>
+        <label class="purge-check"><input type="checkbox" id="purge-understood" /> I understand this permanently erases the content shown above from every version and cannot be undone.</label>
+        <div class="dialog-actions"><button id="purge-back" type="button" class="quiet">Change</button><button id="purge-confirm" type="button" class="purge-danger">Erase permanently</button></div>
+      </section>
+      <section id="purge-done" hidden aria-labelledby="purge-done-title">
+        <h3 id="purge-done-title">Erased</h3>
+        <ul id="purge-receipt"></ul>
+        <div class="dialog-actions"><button id="purge-finish" type="button" class="primary">Done</button></div>
+      </section>
+      <p id="purge-error" role="alert" hidden></p>
+    </dialog>
+    <dialog id="protection-dialog">
+      <div class="dialog-title"><h2>Protection</h2><button data-close="protection-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
+      <label for="lock-scope">Note or folder</label>
+      <select id="lock-scope"></select>
+      <p id="lock-description" role="status"></p>
+      <ul id="lock-rules"></ul>
+      <p id="lock-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="lock-change" hidden>Lock</button></div>
+    </dialog>{{end}}

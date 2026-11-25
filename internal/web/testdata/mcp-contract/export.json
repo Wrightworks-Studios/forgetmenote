@@ -1,0 +1,990 @@
+[
+  {
+    "step": "status before exporting the audit notebook",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "export chunk 1",
+    "tool": "export_project_backup",
+    "as": "admin",
+    "arguments": {
+      "limit": 262144,
+      "offset": 0,
+      "project": "contract-history"
+    },
+    "result": {
+      "data": "<masked>",
+      "encoding": "base64",
+      "mimeType": "application/octet-stream",
+      "nextOffset": "<masked>",
+      "offset": 0,
+      "sha256": "<masked>",
+      "total": "<masked>"
+    }
+  },
+  {
+    "step": "the export's head is the notebook's revision",
+    "check": {
+      "head": "REV1",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "the export's commits, newest first",
+    "check": [
+      {
+        "commit": "REV1",
+        "object": [
+          "tree REV2",
+          "parent REV3",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update assets/dot.png",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV3",
+        "object": [
+          "tree REV4",
+          "parent REV5",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Empty Trash",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV5",
+        "object": [
+          "tree REV6",
+          "parent REV7",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Restore note from Trash",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV7",
+        "object": [
+          "tree REV8",
+          "parent REV9",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move notes to Trash",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV9",
+        "object": [
+          "tree REV10",
+          "parent REV11",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update .gitnotes-locks.json",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV11",
+        "object": [
+          "tree REV12",
+          "parent REV13",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update .gitnotes-locks.json",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV13",
+        "object": [
+          "tree REV14",
+          "parent REV15",
+          "author User USER2 <ID2@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update comments/HASH1.json",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID2",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV15",
+        "object": [
+          "tree REV16",
+          "parent REV17",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update .gitnotes-locks.json",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV17",
+        "object": [
+          "tree REV18",
+          "parent REV19",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Duplicate \"chapters/beta-final.md\" to \"chapters/beta-final-copy.md\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV19",
+        "object": [
+          "tree REV20",
+          "parent REV21",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move \"chapters/beta-restored.md\" to \"chapters/beta-final.md\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV21",
+        "object": [
+          "tree REV22",
+          "parent REV23",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update comments/HASH2.json",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV23",
+        "object": [
+          "tree REV24",
+          "parent REV25",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Rename by hand",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client",
+          "Gitnotes-Operation: HASH3",
+          "Gitnotes-Request: HASH4"
+        ]
+      },
+      {
+        "commit": "REV25",
+        "object": [
+          "tree REV26",
+          "parent REV27",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update .gitnotes-locks.json",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV27",
+        "object": [
+          "tree REV28",
+          "parent REV29",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update .gitnotes-locks.json",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV29",
+        "object": [
+          "tree REV30",
+          "parent REV31",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Restore note from Trash",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV31",
+        "object": [
+          "tree REV32",
+          "parent REV33",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move notes to Trash",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV33",
+        "object": [
+          "tree REV34",
+          "parent REV35",
+          "author ForgetMeNote collaboration <forgetmenote@localhost> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Checkpoint live edits to chapters/alpha-live.md",
+          "",
+          "Gitnotes-Source: collaboration",
+          "Gitnotes-Operation: HASH5",
+          "Gitnotes-Request: HASH6",
+          "Collaboration-Receipt: {\"operation\":\"HASH7\",\"receipt\":{\"request\":\"HASH8\",\"revision\":\"ID3:3\",\"actor\":{\"id\":\"ID1\",\"name\":\"User USER1\",\"email\":\"ID1@users.gitnotes.invalid\",\"source\":\"mcp\",\"client\":\"contract-client\"},\"time\":\"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"}}"
+        ]
+      },
+      {
+        "commit": "REV35",
+        "object": [
+          "tree REV36",
+          "parent REV37",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move \"chapters/alpha-renamed.md\" to \"chapters/alpha-live.md\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV37",
+        "object": [
+          "tree REV38",
+          "parent REV39",
+          "author ForgetMeNote collaboration <forgetmenote@localhost> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Checkpoint live edits to chapters/alpha-renamed.md",
+          "",
+          "Gitnotes-Source: collaboration",
+          "Gitnotes-Operation: HASH9",
+          "Gitnotes-Request: HASH10",
+          "Collaboration-Receipt: {\"operation\":\"HASH11\",\"receipt\":{\"request\":\"HASH12\",\"revision\":\"ID4:2\",\"actor\":{\"id\":\"ID1\",\"name\":\"User USER1\",\"email\":\"ID1@users.gitnotes.invalid\",\"source\":\"mcp\",\"client\":\"contract-client\"},\"time\":\"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"}}"
+        ]
+      },
+      {
+        "commit": "REV39",
+        "object": [
+          "tree REV40",
+          "parent REV41",
+          "author ForgetMeNote collaboration <forgetmenote@localhost> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Checkpoint live edits to chapters/alpha-renamed.md",
+          "",
+          "Gitnotes-Source: collaboration",
+          "Gitnotes-Operation: HASH13",
+          "Gitnotes-Request: HASH14",
+          "Collaboration-Receipt: {\"operation\":\"HASH15\",\"receipt\":{\"request\":\"HASH16\",\"revision\":\"ID4:1\",\"actor\":{\"id\":\"ID1\",\"name\":\"User USER1\",\"email\":\"ID1@users.gitnotes.invalid\",\"source\":\"mcp\",\"client\":\"contract-client\"},\"time\":\"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"}}"
+        ]
+      },
+      {
+        "commit": "REV41",
+        "object": [
+          "tree REV42",
+          "parent REV43",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update drafts/alpha.md",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV43",
+        "object": [
+          "tree REV44",
+          "parent REV45",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Delete the reused note",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client",
+          "Gitnotes-Operation: HASH17",
+          "Gitnotes-Request: HASH18"
+        ]
+      },
+      {
+        "commit": "REV45",
+        "object": [
+          "tree REV46",
+          "parent REV47",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Restore note from Trash",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV47",
+        "object": [
+          "tree REV48",
+          "parent REV49",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move notes to Trash",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV49",
+        "object": [
+          "tree REV50",
+          "parent REV51",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Duplicate \"chapters/alpha-renamed.md\" to \"chapters/alpha-copy.md\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV51",
+        "object": [
+          "tree REV52",
+          "parent REV53",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move \"chapters/beta-2.md\" to \"chapters/beta-3.md\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV53",
+        "object": [
+          "tree REV54",
+          "parent REV55",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move \"chapters/beta-renamed.md\" to \"chapters/beta-2.md\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV55",
+        "object": [
+          "tree REV56",
+          "parent REV57",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update drafts/alpha.md",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV57",
+        "object": [
+          "tree REV58",
+          "parent REV59",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move \"drafts\" to \"chapters\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV59",
+        "object": [
+          "tree REV60",
+          "parent REV61",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move \"drafts/beta.md\" to \"drafts/beta-renamed.md\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV61",
+        "object": [
+          "tree REV62",
+          "parent REV63",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV63",
+        "object": [
+          "tree REV64",
+          "parent REV65",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update drafts/alpha.md",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV65",
+        "object": [
+          "tree REV66",
+          "parent REV67",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update drafts/beta.md",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV67",
+        "object": [
+          "tree REV68",
+          "parent REV69",
+          "author User USER1 <ID1@users.gitnotes.invalid> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Update drafts/alpha.md",
+          "",
+          "Gitnotes-Source: mcp",
+          "Gitnotes-User: ID1",
+          "Gitnotes-Client: contract-client"
+        ]
+      },
+      {
+        "commit": "REV69",
+        "object": [
+          "tree REV70",
+          "author ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "committer ForgetMeNote <forgetmenote@localhost> <EPOCH> +0000",
+          "",
+          "Initialize notes notebook"
+        ]
+      }
+    ]
+  },
+  {
+    "step": "the export's tree",
+    "check": [
+      "100644 blob REV71\t.gitnotes-locks.json",
+      "100644 blob REV72\t.gitnotes-trash.json",
+      "100644 blob REV73\tassets/dot.png",
+      "100644 blob REV74\tchapters/alpha-copy.md",
+      "100644 blob REV75\tchapters/alpha-live.md",
+      "100644 blob REV76\tchapters/beta-final-copy.md",
+      "100644 blob REV76\tchapters/beta-final.md",
+      "100644 blob REV77\tcomments/HASH1.json",
+      "100644 blob REV78\tdrafts/gamma.md"
+    ]
+  },
+  {
+    "step": "note_history lists the export's commits",
+    "check": {
+      "export": 35,
+      "history": 35,
+      "matches": true
+    }
+  },
+  {
+    "step": "each note's version is its last commit in the export",
+    "check": {
+      "chapters/alpha-copy.md": {
+        "lastCommit": "REV49",
+        "version": "REV49"
+      },
+      "chapters/alpha-live.md": {
+        "lastCommit": "REV29",
+        "version": "REV29"
+      },
+      "chapters/beta-final-copy.md": {
+        "lastCommit": "REV17",
+        "version": "REV17"
+      },
+      "chapters/beta-final.md": {
+        "lastCommit": "REV5",
+        "version": "REV5"
+      },
+      "drafts/gamma.md": {
+        "lastCommit": "REV23",
+        "version": "REV23"
+      }
+    }
+  },
+  {
+    "step": "import the audit notebook's bundle",
+    "tool": "import_project_bundle",
+    "as": "admin",
+    "arguments": {
+      "data": "<masked>",
+      "id": "contract-history-restored",
+      "name": "Restored history notebook"
+    },
+    "result": {
+      "id": "contract-history-restored"
+    }
+  },
+  {
+    "step": "the restored notebook keeps the head",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-history-restored"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "the restored notebook follows the renamed note's history",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-renamed.md",
+      "project": "contract-history-restored"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/alpha-renamed.md\" to \"chapters/alpha-live.md\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV35",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV37",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV39",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV57",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV61",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV63",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV67",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "the restored notebook's history of the live note",
+    "tool": "note_history",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/alpha-live.md",
+      "project": "contract-history-restored"
+    },
+    "result": [
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Restore note from Trash",
+        "path": "chapters/alpha-live.md",
+        "revision": "REV29",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move notes to Trash",
+        "path": "Trash/ID5.md",
+        "revision": "REV31",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-live.md",
+        "path": "chapters/alpha-live.md",
+        "revision": "REV33",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"chapters/alpha-renamed.md\" to \"chapters/alpha-live.md\"",
+        "path": "chapters/alpha-live.md",
+        "revision": "REV35",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV37",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "ForgetMeNote collaboration",
+        "authorEmail": "forgetmenote@localhost",
+        "authorName": "ForgetMeNote collaboration",
+        "authoredAt": "<TIME>",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Checkpoint live edits to chapters/alpha-renamed.md",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV39",
+        "source": "collaboration"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts\" to \"chapters\"",
+        "path": "chapters/alpha-renamed.md",
+        "revision": "REV57",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Move \"drafts/alpha.md\" to \"drafts/alpha-renamed.md\"",
+        "path": "drafts/alpha-renamed.md",
+        "revision": "REV61",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV63",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update drafts/alpha.md",
+        "path": "drafts/alpha.md",
+        "revision": "REV67",
+        "source": "mcp",
+        "userId": "ID1"
+      }
+    ]
+  },
+  {
+    "step": "the restored notebook keeps the discussion",
+    "tool": "list_comments",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-final.md",
+      "project": "contract-history-restored"
+    },
+    "result": {
+      "comments": [
+        {
+          "anchor": {
+            "quote": "A note without an fmn-id",
+            "revision": "REV23"
+          },
+          "author": "@local-admin",
+          "created": "<TIME>",
+          "id": "ID6",
+          "replies": [
+            {
+              "author": "contract-editor",
+              "created": "<TIME>",
+              "id": "ID7",
+              "text": "Still right."
+            }
+          ],
+          "resolved": false,
+          "text": "Is this link still right?"
+        }
+      ],
+      "people": {
+        "@local-admin": "Recovery administrator",
+        "contract-editor": "Former contributor"
+      },
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "read a restored note",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "chapters/beta-final.md",
+      "project": "contract-history-restored"
+    },
+    "result": {
+      "content": "# Beta\n\nA note without an fmn-id links to [Alpha](alpha-live.md).\n",
+      "html": "<h1 id=\"h-beta\">Beta</h1>\n<p>A note without an fmn-id links to <a href=\"alpha-live.md\" rel=\"nofollow\">Alpha</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "chapters/beta-final.md",
+      "revision": "REV1",
+      "title": "Beta",
+      "version": "REV5"
+    }
+  },
+  {
+    "step": "a save continues the restored history",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Beta\n\nA note without an fmn-id links to [Alpha](alpha-live.md).\n\nRestored.\n",
+      "path": "chapters/beta-final.md",
+      "project": "contract-history-restored",
+      "revision": "REV1"
+    },
+    "result": {
+      "content": "# Beta\n\nA note without an fmn-id links to [Alpha](alpha-live.md).\n\nRestored.\n",
+      "html": "<h1 id=\"h-beta\">Beta</h1>\n<p>A note without an fmn-id links to <a href=\"alpha-live.md\" rel=\"nofollow\">Alpha</a>.</p>\n<p>Restored.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "chapters/beta-final.md",
+      "revision": "REV79",
+      "title": "Beta",
+      "version": "REV79"
+    }
+  },
+  {
+    "step": "the save follows the imported head",
+    "check": {
+      "head": "REV1",
+      "newestTwo": [
+        "REV79",
+        "REV1"
+      ],
+      "saved": "REV79"
+    }
+  }
+]

@@ -1,0 +1,1 @@
+{"key":"late","version":1,"run":"run-1","active":1,"resolved":0,"open":true,"severity":"warning","notified":"2026-10-02T09:30:00Z","decision":{"notify":true,"incident":{"active":true,"severity":"warning","summary":"Metrics late — 2h","key":"late"}}}

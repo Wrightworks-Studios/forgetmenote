@@ -1,0 +1,23 @@
+{
+  "retryAt": "0001-01-01T00:00:00Z",
+  "version": 5,
+  "id": "52f8186e923da7ede04c9ff8aa89e955487b94957f8f1129c7a083c553cf8571",
+  "spec": {
+    "id": "sweep",
+    "kind": "digest",
+    "actor": "robot",
+    "project": "notes",
+    "output": "sweep.md",
+    "calls": [
+      {
+        "connection": "metrics",
+        "operation": "read",
+        "arguments": null
+      }
+    ]
+  },
+  "state": "running",
+  "created": "2026-11-04T05:00:38.588867Z",
+  "updated": "2026-11-04T05:00:38.596913Z",
+  "attempts": 1
+}

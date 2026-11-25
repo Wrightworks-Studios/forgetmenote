@@ -1,0 +1,1 @@
+Auto http://a.example/x and mail@example.com and www.example.com and https://b.example/path?q=1. Also (https://c.example). text empty nested em code x [[Wiki Page]] and [[Target|label]] stay text. and tag

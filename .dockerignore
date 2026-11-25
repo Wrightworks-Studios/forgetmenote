@@ -1,0 +1,26 @@
+.env
+.env.*
+data/
+secrets/
+.git/
+node_modules/
+*.bundle
+._*
+.DS_Store
+.github/
+bin/
+plugin-local/
+*.token
+ssh/
+*.key
+internal/web/ui/dist/
+
+docs/
+test-results/
+playwright-report/
+.venv/
+**/__pycache__/
+# Tests and fixtures; no production package embeds them (verification_plan.py IMAGE_EXCLUDED).
+**/*_test.go
+**/*.test.mjs
+**/testdata

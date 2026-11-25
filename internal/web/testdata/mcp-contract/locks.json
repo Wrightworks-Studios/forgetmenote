@@ -1,0 +1,359 @@
+[
+  {
+    "step": "no locks yet",
+    "tool": "note_locks",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "path": "",
+      "revision": "REV1",
+      "rules": []
+    }
+  },
+  {
+    "step": "status before locking",
+    "tool": "project_status",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "dirty": false,
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "an editor cannot change locks",
+    "tool": "set_note_lock",
+    "as": "editor",
+    "arguments": {
+      "locked": true,
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "lock a note",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": true,
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "result": {
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV2",
+      "rules": [
+        {
+          "path": "manuscript/chapter-2.md"
+        }
+      ]
+    }
+  },
+  {
+    "step": "a stale lock change conflicts",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": true,
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "list all locks",
+    "tool": "note_locks",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "path": "",
+      "revision": "REV2",
+      "rules": [
+        {
+          "path": "manuscript/chapter-2.md"
+        }
+      ]
+    }
+  },
+  {
+    "step": "locks for the locked note",
+    "tool": "note_locks",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "result": {
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV2",
+      "rules": [
+        {
+          "path": "manuscript/chapter-2.md"
+        }
+      ]
+    }
+  },
+  {
+    "step": "read the locked note",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\nfmn-id: c0ffee00000000000000000000000002\ntitle: \"Chapter two: departure\"\nstatus: \"review\"\ntags: [\"fiction\"]\n---\n# Chapter two\n\nThe captain read [the whale notes](../reference/sperm-whales.md) twice.\n\n## Departure\n\nThey sailed before the whale returned.\n",
+      "html": "<h1 id=\"h-chapter-two\">Chapter two</h1>\n<p>The captain read <a href=\"../reference/sperm-whales.md\" rel=\"nofollow\">the whale notes</a> twice.</p>\n<h2 id=\"h-departure\">Departure</h2>\n<p>They sailed before the whale returned.</p>\n",
+      "metadata": {
+        "id": "c0ffee00000000000000000000000002",
+        "kind": "",
+        "status": "review",
+        "tags": [
+          "fiction"
+        ],
+        "title": "Chapter two: departure"
+      },
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV2",
+      "title": "Chapter two: departure",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "saving a locked note is refused",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Overwritten\n",
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV2"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "an owner may move a locked note that needs no link edits",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV2",
+      "to": "manuscript/chapter-two.md"
+    },
+    "result": {
+      "from": "manuscript/chapter-2.md",
+      "revision": "REV4",
+      "to": "manuscript/chapter-two.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "the lock moves with the note",
+    "tool": "note_locks",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "path": "",
+      "revision": "REV4",
+      "rules": [
+        {
+          "path": "manuscript/chapter-two.md"
+        }
+      ]
+    }
+  },
+  {
+    "step": "an fmn-id link follows the renamed note",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "noteId": "c0ffee00000000000000000000000002",
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "result": {
+      "headings": [
+        "chapter-two",
+        "departure"
+      ],
+      "noteId": "c0ffee00000000000000000000000002",
+      "notebook": "Contract notebook",
+      "path": "manuscript/chapter-two.md",
+      "project": "contract",
+      "title": "Chapter two",
+      "url": "/?note=manuscript%2Fchapter-two.md&noteId=c0ffee00000000000000000000000002&project=contract"
+    }
+  },
+  {
+    "step": "the old path alone no longer resolves",
+    "tool": "resolve_notebook_link",
+    "as": "admin",
+    "arguments": {
+      "path": "manuscript/chapter-2.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "move the locked note back",
+    "tool": "move_notes",
+    "as": "admin",
+    "arguments": {
+      "from": "manuscript/chapter-two.md",
+      "project": "contract",
+      "revision": "REV4",
+      "to": "manuscript/chapter-2.md"
+    },
+    "result": {
+      "from": "manuscript/chapter-two.md",
+      "revision": "REV5",
+      "to": "manuscript/chapter-2.md",
+      "updatedLinks": 0
+    }
+  },
+  {
+    "step": "unlock the note",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": false,
+      "path": "manuscript/chapter-2.md",
+      "project": "contract",
+      "revision": "REV5"
+    },
+    "result": {
+      "path": "manuscript/chapter-2.md",
+      "revision": "REV6",
+      "rules": []
+    }
+  },
+  {
+    "step": "lock a folder",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": true,
+      "path": "reference-copy",
+      "project": "contract",
+      "revision": "REV6"
+    },
+    "result": {
+      "path": "reference-copy",
+      "revision": "REV7",
+      "rules": [
+        {
+          "path": "reference-copy"
+        }
+      ]
+    }
+  },
+  {
+    "step": "a note inherits its folder's lock",
+    "tool": "note_locks",
+    "as": "admin",
+    "arguments": {
+      "path": "reference-copy/sperm-whales.md",
+      "project": "contract"
+    },
+    "result": {
+      "path": "reference-copy/sperm-whales.md",
+      "revision": "REV7",
+      "rules": [
+        {
+          "path": "reference-copy"
+        }
+      ]
+    }
+  },
+  {
+    "step": "read a note in the locked folder",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "reference-copy/sperm-whales.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "---\ntags: [research]\n---\n# Sperm whales\n\nSperm whales dive deeper than a mile. See https://example.org/whales for the survey.\n",
+      "html": "<h1 id=\"h-sperm-whales\">Sperm whales</h1>\n<p>Sperm whales dive deeper than a mile. See <a href=\"https://example.org/whales\" rel=\"nofollow\">https://example.org/whales</a> for the survey.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [
+          "research"
+        ],
+        "title": ""
+      },
+      "path": "reference-copy/sperm-whales.md",
+      "revision": "REV7",
+      "title": "Sperm whales",
+      "version": "REV1"
+    }
+  },
+  {
+    "step": "saving into a locked folder is refused",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Changed\n",
+      "path": "reference-copy/sperm-whales.md",
+      "project": "contract",
+      "revision": "REV7"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "creating a note in a locked folder is refused",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# New\n",
+      "path": "reference-copy/new.md",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "unlock the folder",
+    "tool": "set_note_lock",
+    "as": "admin",
+    "arguments": {
+      "locked": false,
+      "path": "reference-copy",
+      "project": "contract",
+      "revision": "REV7"
+    },
+    "result": {
+      "path": "reference-copy",
+      "revision": "REV8",
+      "rules": []
+    }
+  },
+  {
+    "step": "no locks remain",
+    "tool": "note_locks",
+    "as": "admin",
+    "arguments": {
+      "project": "contract"
+    },
+    "result": {
+      "path": "",
+      "revision": "REV8",
+      "rules": []
+    }
+  }
+]

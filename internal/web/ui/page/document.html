@@ -1,0 +1,30 @@
+{{/* Note document: drafts, editor, toolbar and preview. Rendered in place by index.html. */}}
+{{define "index-document"}}<section id="document" hidden>
+        <button id="draft-candidates-open" class="quiet" hidden>Other retained drafts</button>
+        <div id="draft-conflict" hidden><p>This draft conflicts with a newer saved version.</p><button id="draft-compare">Compare and reconcile</button><button id="draft-download">Download draft</button></div>
+        <div id="editing" hidden>
+          <div id="editor-tools">
+          <div class="editor-format" role="group" aria-label="Editor format">
+            <button id="format-visual" class="quiet" aria-pressed="true">Visual</button>
+            <button id="format-source" class="quiet" aria-pressed="false">Source</button>
+            <button id="format-split" class="quiet" aria-pressed="false">Side by side</button>
+          </div>
+          <button id="notebook-link-insert" class="quiet" data-icon="notebook" title="Insert a notebook link"><span class="tool-label">Note link</span></button>
+          <button id="writing-open" class="quiet" data-icon="edit" title="Writing tools"><span class="tool-label">Writing tools</span></button>
+          <button id="formatting-expand" class="quiet" aria-expanded="false" aria-controls="formatting-tools">More tools</button><div id="formatting-tools"></div>
+          </div>
+          <p id="editor-hint" class="small" role="status" hidden></p>
+          <div id="editor-panes">
+            <div id="note-editor"></div>
+            <div id="rendered-pane" hidden></div>
+          </div>
+          <div class="editor-footer">
+            <button id="word-count" class="quiet" aria-label="Word count · open writing tools">0 words</button
+            ><span>⌘ / Ctrl + S to save</span>
+          </div>
+        </div>
+        <div id="reading-actions" hidden><button id="comment-selection" class="quiet" disabled>Comment on selection</button></div>
+        <details id="archive-details" hidden></details>
+        <img id="note-cover" alt="" hidden />
+        <article id="preview" class="prose"></article>
+      </section>{{end}}

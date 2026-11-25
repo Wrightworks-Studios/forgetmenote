@@ -1,0 +1,170 @@
+[
+  {
+    "step": "a reader reads a note",
+    "tool": "read_note",
+    "as": "reader",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n\nRead the [epilogue](epilogue.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Start with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n<p>Read the <a href=\"epilogue.md\" rel=\"nofollow\">epilogue</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV1",
+      "title": "Contract notebook",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "read the index",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract"
+    },
+    "result": {
+      "content": "# Contract notebook\n\nStart with [Chapter one](manuscript/chapter-1.md).\n\nRead the [epilogue](epilogue.md).\n",
+      "html": "<h1 id=\"h-contract-notebook\">Contract notebook</h1>\n<p>Start with <a href=\"manuscript/chapter-1.md\" rel=\"nofollow\">Chapter one</a>.</p>\n<p>Read the <a href=\"epilogue.md\" rel=\"nofollow\">epilogue</a>.</p>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "index.md",
+      "revision": "REV1",
+      "title": "Contract notebook",
+      "version": "REV2"
+    }
+  },
+  {
+    "step": "a reader cannot save",
+    "tool": "save_note",
+    "as": "reader",
+    "arguments": {
+      "content": "# Reader\n",
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "a read-only credential cannot save",
+    "tool": "save_note",
+    "as": "readonly",
+    "arguments": {
+      "content": "# Read-only\n",
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "a non-member cannot read",
+    "tool": "read_note",
+    "as": "outsider",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "a non-member cannot see status",
+    "tool": "project_status",
+    "as": "outsider",
+    "arguments": {
+      "project": "contract"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "an unknown notebook",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "missing-notebook"
+    },
+    "error": "this path is not accessible"
+  },
+  {
+    "step": "an unknown argument is refused",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "index.md",
+      "project": "contract",
+      "unexpected": true
+    },
+    "error": "validating \"arguments\": validating root: unexpected additional properties [\"unexpected\"]"
+  },
+  {
+    "step": "a missing required argument is refused",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "x",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "validating \"arguments\": validating root: required: missing properties: [\"path\"]"
+  },
+  {
+    "step": "a wrongly typed argument is refused",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": 7,
+      "project": "contract"
+    },
+    "error": "validating \"arguments\": validating root: validating /properties/path: type: 7 has type \"integer\", want \"string\""
+  },
+  {
+    "step": "a stale authority generation conflicts",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "authorityGeneration": 999,
+      "content": "# Generation\n",
+      "path": "index.md",
+      "project": "contract",
+      "revision": "REV1"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "a malformed revision conflicts",
+    "tool": "save_note",
+    "as": "admin",
+    "arguments": {
+      "content": "# Malformed\n",
+      "path": "index.md",
+      "project": "contract",
+      "revision": "not-a-revision"
+    },
+    "error": "the notebook changed; reload and reconcile your draft"
+  },
+  {
+    "step": "a read-only credential cannot upload",
+    "tool": "upload_attachment",
+    "as": "readonly",
+    "arguments": {
+      "data": "eA==",
+      "path": "assets/readonly.png",
+      "project": "contract",
+      "revision": ""
+    },
+    "error": "this path is not accessible"
+  }
+]

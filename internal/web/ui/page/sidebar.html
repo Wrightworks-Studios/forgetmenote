@@ -1,0 +1,53 @@
+{{/* Sidebar: notebook switcher, creation, destinations and account. Rendered in place by index.html. */}}
+{{define "index-sidebar"}}{{$brand := brand}}<aside id="sidebar">
+      <div class="sidebar-scroll">
+        <div class="sidebar-heading">
+          <a class="brand" href="/"><img src="{{$brand.Icon}}" width="32" height="32" alt="" /><span data-instance-name>{{$brand.Name}}</span></a>
+          <div id="notebook-creation" class="sidebar-disclosure" hidden>
+            <button id="notebook-actions-toggle" class="quiet" data-icon="new" aria-label="Add notebook" title="Add notebook" aria-expanded="false" aria-controls="notebook-actions" data-sidebar-toggle></button>
+            <div id="notebook-actions" class="sidebar-actions" hidden><button id="notebook-create" class="quiet" data-icon="notebook">New notebook</button><button id="notebook-import" class="quiet" data-icon="upload">Import notebook</button></div>
+          </div>
+        </div>
+        <div class="notebook-switcher notebook-row"><div class="select-picker"><select id="project-select" aria-label="Notebook"></select></div></div>
+        <button id="wiki-toggle" class="quiet navigation-item" data-icon="notebook" hidden><span>Read as wiki</span></button>
+        <nav id="wiki-navigation" aria-label="Wiki pages" hidden>
+          <form id="wiki-search" role="search"><input id="wiki-query" type="search" placeholder="Search this wiki…" aria-label="Search this wiki" autocomplete="off" /></form>
+          <p id="wiki-search-status" class="small" role="status"></p>
+          <ul id="wiki-results" aria-label="Search results" hidden></ul>
+          <ul id="wiki-tree"></ul>
+        </nav>
+        <div id="note-creation" class="sidebar-disclosure sidebar-creation" hidden>
+          <button id="sidebar-new-note" class="quiet navigation-item" data-icon="new" data-destination="new-note"><span>New note</span></button>
+          <button id="sidebar-import-source" class="quiet" data-icon="upload" data-destination="create-source" aria-label="Import source" title="Import source"></button>
+        </div>
+        <button id="search-open" class="quiet navigation-item" data-icon="search" aria-label="Search notes" disabled><span>Search</span><kbd>⌘ K</kbd></button>
+        <button id="inbox-open" class="quiet navigation-item" data-icon="inbox" aria-pressed="false" hidden><span>Inbox</span><span id="count-inbox" class="collection-count" title="Notes in your Inbox"></span></button>
+        <div class="review-destination"><button id="review-open" class="quiet navigation-item" data-icon="review" disabled><span>Review</span><span id="review-count"></span></button></div>
+        <nav class="collection-navigation" aria-label="Collections">
+          <button id="browse-root" class="quiet navigation-item" data-icon="document" data-collection="notes"><span>Notes</span><span id="count-notes" class="collection-count"></span></button>
+          <button id="collection-drafts" class="quiet navigation-item" data-icon="draft" data-collection="drafts"><span>Drafts</span><span id="count-drafts" class="collection-count"></span></button>
+          <button id="collection-archives" class="quiet navigation-item" data-icon="archive" data-collection="archives"><span>Archives</span><span id="count-archives" class="collection-count"></span></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <button id="trash-open" class="quiet navigation-item" data-icon="delete"><span>Trash</span></button>
+          <button id="settings-open" class="quiet navigation-item" data-icon="settings" disabled><span>Notebook settings</span></button>
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="account-row">
+          <div class="sidebar-disclosure">
+            <button id="account-actions-toggle" class="quiet" aria-label="Account actions" aria-expanded="false" aria-controls="account-actions" data-sidebar-toggle><span id="account-initial" class="person-initial" aria-hidden="true">A</span><span id="account-name">Account</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m8 9 4-4 4 4m-8 6 4 4 4-4"/></svg></button>
+            <div id="account-actions" class="sidebar-actions" hidden>
+              <p id="identity" class="small"></p>
+              <button id="account-open" class="quiet" data-icon="user">Your settings</button>
+              <a class="button quiet" href="/account/assistant" data-icon="assistant">Your assistant</a>
+              <a class="button quiet" href="/account/connect" data-icon="link">Connect your AI</a>
+              <button id="admin-open" class="quiet" data-icon="settings" hidden>Administration</button>
+              <form action="/logout" method="post"><button class="quiet" type="submit" data-icon="logout">Sign out</button></form>
+            </div>
+          </div>
+          <button id="notifications-open" class="quiet" data-icon="bell" aria-label="Notifications" title="Notifications" hidden><span id="notifications-count" hidden></span></button>
+        </div>
+        <span id="connection" role="status" aria-live="polite" hidden></span>
+      </div>
+    </aside>{{end}}

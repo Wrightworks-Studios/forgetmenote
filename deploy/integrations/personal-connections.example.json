@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "keyFile": "/run/secrets/personal-connections-key",
+  "google": {
+    "clientID": "YOUR_GOOGLE_WEB_CLIENT_ID",
+    "secretFile": "/run/secrets/personal-google-client-secret"
+  },
+  "slack": {
+    "clientID": "YOUR_SLACK_CLIENT_ID",
+    "secretFile": "/run/secrets/personal-slack-client-secret",
+    "workspace": "YOUR_SLACK_WORKSPACE_ID"
+  }
+}

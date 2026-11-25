@@ -1,0 +1,371 @@
+[
+  {
+    "step": "nothing remembered yet",
+    "tool": "recall_memory",
+    "as": "admin",
+    "arguments": {},
+    "result": {
+      "core": {
+        "items": [],
+        "path": "memory.md",
+        "revision": ""
+      }
+    }
+  },
+  {
+    "step": "remember an agent observation",
+    "tool": "remember",
+    "as": "admin",
+    "arguments": {
+      "items": [
+        {
+          "kind": "fact",
+          "text": "The contract suite records MCP behaviour."
+        }
+      ]
+    },
+    "result": {
+      "items": [
+        {
+          "id": "mc15ed48"
+        }
+      ],
+      "notebook": "assistant-ID1",
+      "path": "memory.md",
+      "revision": "REV1"
+    }
+  },
+  {
+    "step": "remember user-directed items",
+    "tool": "remember",
+    "as": "admin",
+    "arguments": {
+      "items": [
+        {
+          "kind": "preference",
+          "text": "Prefer British spelling in manuscripts."
+        },
+        {
+          "anchor": "manuscript/chapter-1.md",
+          "kind": "decision",
+          "text": "Chapter titles are fixed once reviewed."
+        }
+      ],
+      "userDirected": true
+    },
+    "result": {
+      "items": [
+        {
+          "id": "m5100065"
+        },
+        {
+          "id": "m75d203b"
+        }
+      ],
+      "notebook": "assistant-ID1",
+      "path": "memory.md",
+      "revision": "REV2"
+    }
+  },
+  {
+    "step": "remember project memory",
+    "tool": "remember",
+    "as": "admin",
+    "arguments": {
+      "items": [
+        {
+          "kind": "fact",
+          "text": "The fixture notebook is called contract."
+        }
+      ],
+      "projectKey": "https://example.org/contract.git",
+      "userDirected": true
+    },
+    "result": {
+      "items": [
+        {
+          "id": "m70c582c"
+        }
+      ],
+      "notebook": "assistant-ID1-d03059f50cafc7f9",
+      "path": "memory.md",
+      "revision": "REV3"
+    }
+  },
+  {
+    "step": "remembering an item again reports a duplicate",
+    "tool": "remember",
+    "as": "admin",
+    "arguments": {
+      "items": [
+        {
+          "kind": "preference",
+          "text": "Prefer British spelling in manuscripts."
+        }
+      ],
+      "userDirected": true
+    },
+    "result": {
+      "items": [
+        {
+          "duplicate": true,
+          "id": "m5100065"
+        }
+      ],
+      "notebook": "assistant-ID1",
+      "path": "memory.md",
+      "revision": "REV2"
+    }
+  },
+  {
+    "step": "a credential is refused",
+    "tool": "remember",
+    "as": "admin",
+    "arguments": {
+      "items": [
+        {
+          "kind": "fact",
+          "text": "Token ghp_0123456789abcdefghijklmnopqrstuvwxyzAB works."
+        }
+      ],
+      "userDirected": true
+    },
+    "error": "This looks like a credential; memory never stores secrets. Describe where the secret lives instead"
+  },
+  {
+    "step": "recall everything",
+    "tool": "recall_memory",
+    "as": "admin",
+    "arguments": {
+      "projectKey": "https://example.org/contract.git"
+    },
+    "result": {
+      "core": {
+        "items": [
+          {
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "from": "agent",
+            "id": "mc15ed48",
+            "kind": "fact",
+            "pinned": false,
+            "recheck": "<MONTH>",
+            "text": "The contract suite records MCP behaviour.",
+            "topic": "Facts"
+          },
+          {
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "from": "you",
+            "id": "m5100065",
+            "kind": "preference",
+            "pinned": true,
+            "recheck": "<MONTH>",
+            "text": "Prefer British spelling in manuscripts.",
+            "topic": "Preferences"
+          },
+          {
+            "anchor": "manuscript/chapter-1.md",
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "from": "you",
+            "id": "m75d203b",
+            "kind": "decision",
+            "pinned": true,
+            "recheck": "<MONTH>",
+            "text": "Chapter titles are fixed once reviewed.",
+            "topic": "Decisions"
+          }
+        ],
+        "notebook": "assistant-ID1",
+        "path": "memory.md",
+        "revision": "REV2"
+      },
+      "project": {
+        "items": [
+          {
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "from": "you",
+            "id": "m70c582c",
+            "kind": "fact",
+            "pinned": true,
+            "recheck": "<MONTH>",
+            "text": "The fixture notebook is called contract.",
+            "topic": "Facts"
+          }
+        ],
+        "notebook": "assistant-ID1-d03059f50cafc7f9",
+        "path": "memory.md",
+        "revision": "REV3"
+      }
+    }
+  },
+  {
+    "step": "recall by query",
+    "tool": "recall_memory",
+    "as": "admin",
+    "arguments": {
+      "query": "spelling in manuscripts"
+    },
+    "result": {
+      "core": {
+        "items": [
+          {
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "from": "you",
+            "id": "m5100065",
+            "kind": "preference",
+            "pinned": true,
+            "rank": 1,
+            "recheck": "<MONTH>",
+            "text": "Prefer British spelling in manuscripts.",
+            "topic": "Preferences"
+          }
+        ],
+        "notebook": "assistant-ID1",
+        "path": "memory.md",
+        "revision": "REV2"
+      },
+      "search": {
+        "mode": "text",
+        "query": "spelling in manuscripts",
+        "total": 3
+      }
+    }
+  },
+  {
+    "step": "confirm an item holds",
+    "tool": "confirm_memory",
+    "as": "admin",
+    "arguments": {
+      "id": "m5100065",
+      "result": "holds",
+      "userDirected": true
+    },
+    "result": {
+      "id": "m5100065",
+      "notebook": "assistant-ID1",
+      "outcome": "renewed",
+      "path": "memory.md",
+      "revision": "REV2"
+    }
+  },
+  {
+    "step": "replace an item",
+    "tool": "confirm_memory",
+    "as": "admin",
+    "arguments": {
+      "id": "m5100065",
+      "reason": "Asked for it in every note.",
+      "replacement": "Prefer British spelling everywhere.",
+      "result": "changed",
+      "userDirected": true
+    },
+    "result": {
+      "id": "m262191a",
+      "notebook": "assistant-ID1",
+      "outcome": "disputed",
+      "path": "memory.md",
+      "revision": "REV4"
+    }
+  },
+  {
+    "step": "confirm an unknown item",
+    "tool": "confirm_memory",
+    "as": "admin",
+    "arguments": {
+      "id": "m0000000",
+      "result": "holds",
+      "userDirected": true
+    },
+    "error": "No current memory item m0000000"
+  },
+  {
+    "step": "recall after the replacement",
+    "tool": "recall_memory",
+    "as": "admin",
+    "arguments": {},
+    "result": {
+      "core": {
+        "items": [
+          {
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "from": "agent",
+            "id": "mc15ed48",
+            "kind": "fact",
+            "pinned": false,
+            "recheck": "<MONTH>",
+            "text": "The contract suite records MCP behaviour.",
+            "topic": "Facts"
+          },
+          {
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "disputed": true,
+            "from": "you",
+            "id": "m5100065",
+            "kind": "preference",
+            "pinned": true,
+            "recheck": "<MONTH>",
+            "text": "Prefer British spelling in manuscripts.",
+            "topic": "Preferences"
+          },
+          {
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "disputed": true,
+            "disputes": "m5100065",
+            "from": "you",
+            "id": "m262191a",
+            "kind": "preference",
+            "pinned": true,
+            "recheck": "<MONTH>",
+            "text": "Prefer British spelling everywhere.",
+            "topic": "Preferences"
+          },
+          {
+            "anchor": "manuscript/chapter-1.md",
+            "checked": "<DATE>",
+            "date": "<DATE>",
+            "from": "you",
+            "id": "m75d203b",
+            "kind": "decision",
+            "pinned": true,
+            "recheck": "<MONTH>",
+            "text": "Chapter titles are fixed once reviewed.",
+            "topic": "Decisions"
+          }
+        ],
+        "notebook": "assistant-ID1",
+        "path": "memory.md",
+        "revision": "REV4"
+      }
+    }
+  },
+  {
+    "step": "the memory file is a note",
+    "tool": "read_note",
+    "as": "admin",
+    "arguments": {
+      "path": "memory.md",
+      "project": "assistant-ID1"
+    },
+    "result": {
+      "content": "# Memory\n\nItems your agents remember. Edit or remove any item; an item you write or change is yours, and agents never rewrite it.\n\n## Facts\n- The contract suite records MCP behaviour.\n  `mc15ed48 · fact · from: agent, <DATE> · checked: <DATE> · recheck: <MONTH>`\n\n## Preferences\n- Prefer British spelling in manuscripts.\n  `m5100065 · preference · from: you, <DATE> · checked: <DATE> · recheck: <MONTH>`\n- Prefer British spelling everywhere.\n  `m262191a · preference · from: you, <DATE> · checked: <DATE> · recheck: <MONTH> · disputes: m5100065`\n\n## Decisions\n- Chapter titles are fixed once reviewed.\n  `m75d203b · decision · from: you, <DATE> · checked: <DATE> · recheck: <MONTH> · anchor: manuscript/chapter-1.md`\n",
+      "html": "<h1 id=\"h-memory\">Memory</h1>\n<p>Items your agents remember. Edit or remove any item; an item you write or change is yours, and agents never rewrite it.</p>\n<h2 id=\"h-facts\">Facts</h2>\n<ul>\n<li>The contract suite records MCP behaviour.\n<code>mc15ed48 · fact · from: agent, <DATE> · checked: <DATE> · recheck: <MONTH></code></li>\n</ul>\n<h2 id=\"h-preferences\">Preferences</h2>\n<ul>\n<li>Prefer British spelling in manuscripts.\n<code>m5100065 · preference · from: you, <DATE> · checked: <DATE> · recheck: <MONTH></code></li>\n<li>Prefer British spelling everywhere.\n<code>m262191a · preference · from: you, <DATE> · checked: <DATE> · recheck: <MONTH> · disputes: m5100065</code></li>\n</ul>\n<h2 id=\"h-decisions\">Decisions</h2>\n<ul>\n<li>Chapter titles are fixed once reviewed.\n<code>m75d203b · decision · from: you, <DATE> · checked: <DATE> · recheck: <MONTH> · anchor: manuscript/chapter-1.md</code></li>\n</ul>\n",
+      "metadata": {
+        "kind": "",
+        "status": "",
+        "tags": [],
+        "title": ""
+      },
+      "path": "memory.md",
+      "revision": "REV4",
+      "title": "Memory",
+      "version": "REV4"
+    }
+  }
+]
