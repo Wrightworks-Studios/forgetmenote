@@ -16,6 +16,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/taskqueue"
 )
 
 func TestWeekdayRemindersReachOwnersWhoAreIn(t *testing.T) {
@@ -23,15 +24,15 @@ func TestWeekdayRemindersReachOwnersWhoAreIn(t *testing.T) {
 	app := f.app
 	// Tuesday 16:30 UTC is 09:30 in Denver.
 	now := time.Date(2026, 11, 17, 16, 30, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{
 		{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{"status_text": "In a meeting"}},
 		{"id": "UBOB", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{"status_text": "Vacationing", "status_emoji": ":palm_tree:"}},
 	}
 	clients := taskClients(t, app, "alice", "bob")
 	alice, bob := clients[0], clients[1]
-	copyTask := decodeTask[taskView](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Draft holiday copy"}, false))
-	deck := decodeTask[taskView](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Review the Q4 pricing deck", "due": "2026-11-13"}, false))
+	copyTask := decodeTask[taskqueue.View](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Draft holiday copy"}, false))
+	deck := decodeTask[taskqueue.View](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Review the Q4 pricing deck", "due": "2026-11-13"}, false))
 	actionCall(t, alice, "add_task", map[string]any{"person": "<@UBOB>", "text": "Send the venue list"}, false)
 
 	spec := automation.Spec{ID: "task-reminder", Kind: "native", Actor: f.service, Project: "default", TimeoutSeconds: 60, Native: &automation.NativeTask{Task: "task-reminder", Client: "slack"}}
@@ -95,7 +96,7 @@ func TestWeekdayRemindersReachOwnersWhoAreIn(t *testing.T) {
 	if !strings.Contains(reply, "Snoozed until Tue Nov 24") {
 		t.Fatalf("snooze reply = %q", reply)
 	}
-	mine := decodeTask[taskList](t, actionCall(t, alice, "list_tasks", map[string]any{}, false))
+	mine := decodeTask[taskqueue.List](t, actionCall(t, alice, "list_tasks", map[string]any{}, false))
 	if len(mine.Mine) != 2 || mine.Mine[0].ID != copyTask.ID || mine.Mine[0].Snoozed != "2026-11-24" {
 		t.Fatalf("alice's queue after snoozing = %+v", mine.Mine)
 	}
@@ -111,7 +112,7 @@ func TestWeekdayRemindersReachOwnersWhoAreIn(t *testing.T) {
 		t.Fatalf("not applicable: HTTP %d %s, views %v", w.Code, w.Body, f.views)
 	}
 	view := f.views[0]["view"].(map[string]any)
-	if f.views[0]["trigger_id"] != "trigger-3.1" || view["callback_id"] != taskNotApplicableView || strings.Contains(fmt.Sprint(view), "Review the Q4") {
+	if f.views[0]["trigger_id"] != "trigger-3.1" || view["callback_id"] != taskqueue.NotApplicableView || strings.Contains(fmt.Sprint(view), "Review the Q4") {
 		t.Fatalf("the modal = %v", f.views[0])
 	}
 	submit := func(user, reason string) map[string]any {
@@ -132,7 +133,7 @@ func TestWeekdayRemindersReachOwnersWhoAreIn(t *testing.T) {
 	if out := submit("UALICE", "The deck was cancelled"); out["response_action"] != "update" {
 		t.Fatalf("the owner's submission: %v", out)
 	}
-	mine = decodeTask[taskList](t, actionCall(t, alice, "list_tasks", map[string]any{}, false))
+	mine = decodeTask[taskqueue.List](t, actionCall(t, alice, "list_tasks", map[string]any{}, false))
 	if len(mine.Mine) != 1 || mine.Mine[0].ID == deck.ID {
 		t.Fatalf("alice's queue after not applicable = %+v", mine.Mine)
 	}
@@ -161,7 +162,7 @@ func TestATaskNoticeLostInTransitHoldsBackNoLaterNotice(t *testing.T) {
 	f := newTaskFixture(t)
 	bob := taskClients(t, f.app, "bob")[0]
 	f.failPosts = 1
-	added := decodeTask[taskView](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Book the offsite", "due": "2026-12-10"}, false))
+	added := decodeTask[taskqueue.View](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Book the offsite", "due": "2026-12-10"}, false))
 	if len(f.postsTo("UALICE")) != 0 {
 		t.Fatalf("the failed notice arrived: %v", f.replies)
 	}
@@ -175,7 +176,7 @@ func TestTheFirstReminderAfterTimeAwayListsWhatArrived(t *testing.T) {
 	f := newTaskFixture(t)
 	app := f.app
 	now := time.Date(2026, 11, 17, 16, 30, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{}}}
 	bob := taskClients(t, app, "bob")[0]
 	spec := automation.Spec{ID: "task-reminder", Kind: "native", Actor: f.service, Project: "default", TimeoutSeconds: 60, Native: &automation.NativeTask{Task: "task-reminder", Client: "slack"}}
@@ -286,7 +287,7 @@ func TestRemindersSkipCompanyHolidays(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Date(2026, 11, 23, 16, 30, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{}}}
 	bob := taskClients(t, app, "bob")[0]
 	remind := func(id string) ([]map[string]any, string) {
@@ -411,7 +412,7 @@ func TestRemindersSkipHolidaysOnEveryCalendarTheyName(t *testing.T) {
 	}
 
 	now := time.Date(2026, 11, 26, 16, 30, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{}}}
 	bob := taskClients(t, app, "bob")[0]
 	actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Old request"}, false)
@@ -446,7 +447,7 @@ func TestRemindersListSlackMessagesWaitingOnAReply(t *testing.T) {
 	denver, _ := time.LoadLocation("America/Denver")
 	// Tuesday 09:30 in Denver.
 	now := time.Date(2026, 11, 17, 9, 30, 0, 0, denver)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{
 		{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{"display_name": "Alice <A>"}},
 		{"id": "UBOB", "team_id": "T123", "tz": "America/Denver"},
@@ -611,7 +612,7 @@ func TestRemindersListSlackMessagesWaitingOnAReply(t *testing.T) {
 	// Dismiss leaves the reminder in place and drops that message for good.
 	var dismiss []map[string]any
 	for _, b := range postButtons(posts[0]) {
-		if b["action_id"] == taskReplyDismissAction {
+		if b["action_id"] == taskqueue.ReplyDismissAction {
 			dismiss = append(dismiss, b)
 		}
 	}
@@ -623,17 +624,17 @@ func TestRemindersListSlackMessagesWaitingOnAReply(t *testing.T) {
 	}
 	// The job keeps a hash of the dismissal and when it expires, never the
 	// message's channel or timestamp.
-	kept := func() reminderState {
+	kept := func() taskqueue.ReminderState {
 		state, err := app.automations.Queue.JobState(spec)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return readReminderState(state.Data)
+		return taskqueue.ReadReminderState(state.Data)
 	}
 	if got := kept().Dismissed; len(got) != 1 || strings.Contains(fmt.Sprint(got), "D1") || !slices.Contains(slices.Collect(maps.Values(got)), "2026-12-01") {
 		t.Fatalf("kept dismissals: %v", got)
 	}
-	forged := map[string]any{"action_id": taskReplyDismissAction, "value": `{"channel":"D1","ts":"not a time"}`}
+	forged := map[string]any{"action_id": taskqueue.ReplyDismissAction, "value": `{"channel":"D1","ts":"not a time"}`}
 	if w := f.interact(t, buttonPress("UBOB", "4.2", forged, f.upstream+"/actions/T123/1/hook")); w.Code != http.StatusBadRequest {
 		t.Fatalf("a malformed dismiss: HTTP %d", w.Code)
 	}
@@ -646,7 +647,7 @@ func TestRemindersListSlackMessagesWaitingOnAReply(t *testing.T) {
 
 	// Wednesday: in the last hour a busy Slack no longer holds a reminder
 	// with tasks, and with nothing due it stays quiet.
-	venue := decodeTask[taskView](t, actionCall(t, alice, "add_task", map[string]any{"person": "<@UBOB>", "text": "Send the venue list"}, false))
+	venue := decodeTask[taskqueue.View](t, actionCall(t, alice, "add_task", map[string]any{"person": "<@UBOB>", "text": "Send the venue list"}, false))
 	told := len(f.postsTo("UBOB"))
 	busy.Store(true)
 	now = time.Date(2026, 11, 18, 10, 15, 0, 0, denver)
@@ -717,28 +718,14 @@ func TestRemindersListSlackMessagesWaitingOnAReply(t *testing.T) {
 	}
 }
 
-func TestReminderStateExpiresByDate(t *testing.T) {
-	st := readReminderState(json.RawMessage(`{"dismissed":{"a":"2026-11-19","b":"2026-11-20"},"checked":{"p-old":"2026-11-18","p-new":"2026-11-19"},"reminded":{"p-gone":"2026-10-18","p-away":"2026-10-19"},"other":1}`))
-	// At 01:00 UTC on Nov 20 it is still Nov 19 west of UTC, so that day's
-	// mark stays; a dismissal lasts through its date, and a reminder as long
-	// as the catch-up list looks back.
-	now := time.Date(2026, 11, 20, 1, 0, 0, 0, time.UTC)
-	if !st.expire(now) || fmt.Sprint(st.Dismissed, st.Checked, st.Reminded) != "map[b:2026-11-20] map[p-new:2026-11-19] map[p-away:2026-10-19]" || st.expire(now) {
-		t.Fatalf("expired to %+v", st)
-	}
-	if st := readReminderState(json.RawMessage(`not json`)); st.Dismissed == nil || st.Checked == nil || st.Reminded == nil {
-		t.Fatal("unreadable state gave nil maps")
-	}
-}
-
 func TestTheCatchUpListStartsFromTheReminderTheJobRecorded(t *testing.T) {
 	f := newTaskFixture(t)
 	app := f.app
 	now := time.Date(2026, 11, 17, 16, 30, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{}}}
 	bob := taskClients(t, app, "bob")[0]
-	added := decodeTask[taskView](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Renew the parking permit"}, false))
+	added := decodeTask[taskqueue.View](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Renew the parking permit"}, false))
 	person := added.Owner.ID
 	spec := automation.Spec{ID: "task-reminder", Kind: "native", Actor: f.service, Project: "default", TimeoutSeconds: 60, Native: &automation.NativeTask{Task: "task-reminder", Client: "slack"}}
 	reminded := func() string {
@@ -747,11 +734,11 @@ func TestTheCatchUpListStartsFromTheReminderTheJobRecorded(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return readReminderState(state.Data).Reminded[person]
+		return taskqueue.ReadReminderState(state.Data).Reminded[person]
 	}
 	// The job last reminded alice a week ago, when no reminder effect was
 	// kept, as after an upgrade.
-	if err := app.changeReminderState(spec, now, func(st reminderState) { st.Reminded[person] = "2026-11-10" }); err != nil {
+	if err := app.tasks.ChangeReminderState(spec, now, func(st taskqueue.ReminderState) { st.Reminded[person] = "2026-11-10" }); err != nil {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: automation.Hash("tuesday"), Spec: spec}

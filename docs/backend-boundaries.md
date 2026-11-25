@@ -65,11 +65,29 @@ leases, drains and receipts to `internal/backups`. Consent, notebook generation
 and actor authority stay with that manager and the catalog; transport extraction
 does not create another backup writer or a new persistent representation.
 
+`internal/taskqueue` owns task queues: the task actions, the `/task` and
+`/tasks` Slack commands, forms and buttons, task notices and the weekday
+reminder. Web registers the task tools through the shared action dispatcher,
+and checks a command's Slack signature and workspace before it reaches task
+queues. The required hooks bind the personal-credential check, automation
+authority, messaging clients and the Slack app, data operations and
+connections, reply reminder authority and the origin. Those configured after
+startup are read at each call.
+
 `internal/jsonfile` provides the shared strict operator loader. It checks regular
 file size before decoding, rejects unknown fields and trailing values, and bounds
 the reader even if the file grows. Individual owners retain semantic validation,
 path authorization and credential handling. The existing configuration formats,
 filenames and section-specific size limits remain supported.
+
+`internal/agentmemory` owns agent memory: the `recall_memory`, `remember` and
+`confirm_memory` actions, the Markdown memory format, memory search and its
+per-process vectors, the memory instructions connected agents receive, and
+the memory a direct message reads and writes. Web registers the actions
+through the shared action dispatcher and decides whose memory a direct message
+uses, which is the messaging link. The required hooks bind the
+personal-credential check, client notebook access, Jev and its authorization,
+the chat embedding policy and the origin, each read at each call.
 
 `internal/citationchecks` owns citation-check sidecars, bounded queue/read
 admission, worker cancellation and shutdown. Pending check identity is durable

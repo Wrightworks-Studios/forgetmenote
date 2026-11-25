@@ -160,7 +160,7 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 			return err
 		}
 	case "task-reminder":
-		if data, incident, err = s.runTaskReminder(ctx, r); err != nil {
+		if data, incident, err = s.tasks.RunReminder(ctx, r); err != nil {
 			return err
 		}
 	case "profile-compaction":

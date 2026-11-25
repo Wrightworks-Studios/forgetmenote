@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/taskqueue"
 )
 
 // taskInteractions are one of each task interaction Slack sends, from user,
@@ -23,17 +24,17 @@ func taskInteractions(f *slackLinkFixture, user string, done map[string]any) map
 			"view": map[string]any{"id": "V" + callback, "callback_id": callback, "private_metadata": metadata, "state": map[string]any{"values": values}}}
 	}
 	return map[string]map[string]any{
-		"done":           press(taskDoneAction, value),
-		"snooze":         press(taskSnoozeAction, value),
-		"not applicable": press(taskNotApplicableAction, value),
-		"dismiss":        press(taskReplyDismissAction, `{"channel":"D1","ts":"1.2"}`),
-		"confirm copies": press(taskConfirmAction, `{"run":"r1","count":30}`),
+		"done":           press(taskqueue.DoneAction, value),
+		"snooze":         press(taskqueue.SnoozeAction, value),
+		"not applicable": press(taskqueue.NotApplicableAction, value),
+		"dismiss":        press(taskqueue.ReplyDismissAction, `{"channel":"D1","ts":"1.2"}`),
+		"confirm copies": press(taskqueue.ConfirmAction, `{"run":"r1","count":30}`),
 		"confirm write":  press(messaging.ConfirmAction, `{"code":"ABC123","thread":"1.1"}`),
-		"reason":         view(taskNotApplicableView, value.(string), map[string]any{"reason": map[string]any{"reason": map[string]any{"type": "plain_text_input", "value": "Cancelled"}}}),
-		"form": view(taskAddView, "", map[string]any{"text": map[string]any{"text": map[string]any{"type": "plain_text_input", "value": "Book the venue"}},
+		"reason":         view(taskqueue.NotApplicableView, value.(string), map[string]any{"reason": map[string]any{"reason": map[string]any{"type": "plain_text_input", "value": "Cancelled"}}}),
+		"form": view(taskqueue.AddView, "", map[string]any{"text": map[string]any{"text": map[string]any{"type": "plain_text_input", "value": "Book the venue"}},
 			"people": map[string]any{"people": map[string]any{"type": "multi_users_select", "selected_users": []string{"UBOB"}}}}),
-		"confirm form": view(taskConfirmView, `{"user":"`+user+`","count":30,"input":{"people":["everyone"],"text":"Book the venue"}}`, nil),
-		"shortcut": {"type": "message_action", "callback_id": taskShortcut, "team": map[string]any{"id": "T123"}, "user": map[string]any{"id": user},
+		"confirm form": view(taskqueue.ConfirmView, `{"user":"`+user+`","count":30,"input":{"people":["everyone"],"text":"Book the venue"}}`, nil),
+		"shortcut": {"type": "message_action", "callback_id": taskqueue.Shortcut, "team": map[string]any{"id": "T123"}, "user": map[string]any{"id": user},
 			"channel": map[string]any{"id": "C1"}, "message": map[string]any{"ts": "1.2", "text": "Book the venue"}, "trigger_id": "trigger-1", "response_url": hook},
 		"closed": {"type": "view_closed", "team": map[string]any{"id": "T123"}, "user": map[string]any{"id": user}},
 	}
@@ -61,7 +62,7 @@ func TestSlackInteractionsFromAnotherWorkspaceOrAPausedInstanceDoNothing(t *test
 	if len(f.posts) != posts || f.userInfos != checks || len(f.responses) != 0 || len(f.views) != 0 {
 		t.Fatalf("refused interactions reached Slack: %d posts, %d checks, responses %v, views %v", len(f.posts)-posts, f.userInfos-checks, f.responses, f.views)
 	}
-	if mine := decodeTask[taskList](t, actionCall(t, taskClients(t, f.app, "alice")[0], "list_tasks", map[string]any{}, false)); len(mine.Mine) != 1 {
+	if mine := decodeTask[taskqueue.List](t, actionCall(t, taskClients(t, f.app, "alice")[0], "list_tasks", map[string]any{}, false)); len(mine.Mine) != 1 {
 		t.Fatalf("a refused interaction changed alice's queue: %+v", mine.Mine)
 	}
 }
@@ -88,12 +89,12 @@ func TestSlackTaskInteractionsAreRefusedToGuests(t *testing.T) {
 	if out := f.commandReply(t, "/tasks", "UALICE", ""); !strings.Contains(out["text"].(string), "Only members of this workspace have task queues") {
 		t.Fatalf("/tasks from a guest: %v", out)
 	}
-	settings, _, _ := f.app.taskQueues()
-	caller, err := f.app.memberTaskCaller(settings, "UALICE", false)
+	settings, _, _ := f.app.catalog.TaskQueues()
+	caller, err := f.app.tasks.MemberCaller(settings, "UALICE", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mine, err := f.app.listTasks(t.Context(), caller); err != nil || len(mine.Mine) != 1 {
+	if mine, err := f.app.tasks.List(t.Context(), caller); err != nil || len(mine.Mine) != 1 {
 		t.Fatalf("a guest changed alice's queue: %+v %v", mine.Mine, err)
 	}
 }
@@ -102,7 +103,7 @@ func TestDoneAndNotApplicableAnswerAStaleTaskAlike(t *testing.T) {
 	f := newTaskFixture(t)
 	clients := taskClients(t, f.app, "alice", "bob")
 	alice, bob := clients[0], clients[1]
-	added := decodeTask[taskView](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Book the venue"}, false))
+	added := decodeTask[taskqueue.View](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Book the venue"}, false))
 	done := postButtons(f.lastPostTo(t, "UALICE"))[0]
 	actionCall(t, bob, "update_task", map[string]any{"id": added.ID, "revision": added.Revision, "text": "Book the bigger venue"}, false)
 	interactions := taskInteractions(f, "UALICE", done)
@@ -118,7 +119,7 @@ func TestDoneAndNotApplicableAnswerAStaleTaskAlike(t *testing.T) {
 	if answer.Action != "errors" || answer.Errors["reason"] != pressed || !strings.HasSuffix(pressed, "Send me `tasks` to see your queue.") {
 		t.Fatalf("a stale Done answered %q, a stale Not applicable %v", pressed, out)
 	}
-	if mine := decodeTask[taskList](t, actionCall(t, alice, "list_tasks", map[string]any{}, false)); len(mine.Mine) != 1 || mine.Mine[0].Text != "Book the bigger venue" {
+	if mine := decodeTask[taskqueue.List](t, actionCall(t, alice, "list_tasks", map[string]any{}, false)); len(mine.Mine) != 1 || mine.Mine[0].Text != "Book the bigger venue" {
 		t.Fatalf("a stale press changed alice's queue: %+v", mine.Mine)
 	}
 }

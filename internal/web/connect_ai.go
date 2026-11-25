@@ -75,7 +75,7 @@ func (s *Server) accountMCPInstructions(next mcp.MethodHandler) mcp.MethodHandle
 			return result, err
 		}
 		instructions := func() string {
-			if memory := s.memoryInstructions(ctx); memory != "" {
+			if memory := s.memory.Instructions(ctx); memory != "" {
 				return s.mcpInstructions() + "\n\n" + memory
 			}
 			return s.mcpInstructions()

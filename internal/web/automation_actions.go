@@ -309,7 +309,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 		}
 	}
 	if spec.Native != nil && spec.Native.Task == "task-reminder" {
-		if _, err := s.taskReminder(spec); err != nil {
+		if _, err := s.tasks.Reminder(spec); err != nil {
 			return err
 		}
 	}

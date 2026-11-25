@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"forgetmenote/internal/agentmemory"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/messaging"
 )
@@ -80,7 +81,7 @@ func newSlackLinkFixture(t *testing.T) *slackLinkFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = store.Save(t.Context(), memoryPath, []byte(memoryHeader("")+"\n## Facts\n\n- Alice owns the Denver office rollout.\n"), "", "alice"); err != nil {
+	if _, err = store.Save(t.Context(), agentmemory.Path, []byte(agentmemory.Header("")+"\n## Facts\n\n- Alice owns the Denver office rollout.\n"), "", "alice"); err != nil {
 		t.Fatal(err)
 	}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -246,7 +247,7 @@ func TestSlackMembersLinkTheirOwnAccountForMemory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := readMemory(t.Context(), store, "")
+	file, err := agentmemory.Read(t.Context(), store, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,14 +322,14 @@ func TestSlackLinkedMemoryIsReviewedAsThePerson(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	seed, err := memoryObservation{Text: "Alice reviews service health every Monday.", Kind: "fact"}.item(false, time.Now())
+	seed, err := agentmemory.Observation{Text: "Alice reviews service health every Monday.", Kind: "fact"}.Item(false, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = app.writeMemory(t.Context(), "alice", settings.Project, store, "", []memoryItem{seed}, time.Now(), func(context.Context) error { return nil }); err != nil {
+	if _, err = app.memory.Write(t.Context(), "alice", settings.Project, store, "", []agentmemory.Item{seed}, time.Now(), func(context.Context) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	file, err := readMemory(t.Context(), store, "")
+	file, err := agentmemory.Read(t.Context(), store, "")
 	if err != nil || len(file.Items) != 2 {
 		t.Fatal(file.Items, err)
 	}
@@ -358,7 +359,7 @@ func TestSlackLinkedMemoryIsReviewedAsThePerson(t *testing.T) {
 	}
 	f.requests.remember = `{"items":[{"text":"Alice reviews service health every Tuesday now.","kind":"fact"}]}`
 	f.dm(t, "correction", "I moved service health reviews to Tuesdays.")
-	if file, err = readMemory(t.Context(), store, ""); err != nil {
+	if file, err = agentmemory.Read(t.Context(), store, ""); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 1 || len(file.Items) != 2 || file.Items[1].Text != "Alice reviews service health every Tuesday now." || len(file.Changed) != 1 {

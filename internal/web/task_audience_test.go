@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"forgetmenote/internal/taskqueue"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -60,7 +61,7 @@ func TestTasksGoToEveryoneInAChannelGroupOrTheWorkspace(t *testing.T) {
 		"task everyone Fill in the survey":                  {"everyone", "Fill in the survey", ""},
 		"task <!everyone> Fill in the survey":               {"<!everyone>", "Fill in the survey", ""},
 	} {
-		people, task, due, ok := taskAddParts(text)
+		people, task, due, ok := taskqueue.AddParts(text)
 		if got := append(people, task, due); !ok || !slices.Equal(got, want) {
 			t.Errorf("%q reads as %q", text, got)
 		}
@@ -125,7 +126,7 @@ func TestLargeTaskRequestsWaitForTheRequesterToConfirm(t *testing.T) {
 		t.Fatalf("an unconfirmed request was filed: %v", f.replies)
 	}
 	buttons := postButtons(f.lastPostTo(t, "DUBOB"))
-	if len(buttons) != 2 || buttons[0]["action_id"] != taskConfirmAction || !strings.Contains(fmt.Sprint(buttons[0]["text"]), "Give 24 copies") || buttons[1]["action_id"] != taskCancelAction {
+	if len(buttons) != 2 || buttons[0]["action_id"] != taskqueue.ConfirmAction || !strings.Contains(fmt.Sprint(buttons[0]["text"]), "Give 24 copies") || buttons[1]["action_id"] != taskqueue.CancelAction {
 		t.Fatalf("the confirmation buttons = %v", buttons)
 	}
 	confirm, cancel := buttons[0], buttons[1]
@@ -226,7 +227,7 @@ func TestSlashTaskFormGivesChannelsAndEveryoneACopy(t *testing.T) {
 	// Everyone asks first, then adds in the background.
 	out := f.submitTaskForm(t, "T123", "UBOB", "VAUD2", taskForm{everyone: true, text: "Fill in the survey"})
 	confirmView, _ := out["view"].(map[string]any)
-	if out["response_action"] != "update" || confirmView["callback_id"] != taskConfirmView || !strings.Contains(fmt.Sprint(confirmView["submit"]), "Give 24 copies") || !strings.Contains(fmt.Sprint(confirmView["blocks"]), "everyone in the workspace") {
+	if out["response_action"] != "update" || confirmView["callback_id"] != taskqueue.ConfirmView || !strings.Contains(fmt.Sprint(confirmView["submit"]), "Give 24 copies") || !strings.Contains(fmt.Sprint(confirmView["blocks"]), "everyone in the workspace") {
 		t.Fatalf("the everyone submission: %v", out)
 	}
 	if len(f.postsTo("UM000")) != 0 {
@@ -276,7 +277,7 @@ func TestAddTaskGivesChannelsGroupsAndEveryoneACopyThroughMCP(t *testing.T) {
 	clients := taskClients(t, f.app, "alice", "carol")
 	alice, carol := clients[0], clients[1]
 
-	added := decodeTask[taskAdded](t, actionCall(t, alice, "add_task", map[string]any{"people": []string{"<#C1>"}, "text": "Count the stock"}, false))
+	added := decodeTask[taskqueue.Added](t, actionCall(t, alice, "add_task", map[string]any{"people": []string{"<#C1>"}, "text": "Count the stock"}, false))
 	if len(added.Tasks) != 2 || added.Tasks[0].Owner.SlackUser != "UBOB" || added.Tasks[1].Owner.SlackUser != "UM000" {
 		t.Fatalf("the channel's copies = %+v", added.Tasks)
 	}
@@ -288,7 +289,7 @@ func TestAddTaskGivesChannelsGroupsAndEveryoneACopyThroughMCP(t *testing.T) {
 	if len(f.postsTo("UM001")) != 0 {
 		t.Fatalf("an unconfirmed crowd was filed: %v", f.replies)
 	}
-	added = decodeTask[taskAdded](t, actionCall(t, alice, "add_task", map[string]any{"people": []string{"everyone"}, "text": "Fill in the survey", "confirm": true}, false))
+	added = decodeTask[taskqueue.Added](t, actionCall(t, alice, "add_task", map[string]any{"people": []string{"everyone"}, "text": "Fill in the survey", "confirm": true}, false))
 	if len(added.Tasks) != 24 || len(f.postsTo("UM001")) != 1 {
 		t.Fatalf("the confirmed crowd = %d copies", len(added.Tasks))
 	}
