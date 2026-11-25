@@ -106,6 +106,32 @@ func TestOrganizerRevokedConsentCannotResumeOldGrant(t *testing.T) {
 		t.Fatal("renewed consent revived an invalidated applying grant")
 	}
 }
+
+// Withdrawing consent cancels the owner's live jobs, but that pass can miss
+// one: its cancellation write fails, or another gateway records the job after
+// the listing. The consent generation the job was granted under still refuses
+// it once consent is renewed.
+func TestOrganizerRenewedConsentRefusesAGrantTheWithdrawalMissed(t *testing.T) {
+	app := reviewFixture(t, syntheticOrganizationAnswer)
+	id := organizerTagJob(t, app, "alice", "missed-grant")
+	restore := failJevRecordWrites(t, app, "NEW.name LIKE 'jobs/%' AND (NEW.body->>'cancelled')::boolean")
+	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":false}`); w.Code == 200 {
+		t.Fatal("the withdrawal reported success without cancelling the job")
+	}
+	restore()
+	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true}`); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	w := proxyCall(app, "alice", "GET", "/p/default/api/jev/jobs/"+id, "")
+	var job map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &job); err != nil || w.Code != 200 || job["cancelled"] == true || job["state"] == "cancelled" {
+		t.Fatalf("the job is not the live grant the withdrawal missed: %d %v", w.Code, job)
+	}
+	if e := app.jev.CheckJob(context.Background(), id); e == nil {
+		t.Fatal("renewed consent revived a grant the withdrawal missed")
+	}
+}
+
 func TestOrganizerLockedNotesNeverReachProvider(t *testing.T) {
 	var calls atomic.Int32
 	app := reviewFixture(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); syntheticOrganizationAnswer(w, r) })
