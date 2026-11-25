@@ -36,6 +36,22 @@ func connectPersonalProviderFixture(t *testing.T, app *Server, user, provider st
 // provider fake that also chooses its response status.
 func connectPersonalProviderHandler(t *testing.T, app *Server, user, provider string, handler http.HandlerFunc) {
 	t.Helper()
+	personalProviderFixture(t, app, provider, handler)
+	account, _ := app.catalog.Account(user)
+	target, err := app.personalConnections.Begin(account.ID, provider, "browser", "http://localhost/callback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, _ := url.Parse(target)
+	if _, err = app.personalConnections.Finish(t.Context(), account.ID, provider, "browser", parsed.Query().Get("state"), "synthetic-code", func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// personalProviderFixture opens personal connections to a provider whose OAuth
+// and API requests handler serves.
+func personalProviderFixture(t *testing.T, app *Server, provider string, handler http.HandlerFunc) {
+	t.Helper()
 	googleServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		handler(w, r)
@@ -74,15 +90,6 @@ func connectPersonalProviderHandler(t *testing.T, app *Server, user, provider st
 	}
 	app.personalConnections, err = connectors.OpenPersonalConnections(app.db, config)
 	if err != nil {
-		t.Fatal(err)
-	}
-	account, _ := app.catalog.Account(user)
-	target, err := app.personalConnections.Begin(account.ID, provider, "browser", "http://localhost/callback")
-	if err != nil {
-		t.Fatal(err)
-	}
-	parsed, _ := url.Parse(target)
-	if _, err = app.personalConnections.Finish(t.Context(), account.ID, provider, "browser", parsed.Query().Get("state"), "synthetic-code", func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 }
