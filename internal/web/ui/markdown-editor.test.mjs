@@ -245,6 +245,23 @@ test('a slow editor load keeps the latest choice and mounts one view',async()=>{
  release();await settle(editor);
  assert.equal(created.length,1);assert.equal(created[0].format,'source');assert(editor.ready);
 });
+test('a view that loads late takes focus only if nobody moved it meanwhile',async()=>{
+ const saved=globalThis.document,body={},edit={},menu={};
+ try{
+  const source=element();
+  for(const [moved,takes,label] of [[edit,true,'focus stayed on Edit'],[source,true,'focus moved to Source'],[body,true,'focus returned to the page'],[menu,false,'focus moved to a menu']]){
+   let release;const held=new Promise(resolve=>release=resolve),focused=[];
+   const view=()=>({setFormat(){},apply(){},readonly(){},focus(){focused.push(label)},select(){},selection:()=>({start:0,end:0,direction:'none'}),setComments(){},destroy(){}});
+   const load={editor:()=>held.then(()=>({createSource:view})),preview:async()=>({mountPreview:()=>({destroy(){}})})};
+   const editor=new MarkdownEditor({host:{},root:element(),pane:element(),toolbar:element(),visualButton:element(),sourceButton:source,hint:element(),load,storage:memory(),wide:()=>true});
+   globalThis.document={body,activeElement:edit};
+   editor.value='text';editor.show(true);
+   globalThis.document.activeElement=moved;
+   release();await settle(editor);
+   assert(editor.ready,label);assert.deepEqual(focused,takes?[label]:[],label);
+  }
+ }finally{globalThis.document=saved}
+});
 test('selecting a range selects its offsets in every mode, also before the view loads',async()=>{
  for(const format of ['visual','source','split']){
   const {editor,shown}=setup();

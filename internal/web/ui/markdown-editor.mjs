@@ -295,15 +295,19 @@ export class MarkdownEditor extends EventTarget {
     if(this.loading===this.version)return;
     const version=this.loading=this.version;
     this.message('Loading editor…');
+    const focused=globalThis.document?.activeElement;
     this.rendered=Promise.resolve(this.load.editor()).then(module=>{
       if(version!==this.version || !this.shown)return;
       this.dispose();
-      this.mount(version,module);
+      this.mount(version,module,focused);
       this.render();
     }).catch(error=>{if(version===this.version)this.message(error.message)})
       .finally(()=>{if(this.loading===version)this.loading=null;});
   }
-  mount(version,{createSource}) {
+  // The view takes focus unless someone moved it elsewhere while the view
+  // loaded, for example to a menu or the search field. Choosing a format is
+  // not elsewhere, and focus in the view it replaces returns to the page.
+  mount(version,{createSource},focused) {
     const view=createSource({root:this.root,text:this.text,readOnly:this.readOnly,format:this.shownFormat,changed:this.viewEdit(version),
       imageURL:this.imageURL,video:href=>videoPlayer(href,path=>this.imageURL?.(path)),privateDraft:!!this.privateDraft(),videoHost,message:text=>this.message(text),
       history:this.undoControls,toolbar:this.toolbar,insertMedia:this.insertMedia,commentSelection:this.commentSelection,openNoteLink:this.openNoteLink,
@@ -313,6 +317,8 @@ export class MarkdownEditor extends EventTarget {
     if(start || end)view.select(Math.min(start,length),Math.min(end,length));
     view.setComments(this.comments || []);
     this.message('');
-    if(this.shown)view.focus();
+    const page=globalThis.document,active=page?.activeElement;
+    const kept=!active || active===page.body || active===focused || [this.visualButton,this.sourceButton,this.splitButton].includes(active);
+    if(this.shown && kept)view.focus();
   }
 }
