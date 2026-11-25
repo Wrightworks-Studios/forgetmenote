@@ -49,6 +49,34 @@ export function receiptText(r) {
   return status + 'erased ' + what + (when ? ', ' + when : '') + ', by ' + (r.actorName || r.actor) + ': ' + r.reason;
 }
 
+// What a plan says of the notes being edited live that the purge restarts,
+// and of how many lose edits not yet saved as a revision, which the restart
+// discards.
+export function liveText(live = []) {
+  const unsaved = live.filter(l => l.pending).length;
+  const lost = !unsaved ? '' : live.length === 1 ? ', losing its edits not yet saved' : '; ' + count(unsaved, 'of them loses its', 'of them lose their') + ' edits not yet saved';
+  return count(live.length, 'note being edited live restarts', 'notes being edited live restart') + ' from the erased text' + lost + '. Private drafts kept in browsers are not erased: ask whoever edited ' + (live.length === 1 ? 'it' : 'them') + ' to discard them.';
+}
+
+// What a plan says of the GitHub copy. The Git export catches up in the
+// background, so a plan can only say it may be force-pushed; the receipt
+// says whether it is (doneLines).
+export function exportText(plan) {
+  return plan.exportForcePush ? 'The GitHub copy may be force-pushed once to replace its history; the receipt says whether it is.' : 'No GitHub copy needs to be force-pushed.';
+}
+
+// What a purge's receipt says it did beyond the notebook's history: the notes
+// being edited live it restarted, which may include notes opened after the
+// plan was made, and whether the next backup force-pushes the GitHub copy,
+// which the plan could only say it may.
+export function doneLines(r) {
+  const lines = [];
+  if (r.liveReset) lines.push(count(r.liveReset, 'note being edited live was', 'notes being edited live were') + ' restarted from the erased text. Private drafts kept in browsers are not erased: ask whoever edited ' + (r.liveReset === 1 ? 'it' : 'them') + ' to discard them.');
+  if (r.exportForcePush) lines.push('The next backup force-pushes the GitHub copy once.');
+  else if (r.export) lines.push('The Git export held none of the rewritten revisions, so no GitHub copy needs to be force-pushed.');
+  return lines;
+}
+
 // Permanent erasure (purge): an Owner or Admin chooses what to erase, reviews
 // the plan the server makes, and confirms exactly that plan with a reason.
 // Nothing changes until the confirmation; the plan's confirmation binds it.
@@ -143,9 +171,9 @@ export function initPurge({api, post, getProject, canManage, notice, refresh}) {
     }
     if (plan.versions) item(summary, count(plan.versions, 'version changes', 'versions change') + '; ' + count(plan.revisionsRewritten, 'revision gets a new ID', 'revisions get new IDs') + '.');
     if (plan.messages) item(summary, count(plan.messages, 'commit message is', 'commit messages are') + ' redacted.');
-    if (plan.live?.length) item(summary, count(plan.live.length, 'note being edited live restarts', 'notes being edited live restart') + ' from the erased text. Private drafts kept in browsers are not erased: ask whoever edited ' + (plan.live.length === 1 ? 'it' : 'them') + ' to discard them.');
+    if (plan.live?.length) item(summary, liveText(plan.live));
     item(summary, plan.referencesToRemap ? count(plan.referencesToRemap, 'reference to an old revision', 'references to old revisions') + ' in your notes will resolve to the new revisions.' : 'No reference in your notes names a rewritten revision.');
-    item(summary, plan.exportForcePush ? 'The GitHub copy will be force-pushed once to replace its history.' : 'No GitHub copy needs to be force-pushed.');
+    item(summary, exportText(plan));
     const d = plan.derived || {};
     if (plan.recordsUnsearched) item(summary, 'Chat transcripts, proposals and Jev records are searched only for content this notebook holds; only an instance Admin can search them for this.');
     else for (const line of derivedLines(d)) item(summary, line);
@@ -293,7 +321,7 @@ export function initPurge({api, post, getProject, canManage, notice, refresh}) {
       item(list, receipt.purge, 'Receipt');
       item(list, receipt.notebookUnchanged ? 'The notebook’s history was not changed.' : count(receipt.rewritten, 'revision was', 'revisions were') + ' rewritten; ' + count(receipt.removedVersions, 'stored version was', 'stored versions were') + ' deleted.');
       for (const line of derivedLines(receipt.derived, true)) item(list, line);
-      if (receipt.exportForcePush) item(list, 'The next backup force-pushes the GitHub copy once.');
+      for (const line of doneLines(receipt)) item(list, line);
       for (const warning of receipt.warnings || []) item(list, warning, 'Warning');
       item(list, 'Rotate any leaked secret now: erasing does not undo exposure.');
       step('done');
