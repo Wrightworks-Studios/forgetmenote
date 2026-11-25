@@ -101,6 +101,8 @@ General AI uses configured hosted or local providers; no general model or infere
 
 ## Development
 
+To build from source, run a local instance and open a pull request, follow [CONTRIBUTING.md](CONTRIBUTING.md).
+
 Go 1.27.4, Git, Node 24, and Python 3.12. Go dependencies are pinned in `go.mod`/`go.sum`; browser dependencies are locked in `package-lock.json`. Operator and Python test dependencies are pinned in `deploy/requirements.txt`; font conversion has separate build-only requirements. On Linux, install `openssl` and `inotify-tools` for the operator and backup-watcher tests; Docker with Compose is required for smoke checks.
 
 ```sh
@@ -108,9 +110,6 @@ python3 -m venv .venv
 . .venv/bin/activate
 make setup-deps setup-browser
 make check-fast check-browser
-go run ./cmd/forgetmenote -data ./data -url http://localhost:8080
-# Separate terminal:
-go run ./cmd/forgetmenote -data ./data token
 
 docker build -t forgetmenote:poc .
 make smoke-full SMOKE_IMAGE=forgetmenote:poc
