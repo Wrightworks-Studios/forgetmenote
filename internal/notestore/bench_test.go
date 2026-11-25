@@ -106,7 +106,7 @@ func (e *benchEnv) physicalBytes(b *testing.B) int64 {
 	return n
 }
 
-// Design §13: a checkpoint that changes one paragraph of a 1.2 MB manuscript,
+// Budget: a checkpoint that changes one paragraph of a 1.2 MB manuscript,
 // p95 < 30 ms on the server, storage growth < 16 KiB.
 func BenchmarkApplyParagraphEditOfManuscript(b *testing.B) {
 	doc := fixtureF1(b)
@@ -151,7 +151,7 @@ func BenchmarkApplyParagraphEditOfManuscript(b *testing.B) {
 	b.ReportMetric(float64(e.physicalBytes(b)-physical)/float64(edits), "pg-disk-bytes/edit")
 }
 
-// Design §13: open a 1.2 MB manuscript on the server, warm p95 < 50 ms and
+// Budget: open a 1.2 MB manuscript on the server, warm p95 < 50 ms and
 // cold p95 < 300 ms. Cold is a store with empty caches; the operating
 // system's file cache stays warm.
 func BenchmarkReadManuscript(b *testing.B) {
@@ -197,7 +197,7 @@ func BenchmarkReadManuscript(b *testing.B) {
 	})
 }
 
-// Design §13: per-note history over 5,000 revisions, p95 < 50 ms.
+// Budget: per-note history over 5,000 revisions, p95 < 50 ms.
 func BenchmarkHistoryOf5000Revisions(b *testing.B) {
 	e := newBenchEnv(b)
 	e.store.Create(e.ctx, "notes", ada)
@@ -235,7 +235,7 @@ func BenchmarkHistoryOf5000Revisions(b *testing.B) {
 	}
 }
 
-// Design §13: notebook status and listing with 2,000 notes, p95 < 10 ms warm.
+// Budget: notebook status and listing with 2,000 notes, p95 < 10 ms warm.
 func BenchmarkListingOf2000Files(b *testing.B) {
 	e := newBenchEnv(b)
 	e.store.Create(e.ctx, "notes", ada)

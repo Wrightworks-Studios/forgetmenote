@@ -85,11 +85,11 @@ func unitVector(i int) []float32 {
 	return v
 }
 
-// The purge completeness test (storage v2 design §15) for what lies outside
-// the notebook: a secret in notes, quoted by a private chat transcript, a
-// Knowledge proposal, a consumer checkpoint and Jev records, indexed as
-// current and historical passages with semantic vectors and in the note
-// map, is purged by redaction through the browser route; then no row of any
+// The purge completeness test for what lies outside the notebook: a secret
+// in notes, quoted by a private chat transcript, a Knowledge proposal, a
+// consumer checkpoint and Jev records, indexed as current and historical
+// passages with semantic vectors and in the note map, is purged by
+// redaction through the browser route; then no row of any
 // table, no file of the data directory and no object of the Git export
 // holds it in any form, the vectors derived from it are gone, and each
 // redacted record still reads.

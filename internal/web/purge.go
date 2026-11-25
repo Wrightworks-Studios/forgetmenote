@@ -31,7 +31,7 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-// Purge (storage v2 design §11) permanently erases content from every
+// Purge (docs/purge.md) permanently erases content from every
 // version of a notebook: a whole note, chosen versions of one, or text
 // redacted from selected notes or the whole notebook. Only a notebook Owner
 // or an instance Admin purges, in the browser (a signed-in session; API and

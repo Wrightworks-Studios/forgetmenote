@@ -26,8 +26,7 @@ build and browser-test dependency only.
 ## Notebook storage
 
 A notebook is a revision log in Postgres that keeps Git's object model
-(`internal/notestore`, migrations `0017` to `0019`; design in
-[storage v2](design/storage-v2.md)):
+(`internal/notestore`, migrations `0017` to `0019`):
 
 - **Revisions are Git commits.** Each revision stores its exact Git commit
   object and its trees byte for byte. A notebook's revision is its head commit
@@ -70,6 +69,29 @@ Comments, locks and the Trash index remain files in each revision
 and `Trash/`), so an export has the layout of an earlier release's notebook
 repository. Repository notebooks keep their read-only Git mirrors in
 `internal/reposource`.
+
+### Performance budgets
+
+Storage changes are measured against these budgets on the generated fixtures
+of `internal/benchfixture`: F1, a 1.2 MB manuscript note, with F1h, its 5,000
+edits, and F2, a notebook of 2,000 notes and 200 images over 20,000 revisions.
+
+| Operation | Budget |
+| --- | --- |
+| Open the manuscript on the server, warm / cold | p95 < 50 ms / < 300 ms |
+| Checkpoint changing one paragraph of it | p95 < 30 ms; storage growth < 16 KiB |
+| Keystroke to paint, middle of the manuscript | p95 < 16 ms unthrottled, < 50 ms at 4× CPU throttle |
+| Remote edit visible on another client, same gateway | p95 < 150 ms |
+| Per-note history, 5,000 revisions | p95 < 50 ms |
+| Notebook status and listing, 2,000 notes, warm | p95 < 10 ms |
+| Export of one new revision; full export of 20,000 revisions | < 50 ms; < 2 min |
+| Idle database load per gateway | < 5 transactions/s |
+
+`internal/notestore/bench_test.go`, `internal/workspace/budgets_test.go`,
+`internal/gitexport/budgets_test.go` and `scripts/browser/editor-budgets.spec.mjs`
+measure them and report numbers rather than fail. A bare contenteditable
+already takes about 15 ms from keystroke to paint, so the browser spec records
+that frame floor beside the editor's numbers.
 
 ## Content and derived data
 

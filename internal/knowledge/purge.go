@@ -12,7 +12,7 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-// A purge (storage v2 design §11) removes content from every version of a
+// A purge (docs/purge.md) removes content from every version of a
 // notebook, and with it what the knowledge engine derived from that content:
 // passages, the keyword index, semantic vectors, the history index and the
 // note map, on every gateway. The engine that runs the purge's clean-up

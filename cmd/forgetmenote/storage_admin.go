@@ -26,8 +26,8 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-// runStorageAdmin runs the storage v2 cutover commands (storage v2 design
-// §12), all but check on a stopped instance:
+// runStorageAdmin runs the storage v2 cutover commands, all but check on a
+// stopped instance:
 //
 //   - import stores every notebook repository under DATA/projects/ID/workspace
 //     in the configured Postgres and blob store with its exact commits, then

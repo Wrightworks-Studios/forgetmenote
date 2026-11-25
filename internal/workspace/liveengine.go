@@ -11,17 +11,21 @@ import (
 )
 
 // Live editing keeps each note's Markdown as one text in a CRDT document.
-// liveEngine and liveDoc are the boundary to the CRDT library (storage v2
-// design §9), so live storage and the methods above it never handle the
-// library's types. The engine is Yjs, through github.com/reearth/ygo, by
-// decision D1; browsers keep the same document with the Yjs library
-// (frontend/collaboration.mjs) and exchange its V1 updates.
+// liveEngine and liveDoc are the boundary to the CRDT library, so live
+// storage and the methods above it never handle the library's types. The
+// engine is Yjs, through github.com/reearth/ygo; browsers keep the same
+// document with the Yjs library (frontend/collaboration.mjs) and exchange its
+// V1 updates. Loro was measured against it and not chosen: its cgo binding
+// does not build in the Dockerfile's static build stage without five changes
+// to it, and compiled to WebAssembly it took two and a half to four times the
+// process memory with the manuscript loaded and a 1 MiB gzipped browser
+// engine, while Yjs passed the same Go and browser convergence and history
+// checks.
 //
-// Two deviations from the design's sketch: Apply takes no limits, because
-// the caller bounds an update's size before it checks the operation ID, as
-// the Git backend does, and the text and state after it, which a patch
-// changes too; and there is no Attribution, because with Yjs blame comes
-// from revision diffs (D1).
+// Apply takes no limits, because the caller bounds an update's size before it
+// checks the operation ID, as the Git backend does, and the text and state
+// after it, which a patch changes too. There is no attribution call: with
+// Yjs, blame comes from revision diffs.
 type liveEngine interface {
 	// New starts a document holding text.
 	New(text string) liveDoc
@@ -58,7 +62,7 @@ type yjsEngine struct{}
 // yjsMaxPending bounds the items a load parks while their origins are
 // missing. ygo decodes one client at a time, so a state with many clients
 // parks every item whose origin belongs to a later one: the 1,024 the Git
-// backend allows cannot load F1 after its edit history (D1 finding 4).
+// backend allows cannot load F1 after its edit history.
 // Update and state size limits already bound the work.
 const yjsMaxPending = 1 << 20
 
