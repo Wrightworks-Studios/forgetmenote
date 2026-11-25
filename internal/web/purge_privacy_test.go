@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	"forgetmenote/internal/purgehttp"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"forgetmenote/internal/catalog"
@@ -114,13 +115,13 @@ func TestPurgePlansAndReceiptsTellNothingOfNotebooksTheCallerCannotRead(t *testi
 		}
 		return other, w.Body.Bytes()
 	}
-	execute := func(user, project string, raw []byte) purgeReceipt {
+	execute := func(user, project string, raw []byte) purgehttp.Receipt {
 		t.Helper()
 		var plan webPurgePlan
 		json.Unmarshal(raw, &plan)
 		body, _ := json.Marshal(map[string]any{"scope": plan.Scope, "revision": plan.Revision, "confirmation": plan.Confirmation, "reason": "Cleanup"})
 		w := proxyCall(app, user, "POST", "/p/"+project+"/api/purge/execute", string(body))
-		var receipt purgeReceipt
+		var receipt purgehttp.Receipt
 		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &receipt) != nil {
 			t.Fatalf("%s executes in %s: HTTP %d %s", user, project, w.Code, w.Body)
 		}
@@ -167,7 +168,7 @@ func TestPurgePlansAndReceiptsTellNothingOfNotebooksTheCallerCannotRead(t *testi
 	// Stored receipts list the same counts.
 	w := proxyCall(app, "keeper", "GET", "/p/default/api/purge", "")
 	var listed struct {
-		Receipts []purgeReceipt `json:"receipts"`
+		Receipts []purgehttp.Receipt `json:"receipts"`
 	}
 	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &listed) != nil || len(listed.Receipts) != 6 {
 		t.Fatalf("receipts: HTTP %d %s", w.Code, w.Body)

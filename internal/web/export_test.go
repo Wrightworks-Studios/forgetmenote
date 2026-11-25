@@ -15,6 +15,7 @@ import (
 
 	"forgetmenote/internal/blob/blobtest"
 	"forgetmenote/internal/pg/pgtest"
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -259,7 +260,7 @@ func TestExportMadeBeforeAPurgeEnds(t *testing.T) {
 
 type purgeOutcome struct {
 	code    int
-	receipt purgeReceipt
+	receipt purgehttp.Receipt
 	body    string
 }
 

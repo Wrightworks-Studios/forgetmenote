@@ -1,4 +1,4 @@
-package web
+package purgehttp
 
 import (
 	"bytes"
@@ -17,10 +17,10 @@ import (
 
 var pinnedRevision = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-// pinnedRead reads with revision and, when that fails because a purge
-// rewrote revision, with the revision standing for it; errPurgedVersion when
+// PinnedRead reads with revision and, when that fails because a purge
+// rewrote revision, with the revision standing for it; ErrPurgedVersion when
 // the purge removed path's version there.
-func pinnedRead[T any](ctx context.Context, store *workspace.Store, path, revision string, read func(revision string) (T, error)) (T, error) {
+func PinnedRead[T any](ctx context.Context, store *workspace.Store, path, revision string, read func(revision string) (T, error)) (T, error) {
 	value, err := read(revision)
 	if err == nil || store == nil || !pinnedRevision.MatchString(revision) {
 		return value, err
@@ -31,7 +31,7 @@ func pinnedRead[T any](ctx context.Context, store *workspace.Store, path, revisi
 		return value, err
 	case purged:
 		var zero T
-		return zero, errPurgedVersion
+		return zero, ErrPurgedVersion
 	}
 	return read(now)
 }
@@ -39,11 +39,11 @@ func pinnedRead[T any](ctx context.Context, store *workspace.Store, path, revisi
 // The arguments of read-only tools that pin a revision.
 var pinnedArguments = []string{"revision", "since", "sourceRevision", "baseRevision"}
 
-// withPurgedRevisions retries a read-only action whose pinned revisions a
+// WithPurgedRevisions retries a read-only action whose pinned revisions a
 // purge rewrote, with the revisions standing for them, so agents holding old
 // revisions do not break; a pin to a version the purge removed is refused as
 // purged. Writes never retry: a revision a write expects must be current.
-func withPurgedRevisions[I, O any](s *Server, fn func(context.Context, I) (O, error)) func(context.Context, I) (O, error) {
+func WithPurgedRevisions[I, O any](open func(ctx context.Context, project, role string) (*workspace.Store, error), fn func(context.Context, I) (O, error)) func(context.Context, I) (O, error) {
 	return func(ctx context.Context, in I) (O, error) {
 		out, err := fn(ctx, in)
 		if err == nil {
@@ -76,7 +76,7 @@ func withPurgedRevisions[I, O any](s *Server, fn func(context.Context, I) (O, er
 			}
 			if store == nil {
 				var accessErr error
-				if store, accessErr = s.toolStore(ctx, project, "read"); accessErr != nil {
+				if store, accessErr = open(ctx, project, "read"); accessErr != nil {
 					return out, err
 				}
 			}
@@ -90,7 +90,7 @@ func withPurgedRevisions[I, O any](s *Server, fn func(context.Context, I) (O, er
 			}
 			if purged {
 				var zero O
-				return zero, errPurgedVersion
+				return zero, ErrPurgedVersion
 			}
 			fields[key], changed = now, true
 		}

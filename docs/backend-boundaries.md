@@ -79,6 +79,17 @@ notebook, consent, source-freshness and evidence checks. Personal/organization
 settings decode request bodies before acquiring transaction locks, then recheck
 current identity, policy, authority and revision inside the mutation boundary.
 
+`internal/purgehttp` owns authorized purge ([purge](purge.md)): the Owner
+routes, the plan an agent prepares, running a confirmed plan, cleaning what
+quoted the purged content outside the notebook, receipts, finishing purges
+that stopped, and the guard that maps revisions a purge rewrote, which the
+shared action dispatcher applies to every read-only action. Web opens the
+notebook as its Owner through the shared tool store before an agent's plan is
+made. Purge plans and history rewrites stay in `internal/workspace` and
+`internal/notestore`. Chat transcripts, Jev records, Knowledge proposals and
+bundle exports are cleaned through required hooks to their owners, read at
+each call.
+
 `internal/chat.Runtime` owns chat admission and deletion; `internal/reposource`
 owns repository processing state. Web retains composition, instance policy and
 cross-owner orchestration through concrete methods. These seams do not expose
