@@ -1,4 +1,4 @@
-package web
+package agentmemory
 
 import (
 	"cmp"
@@ -35,7 +35,7 @@ const (
 	memorySimilarMin = 0.9
 )
 
-type memorySearch struct {
+type Search struct {
 	Query string `json:"query"`
 	Mode  string `json:"mode"`  // meaning, or text when meaning ranking is unavailable
 	Total int    `json:"total"` // current items searched
@@ -91,10 +91,10 @@ func memoryQuery(query string, limit int) (string, int, error) {
 // searchMemory keeps the limit most relevant current items of files, ranked
 // across them by reciprocal rank fusion, and drops recent changes, which belong
 // to a full recall.
-func (s *Server) searchMemory(ctx context.Context, settings catalog.AssistantSettings, query string, limit int, files ...*memoryFile) memorySearch {
+func (s *Service) searchMemory(ctx context.Context, settings catalog.AssistantSettings, query string, limit int, files ...*File) Search {
 	type candidate struct {
-		file  *memoryFile
-		item  memoryItem
+		file  *File
+		item  Item
 		score float64
 	}
 	var all []candidate
@@ -107,9 +107,9 @@ func (s *Server) searchMemory(ctx context.Context, settings catalog.AssistantSet
 			all = append(all, candidate{file: f, item: item})
 			texts = append(texts, memoryVectorText(item))
 		}
-		f.Items, f.Changed = []memoryItem{}, nil
+		f.Items, f.Changed = []Item{}, nil
 	}
-	out := memorySearch{Query: query, Mode: "text", Total: len(all)}
+	out := Search{Query: query, Mode: "text", Total: len(all)}
 	for rank, i := range memoryTextRanking(query, texts) {
 		all[i].score += retrieval.ReciprocalRank(rank)
 	}
@@ -175,18 +175,18 @@ func memoryTextRanking(query string, texts []string) []int {
 	return ranked
 }
 
-func memoryVectorText(item memoryItem) string { return item.Topic + ": " + item.Text }
+func memoryVectorText(item Item) string { return item.Topic + ": " + item.Text }
 
 // memoryMeaning returns the endpoint and policy for meaning ranking, or a nil
 // endpoint while the person's Memory setting is off, the instance has adopted no
 // embedding policy, or local-only operation withholds the endpoint. The endpoint
 // rechecks the instance policy around every request.
-func (s *Server) memoryMeaning(settings catalog.AssistantSettings) (*knowledge.Endpoint, catalog.AISettings) {
+func (s *Service) memoryMeaning(settings catalog.AssistantSettings) (*knowledge.Endpoint, catalog.AISettings) {
 	if !settings.MaintainMemory || s.indexes == nil {
 		return nil, catalog.AISettings{}
 	}
 	policy, managed := s.catalog.AISettings()
-	endpoint := s.chatEmbeddingPolicy(s.indexes.Endpoint())
+	endpoint := s.hooks.EmbeddingPolicy(s.indexes.Endpoint())
 	if !managed || !policy.Embeddings {
 		return nil, policy
 	}
@@ -195,7 +195,7 @@ func (s *Server) memoryMeaning(settings catalog.AssistantSettings) (*knowledge.E
 
 // memoryItemVectors returns the vectors it has or could make for texts,
 // embedding at most memoryEmbedPerSearch texts this process has no vector for.
-func (s *Server) memoryItemVectors(ctx context.Context, endpoint *knowledge.Endpoint, policy catalog.AISettings, texts []string) map[string][]float32 {
+func (s *Service) memoryItemVectors(ctx context.Context, endpoint *knowledge.Endpoint, policy catalog.AISettings, texts []string) map[string][]float32 {
 	key := func(text string) memoryVectorKey {
 		return memoryVectorKey{endpoint, policy.Model, policy.Dimensions, text}
 	}
@@ -204,7 +204,7 @@ func (s *Server) memoryItemVectors(ctx context.Context, endpoint *knowledge.Endp
 		if _, seen := vectors[text]; seen {
 			continue
 		}
-		vectors[text] = s.memoryVectors.get(key(text))
+		vectors[text] = s.vectors.get(key(text))
 		if vectors[text] == nil && len(missing) < memoryEmbedPerSearch {
 			missing = append(missing, text)
 		}
@@ -217,7 +217,7 @@ func (s *Server) memoryItemVectors(ctx context.Context, endpoint *knowledge.Endp
 		}
 		for i, vector := range embedded {
 			vectors[batch[i]] = vector
-			s.memoryVectors.put(key(batch[i]), vector)
+			s.vectors.put(key(batch[i]), vector)
 		}
 	}
 	return vectors
@@ -225,7 +225,7 @@ func (s *Server) memoryItemVectors(ctx context.Context, endpoint *knowledge.Endp
 
 // memoryMeaningRanking returns the indexes of embedded texts, nearest the query
 // first, with each text's similarity, or nil when meaning ranking is unavailable.
-func (s *Server) memoryMeaningRanking(ctx context.Context, settings catalog.AssistantSettings, query string, texts []string) ([]int, []float64) {
+func (s *Service) memoryMeaningRanking(ctx context.Context, settings catalog.AssistantSettings, query string, texts []string) ([]int, []float64) {
 	endpoint, policy := s.memoryMeaning(settings)
 	if endpoint == nil || len(texts) == 0 {
 		return nil, nil
@@ -254,7 +254,7 @@ func (s *Server) memoryMeaningRanking(ctx context.Context, settings catalog.Assi
 // it nearly repeats. Only the agent knows whether the new item updates or merely
 // repeats it, so both are kept for the agent to resolve with confirm_memory.
 // Embedding the current items here also prepares them for later searches.
-func (s *Server) markSimilarMemory(ctx context.Context, settings catalog.AssistantSettings, current, added []memoryItem, out *rememberOutput) {
+func (s *Service) markSimilarMemory(ctx context.Context, settings catalog.AssistantSettings, current, added []Item, out *Remembered) {
 	endpoint, policy := s.memoryMeaning(settings)
 	if endpoint == nil || len(current) == 0 || len(out.Items) != len(added) {
 		return

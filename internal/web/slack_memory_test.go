@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"forgetmenote/internal/agentmemory"
 	"forgetmenote/internal/catalog"
 )
 
@@ -59,7 +60,7 @@ func slackMemoryFixture(t *testing.T, requests *slackMemoryRequests, memory bool
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = store.Save(t.Context(), memoryPath, []byte(memoryHeader("")+"\n## Facts\n\n- Alice owns the Denver office rollout.\n"), "", "alice"); err != nil {
+	if _, err = store.Save(t.Context(), agentmemory.Path, []byte(agentmemory.Header("")+"\n## Facts\n\n- Alice owns the Denver office rollout.\n"), "", "alice"); err != nil {
 		t.Fatal(err)
 	}
 	posts := 0
@@ -90,11 +91,11 @@ func TestSlackDirectMessagesUseAndKeepThePersonsMemory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := readMemory(t.Context(), store, "")
+	file, err := agentmemory.Read(t.Context(), store, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var kept *memoryItem
+	var kept *agentmemory.Item
 	for i, item := range file.Items {
 		if item.Text == "Alice reviews service health every Monday." {
 			kept = &file.Items[i]
@@ -103,7 +104,7 @@ func TestSlackDirectMessagesUseAndKeepThePersonsMemory(t *testing.T) {
 	if kept == nil || kept.Via != "slack" || kept.From != "agent" || kept.Pinned {
 		t.Fatalf("the remembered item lost its Slack label: %+v in %+v", kept, file.Items)
 	}
-	doc, _ := store.Read(t.Context(), memoryPath, "")
+	doc, _ := store.Read(t.Context(), agentmemory.Path, "")
 	if !strings.Contains(string(doc.Content), "· via: slack") {
 		t.Fatalf("the notebook does not show where the item came from:\n%s", doc.Content)
 	}

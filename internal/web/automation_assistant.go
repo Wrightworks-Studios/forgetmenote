@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"forgetmenote/internal/agentmemory"
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/workspace"
@@ -167,7 +168,7 @@ func (s *Server) automationAnswerChecked(ctx context.Context, r *automation.Run,
 	recalled, remember := s.automationMessageMemory(ctx, r, offered)
 	prompt += recalled
 	if remember {
-		tools = append(tools, messageMemoryTool())
+		tools = append(tools, agentmemory.MessageTool())
 	}
 	memory := ""
 	// Personal monitoring and memory maintenance already include the selected
@@ -248,7 +249,7 @@ func (s *Server) automationPromptContext(ctx context.Context, r *automation.Run,
 // without a linked account is told how to link one.
 func (s *Server) automationMessageMemory(ctx context.Context, r *automation.Run, offered bool) (string, bool) {
 	if person, settings, _, ok := s.messageMemoryOwner(r); ok {
-		recalled, err := s.messageMemoryContext(ctx, r, person, settings, offered)
+		recalled, err := s.memory.MessageContext(ctx, r, person, settings, offered)
 		if err != nil {
 			// The answer does not depend on memory; the person still gets one.
 			slog.Warn("message memory unavailable", "error", err)
