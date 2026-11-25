@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/workspace"
 )
 
@@ -418,7 +419,7 @@ func (r *chatRunner) complete(ctx context.Context, c chat.Conversation, answer s
 		}
 	}
 	source := r.s.origin + "/?project=" + url.QueryEscape(r.auth.Project) + "&chat=" + url.QueryEscape(r.id)
-	if err := r.s.recordPersonalInteraction(ctx, r.auth.User, personalInteraction{ID: "chat-" + r.id + "-" + r.runID, UserText: question, Response: answer, Source: source}); err != nil {
+	if err := r.s.recordPersonalInteraction(ctx, r.auth.User, personal.Interaction{ID: "chat-" + r.id + "-" + r.runID, UserText: question, Response: answer, Source: source}); err != nil {
 		slog.Warn("personal memory capture failed", "error", err)
 	}
 }

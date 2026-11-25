@@ -174,7 +174,7 @@ func (s *Server) runAutomation(ctx context.Context, r *automation.Run, save func
 		return err
 	}
 	if r.Spec.Kind == "personal" {
-		return s.runPersonalAssistant(ctx, r, save)
+		return s.personal.Run(ctx, r, save)
 	}
 	if r.Spec.Kind == "learning" {
 		return s.runLearning(ctx, r, save)

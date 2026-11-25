@@ -1,4 +1,4 @@
-package web
+package personal
 
 import (
 	"context"
@@ -12,19 +12,19 @@ import (
 	"forgetmenote/internal/automation"
 )
 
-func personalCalendarReminder(o personalObservation, zone string) string {
+func personalCalendarReminder(o Observation, zone string) string {
 	var event map[string]any
 	if json.Unmarshal(o.Content, &event) != nil {
 		return ""
 	}
-	start := personalObject(event["start"])
-	at, err := time.Parse(time.RFC3339, personalString(start["dateTime"]))
+	start := Object(event["start"])
+	at, err := time.Parse(time.RFC3339, String(start["dateTime"]))
 	if err != nil {
 		location, e := time.LoadLocation(zone)
 		if e != nil {
 			return ""
 		}
-		at, err = time.ParseInLocation("2006-01-02", personalString(start["date"]), location)
+		at, err = time.ParseInLocation("2006-01-02", String(start["date"]), location)
 		if err != nil {
 			return ""
 		}
@@ -35,7 +35,7 @@ func personalCalendarReminder(o personalObservation, zone string) string {
 
 // A daily digest reuses grounded suggestions. Summarizing their summaries again
 // would buy another model call without adding evidence.
-func (s *Server) personalBriefing(ctx context.Context, r *automation.Run, state *personalState) error {
+func (s *Service) personalBriefing(ctx context.Context, r *automation.Run, state *State) error {
 	settings, err := s.catalog.Assistant(r.Spec.Actor)
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func (s *Server) personalBriefing(ctx context.Context, r *automation.Run, state 
 	if state.Seen[key] != "" {
 		return nil
 	}
-	drafts := []personalDraft{}
+	drafts := []Draft{}
 	for _, d := range state.Drafts {
 		if d.State == "ready" && d.Source.Kind != "briefing" {
 			drafts = append(drafts, d)
@@ -68,17 +68,17 @@ func (s *Server) personalBriefing(ctx context.Context, r *automation.Run, state 
 	sort.Slice(drafts, func(i, j int) bool { return drafts[i].ID < drafts[j].ID })
 	var summary strings.Builder
 	for _, d := range drafts {
-		fmt.Fprintf(&summary, "- [%s](%s): %s", strings.ReplaceAll(d.Title, "\n", " "), assistantNoteURL(s.origin, r.Spec.Project, d.Path), strings.ReplaceAll(d.Summary, "\n", " "))
+		fmt.Fprintf(&summary, "- [%s](%s): %s", strings.ReplaceAll(d.Title, "\n", " "), assistantNoteURL(s.hooks.Origin(), r.Spec.Project, d.Path), strings.ReplaceAll(d.Summary, "\n", " "))
 		if d.Due != "" {
 			fmt.Fprintf(&summary, " (due %s)", d.Due)
 		}
 		summary.WriteString("\n")
 	}
 	content, _ := json.Marshal(map[string]string{"day": day, "summary": summary.String()})
-	o := personalObservation{Key: key, Kind: "briefing", Revision: automation.Hash(content), URL: assistantNoteURL(s.origin, r.Spec.Project, ""), Observed: now.UTC(), Content: content}
+	o := Observation{Key: key, Kind: "briefing", Revision: automation.Hash(content), URL: assistantNoteURL(s.hooks.Origin(), r.Spec.Project, ""), Observed: now.UTC(), Content: content}
 	id := personalFingerprint(o)
 	state.Seen[key] = o.Revision
 	state.SeenAt[key] = now.UTC()
-	state.Drafts[id] = personalDraft{ID: id, Source: o, Path: "briefings/" + day + ".md", Title: "Briefing · " + day, Summary: summary.String(), State: "ready"}
+	state.Drafts[id] = Draft{ID: id, Source: o, Path: "briefings/" + day + ".md", Title: "Briefing · " + day, Summary: summary.String(), State: "ready"}
 	return nil
 }

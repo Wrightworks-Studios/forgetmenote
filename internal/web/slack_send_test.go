@@ -17,6 +17,7 @@ import (
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/taskqueue"
 )
 
@@ -256,17 +257,17 @@ func TestAPersonalNotificationSlackRefusedIsSentNextTime(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := &automation.Run{Spec: spec}
-	state := personalState{Drafts: map[string]personalDraft{
-		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}},
+	state := personal.State{Drafts: map[string]personal.Draft{
+		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personal.Observation{Kind: "briefing"}},
 	}}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); !errors.Is(err, messaging.ErrNotPosted) || posts != 0 || state.Drafts["one"].Notified {
+	if err = app.personal.Notify(ctx, run, &state, func() error { return nil }); !errors.Is(err, messaging.ErrNotPosted) || posts != 0 || state.Drafts["one"].Notified {
 		t.Fatalf("a refused notification: %v, %d posts, notified %v", err, posts, state.Drafts["one"].Notified)
 	}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); err != nil || posts != 1 || !state.Drafts["one"].Notified {
+	if err = app.personal.Notify(ctx, run, &state, func() error { return nil }); err != nil || posts != 1 || !state.Drafts["one"].Notified {
 		t.Fatalf("the notification after a refusal: %v, %d posts, notified %v", err, posts, state.Drafts["one"].Notified)
 	}
-	state.Drafts["one"] = personalDraft{ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); err != nil || posts != 1 || !state.Drafts["one"].Notified {
+	state.Drafts["one"] = personal.Draft{ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personal.Observation{Kind: "briefing"}}
+	if err = app.personal.Notify(ctx, run, &state, func() error { return nil }); err != nil || posts != 1 || !state.Drafts["one"].Notified {
 		t.Fatalf("a delivered notification was repeated: %v, %d posts", err, posts)
 	}
 }

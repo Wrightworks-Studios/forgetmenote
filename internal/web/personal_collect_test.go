@@ -16,6 +16,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/personal"
 )
 
 // personalCollection drives collectPersonal one collection at a time, as the
@@ -24,7 +25,7 @@ type personalCollection struct {
 	app         *Server
 	ctx         context.Context
 	run         *automation.Run
-	state       personalState
+	state       personal.State
 	generation  uint64
 	checkpoints []int
 }
@@ -39,7 +40,7 @@ func newPersonalCollection(t *testing.T, app *Server, settings catalog.Assistant
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := &personalCollection{app: app, ctx: ctx, run: &automation.Run{Spec: spec}, state: personalState{Cursors: map[string]string{}, Seen: map[string]string{}, Drafts: map[string]personalDraft{}}}
+	c := &personalCollection{app: app, ctx: ctx, run: &automation.Run{Spec: spec}, state: personal.State{Cursors: map[string]string{}, Seen: map[string]string{}, Drafts: map[string]personal.Draft{}}}
 	if app.personalConnections != nil {
 		account, _ := app.catalog.Account("alice")
 		connections, err := app.personalConnections.List(account.ID)
@@ -51,7 +52,7 @@ func newPersonalCollection(t *testing.T, app *Server, settings catalog.Assistant
 	// A ready suggestion per source shows how collection settled it:
 	// resolved, superseded by a new observation, or left alone.
 	for _, key := range keys {
-		c.state.Drafts[key] = personalDraft{ID: key, State: "ready", Source: personalObservation{Key: key}}
+		c.state.Drafts[key] = personal.Draft{ID: key, State: "ready", Source: personal.Observation{Key: key}}
 	}
 	return c
 }
@@ -59,7 +60,7 @@ func newPersonalCollection(t *testing.T, app *Server, settings catalog.Assistant
 // collect runs one collection after the previous batch was judged.
 func (c *personalCollection) collect() error {
 	c.state.Pending, c.checkpoints = nil, nil
-	return c.app.collectPersonal(c.ctx, c.run, &c.state, func() error {
+	return c.app.personal.Collect(c.ctx, c.run, &c.state, func() error {
 		c.checkpoints = append(c.checkpoints, len(c.state.Reads))
 		return nil
 	})
@@ -78,7 +79,7 @@ func (c *personalCollection) pending(t *testing.T) []string {
 	t.Helper()
 	out := []string{}
 	for _, o := range c.state.Pending {
-		if o.Source.Provider == "" || o.Source.Generation != c.generation || strings.Contains(string(o.Content), "retrievedAt") || o.Revision != personalContentRevision(o.Kind, o.Content) {
+		if o.Source.Provider == "" || o.Source.Generation != c.generation || strings.Contains(string(o.Content), "retrievedAt") || o.Revision != personal.ContentRevision(o.Kind, o.Content) {
 			t.Errorf("observation %s lost its source contract or kept volatile fields: %+v", o.Key, o)
 		}
 		raw, _ := json.Marshal(o.Source.Arguments)
@@ -499,66 +500,5 @@ func TestPersonalCollectionObservesDataWatchesOnce(t *testing.T) {
 	c = newPersonalCollection(t, app, settings)
 	if err = c.collect(); err == nil || err.Error() != "personal data watches require an allowed read-only operation" || calls != 1 {
 		t.Fatalf("write operation watched: calls=%d %v", calls, err)
-	}
-}
-
-func TestQueueSlackThreadsQueuesEachThreadOnce(t *testing.T) {
-	read := func(generation uint64, operation string, args map[string]any) connectors.PersonalOperation {
-		return connectors.PersonalOperation{Provider: "slack", Generation: generation, Operation: operation, Arguments: args}
-	}
-	history := read(1, "slack.history", map[string]any{"channel": "D1", "oldest": "1"})
-	state := personalState{Reads: []connectors.PersonalOperation{
-		history,
-		read(1, "slack.thread", map[string]any{"channel": "D1", "ts": "1.1"}),
-		read(2, "slack.thread", map[string]any{"channel": "D1", "ts": "1.2"}),
-		read(1, "slack.history", map[string]any{"channel": "D1", "ts": "1.4"}),
-	}}
-	messages := []slackMessage{
-		{user: "U2", ts: "1.1"},                // already queued
-		{user: "U2", ts: "1.3", thread: "1.1"}, // a reply in a queued thread
-		{ts: "1.9", automated: true},           // a bot or join message
-		{user: "U2", ts: "1.2"},                // queued only for another connection generation
-		{user: "U2", ts: "1.4"},                // a history read is not a thread read
-		{user: "U2", ts: "1.5", thread: "1.4"}, // the same thread again on this page
-	}
-	if err := queueSlackThreads(&state, history, "D1", messages); err != nil {
-		t.Fatal(err)
-	}
-	got := []string{}
-	for _, r := range state.Reads[4:] {
-		raw, _ := json.Marshal(r)
-		got = append(got, string(raw))
-	}
-	samePersonal(t, "queued threads", got, []string{
-		`{"provider":"slack","generation":1,"operation":"slack.thread","arguments":{"channel":"D1","ts":"1.2"}}`,
-		`{"provider":"slack","generation":1,"operation":"slack.thread","arguments":{"channel":"D1","ts":"1.4"}}`,
-	})
-	if err := queueSlackThreads(&state, history, "D1", []slackMessage{{user: "U2"}}); err == nil || err.Error() != "Slack message omitted timestamp" {
-		t.Fatalf("message without timestamp accepted: %v", err)
-	}
-}
-
-// BenchmarkQueueSlackThreads queues the threads of one full Slack history page
-// (100 messages in 50 threads) behind reads already pending.
-func BenchmarkQueueSlackThreads(b *testing.B) {
-	call := connectors.PersonalOperation{Provider: "slack", Generation: 1, Operation: "slack.history", Arguments: map[string]any{"channel": "D1", "oldest": "1"}}
-	messages := []slackMessage{}
-	for i := range 50 {
-		ts := fmt.Sprintf("2.%04d", i)
-		messages = append(messages, slackMessage{user: "U2", ts: ts}, slackMessage{user: "U3", ts: ts + "1", thread: ts})
-	}
-	for _, pending := range []int{100, 1000, 5000} {
-		b.Run(fmt.Sprintf("pending-%d", pending), func(b *testing.B) {
-			queued := make([]connectors.PersonalOperation, pending)
-			for i := range queued {
-				queued[i] = connectors.PersonalOperation{Provider: "slack", Generation: 1, Operation: "slack.thread", Arguments: map[string]any{"channel": "D0", "ts": fmt.Sprintf("1.%04d", i)}}
-			}
-			for b.Loop() {
-				state := personalState{Reads: queued[:pending:pending]}
-				if err := queueSlackThreads(&state, call, "D1", messages); err != nil || len(state.Reads) != pending+50 {
-					b.Fatal(err, len(state.Reads))
-				}
-			}
-		})
 	}
 }

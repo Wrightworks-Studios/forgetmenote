@@ -1,4 +1,4 @@
-package web
+package personal
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 // Mailbox labels and provider history counters do not change what an employee
 // was asked. Keep the full original evidence for guarded writes, but key paid
 // analysis by message content and disposition rather than transport metadata.
-func personalContentRevision(kind string, raw json.RawMessage) string {
+func ContentRevision(kind string, raw json.RawMessage) string {
 	if kind != "email" && kind != "slack" {
 		return automation.Hash(raw)
 	}
@@ -21,7 +21,7 @@ func personalContentRevision(kind string, raw json.RawMessage) string {
 	}
 	if kind == "email" {
 		if messages, ok := data["messages"].([]any); ok {
-			data["messages"] = slices.DeleteFunc(messages, func(v any) bool { return slices.Contains(personalArray(personalObject(v)["flags"]), any("draft")) })
+			data["messages"] = slices.DeleteFunc(messages, func(v any) bool { return slices.Contains(Array(Object(v)["flags"]), any("draft")) })
 		}
 	}
 	var clean func(any)
@@ -33,7 +33,7 @@ func personalContentRevision(kind string, raw json.RawMessage) string {
 			}
 			if flags, ok := value["flags"].([]any); ok {
 				value["flags"] = slices.DeleteFunc(flags, func(v any) bool {
-					return !slices.Contains([]string{"spam", "trash", "draft", "sent"}, personalString(v))
+					return !slices.Contains([]string{"spam", "trash", "draft", "sent"}, String(v))
 				})
 			}
 			for _, child := range value {
@@ -49,25 +49,25 @@ func personalContentRevision(kind string, raw json.RawMessage) string {
 	return automation.Hash(data)
 }
 
-func personalExcerpt(o personalObservation, limit int) string {
+func personalExcerpt(o Observation, limit int) string {
 	var data map[string]any
 	_ = json.Unmarshal(o.Content, &data)
 	text := string(o.Content)
-	if messages := personalArray(data["messages"]); len(messages) > 0 {
-		last := personalObject(messages[len(messages)-1])
-		text = personalString(last["subject"]) + "\n" + personalString(last["sender"]) + "\n"
+	if messages := Array(data["messages"]); len(messages) > 0 {
+		last := Object(messages[len(messages)-1])
+		text = String(last["subject"]) + "\n" + String(last["sender"]) + "\n"
 		if o.Kind == "slack" {
-			text += personalString(last["text"])
+			text += String(last["text"])
 		} else {
-			for _, part := range personalArray(last["text"]) {
-				segment := personalObject(part)
+			for _, part := range Array(last["text"]) {
+				segment := Object(part)
 				if segment["quoted"] != true {
-					text += personalString(segment["text"]) + "\n"
+					text += String(segment["text"]) + "\n"
 				}
 			}
 		}
 	} else if o.Kind == "calendar" {
-		text = personalString(data["summary"]) + "\n" + personalString(data["description"])
+		text = String(data["summary"]) + "\n" + String(data["description"])
 		start, _ := json.Marshal(data["start"])
 		text += "\n" + string(start)
 	}

@@ -1,4 +1,4 @@
-package web
+package personal
 
 import (
 	"context"
@@ -16,10 +16,14 @@ import (
 	"forgetmenote/internal/connectors"
 )
 
-func personalObject(v any) map[string]any { out, _ := v.(map[string]any); return out }
-func personalArray(v any) []any           { out, _ := v.([]any); return out }
-func personalString(v any) string         { out, _ := v.(string); return out }
-func personalData(result connectors.Result) (map[string]any, error) {
+// Object, Array and String read a decoded JSON value as that type, or its zero
+// value.
+func Object(v any) map[string]any { out, _ := v.(map[string]any); return out }
+func Array(v any) []any           { out, _ := v.([]any); return out }
+func String(v any) string         { out, _ := v.(string); return out }
+
+// Data decodes a provider result's data as a JSON object.
+func Data(result connectors.Result) (map[string]any, error) {
 	raw, err := json.Marshal(result.Data)
 	var out map[string]any
 	if err == nil {
@@ -30,7 +34,10 @@ func personalData(result connectors.Result) (map[string]any, error) {
 	}
 	return out, err
 }
-func personalPayload(data map[string]any) json.RawMessage {
+
+// Payload encodes provider data without its volatile fetch timestamps and
+// transport receipts, so only a real change is new work.
+func Payload(data map[string]any) json.RawMessage {
 	// Volatile fetch timestamps and transport receipts must not trigger new work.
 	var strip func(any)
 	strip = func(v any) {
@@ -55,9 +62,9 @@ func personalPayload(data map[string]any) json.RawMessage {
 // personalCollector is one collection pass for a personal assistant: its
 // item budget, lookback horizon and clock.
 type personalCollector struct {
-	s        *Server
+	s        *Service
 	r        *automation.Run
-	state    *personalState
+	state    *State
 	persist  func() error
 	settings catalog.AssistantSettings
 	batch    int
@@ -65,7 +72,7 @@ type personalCollector struct {
 	now      time.Time
 }
 
-func (s *Server) collectPersonal(ctx context.Context, r *automation.Run, state *personalState, persist func() error) error {
+func (s *Service) collectPersonal(ctx context.Context, r *automation.Run, state *State, persist func() error) error {
 	if len(state.Pending) > 0 {
 		return nil
 	}
@@ -108,7 +115,7 @@ func (s *Server) collectPersonal(ctx context.Context, r *automation.Run, state *
 }
 
 func (c *personalCollector) fetch(ctx context.Context, op connectors.PersonalOperation) (map[string]any, error) {
-	return c.s.personalEvidence(ctx, op)
+	return c.s.hooks.Evidence(ctx, op)
 }
 
 func personalOperation(connection connectors.PersonalConnection, name string, args map[string]any) connectors.PersonalOperation {
@@ -124,9 +131,9 @@ func (c *personalCollector) plan(ctx context.Context) error {
 		}
 	}
 	var connections []connectors.PersonalConnection
-	if c.s.personalConnections != nil {
+	if c.s.hooks.PersonalConnections() != nil {
 		var err error
-		if connections, err = c.s.personalConnections.List(c.r.Spec.Personal.Account); err != nil {
+		if connections, err = c.s.hooks.PersonalConnections().List(c.r.Spec.Personal.Account); err != nil {
 			return err
 		}
 	}
@@ -169,7 +176,7 @@ func (c *personalCollector) planConnection(ctx context.Context, connection conne
 // result directly.
 func (c *personalCollector) observeWatches(ctx context.Context) error {
 	for _, watch := range c.settings.Watches {
-		op, ok := c.s.dataConnections.ConfiguredOperation(watch.Connection, watch.Operation)
+		op, ok := c.s.hooks.DataConnections().ConfiguredOperation(watch.Connection, watch.Operation)
 		if !ok || !op.ReadOnly {
 			return errors.New("personal data watches require an allowed read-only operation")
 		}
@@ -178,7 +185,7 @@ func (c *personalCollector) observeWatches(ctx context.Context) error {
 			return errors.New("invalid watch arguments")
 		}
 		call := automation.Call{Connection: watch.Connection, Operation: watch.Operation, Arguments: args}
-		result, err := c.s.automationCall(ctx, c.r, call)
+		result, err := c.s.hooks.AutomationCall(ctx, c.r, call)
 		if err != nil {
 			return err
 		}
@@ -186,7 +193,7 @@ func (c *personalCollector) observeWatches(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		observePersonal(c.state, personalObservation{Key: "data:" + automation.Hash(call), Kind: "operations", Revision: automation.Hash(raw), URL: "receipt:" + result.Receipt.ID, Observed: c.now, Data: &call, Content: raw})
+		observePersonal(c.state, Observation{Key: "data:" + automation.Hash(call), Kind: "operations", Revision: automation.Hash(raw), URL: "receipt:" + result.Receipt.ID, Observed: c.now, Data: &call, Content: raw})
 	}
 	return nil
 }
@@ -271,7 +278,7 @@ func (c *personalCollector) planSlack(ctx context.Context, connection connectors
 // consume reads one queued page or item. It queues the reads it leads to,
 // settles sources that no longer wait for the owner, and returns the
 // observations to judge.
-func (c *personalCollector) consume(ctx context.Context, call connectors.PersonalOperation) ([]personalObservation, error) {
+func (c *personalCollector) consume(ctx context.Context, call connectors.PersonalOperation) ([]Observation, error) {
 	data, err := c.fetch(ctx, call)
 	if err != nil {
 		return nil, err
@@ -287,15 +294,15 @@ func (c *personalCollector) consume(ctx context.Context, call connectors.Persona
 	return nil, nil
 }
 
-func (c *personalCollector) observation(key, kind, link string, source connectors.PersonalOperation, data map[string]any) personalObservation {
-	raw := personalPayload(data)
-	return personalObservation{Key: key, Kind: kind, Revision: personalContentRevision(kind, raw), URL: link, Observed: c.now, Source: source, Content: raw}
+func (c *personalCollector) observation(key, kind, link string, source connectors.PersonalOperation, data map[string]any) Observation {
+	raw := Payload(data)
+	return Observation{Key: key, Kind: kind, Revision: ContentRevision(kind, raw), URL: link, Observed: c.now, Source: source, Content: raw}
 }
 
 // consumeEmail observes a message's whole thread while it waits for the
 // owner. A thread the owner answered last, or one from a list, an automatic
 // sender, spam or trash, is resolved; a prepared draft changes nothing.
-func (c *personalCollector) consumeEmail(ctx context.Context, call connectors.PersonalOperation, data map[string]any) ([]personalObservation, error) {
+func (c *personalCollector) consumeEmail(ctx context.Context, call connectors.PersonalOperation, data map[string]any) ([]Observation, error) {
 	message := readEmailMessage(data)
 	if message.unavailable {
 		return nil, nil
@@ -333,13 +340,13 @@ func (c *personalCollector) consumeEmail(ctx context.Context, call connectors.Pe
 		resolvePersonal(c.state, "email:"+id, "resolved")
 		return nil, nil
 	}
-	return []personalObservation{c.observation("email:"+id, "email", "https://mail.google.com/mail/u/?authuser="+url.QueryEscape(last.account)+"#all/"+url.PathEscape(id), source, thread)}, nil
+	return []Observation{c.observation("email:"+id, "email", "https://mail.google.com/mail/u/?authuser="+url.QueryEscape(last.account)+"#all/"+url.PathEscape(id), source, thread)}, nil
 }
 
 // consumeSlack follows a history page's continuation and queues each thread
 // on it, or observes a thread still waiting for the owner. A thread the owner
 // answered last, or an empty one, is resolved.
-func (c *personalCollector) consumeSlack(call connectors.PersonalOperation, data map[string]any) ([]personalObservation, error) {
+func (c *personalCollector) consumeSlack(call connectors.PersonalOperation, data map[string]any) ([]Observation, error) {
 	page := readSlackHistory(data)
 	if !page.listed {
 		return nil, errors.New("Slack omitted messages")
@@ -357,7 +364,7 @@ func (c *personalCollector) consumeSlack(call connectors.PersonalOperation, data
 		return nil, queueSlackThreads(c.state, call, channel, page.messages)
 	}
 	key := "slack:" + channel + ":" + personalArgument(call, "ts")
-	connections, err := c.s.personalConnections.List(c.r.Spec.Personal.Account)
+	connections, err := c.s.hooks.PersonalConnections().List(c.r.Spec.Personal.Account)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +378,7 @@ func (c *personalCollector) consumeSlack(call connectors.PersonalOperation, data
 		resolvePersonal(c.state, key, "resolved")
 		return nil, nil
 	}
-	return []personalObservation{c.observation(key, "slack", "slack://channel?id="+url.QueryEscape(channel)+"&message="+url.QueryEscape(personalArgument(call, "ts")), call, data)}, nil
+	return []Observation{c.observation(key, "slack", "slack://channel?id="+url.QueryEscape(channel)+"&message="+url.QueryEscape(personalArgument(call, "ts")), call, data)}, nil
 }
 
 // queueSlackThreads queues a read of the thread of each human message on a
@@ -380,7 +387,7 @@ func (c *personalCollector) consumeSlack(call connectors.PersonalOperation, data
 // The queued thread reads are hashed once per page, not once per message: a
 // page of 100 messages behind 5,000 pending reads otherwise hashed a million
 // reads. Equal hashes mean equal operations, so only thread reads are hashed.
-func queueSlackThreads(state *personalState, call connectors.PersonalOperation, channel string, messages []slackMessage) error {
+func queueSlackThreads(state *State, call connectors.PersonalOperation, channel string, messages []slackMessage) error {
 	var queued map[string]bool
 	for _, m := range messages {
 		if m.automated {
@@ -414,7 +421,7 @@ func queueSlackThreads(state *personalState, call connectors.PersonalOperation, 
 
 // consumeCalendar follows an events page's continuation and observes each
 // event; a cancelled event is resolved.
-func (c *personalCollector) consumeCalendar(call connectors.PersonalOperation, data map[string]any) ([]personalObservation, error) {
+func (c *personalCollector) consumeCalendar(call connectors.PersonalOperation, data map[string]any) ([]Observation, error) {
 	page := readCalendarPage(data, call.Operation == "calendar.event")
 	if page.next != "" {
 		more := call
@@ -425,7 +432,7 @@ func (c *personalCollector) consumeCalendar(call connectors.PersonalOperation, d
 	if page.malformed {
 		return nil, errors.New("calendar returned malformed events")
 	}
-	observations := []personalObservation{}
+	observations := []Observation{}
 	for _, event := range page.events {
 		if event.id == "" {
 			return nil, errors.New("calendar event missing ID")

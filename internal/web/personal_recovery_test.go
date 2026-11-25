@@ -10,27 +10,9 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
-	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/workspace"
 )
-
-func TestPersonalChangedEvidenceSupersedesInsteadOfBlocking(t *testing.T) {
-	old := personalObservation{Key: "email:t1", Revision: "old", Source: connectors.PersonalOperation{Provider: "google", Generation: 1, Operation: "email.thread", Arguments: map[string]any{"id": "t1"}}}
-	next := old
-	next.Revision = "new"
-	id := personalFingerprint(old)
-	state := personalState{Seen: map[string]string{}, Drafts: map[string]personalDraft{id: {ID: id, State: "ready", Source: old}}, Pending: []personalObservation{old}}
-	supersedePersonal(&state, old)
-	if len(state.Reads) != 1 || state.Drafts[id].State != "superseded" {
-		t.Fatal("old work blocks new evidence")
-	}
-	observePersonal(&state, next)
-	observePersonal(&state, next)
-	if len(state.Pending) != 1 || state.Pending[0].Revision != "new" {
-		t.Fatal("stale or duplicate input retained")
-	}
-	resolvePersonal(&state, old.Key, "resolved")
-}
 
 func TestPersonalInterruptedMemoryRecoveryIsOwnerAndRevisionBound(t *testing.T) {
 	app, _ := fixture(t)
@@ -43,8 +25,8 @@ func TestPersonalInterruptedMemoryRecoveryIsOwnerAndRevisionBound(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, _ := json.Marshal(personalMemoryState{Status: "started", Batch: []personalInteraction{{ID: "one", UserText: "Keep it concise"}}})
-	stored, err := app.automations.Queue.SaveJobState(personalMemorySpec(spec), "", raw, false)
+	raw, _ := json.Marshal(personal.MemoryState{Status: "started", Batch: []personal.Interaction{{ID: "one", UserText: "Keep it concise"}}})
+	stored, err := app.automations.Queue.SaveJobState(personal.MemorySpec(spec), "", raw, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,11 +45,11 @@ func TestPersonalInterruptedMemoryRecoveryIsOwnerAndRevisionBound(t *testing.T) 
 	if _, err = action.Call(ctx, args); !errors.Is(err, workspace.ErrConflict) {
 		t.Fatalf("stale recovery: %v", err)
 	}
-	stored, err = app.automations.Queue.JobState(personalMemorySpec(spec))
+	stored, err = app.automations.Queue.JobState(personal.MemorySpec(spec))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var memory personalMemoryState
+	var memory personal.MemoryState
 	json.Unmarshal(stored.Data, &memory)
 	if memory.Status != "" || len(memory.Pending) != 1 {
 		t.Fatal("recovery did not preserve the interaction")
@@ -77,21 +59,6 @@ func TestPersonalInterruptedMemoryRecoveryIsOwnerAndRevisionBound(t *testing.T) 
 	app.catalog.SaveAssistant("alice", settings)
 	if err = app.validateChatSources(ctx, run, false); !errors.Is(err, workspace.ErrForbidden) {
 		t.Fatal("paused consent did not fence retained chat evidence", err)
-	}
-}
-
-func TestPersonalCalendarReminderUsesEventAndEmployeeZone(t *testing.T) {
-	for _, test := range []struct{ event, want string }{
-		{`{"start":{"dateTime":"2026-10-09T10:00:00-06:00"}}`, "2026-10-09T15:30:00Z"},
-		{`{"start":{"date":"2026-10-09"}}`, "2026-10-09T14:30:00Z"},
-	} {
-		got := personalCalendarReminder(personalObservation{Content: json.RawMessage(test.event)}, "America/Denver")
-		if got != test.want {
-			t.Fatalf("reminder=%s want=%s", got, test.want)
-		}
-	}
-	if personalCalendarReminder(personalObservation{Content: json.RawMessage(`{}`)}, "UTC") != "" {
-		t.Fatal("invented event time")
 	}
 }
 
@@ -107,12 +74,12 @@ func TestPersonalMemoryConflictKeepsEmployeeEditAndRecoverableProposal(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.seedAssistant(ctx, settings); err != nil {
+	if err = app.personal.Seed(ctx, settings); err != nil {
 		t.Fatal(err)
 	}
 	store, _ := app.catalog.Access("alice", settings.Project, "owner")
-	state := personalMemoryState{Status: "generated", Hashes: map[string]string{}, Content: map[string]string{}, Batch: []personalInteraction{{ID: "one", UserText: "Use my preferred tone"}}}
-	for _, seed := range assistantMemoryFiles {
+	state := personal.MemoryState{Status: "generated", Hashes: map[string]string{}, Content: map[string]string{}, Batch: []personal.Interaction{{ID: "one", UserText: "Use my preferred tone"}}}
+	for _, seed := range personal.MemoryFiles {
 		doc, err := store.Read(ctx, seed.Path, "")
 		if err != nil {
 			t.Fatal(err)
@@ -122,7 +89,7 @@ func TestPersonalMemoryConflictKeepsEmployeeEditAndRecoverableProposal(t *testin
 	}
 	state.Content["SOUL.md"] = "# Proposed preference\nBe formal."
 	raw, _ := json.Marshal(state)
-	if _, err = app.automations.Queue.SaveJobState(personalMemorySpec(spec), "", raw, false); err != nil {
+	if _, err = app.automations.Queue.SaveJobState(personal.MemorySpec(spec), "", raw, false); err != nil {
 		t.Fatal(err)
 	}
 	doc, _ := store.Read(ctx, "SOUL.md", "")
@@ -130,14 +97,14 @@ func TestPersonalMemoryConflictKeepsEmployeeEditAndRecoverableProposal(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.maintainPersonalMemory(ctx, &automation.Run{Spec: spec}); err == nil {
+	if err = app.personal.MaintainMemory(ctx, &automation.Run{Spec: spec}); err == nil {
 		t.Fatal("concurrent edit overwritten")
 	}
 	after, _ := store.Read(ctx, "SOUL.md", "")
 	if workspace.ContentHash(after.Content) != workspace.ContentHash(saved.Content) {
 		t.Fatal("employee edit changed")
 	}
-	retained, _ := app.automations.Queue.JobState(personalMemorySpec(spec))
+	retained, _ := app.automations.Queue.JobState(personal.MemorySpec(spec))
 	if err = json.Unmarshal(retained.Data, &state); err != nil || state.Status != "generated" || state.Content["SOUL.md"] == "" {
 		t.Fatal("proposal not recoverable", err)
 	}
@@ -164,11 +131,11 @@ func TestPersonalEditedMailboxSuggestionDoesNotBlockPublication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := personalState{Drafts: map[string]personalDraft{
-		"edited": {ID: "edited", State: "ready", Reply: "Old reply", Path: old.Path, NoteRevision: old.Revision, NoteHash: workspace.ContentHash(old.Content), Source: personalObservation{Kind: "email"}},
-		"other":  {ID: "other", State: "ready", Title: "Another item", Path: "drafts/other.md", Source: personalObservation{Kind: "briefing"}},
+	state := personal.State{Drafts: map[string]personal.Draft{
+		"edited": {ID: "edited", State: "ready", Reply: "Old reply", Path: old.Path, NoteRevision: old.Revision, NoteHash: workspace.ContentHash(old.Content), Source: personal.Observation{Kind: "email"}},
+		"other":  {ID: "other", State: "ready", Title: "Another item", Path: "drafts/other.md", Source: personal.Observation{Kind: "briefing"}},
 	}}
-	if err = app.publishPersonalDrafts(ctx, &automation.Run{Spec: spec}, &state, func() error { return nil }, func() error { return nil }); err != nil {
+	if err = app.personal.PublishDrafts(ctx, &automation.Run{Spec: spec}, &state, func() error { return nil }, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if state.Drafts["edited"].State != "edited" || state.Drafts["other"].NoteRevision == "" {
@@ -188,18 +155,18 @@ func TestPersonalInterruptedMemoryDoesNotStopMonitoring(t *testing.T) {
 		t.Fatal(err)
 	}
 	spec, _ := app.personalSpec("alice", settings)
-	raw, _ := json.Marshal(personalMemoryState{Status: "started", Batch: []personalInteraction{{ID: "one", UserText: "Keep it brief"}}})
-	if _, err = app.automations.Queue.SaveJobState(personalMemorySpec(spec), "", raw, false); err != nil {
+	raw, _ := json.Marshal(personal.MemoryState{Status: "started", Batch: []personal.Interaction{{ID: "one", UserText: "Keep it brief"}}})
+	if _, err = app.automations.Queue.SaveJobState(personal.MemorySpec(spec), "", raw, false); err != nil {
 		t.Fatal(err)
 	}
 	if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 		t.Fatal("memory recovery blocked monitoring", err)
 	}
-	stored, err := app.automations.Queue.JobState(personalMemorySpec(spec))
+	stored, err := app.automations.Queue.JobState(personal.MemorySpec(spec))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var state personalMemoryState
+	var state personal.MemoryState
 	if err = json.Unmarshal(stored.Data, &state); err != nil || state.Status != "started" || len(state.Batch) != 1 {
 		t.Fatal("interrupted paid work was retried or discarded", err)
 	}

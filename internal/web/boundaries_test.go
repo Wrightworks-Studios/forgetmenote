@@ -1,15 +1,26 @@
 package web
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
+	"io"
 	"io/fs"
+	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -151,6 +162,285 @@ func TestContextAuthorityHasKnownSetters(t *testing.T) {
 		}
 	}
 }
+
+// TestGrantsBeginOnlyInConnectionRoutes keeps personal connection grants in
+// web's connect, callback and disconnect routes in personal_connections.go,
+// which bind them to the browser with a cookie and recheck the signed-in
+// account: no other production code may begin, finish or remove one. The
+// check follows types, so a method of the same name elsewhere is not a use and
+// one reached through a hook or a local variable is.
+func TestGrantsBeginOnlyInConnectionRoutes(t *testing.T) {
+	code := typedConnectorDependents(t)
+	grants := []string{"Begin", "Disconnect", "Finish"}
+	var found []string
+	for id, obj := range code.info.Uses {
+		fn, ok := obj.(*types.Func)
+		if !ok || !slices.Contains(grants, fn.Name()) || !receiverIs(fn, "forgetmenote/internal/connectors", "PersonalConnections") {
+			continue
+		}
+		if rel := code.rel(id); rel != "internal/web/personal_connections.go" {
+			t.Errorf("%s uses PersonalConnections.%s; only the connection routes in personal_connections.go may", rel, fn.Name())
+			continue
+		}
+		found = append(found, fn.Name())
+	}
+	slices.Sort(found)
+	if found = slices.Compact(found); !slices.Equal(found, grants) {
+		t.Fatalf("personal_connections.go uses %v of %v", found, grants)
+	}
+}
+
+// TestBindingCookiesStayInWeb keeps the cookies that bind a pending login or
+// connection, with its OAuth state, to the browser that started it in web:
+// binding_cookie.go alone declares the helpers, none of them is exported, and
+// no production code outside web sets or reads a cookie.
+func TestBindingCookiesStayInWeb(t *testing.T) {
+	helpers := []string{"binding", "bindingCookie", "clearBinding", "connectionBinding", "setBinding"}
+	const owner = "internal/web/binding_cookie.go"
+	var found []string
+	for rel, file := range productionFiles(t, 0) {
+		var names []*ast.Ident
+		for _, decl := range file.Decls {
+			switch d := decl.(type) {
+			case *ast.FuncDecl:
+				names = append(names, d.Name)
+			case *ast.GenDecl:
+				for _, spec := range d.Specs {
+					switch spec := spec.(type) {
+					case *ast.TypeSpec:
+						names = append(names, spec.Name)
+					case *ast.ValueSpec:
+						names = append(names, spec.Names...)
+					}
+				}
+			}
+		}
+		for _, name := range names {
+			switch {
+			case rel == owner && name.IsExported():
+				t.Errorf("%s exports %s; binding cookie helpers stay unexported", rel, name.Name)
+			case rel == owner && slices.Contains(helpers, name.Name):
+				found = append(found, name.Name)
+			case slices.Contains(helpers, name.Name):
+				t.Errorf("%s declares %s; binding cookie helpers belong in %s", rel, name.Name, owner)
+			}
+		}
+		if rel == owner && file.Name.Name != "web" {
+			t.Errorf("%s is package %s, not web", rel, file.Name.Name)
+		}
+		if strings.HasPrefix(rel, "internal/web/") {
+			continue
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			if sel, ok := n.(*ast.SelectorExpr); ok && slices.Contains([]string{"AddCookie", "Cookie", "Cookies", "SetCookie"}, sel.Sel.Name) {
+				t.Errorf("%s uses %s; only web sets or reads cookies", rel, sel.Sel.Name)
+			}
+			return true
+		})
+	}
+	slices.Sort(found)
+	if !slices.Equal(found, helpers) {
+		t.Fatalf("%s declares %v of %v", owner, found, helpers)
+	}
+}
+
+// TestAssistantTestExportsStayInTests keeps the names the personal assistant
+// exports only for web's tests out of production code: any reference from a
+// non-test file in the module fails. The check follows types, so another
+// package's Notify or Collect is not a use.
+func TestAssistantTestExportsStayInTests(t *testing.T) {
+	code := typedConnectorDependents(t)
+	const path = "forgetmenote/internal/personal"
+	testOnly := []string{"Collect", "Fingerprint", "MaintainMemory", "Notify", "PublishDrafts"}
+	pkg := code.packages[path]
+	if pkg == nil {
+		t.Fatalf("%s was not type-checked", path)
+	}
+	service, _ := pkg.Scope().Lookup("Service").(*types.TypeName)
+	for _, name := range testOnly {
+		obj := pkg.Scope().Lookup(name)
+		if obj == nil && service != nil {
+			obj, _, _ = types.LookupFieldOrMethod(types.NewPointer(service.Type()), false, pkg, name)
+		}
+		if _, ok := obj.(*types.Func); !ok {
+			t.Errorf("personal no longer declares %s; update the list", name)
+		}
+	}
+	for id, obj := range code.info.Uses {
+		fn, ok := obj.(*types.Func)
+		if !ok || fn.Pkg() == nil || fn.Pkg().Path() != path || !slices.Contains(testOnly, fn.Name()) {
+			continue
+		}
+		if fn.Signature().Recv() == nil || receiverIs(fn, path, "Service") {
+			t.Errorf("%s uses personal's %s, which only tests may use", code.rel(id), fn.Name())
+		}
+	}
+}
+
+// receiverIs reports whether fn is a method of path.name or *path.name.
+func receiverIs(fn *types.Func, path, name string) bool {
+	recv := fn.Signature().Recv()
+	if recv == nil {
+		return false
+	}
+	typ := recv.Type()
+	if ptr, ok := typ.(*types.Pointer); ok {
+		typ = ptr.Elem()
+	}
+	named, ok := types.Unalias(typ).(*types.Named)
+	return ok && named.Obj().Pkg() != nil && named.Obj().Pkg().Path() == path && named.Obj().Name() == name
+}
+
+// typedCode is the type-checked production code of every module package that
+// is or depends on connectors, which holds personal connections and their
+// grants.
+type typedCode struct {
+	root     string
+	fset     *token.FileSet
+	info     *types.Info
+	packages map[string]*types.Package
+}
+
+// rel returns the module-relative file that holds id.
+func (c *typedCode) rel(id *ast.Ident) string {
+	rel, err := filepath.Rel(c.root, c.fset.Position(id.Pos()).Filename)
+	if err != nil {
+		return c.fset.Position(id.Pos()).Filename
+	}
+	return filepath.ToSlash(rel)
+}
+
+var typedOnce struct {
+	sync.Once
+	code *typedCode
+	err  error
+}
+
+func typedConnectorDependents(t *testing.T) *typedCode {
+	t.Helper()
+	typedOnce.Do(func() { typedOnce.code, typedOnce.err = typeCheckDependents("forgetmenote/internal/connectors") })
+	if typedOnce.err != nil {
+		t.Fatal(typedOnce.err)
+	}
+	return typedOnce.code
+}
+
+// typeCheckDependents type-checks, from source and in dependency order, the
+// production files of target and of each module package that depends on it.
+// Their other imports come from compiled export data. go list builds that
+// with the test binary's own race and tag settings, so the build cache that
+// made this binary already holds it.
+func typeCheckDependents(target string) (*typedCode, error) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		return nil, err
+	}
+	goTool, err := exec.LookPath("go")
+	if err != nil {
+		return nil, err
+	}
+	var flags []string
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range info.Settings {
+			if s.Key == "-race" && s.Value == "true" || s.Key == "-tags" && s.Value != "" {
+				flags = append(flags, s.Key+"="+s.Value)
+			}
+		}
+	}
+	type listed struct {
+		ImportPath, Dir, Export string
+		GoFiles, Imports, Deps  []string
+		Module                  *struct{ Path string }
+	}
+	list := func(args ...string) ([]listed, error) {
+		cmd := exec.Command(goTool, append(append([]string{"list"}, flags...), args...)...)
+		cmd.Dir = root
+		out, err := cmd.Output()
+		if exit := (*exec.ExitError)(nil); errors.As(err, &exit) {
+			return nil, fmt.Errorf("go list: %w\n%s", err, exit.Stderr)
+		} else if err != nil {
+			return nil, err
+		}
+		var pkgs []listed
+		for dec := json.NewDecoder(bytes.NewReader(out)); ; {
+			var p listed
+			if err := dec.Decode(&p); err == io.EOF {
+				return pkgs, nil
+			} else if err != nil {
+				return nil, err
+			}
+			pkgs = append(pkgs, p)
+		}
+	}
+	// -deps lists each package after all of its dependencies.
+	all, err := list("-deps", "-json=ImportPath,Dir,GoFiles,Imports,Deps,Module", "./...")
+	if err != nil {
+		return nil, err
+	}
+	var order []listed
+	fromSource := map[string]bool{}
+	for _, p := range all {
+		if p.Module != nil && p.Module.Path == "forgetmenote" && (p.ImportPath == target || slices.Contains(p.Deps, target)) {
+			order = append(order, p)
+			fromSource[p.ImportPath] = true
+		}
+	}
+	if !fromSource[target] {
+		return nil, fmt.Errorf("go list found no %s", target)
+	}
+	// A package outside the set cannot import one inside it, or it would
+	// depend on target too, so export data never names a source package.
+	need := map[string]bool{}
+	for _, p := range order {
+		for _, path := range p.Imports {
+			if !fromSource[path] && path != "unsafe" && path != "C" {
+				need[path] = true
+			}
+		}
+	}
+	exported, err := list(append([]string{"-export", "-json=ImportPath,Export"}, slices.Sorted(maps.Keys(need))...)...)
+	if err != nil {
+		return nil, err
+	}
+	exports := map[string]string{}
+	for _, p := range exported {
+		exports[p.ImportPath] = p.Export
+	}
+	code := &typedCode{root: root, fset: token.NewFileSet(), packages: map[string]*types.Package{},
+		info: &types.Info{Uses: map[*ast.Ident]types.Object{}}}
+	gc := importer.ForCompiler(code.fset, "gc", func(path string) (io.ReadCloser, error) {
+		if exports[path] == "" {
+			return nil, fmt.Errorf("no export data for %s", path)
+		}
+		return os.Open(exports[path])
+	})
+	conf := types.Config{Importer: importerFunc(func(path string) (*types.Package, error) {
+		if pkg := code.packages[path]; pkg != nil {
+			return pkg, nil
+		}
+		return gc.Import(path)
+	})}
+	for _, p := range order {
+		var files []*ast.File
+		for _, name := range p.GoFiles {
+			file, err := parser.ParseFile(code.fset, filepath.Join(p.Dir, name), nil, parser.SkipObjectResolution)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, file)
+		}
+		pkg, err := conf.Check(p.ImportPath, code.fset, files, code.info)
+		if err != nil {
+			return nil, fmt.Errorf("type-check %s: %w", p.ImportPath, err)
+		}
+		code.packages[p.ImportPath] = pkg
+	}
+	return code, nil
+}
+
+type importerFunc func(path string) (*types.Package, error)
+
+func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }
 
 // TestMessagingTestExportsStayInTests keeps the names messaging exports only
 // for web's tests out of production code, with the account-link token minter,
