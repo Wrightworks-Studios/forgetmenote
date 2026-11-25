@@ -505,20 +505,20 @@ func (s *Server) visibleOccurrences(ctx context.Context, user string, list []wor
 }
 
 // purgeConfirmation binds a plan, as its caller sees it, to its notebook,
-// head, scope and everything it reports, except how many live edits are
-// pending, which changes while people type. The workspace binds the whole
-// plan with its own confirmation, which never leaves the server: a hash of
-// a plan whose hidden parts a caller can guess would tell them.
+// head, scope and everything it reports, as PurgePlan.Bound returns it: so
+// whether the purge changes the notebook at all (purgeHeld) is bound, as is
+// every live document whose edits not saved as a revision the purge would
+// discard, and every live document a purge that rewrites no revision
+// resets. The other live documents a purge that rewrites revisions resets,
+// which come and go as people open notes, are not, and its receipt counts
+// every one it reset. The workspace binds the whole plan likewise with its
+// own confirmation, which never leaves the server: a hash of a plan whose
+// hidden parts a caller can guess would tell them.
 func purgeConfirmation(project string, plan workspace.PurgePlan) string {
-	plan.Confirmation = ""
-	plan.Live = slices.Clone(plan.Live)
-	for i := range plan.Live {
-		plan.Live[i].Pending = false
-	}
 	raw, _ := json.Marshal(struct {
 		Notebook string              `json:"notebook"`
 		Plan     workspace.PurgePlan `json:"plan"`
-	}{project, plan})
+	}{project, plan.Bound()})
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
 }
@@ -754,7 +754,7 @@ func (s *Server) executePurge(ctx context.Context, target purgeTarget, in purgeE
 	defer cancel()
 	receipt := purgeReceipt{Notebook: target.project, Actor: actor, Reason: reason, Kind: in.Scope.Kind, Pattern: in.Scope.Pattern != "",
 		WholeNotebook: in.Scope.Kind == workspace.PurgeText && len(in.Scope.Paths) == 0, Notes: len(plan.Notes), Versions: plan.Versions,
-		Messages: plan.Messages, ExportForcePush: plan.ExportForcePush, PreparedByAgent: in.Token != "", Exposure: purgeExposure, ActorDerived: own}
+		Messages: plan.Messages, PreparedByAgent: in.Token != "", Exposure: purgeExposure, ActorDerived: own}
 	if name, err := s.catalog.SubjectName(target.user); err == nil {
 		receipt.ActorName = name
 	}
@@ -808,7 +808,8 @@ func (s *Server) executePurge(ctx context.Context, target purgeTarget, in purgeE
 		cleaner.remap = s.purgeRemap(ctx, store)
 	}
 	receipt.Purge, receipt.Revision, receipt.Rewritten = result.Purge, result.Revision, result.Rewritten
-	receipt.RemovedVersions, receipt.RemovedBlocks, receipt.LiveReset, receipt.Export = result.RemovedVersions, result.RemovedBlocks, result.LiveReset, result.Export
+	receipt.RemovedVersions, receipt.RemovedBlocks, receipt.LiveReset = result.RemovedVersions, result.RemovedBlocks, result.LiveReset
+	receipt.Export, receipt.ExportForcePush = result.Export, result.ExportForcePush
 	receipt.Created = time.Now().UTC().Format(time.RFC3339)
 	if previousReleaseFiles(store) {
 		receipt.Warnings = append(receipt.Warnings, purgePreviousRelease)
