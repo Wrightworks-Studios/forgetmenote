@@ -92,14 +92,14 @@ func TestSlackTransportUploadsFilesAndNeverRepeatsAmbiguousDelivery(t *testing.T
 	r := automation.Run{}
 	d := messaging.Address{Channel: "C123", Thread: "1.2", Shared: true}
 	reply := messaging.Reply{Text: "Result", Artifacts: []messaging.Artifact{{Name: "result.csv", MIME: "text/csv", Data: []byte("x\n7\n")}}}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &r, func() error { return nil }); err != nil {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if len(calls) != 3 || r.DeliveryState != "sent" {
 		t.Fatal(calls, r.DeliveryState)
 	}
 	r.DeliveryState = "sending"
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &r, func() error { return nil }); err == nil || len(calls) != 3 {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &r, func() error { return nil }); err == nil || len(calls) != 3 {
 		t.Fatal("ambiguous file delivery was resent", err)
 	}
 }

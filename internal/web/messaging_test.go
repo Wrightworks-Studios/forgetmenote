@@ -266,10 +266,10 @@ func TestMessagingOtherClientSharesScopedThreadAcrossUsersAndRestart(t *testing.
 	}
 	for i, user := range []string{"external-alice", "external-bob"} {
 		event := messaging.Event{ID: []string{"event-one", "event-two"}[i], Text: []string{"Read the related notebook.", "Explain your previous answer."}[i], Address: messaging.Address{Client: "other-chat", Workspace: "workspace", Channel: "room", Thread: "thread-one", User: user, Message: user}}
-		if err := app.enqueueMessage(t.Context(), event); err != nil {
+		if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			t.Fatal(err)
 		}
-		if err := app.enqueueMessage(t.Context(), event); err != nil {
+		if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			t.Fatal("duplicate event", err)
 		}
 		if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
@@ -306,7 +306,7 @@ func TestMessagingOtherClientSharesScopedThreadAcrossUsersAndRestart(t *testing.
 	if err := app.catalog.Member(catalog.Bootstrap, "related", "bob", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.enqueueMessage(t.Context(), messaging.Event{ID: "revoked", Text: "Another answer", Address: messaging.Address{Client: "other-chat", Workspace: "workspace", Channel: "room", Thread: "thread-one", User: "external-alice"}}); err == nil {
+	if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: "revoked", Text: "Another answer", Address: messaging.Address{Client: "other-chat", Workspace: "workspace", Channel: "room", Thread: "thread-one", User: "external-alice"}}); err == nil {
 		t.Fatal("shared answer allowed after audience lost notebook access")
 	}
 }
@@ -315,7 +315,7 @@ func TestMessagingAdminUpdateFencesQueuedEvents(t *testing.T) {
 	app := chatFixture(t)
 	configureSlackFixture(t, app)
 	event := messaging.Event{ID: "before-disable", Text: "Do not run after disabling", Address: messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", Thread: "thread", User: "U123"}}
-	if err := app.enqueueMessage(t.Context(), event); err != nil {
+	if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 		t.Fatal(err)
 	}
 	cookie := recoverySession(t, app)
@@ -348,7 +348,7 @@ func TestMessagingAdminUpdateFencesQueuedEvents(t *testing.T) {
 func TestMessagingRunDiagnosticsDoNotExposePrivatePrompts(t *testing.T) {
 	app := chatFixture(t)
 	configureSlackFixture(t, app)
-	if err := app.enqueueMessage(t.Context(), messaging.Event{ID: "private-event", Text: "private-chat-content-marker", Address: messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", User: "U123"}}); err != nil {
+	if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: "private-event", Text: "private-chat-content-marker", Address: messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", User: "U123"}}); err != nil {
 		t.Fatal(err)
 	}
 	runs, _ := app.automations.Queue.List()
@@ -389,7 +389,7 @@ func TestMessagingEmptyFileConfigScopesSurviveQueueSerialization(t *testing.T) {
 	app.slack.config.Channels["C123"] = b
 	transport := &fixtureChatTransport{}
 	app.messageClients["slack"] = transport
-	if err := app.enqueueMessage(t.Context(), messaging.Event{ID: "empty-lists", Text: "Answer.", Address: messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", User: "U123"}}); err != nil {
+	if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: "empty-lists", Text: "Answer.", Address: messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", User: "U123"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {

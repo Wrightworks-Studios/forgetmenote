@@ -14,7 +14,7 @@ import (
 )
 
 // A direct, unshared messaging conversation uses the core memory of the person
-// it is with; web/message_memory.go decides who that is. The run reads it as
+// it is with; messaginghttp/memory.go decides who that is. The run reads it as
 // context and may remember items, labelled with the client. Memory is the
 // person's own notebook, so it is read and written as them, outside the run's
 // notebook scope.

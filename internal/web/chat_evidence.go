@@ -86,28 +86,12 @@ func chatRetrievalCitations(project, operation string, found chatRetrieval) []ch
 // result. A revoked run keeps the citations, which still gate access to the
 // transcript, but the result never enters its continuation.
 func recordChatToolResult(c *chat.Conversation, r *chat.Run, toolCallID, content string, citations []chat.Citation, continues bool) {
-	if addChatCitations(r, citations) {
+	if chat.AddCitations(r, citations) {
 		c.AddEvent(r.ID, "citations", r.Citations)
 	}
 	if continues {
 		r.Messages = append(r.Messages, chat.Message{Role: "tool", ToolCallID: toolCallID, Content: content})
 	}
-}
-
-func addChatCitations(run *chat.Run, citations []chat.Citation) bool {
-	seen := map[string]bool{}
-	for _, citation := range run.Citations {
-		seen[citation.URL] = true
-	}
-	added := false
-	for _, citation := range citations {
-		if !seen[citation.URL] {
-			run.Citations = append(run.Citations, citation)
-			seen[citation.URL] = true
-			added = true
-		}
-	}
-	return added
 }
 
 // A read acknowledgement supplies the exact original bytes and revision. Keep

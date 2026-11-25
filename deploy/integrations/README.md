@@ -600,10 +600,10 @@ remain supported, using the current adopted policy and recipient scope.
 
 **Adding another client.** Implement `internal/messaging.Transport`'s `Context` and
 `Send` methods, authenticate its inbound events, and pass normalized `messaging.Event`
-values to the server's shared `enqueueMessage` path. Register the transport at
-startup. Client adapters own signatures, network APIs and platform formatting;
-`internal/web/messaging.go` owns identities, permissions, scoped conversations and
-execution. A second fake transport exercises shared conversations, retrieval,
+values to the shared `EnqueueMessage` path in `internal/messaginghttp`. Register the
+transport at startup. Client adapters own signatures, network APIs and platform
+formatting; `internal/messaginghttp/messaging.go` owns identities, permissions, scoped
+conversations and execution. A second fake transport exercises shared conversations, retrieval,
 restart and revocation in tests. Teams/Discord/etc. adapters are not included yet.
 Tests use local synthetic Slack endpoints; no live messages or app changes occur.
 

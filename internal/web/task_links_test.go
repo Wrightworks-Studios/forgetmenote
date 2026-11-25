@@ -15,7 +15,7 @@ func (f *slackLinkFixture) channelMessage(t *testing.T, user, channel, thread, i
 	t.Helper()
 	before := len(f.replies)
 	d := messaging.Address{Client: "slack", Workspace: "T123", Channel: channel, Thread: thread, Message: id, User: user}
-	if err := f.app.enqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
+	if err := f.app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
 		t.Fatal(err)
 	}
 	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); err != nil || !ran {

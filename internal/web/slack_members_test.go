@@ -72,7 +72,7 @@ func TestSlackWorkspaceMembersShareChannelRepliesWithoutPrivateHistory(t *testin
 	invoke := func(id, user, channel, text string, direct bool) {
 		t.Helper()
 		d := messaging.Address{Client: "slack", Workspace: "T123", Channel: channel, Thread: "thread", Message: id, User: user, Direct: direct}
-		if err := app.enqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
+		if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
 			t.Fatal(err)
 		}
 		if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {
@@ -134,7 +134,7 @@ func TestSlackWorkspaceMembersShareChannelRepliesWithoutPrivateHistory(t *testin
 	if err = app.catalog.Member(catalog.Bootstrap, "default", service.ID, ""); err != nil {
 		t.Fatal(err)
 	}
-	_, _, _, err = app.messageBinding(messaging.Address{Client: "slack", Workspace: "T123", Channel: "CANY", User: "UNEW", Shared: true})
+	_, _, _, err = app.messaging.MessageBinding(messaging.Address{Client: "slack", Workspace: "T123", Channel: "CANY", User: "UNEW", Shared: true})
 	if err == nil {
 		t.Fatal("public channel retained revoked service access")
 	}
@@ -235,7 +235,7 @@ func TestSlackWorkspaceMembersUseScopedIdentityAndPrivateHistory(t *testing.T) {
 			singleChannelGuest = true
 		}
 		event := messaging.Event{ID: kind, Text: "Do not run " + kind, Address: messaging.Address{Client: "slack", Workspace: "T123", Channel: "DNEW", User: "UNEW", Direct: true}}
-		if err = app.enqueueMessage(t.Context(), event); err != nil {
+		if err = app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			continue
 		}
 		ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation)
@@ -259,7 +259,7 @@ func TestSlackWorkspaceMembersUseScopedIdentityAndPrivateHistory(t *testing.T) {
 	memberTeam, deleted, bot = "T123", false, false
 	guest, singleChannelGuest = false, false
 	event := messaging.Event{ID: "revoked", Text: "Permissions revoked after enqueue", Address: messaging.Address{Client: "slack", Workspace: "T123", Channel: "DNEW", User: "UNEW", Direct: true}}
-	if err = app.enqueueMessage(t.Context(), event); err != nil {
+	if err = app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 		t.Fatal(err)
 	}
 	if err = app.catalog.Member(catalog.Bootstrap, "default", service.ID, ""); err != nil {

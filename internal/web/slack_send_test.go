@@ -16,6 +16,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/taskqueue"
 )
 
@@ -41,7 +42,7 @@ func TestSendOnceTriesARefusedMessageAgainAndNeverRepeatsOneThatMayHaveArrived(t
 	reply := messaging.Reply{Text: "Your task is due"}
 	send := func(ctx context.Context, effect automation.Effect) (bool, error) {
 		t.Helper()
-		return app.sendOnce(ctx, effect, app.slack, d, reply, time.Second, nil)
+		return app.messaging.SendOnce(ctx, effect, app.slack, d, reply, time.Second, nil)
 	}
 
 	// Slack refuses it: nothing arrived, so the next call sends it, once.
@@ -77,16 +78,16 @@ func TestSendOnceTriesARefusedMessageAgainAndNeverRepeatsOneThatMayHaveArrived(t
 		t.Fatalf("the unknown outcome was recorded %v", states)
 	}
 
-	// A message Slack keeps refusing is tried sendAttempts times.
+	// A message Slack keeps refusing is tried messaginghttp.SendAttempts times.
 	stubborn := automation.Effect{Scope: automation.Hash("stubborn"), Action: "notice", Actor: "alice"}
 	f.refusePosts = 100
-	for range sendAttempts + 2 {
+	for range messaginghttp.SendAttempts + 2 {
 		if sent, err := send(t.Context(), stubborn); sent || err == nil {
 			t.Fatalf("a refused message: sent %v, %v", sent, err)
 		}
 	}
-	if left := 100 - f.refusePosts; left != sendAttempts {
-		t.Fatalf("Slack was asked %d times; want %d", left, sendAttempts)
+	if left := 100 - f.refusePosts; left != messaginghttp.SendAttempts {
+		t.Fatalf("Slack was asked %d times; want %d", left, messaginghttp.SendAttempts)
 	}
 	f.refusePosts = 0
 
@@ -111,7 +112,7 @@ func TestSendOnceTriesARefusedMessageAgainAndNeverRepeatsOneThatMayHaveArrived(t
 	stalled := &messaging.Slack{Team: "T123", Endpoint: slow.URL + "/chat.postEphemeral", Client: slow.Client(), Token: func() (string, error) { return "token", nil }}
 	effect := automation.Effect{Scope: automation.Hash("stalled"), Action: "notice", Actor: "alice"}
 	started := time.Now()
-	if sent, err := app.sendOnce(t.Context(), effect, stalled, d, reply, 200*time.Millisecond, nil); sent || err == nil || time.Since(started) > 5*time.Second {
+	if sent, err := app.messaging.SendOnce(t.Context(), effect, stalled, d, reply, 200*time.Millisecond, nil); sent || err == nil || time.Since(started) > 5*time.Second {
 		t.Fatalf("a stalled send: sent %v, %v after %v", sent, err, time.Since(started))
 	}
 	if states := effectStates(t, app, effect.Scope); !slices.Equal(states, []string{"unknown"}) {
@@ -127,19 +128,19 @@ func TestARefusedConversationReplyIsNotHeldAsSending(t *testing.T) {
 
 	f.refusePosts = 1
 	run := automation.Run{ID: "refused"}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); !errors.Is(err, messaging.ErrNotPosted) || run.DeliveryState != "" {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); !errors.Is(err, messaging.ErrNotPosted) || run.DeliveryState != "" {
 		t.Fatalf("a refused reply: %v, delivery %q", err, run.DeliveryState)
 	}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err != nil || run.DeliveryState != "sent" || len(f.posts) != 1 {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err != nil || run.DeliveryState != "sent" || len(f.posts) != 1 {
 		t.Fatalf("the reply sent again: %v, delivery %q, %d posts", err, run.DeliveryState, len(f.posts))
 	}
 
 	f.failPosts = 1
 	run = automation.Run{ID: "unknown"}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err == nil || run.DeliveryState != "sending" {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err == nil || run.DeliveryState != "sending" {
 		t.Fatalf("an unknown outcome: %v, delivery %q", err, run.DeliveryState)
 	}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err == nil || len(f.posts) != 1 {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err == nil || len(f.posts) != 1 {
 		t.Fatalf("a reply that may have arrived was sent again: %v, %d posts", err, len(f.posts))
 	}
 }

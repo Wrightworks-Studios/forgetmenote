@@ -1,4 +1,4 @@
-package web
+package messaginghttp
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 
 // Progress is best effort and never changes whether the answer succeeds. The
 // refresh belongs to this run and is joined before its final clear.
-func (s *Server) messageProgress(ctx context.Context, transport messaging.Transport, address messaging.Address) func() {
+func (s *Service) messageProgress(ctx context.Context, transport messaging.Transport, address messaging.Address) func() {
 	t, ok := transport.(messaging.StatusTransport)
 	if !ok {
 		return func() {}
@@ -22,7 +22,7 @@ func (s *Server) messageProgress(ctx context.Context, transport messaging.Transp
 		statusCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 		defer cancel()
 		if err := t.Status(statusCtx, address, text); err != nil {
-			s.logAutomationError("chat progress", err)
+			s.automations.Report("chat progress", err)
 		}
 	}
 	update("is working on your request…")
@@ -45,13 +45,13 @@ func (s *Server) messageProgress(ctx context.Context, transport messaging.Transp
 	return func() { close(stop); <-done; update("") }
 }
 
-func (s *Server) messageFailure(ctx context.Context, transport messaging.Transport, address messaging.Address, run *automation.Run, save func() error, cause error) error {
+func (s *Service) messageFailure(ctx context.Context, transport messaging.Transport, address messaging.Address, run *automation.Run, save func() error, cause error) error {
 	if errors.Is(cause, context.Canceled) || errors.Is(cause, workspace.ErrForbidden) || strings.HasPrefix(run.DeliveryState, "failure-") {
 		return cause
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
-	if s.checkMessageSpec(run.Spec) != nil || s.verifyMessageMember(ctx, address) != nil {
+	if s.CheckMessageSpec(run.Spec) != nil || s.VerifyMessageMember(ctx, address) != nil {
 		return cause
 	}
 	// Fence the notification before sending. An ambiguous delivery is never

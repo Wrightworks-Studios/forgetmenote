@@ -14,6 +14,7 @@ import (
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/sources"
 	"forgetmenote/internal/workspace"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -405,11 +406,11 @@ func (s *Server) scriptMessageDestination(e *scriptExecution, raw json.RawMessag
 	if channel == "" {
 		return "", post, errors.New("messages.post requires the job's shared notifyChannel")
 	}
-	policy, _, ok := s.messageClient("slack")
+	policy, _, ok := s.messaging.MessageClient("slack")
 	if !ok || s.slack == nil {
 		return "", post, workspace.ErrForbidden
 	}
-	return channel, post, sharedAudience(policy, channel, e.run)
+	return channel, post, messaginghttp.SharedAudience(policy, channel, e.run)
 }
 
 // scriptPostMessage returns the posted message's Slack ID so later posts can

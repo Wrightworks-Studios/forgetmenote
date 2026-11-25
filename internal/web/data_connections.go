@@ -14,6 +14,7 @@ import (
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/jsonfile"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -58,7 +59,7 @@ func (s *Server) dataAllowed(ctx context.Context, id, operation string) bool {
 			return false
 		}
 		if a.Spec.Kind == "assistant" && a.Spec.Delivery != nil && a.Spec.Delivery.Shared {
-			_, binding, _, err := s.messageBinding(*a.Spec.Delivery)
+			_, binding, _, err := s.messaging.MessageBinding(*a.Spec.Delivery)
 			if err != nil {
 				return false
 			}
@@ -156,7 +157,7 @@ func (s *Server) dataTools(ctx context.Context, id string) ([]connectors.Operati
 	// A chat run never executes a write; it proposes one for its requester to
 	// confirm, so it lists the writes its grants allow.
 	a, automated := automation.IdentityFrom(ctx)
-	proposes := automated && proposesWrites(a.Spec)
+	proposes := automated && messaginghttp.ProposesWrites(a.Spec)
 	out := []connectors.Operation{}
 	for _, op := range ops {
 		if s.dataAllowed(ctx, id, op.Name) && (op.ReadOnly || s.hasScope(ctx, "data:write") || proposes) {
@@ -179,7 +180,7 @@ func (s *Server) initDataOperations() error {
 		Manager: func() *connectors.Manager { return s.dataConnections },
 		Allowed: s.dataAllowed,
 		WriteAllowed: func(ctx context.Context, in dataCall) bool {
-			return s.hasScope(ctx, "data:write") && chat.RunScopeFrom(ctx) == nil || confirmedDataWrite(ctx, in)
+			return s.hasScope(ctx, "data:write") && chat.RunScopeFrom(ctx) == nil || messaginghttp.ConfirmedDataWrite(ctx, in)
 		},
 		ReadProfile: func(ctx context.Context, in dataCall) error {
 			store, err := s.clientAccess(ctx, subject(ctx), in.Project, "read")

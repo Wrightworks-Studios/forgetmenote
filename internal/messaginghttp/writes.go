@@ -1,4 +1,4 @@
-package web
+package messaginghttp
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/workspace"
 	"regexp"
@@ -41,12 +42,12 @@ type writeProposalState struct {
 
 type confirmedWriteKey struct{}
 
-func dataWriteHash(in dataCall) string {
+func dataWriteHash(in dataops.Call) string {
 	return automation.Hash([]any{in.Connection, in.Operation, in.Arguments})
 }
 
-// confirmedDataWrite admits exactly the call its requester confirmed.
-func confirmedDataWrite(ctx context.Context, in dataCall) bool {
+// ConfirmedDataWrite admits exactly the call its requester confirmed.
+func ConfirmedDataWrite(ctx context.Context, in dataops.Call) bool {
 	confirmed, ok := ctx.Value(confirmedWriteKey{}).(string)
 	return ok && confirmed == dataWriteHash(in)
 }
@@ -60,42 +61,42 @@ func writeConfirmation(text string) (string, bool) {
 	return "", false
 }
 
-// proposesWrites reports whether a run turns write calls into proposals that
+// ProposesWrites reports whether a run turns write calls into proposals that
 // its requester must confirm, so it may be shown the writes it is granted.
-func proposesWrites(spec automation.Spec) bool {
+func ProposesWrites(spec automation.Spec) bool {
 	return spec.Kind == "assistant" && spec.Delivery != nil
 }
 
-// proposeDataWrite reports whether raw names a write operation; if so it is
+// ProposeDataWrite reports whether raw names a write operation; if so it is
 // recorded for confirmation, never executed.
-func (s *Server) proposeDataWrite(ctx context.Context, r *automation.Run, raw json.RawMessage) (json.RawMessage, bool, error) {
-	if !proposesWrites(r.Spec) || s.dataConnections == nil {
+func (s *Service) ProposeDataWrite(ctx context.Context, r *automation.Run, raw json.RawMessage) (json.RawMessage, bool, error) {
+	if !ProposesWrites(r.Spec) || s.hooks.DataConnections() == nil {
 		return nil, false, nil
 	}
 	// Decode the call as the action would: models send its arguments as a
 	// JSON-encoded string. An undecodable call falls through to the action,
 	// which reports the same error and never runs a write from chat.
-	_, decoded, err := s.actionArguments(r.Spec.Project, "call_data_operation", raw)
-	var in dataCall
+	decoded, err := s.hooks.ActionArguments(r.Spec.Project, "call_data_operation", raw)
+	var in dataops.Call
 	if err != nil || json.Unmarshal(decoded, &in) != nil {
 		return nil, false, nil
 	}
-	if op, ok := s.dataConnections.ConfiguredOperation(in.Connection, in.Operation); !ok || op.ReadOnly {
+	if op, ok := s.hooks.DataConnections().ConfiguredOperation(in.Connection, in.Operation); !ok || op.ReadOnly {
 		return nil, false, nil
 	}
 	if len(r.WriteProposals) >= maxWriteProposals {
 		return nil, true, fmt.Errorf("propose at most %d changes in one reply", maxWriteProposals)
 	}
-	if !s.dataAllowed(ctx, in.Connection, in.Operation) {
+	if !s.hooks.DataAllowed(ctx, in.Connection, in.Operation) {
 		return nil, true, workspace.ErrForbidden
 	}
-	if err := s.dataConnections.CheckArguments(in.Connection, in.Operation, in.Arguments); err != nil {
+	if err := s.hooks.DataConnections().CheckArguments(in.Connection, in.Operation, in.Arguments); err != nil {
 		return nil, true, err
 	}
-	contract, _ := s.dataConnections.Contract(in.Connection)
-	call := dataCall{Connection: in.Connection, Operation: in.Operation, Arguments: in.Arguments, SchemaHash: in.SchemaHash}
+	contract, _ := s.hooks.DataConnections().Contract(in.Connection)
+	call := dataops.Call{Connection: in.Connection, Operation: in.Operation, Arguments: in.Arguments, SchemaHash: in.SchemaHash}
 	args, _ := json.Marshal(call)
-	state, _ := json.Marshal(writeProposalState{Requester: messageAddress(*r.Spec.Delivery).User, Expires: time.Now().Add(writeProposalTTL).UTC(), Contract: contract})
+	state, _ := json.Marshal(writeProposalState{Requester: MessageAddress(*r.Spec.Delivery).User, Expires: time.Now().Add(writeProposalTTL).UTC(), Contract: contract})
 	code := make([]byte, 5)
 	rand.Read(code)
 	r.WriteProposals = append(r.WriteProposals, chat.Operation{ID: r.ID + "-write-" + strconv.Itoa(len(r.WriteProposals)), Name: writeProposalOperation, Arguments: args, Hash: chat.Hash(args), State: "proposed", Result: state, Confirmation: base32.StdEncoding.EncodeToString(code)})
@@ -108,7 +109,7 @@ func (s *Server) proposeDataWrite(ctx context.Context, r *automation.Run, raw js
 func writeProposalText(ops []chat.Operation) string {
 	var b strings.Builder
 	for _, op := range ops {
-		var call dataCall
+		var call dataops.Call
 		json.Unmarshal(op.Arguments, &call)
 		raw, _ := json.MarshalIndent(call.Arguments, "", "  ")
 		args := []rune(string(raw))
@@ -124,7 +125,7 @@ func writeProposalText(ops []chat.Operation) string {
 func writeConfirmations(ops []chat.Operation) []messaging.Confirmation {
 	var out []messaging.Confirmation
 	for _, op := range ops {
-		var call dataCall
+		var call dataops.Call
 		json.Unmarshal(op.Arguments, &call)
 		out = append(out, messaging.Confirmation{Code: op.Confirmation, Label: "`" + call.Connection + "` / `" + call.Operation + "`"})
 	}
@@ -133,13 +134,13 @@ func writeConfirmations(ops []chat.Operation) []messaging.Confirmation {
 
 // confirmDataWrite runs one confirmed proposal from this conversation, or
 // cancels it, and returns the reply. An interrupted write is never repeated.
-func (s *Server) confirmDataWrite(ctx context.Context, r *automation.Run, owner string, conversation chat.Conversation, d messaging.Address, code string, cancel bool) (string, error) {
-	var call dataCall
+func (s *Service) confirmDataWrite(ctx context.Context, r *automation.Run, owner string, conversation chat.Conversation, d messaging.Address, code string, cancel bool) (string, error) {
+	var call dataops.Call
 	var state writeProposalState
 	var opID, previous string
 	// Claim the proposal before calling out: a crash after this point leaves it
 	// "running", and its outcome is reported as unknown instead of repeated.
-	err := s.chat.Store.Update(owner, r.Spec.Project, conversation.ID, func(v *chat.Conversation) error {
+	err := s.hooks.ChatStore().Update(owner, r.Spec.Project, conversation.ID, func(v *chat.Conversation) error {
 		for i := range v.Runs {
 			for j := range v.Runs[i].Operations {
 				op := &v.Runs[i].Operations[j]
@@ -182,15 +183,15 @@ func (s *Server) confirmDataWrite(ctx context.Context, r *automation.Run, owner 
 	if cancel {
 		return "Cancelled " + label + ". Nothing ran.", nil
 	}
-	contract, _ := s.dataConnections.Contract(call.Connection)
-	var result dataResult
+	contract, _ := s.hooks.DataConnections().Contract(call.Connection)
+	var result dataops.Result
 	switch {
 	case contract != state.Contract:
 		err = errors.New("the connection's configuration changed after this was proposed")
 	case !slices.Contains(r.Spec.Connections, call.Connection):
 		err = workspace.ErrForbidden
 	default:
-		result, err = s.dataExecute(context.WithValue(ctx, confirmedWriteKey{}, dataWriteHash(call)), call)
+		result, err = s.hooks.DataExecute(context.WithValue(ctx, confirmedWriteKey{}, dataWriteHash(call)), call)
 	}
 	outcome := "succeeded"
 	if err != nil {
@@ -205,7 +206,7 @@ func (s *Server) confirmDataWrite(ctx context.Context, r *automation.Run, owner 
 		}
 	}
 	raw, _ := json.Marshal(state)
-	if e := s.chat.Store.Update(owner, r.Spec.Project, conversation.ID, func(v *chat.Conversation) error {
+	if e := s.hooks.ChatStore().Update(owner, r.Spec.Project, conversation.ID, func(v *chat.Conversation) error {
 		for i := range v.Runs {
 			for j := range v.Runs[i].Operations {
 				if op := &v.Runs[i].Operations[j]; op.ID == opID {

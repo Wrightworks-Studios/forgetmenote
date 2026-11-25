@@ -12,6 +12,7 @@ import (
 
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -37,7 +38,7 @@ func (s *Server) notifyPersonal(ctx context.Context, r *automation.Run, state *p
 	if err != nil {
 		return err
 	}
-	_, _, chatEnabled := s.messageClient("slack")
+	_, _, chatEnabled := s.messaging.MessageClient("slack")
 	if !chatEnabled || !settings.Notifications || s.slack == nil || s.personalConnections == nil || personalQuiet(time.Now(), settings.TimeZone, settings.QuietStart, settings.QuietEnd) {
 		return nil
 	}
@@ -153,7 +154,7 @@ func (s *Server) notifyPersonal(ctx context.Context, r *automation.Run, state *p
 		return err
 	}
 	// Sent now or by an earlier run, the items are notified.
-	sent, err := s.sendOnce(ctx, automation.Effect{Scope: scope, Action: automation.Hash(ids), Actor: r.Spec.Actor}, s.slack, address, messaging.Reply{Text: text}, dmSendTimeout, map[string]any{"items": ids})
+	sent, err := s.messaging.SendOnce(ctx, automation.Effect{Scope: scope, Action: automation.Hash(ids), Actor: r.Spec.Actor}, s.slack, address, messaging.Reply{Text: text}, messaginghttp.DMSendTimeout, map[string]any{"items": ids})
 	if err != nil && !sent {
 		return err
 	}

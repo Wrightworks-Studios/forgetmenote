@@ -1,4 +1,4 @@
-package web
+package messaginghttp
 
 import (
 	"context"
@@ -20,19 +20,23 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-func (s *Server) messageClient(id string) (messaging.Client, messaging.Transport, bool) {
+// MessageClient returns a client's policy and transport, and whether it is
+// configured, enabled and has a transport.
+func (s *Service) MessageClient(id string) (messaging.Client, messaging.Transport, bool) {
 	settings := s.catalog.ChatClients()
 	var c messaging.Client
 	var ok bool
 	if settings.Revision > 0 {
 		c, ok = settings.Clients[id]
-	} else if id == "slack" && s.slack != nil {
-		c, ok = s.slack.policy(), true
+	} else if id == "slack" {
+		c, ok = s.hooks.SlackPolicy()
 	}
-	transport := s.messageClients[id]
+	transport := s.hooks.Transport(id)
 	return c, transport, ok && !c.Disabled && transport != nil
 }
-func messageAddress(d messaging.Address) messaging.Address {
+
+// MessageAddress fills in the defaults of an address an older run stored.
+func MessageAddress(d messaging.Address) messaging.Address {
 	if d.Client == "" {
 		d.Client = "slack"
 	}
@@ -41,10 +45,13 @@ func messageAddress(d messaging.Address) messaging.Address {
 	}
 	return d
 }
-func (s *Server) messageBinding(d messaging.Address) (messaging.Client, messaging.Binding, messaging.Transport, error) {
-	d = messageAddress(d)
-	c, t, ok := s.messageClient(d.Client)
-	c = s.personalMessagePolicy(c, d)
+
+// MessageBinding resolves an address to its client policy, binding and
+// transport, and checks that every actor it runs as may read its notebooks.
+func (s *Service) MessageBinding(d messaging.Address) (messaging.Client, messaging.Binding, messaging.Transport, error) {
+	d = MessageAddress(d)
+	c, t, ok := s.MessageClient(d.Client)
+	c = s.hooks.PersonalMessagePolicy(c, d)
 	if !ok || d.Workspace != "" && d.Workspace != c.Workspace || d.Policy != "" && d.Policy != automation.Hash(c) {
 		return c, messaging.Binding{}, nil, workspace.ErrForbidden
 	}
@@ -88,10 +95,13 @@ func (s *Server) messageBinding(d messaging.Address) (messaging.Client, messagin
 	}
 	return c, b, t, nil
 }
-func (s *Server) enqueueMessage(ctx context.Context, e messaging.Event) error {
-	d := messageAddress(e.Address)
-	c, _, ok := s.messageClient(d.Client)
-	c = s.personalMessagePolicy(c, d)
+
+// EnqueueMessage checks a conversation event against the current policy and
+// queues the assistant run that answers it, once.
+func (s *Service) EnqueueMessage(ctx context.Context, e messaging.Event) error {
+	d := MessageAddress(e.Address)
+	c, _, ok := s.MessageClient(d.Client)
+	c = s.hooks.PersonalMessagePolicy(c, d)
 	if !ok || c.Workspace != d.Workspace {
 		return workspace.ErrForbidden
 	}
@@ -100,7 +110,7 @@ func (s *Server) enqueueMessage(ctx context.Context, e messaging.Event) error {
 		return workspace.ErrForbidden
 	}
 	d.Shared = b.Shared
-	if _, _, _, err := s.messageBinding(d); err != nil {
+	if _, _, _, err := s.MessageBinding(d); err != nil {
 		return err
 	}
 	if e.ID == "" || len(e.ID) > 128 || e.Text == "" && len(d.Files) == 0 || !messaging.ValidID(d.User) || !messaging.ValidID(d.Channel) || len(d.Thread) > 128 || len(d.Message) > 128 {
@@ -125,11 +135,11 @@ func (s *Server) enqueueMessage(ctx context.Context, e messaging.Event) error {
 		key = automation.Hash([]string{d.Channel, d.Message})
 	}
 	spec := automation.Spec{ID: "chat-" + automation.Hash([]string{d.Client, d.Workspace, key})[:32], Kind: "assistant", Actor: actor, Project: b.Project, ReadProjects: b.ReadProjects, Connections: b.Connections, AIConnection: b.AIConnection, Model: b.Model, ExternalProcessing: b.ExternalProcessing, Instruction: e.Text, Delivery: &d}
-	if err := s.automationPolicy(spec); err != nil {
+	if err := s.hooks.AutomationPolicy(spec); err != nil {
 		return err
 	}
 	if d.Client == "slack" && messaging.StopRequested(e.Text) {
-		if err := s.verifyMessageMember(ctx, d); err != nil {
+		if err := s.VerifyMessageMember(ctx, d); err != nil {
 			return err
 		}
 	}
@@ -139,12 +149,12 @@ func (s *Server) enqueueMessage(ctx context.Context, e messaging.Event) error {
 
 // Re-resolve policy before provider calls, tool calls and delivery. A queued event
 // never grants continued access after configuration or notebook permissions change.
-func (s *Server) checkMessageSpec(spec automation.Spec) error {
+func (s *Service) CheckMessageSpec(spec automation.Spec) error {
 	if spec.Delivery == nil {
 		return workspace.ErrForbidden
 	}
-	d := messageAddress(*spec.Delivery)
-	c, b, _, err := s.messageBinding(d)
+	d := MessageAddress(*spec.Delivery)
+	c, b, _, err := s.MessageBinding(d)
 	if err != nil {
 		return err
 	}
@@ -154,10 +164,12 @@ func (s *Server) checkMessageSpec(spec automation.Spec) error {
 	return nil
 }
 
-func (s *Server) verifyMessageMember(ctx context.Context, d messaging.Address) error {
-	d = messageAddress(d)
-	c, transport, ok := s.messageClient(d.Client)
-	c = s.personalMessagePolicy(c, d)
+// VerifyMessageMember checks that the person at d is still a member the
+// client admits.
+func (s *Service) VerifyMessageMember(ctx context.Context, d messaging.Address) error {
+	d = MessageAddress(d)
+	c, transport, ok := s.MessageClient(d.Client)
+	c = s.hooks.PersonalMessagePolicy(c, d)
 	if !ok {
 		return workspace.ErrForbidden
 	}
@@ -166,7 +178,7 @@ func (s *Server) verifyMessageMember(ctx context.Context, d messaging.Address) e
 		return workspace.ErrForbidden
 	}
 	if !member {
-		if s.personalConnections != nil && s.personalConnections.LinkedOwner(d.Client, c.Workspace, d.User) != "" {
+		if s.hooks.LinkedOwner(d.Client, c.Workspace, d.User) != "" {
 			if verifier, ok := transport.(messaging.MemberVerifier); ok {
 				return verifier.VerifyMember(ctx, d)
 			}
@@ -180,6 +192,8 @@ func (s *Server) verifyMessageMember(ctx context.Context, d messaging.Address) e
 	return verifier.VerifyMember(ctx, d)
 }
 
+// messageConversation returns the owner and binding key of the conversation a
+// message belongs to.
 func messageConversation(c messaging.Client, b messaging.Binding, d messaging.Address, actor string) (string, string) {
 	if b.Shared {
 		var audience any = c.Users
@@ -204,19 +218,21 @@ type messageRoute struct {
 	transport messaging.Transport
 }
 
-func (s *Server) runMessageAutomation(ctx context.Context, r *automation.Run, save func() error) (runErr error) {
+// RunMessageAutomation answers a queued message: it rechecks the policy and the
+// member, answers once and sends the reply once.
+func (s *Service) RunMessageAutomation(ctx context.Context, r *automation.Run, save func() error) (runErr error) {
 	// The answer checks its member before each provider call and its delivery;
 	// one check serves them for a short while.
 	ctx = messaging.RememberMembers(ctx)
-	if err := s.checkMessageSpec(r.Spec); err != nil {
+	if err := s.CheckMessageSpec(r.Spec); err != nil {
 		return err
 	}
-	d := messageAddress(*r.Spec.Delivery)
-	c, b, transport, err := s.messageBinding(d)
+	d := MessageAddress(*r.Spec.Delivery)
+	c, b, transport, err := s.MessageBinding(d)
 	if err != nil {
 		return err
 	}
-	if err := s.verifyMessageMember(ctx, d); err != nil {
+	if err := s.VerifyMessageMember(ctx, d); err != nil {
 		return err
 	}
 	if done, err := messageDelivered(r); done || err != nil {
@@ -241,7 +257,7 @@ func (s *Server) runMessageAutomation(ctx context.Context, r *automation.Run, sa
 			return err
 		}
 	}
-	if err = s.checkAutomationEvidence(ctx, r, true); err != nil {
+	if err = s.hooks.CheckAutomationEvidence(ctx, r, true); err != nil {
 		return err
 	}
 	if err = s.messageArtifactsAllowed(ctx, r); err != nil {
@@ -255,7 +271,7 @@ func (s *Server) runMessageAutomation(ctx context.Context, r *automation.Run, sa
 	}
 	// Memory capture is best effort, as in notebook chat; it never withholds the answer.
 	if d.Direct && s.catalog.Interactive(r.Spec.Actor) {
-		if memoryErr := s.recordPersonalInteraction(ctx, r.Spec.Actor, personalInteraction{ID: "message-" + r.ID, UserText: r.Spec.Instruction, Response: r.Answer, Source: d.Client + ":" + d.Workspace + "/" + d.Channel + "/" + d.Message}); memoryErr != nil {
+		if memoryErr := s.hooks.RecordPersonalInteraction(ctx, r.Spec.Actor, Interaction{ID: "message-" + r.ID, UserText: r.Spec.Instruction, Response: r.Answer, Source: d.Client + ":" + d.Workspace + "/" + d.Channel + "/" + d.Message}); memoryErr != nil {
 			slog.Warn("personal memory capture failed", "error", memoryErr)
 		}
 	}
@@ -278,10 +294,9 @@ func messageDelivered(r *automation.Run) (bool, error) {
 
 // messageCommandReply answers linking and task commands, never the model,
 // so a task is exactly what its requester typed. ok reports a command.
-func (s *Server) messageCommandReply(ctx context.Context, r *automation.Run, route messageRoute) (messaging.Reply, bool, error) {
+func (s *Service) messageCommandReply(ctx context.Context, r *automation.Run, route messageRoute) (messaging.Reply, bool, error) {
 	d := route.address
-	if command := messageLinkCommand(r.Spec.Instruction); command != "" && d.Direct && !d.Shared && r.Answer == "" {
-		text, err := s.messageLinkReply(r, route.client, d, command)
+	if text, ok, err := s.hooks.LinkReply(r, route.client, d); ok {
 		return messaging.Reply{Text: text}, true, err
 	}
 	if taskqueue.Command(r.Spec.Instruction) && r.Answer == "" && !r.GenerationStarted {
@@ -294,9 +309,9 @@ func (s *Server) messageCommandReply(ctx context.Context, r *automation.Run, rou
 // recovers an answer the conversation already records for this run, handles
 // a confirmation code itself, prepares the thread context once, and records
 // the new turn with the results and artifacts it relies on.
-func (s *Server) answerMessage(ctx context.Context, r *automation.Run, save func() error, route messageRoute) error {
+func (s *Service) answerMessage(ctx context.Context, r *automation.Run, save func() error, route messageRoute) error {
 	owner, binding := messageConversation(route.client, route.binding, route.address, r.Spec.Actor)
-	_, connection, _, err := s.automationProvider(r.Spec)
+	_, connection, _, err := s.hooks.AutomationProvider(r.Spec)
 	if err != nil {
 		return err
 	}
@@ -305,7 +320,7 @@ func (s *Server) answerMessage(ctx context.Context, r *automation.Run, save func
 		model = connection.DefaultModel
 	}
 	options := chat.Options{Mode: "ask", Connection: connection.ID, Model: model, Corpus: chat.RunScopeFrom(ctx).Run.Options.Corpus}
-	conversation, err := s.chat.Store.OpenBound(owner, r.Spec.Project, binding, options)
+	conversation, err := s.hooks.ChatStore().OpenBound(owner, r.Spec.Project, binding, options)
 	if err != nil {
 		return err
 	}
@@ -326,13 +341,13 @@ func (s *Server) answerMessage(ctx context.Context, r *automation.Run, save func
 		}
 	}
 	evidence := chat.Run{}
-	addChatCitations(&evidence, r.Citations)
+	chat.AddCitations(&evidence, r.Citations)
 	r.Citations = evidence.Citations
 	s.recoverMessageResults(ctx, r, conversation)
 	if r.Answer == "" {
 		// The answer depends on the notebook guidance it was given.
-		r.Answer, err = s.answerOnce(ctx, r, save, errChatGenerationUnknown, func() (err error) {
-			_, r.ChatGuidanceHash, err = s.assistantInstructions(ctx, r.Spec)
+		r.Answer, err = s.hooks.AnswerOnce(ctx, r, save, errChatGenerationUnknown, func() (err error) {
+			_, r.ChatGuidanceHash, err = s.hooks.AssistantInstructions(ctx, r.Spec)
 			return err
 		}, r.Spec.Instruction, true, append(history, r.ChatContext...)...)
 		if err != nil {
@@ -349,7 +364,7 @@ func (s *Server) answerMessage(ctx context.Context, r *automation.Run, save func
 // messageHistory is the conversation before this run, as model messages. It
 // also recovers this run's answer and citations if the conversation already
 // records them.
-func (s *Server) messageHistory(ctx context.Context, r *automation.Run, conversation chat.Conversation) []chat.Message {
+func (s *Service) messageHistory(ctx context.Context, r *automation.Run, conversation chat.Conversation) []chat.Message {
 	var history []chat.Message
 	for _, turn := range conversation.Turns {
 		if turn.RunID == r.ID && turn.Role == "assistant" {
@@ -362,7 +377,7 @@ func (s *Server) messageHistory(ctx context.Context, r *automation.Run, conversa
 		if turn.Role == "assistant" && len(turn.Citations) > 0 {
 			prior := chat.RunScopeFrom(ctx).Run
 			prior.Citations = turn.Citations
-			if err := s.validateChatSources(ctx, prior, true); err != nil {
+			if err := s.hooks.ValidateChatSources(ctx, prior, true); err != nil {
 				// Old answer dependencies must not pin a new question to
 				// obsolete evidence. Current-run recovery remains fenced above.
 				history = append(history, chat.Message{Role: "assistant", Content: "[Earlier answer omitted because its sources changed or are no longer available; retrieve current evidence.]"})
@@ -382,7 +397,7 @@ func (s *Server) messageHistory(ctx context.Context, r *automation.Run, conversa
 
 // prepareMessageContext reads the thread once: messages by authors who may
 // share it and the attached documents, both as untrusted context.
-func (s *Server) prepareMessageContext(ctx context.Context, r *automation.Run, save func() error, route messageRoute) error {
+func (s *Service) prepareMessageContext(ctx context.Context, r *automation.Run, save func() error, route messageRoute) error {
 	c, b, d := route.client, route.binding, route.address
 	input, err := route.transport.Context(ctx, d, b)
 	if err != nil {
@@ -400,7 +415,7 @@ func (s *Server) prepareMessageContext(ctx context.Context, r *automation.Run, s
 			if !checked {
 				author := d
 				author.User = m.User
-				err := s.verifyMessageMember(ctx, author)
+				err := s.VerifyMessageMember(ctx, author)
 				if err != nil && !errors.Is(err, workspace.ErrForbidden) {
 					return err
 				}
@@ -430,7 +445,7 @@ func (s *Server) prepareMessageContext(ctx context.Context, r *automation.Run, s
 // recoverMessageResults reuses only retained source results, never
 // model-provided rows: on a follow-up, and with a recovered answer, also the
 // artifacts this run recorded.
-func (s *Server) recoverMessageResults(ctx context.Context, r *automation.Run, conversation chat.Conversation) {
+func (s *Service) recoverMessageResults(ctx context.Context, r *automation.Run, conversation chat.Conversation) {
 	if r.Answer != "" {
 		for _, run := range conversation.Runs {
 			if run.ID != r.ID {
@@ -450,8 +465,8 @@ func (s *Server) recoverMessageResults(ctx context.Context, r *automation.Run, c
 	for _, run := range conversation.Runs {
 		for _, op := range run.Operations {
 			var result connectors.Result
-			if op.Name == "chat_result" && json.Unmarshal(op.Result, &result) == nil && s.dataAllowed(ctx, result.Receipt.Connection, result.Receipt.Operation) {
-				retainMessageResult(r, result)
+			if op.Name == "chat_result" && json.Unmarshal(op.Result, &result) == nil && s.hooks.DataAllowed(ctx, result.Receipt.Connection, result.Receipt.Operation) {
+				RetainMessageResult(r, result)
 			}
 		}
 	}
@@ -459,8 +474,8 @@ func (s *Server) recoverMessageResults(ctx context.Context, r *automation.Run, c
 
 // recordMessageTurn adds this run's question and answer to the conversation
 // once, with one bounded cache of source results for the whole conversation.
-func (s *Server) recordMessageTurn(r *automation.Run, owner, conversation string, options chat.Options, d messaging.Address) error {
-	return s.chat.Store.Update(owner, r.Spec.Project, conversation, func(v *chat.Conversation) error {
+func (s *Service) recordMessageTurn(r *automation.Run, owner, conversation string, options chat.Options, d messaging.Address) error {
+	return s.hooks.ChatStore().Update(owner, r.Spec.Project, conversation, func(v *chat.Conversation) error {
 		for _, turn := range v.Turns {
 			if turn.RunID == r.ID && turn.Role == "assistant" {
 				return nil
@@ -494,13 +509,13 @@ func (s *Server) recordMessageTurn(r *automation.Run, owner, conversation string
 
 // messageArtifactsAllowed checks that every result-bound artifact still has
 // a retained result the run may disclose.
-func (s *Server) messageArtifactsAllowed(ctx context.Context, r *automation.Run) error {
+func (s *Service) messageArtifactsAllowed(ctx context.Context, r *automation.Run) error {
 	for _, a := range r.Artifacts {
 		if a.Receipt == "" {
 			continue
 		}
 		if !slices.ContainsFunc(r.ChatResults, func(result connectors.Result) bool {
-			return result.Receipt.ID == a.Receipt && s.dataAllowed(ctx, result.Receipt.Connection, result.Receipt.Operation)
+			return result.Receipt.ID == a.Receipt && s.hooks.DataAllowed(ctx, result.Receipt.Connection, result.Receipt.Operation)
 		}) {
 			return workspace.ErrForbidden
 		}
@@ -508,7 +523,9 @@ func (s *Server) messageArtifactsAllowed(ctx context.Context, r *automation.Run)
 	return nil
 }
 
-func (s *Server) sendMessage(ctx context.Context, t messaging.Transport, d messaging.Address, reply messaging.Reply, r *automation.Run, save func() error) error {
+// sendMessage sends a run's reply once, recording when it was sent and never
+// repeating a send whose outcome is unknown.
+func (s *Service) sendMessage(ctx context.Context, t messaging.Transport, d messaging.Address, reply messaging.Reply, r *automation.Run, save func() error) error {
 	if r.DeliveryState == "sent" {
 		return nil
 	}
@@ -522,7 +539,7 @@ func (s *Server) sendMessage(ctx context.Context, t messaging.Transport, d messa
 	// Rewrite only server-retained citation targets, leaving other links intact.
 	for _, citation := range r.Citations {
 		if strings.HasPrefix(citation.URL, "/") && !strings.HasPrefix(citation.URL, "//") {
-			reply.Text = strings.ReplaceAll(reply.Text, "]("+citation.URL+")", "]("+s.origin+citation.URL+")")
+			reply.Text = strings.ReplaceAll(reply.Text, "]("+citation.URL+")", "]("+s.hooks.Origin()+citation.URL+")")
 		}
 	}
 	r.DeliveryState = "sending"
@@ -545,11 +562,11 @@ func (s *Server) sendMessage(ctx context.Context, t messaging.Transport, d messa
 	return err
 }
 
-// Every send is bounded: a direct message by dmSendTimeout, and a reply in a
+// Every send is bounded: a direct message by DMSendTimeout, and a reply in a
 // conversation, with its files, by replySendTimeout. A message Slack refuses
 // is tried at most sendAttempts times.
 const (
-	dmSendTimeout    = 10 * time.Second
+	DMSendTimeout    = 10 * time.Second
 	replySendTimeout = 2 * time.Minute
 	sendAttempts     = 5
 )
@@ -567,7 +584,7 @@ func sendOutcome(err error) string {
 	return "unknown"
 }
 
-// sendOnce sends reply to d at most once for the message effect names, within
+// SendOnce sends reply to d at most once for the message effect names, within
 // timeout, and keeps its outcome with receipt. sent reports whether this call
 // delivered it; it is false with no error when an earlier call did.
 //
@@ -577,7 +594,7 @@ func sendOutcome(err error) string {
 // scope until an administrator resolves it. An error recording the effect is
 // returned and nothing is sent. Once begun, a send is not cancelled with ctx,
 // since that would leave its outcome unknown.
-func (s *Server) sendOnce(ctx context.Context, effect automation.Effect, t messaging.Transport, d messaging.Address, reply messaging.Reply, timeout time.Duration, receipt map[string]any) (sent bool, err error) {
+func (s *Service) SendOnce(ctx context.Context, effect automation.Effect, t messaging.Transport, d messaging.Address, reply messaging.Reply, timeout time.Duration, receipt map[string]any) (sent bool, err error) {
 	if effect.InputHash == "" {
 		effect.InputHash = automation.Hash(reply.Text)
 	}

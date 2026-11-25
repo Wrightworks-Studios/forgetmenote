@@ -1,4 +1,4 @@
-package web
+package messaginghttp
 
 import (
 	"context"
@@ -22,9 +22,9 @@ import (
 
 var messageMemoryClient = regexp.MustCompile(`^[a-z]{1,32}$`)
 
-// messageMemoryPerson returns whose memory the conversation uses. linkable
+// MessageMemoryPerson returns whose memory the conversation uses. linkable
 // reports a workspace member who has not linked an account.
-func (s *Server) messageMemoryPerson(r *automation.Run) (person string, linkable bool) {
+func (s *Service) MessageMemoryPerson(r *automation.Run) (person string, linkable bool) {
 	d := r.Spec.Delivery
 	if r.Spec.Kind != "assistant" || d == nil || !d.Direct || d.Shared || !messageMemoryClient.MatchString(d.Client) {
 		return "", false
@@ -32,19 +32,21 @@ func (s *Server) messageMemoryPerson(r *automation.Run) (person string, linkable
 	if s.catalog.Interactive(r.Spec.Actor) {
 		return r.Spec.Actor, false
 	}
-	c, _, ok := s.messageClient(d.Client)
+	c, _, ok := s.MessageClient(d.Client)
 	if !ok || c.Members == nil || c.Members.Actor != r.Spec.Actor {
 		return "", false
 	}
-	person = s.catalog.MessageLink(d.Client, c.Workspace, messageAddress(*d).User)
+	person = s.catalog.MessageLink(d.Client, c.Workspace, MessageAddress(*d).User)
 	if !s.catalog.Interactive(person) {
 		return "", true
 	}
 	return person, false
 }
 
-func (s *Server) messageMemoryOwner(r *automation.Run) (string, catalog.AssistantSettings, string, bool) {
-	person, _ := s.messageMemoryPerson(r)
+// MessageMemoryOwner returns whose memory the conversation uses, their
+// assistant settings and the client, and whether that person keeps memory.
+func (s *Service) MessageMemoryOwner(r *automation.Run) (string, catalog.AssistantSettings, string, bool) {
+	person, _ := s.MessageMemoryPerson(r)
 	if person == "" {
 		return "", catalog.AssistantSettings{}, "", false
 	}
@@ -52,10 +54,10 @@ func (s *Server) messageMemoryOwner(r *automation.Run) (string, catalog.Assistan
 	return person, settings, r.Spec.Delivery.Client, err == nil && settings.MaintainMemory
 }
 
-// messageRemember adds items to the person's core memory, labelled with the
+// MessageRemember adds items to the person's core memory, labelled with the
 // messaging client. The person's setting is checked again for each call.
-func (s *Server) messageRemember(ctx context.Context, r *automation.Run, raw json.RawMessage) (json.RawMessage, error) {
-	person, settings, via, ok := s.messageMemoryOwner(r)
+func (s *Service) MessageRemember(ctx context.Context, r *automation.Run, raw json.RawMessage) (json.RawMessage, error) {
+	person, settings, via, ok := s.MessageMemoryOwner(r)
 	if !ok {
 		return nil, workspace.ErrForbidden
 	}

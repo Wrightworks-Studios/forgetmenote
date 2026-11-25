@@ -395,7 +395,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 	}
 
 	if spec.NotifyChannel != "" {
-		policy, _, enabled := s.messageClient("slack")
+		policy, _, enabled := s.messaging.MessageClient("slack")
 		if !enabled {
 			return errors.New("Slack is not configured")
 		}

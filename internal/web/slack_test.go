@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -126,6 +127,43 @@ func TestSlackSignedEventsDeduplicateAndBindIdentity(t *testing.T) {
 	}
 	if w := request(strings.Replace(body, "U123", "U999", 1), "fixture-signing", time.Now().Unix()); w.Code != 403 {
 		t.Fatal(w.Code)
+	}
+}
+
+// TestSlackEndpointsCheckSignatures sends each Slack app endpoint a request
+// signed with the wrong key and one signed too long ago: both are refused
+// before any handler reads them, and the same request signed now reaches it.
+func TestSlackEndpointsCheckSignatures(t *testing.T) {
+	app := chatFixture(t)
+	configureSlackFixture(t, app)
+	request := func(path, body, key string, when int64) *httptest.ResponseRecorder {
+		stamp := strconv.FormatInt(when, 10)
+		mac := hmac.New(sha256.New, []byte(key))
+		mac.Write([]byte("v0:" + stamp + ":" + body))
+		r := httptest.NewRequest("POST", "http://localhost"+path, strings.NewReader(body))
+		r.Header.Set("X-Slack-Request-Timestamp", stamp)
+		r.Header.Set("X-Slack-Signature", "v0="+hex.EncodeToString(mac.Sum(nil)))
+		w := httptest.NewRecorder()
+		app.ServeHTTP(w, r)
+		return w
+	}
+	for _, c := range []struct {
+		path, body string
+		signed     int
+	}{
+		{"/integrations/slack/events", `{"type":"url_verification","challenge":"fixture"}`, 200},
+		{"/integrations/slack/interactions", "payload=" + url.QueryEscape(`{"type":"view_closed","team":{"id":"T123"}}`), 200},
+		{"/integrations/slack/commands", "team_id=T999&command=%2Ftasks", 403},
+	} {
+		if w := request(c.path, c.body, "wrong", time.Now().Unix()); w.Code != 401 {
+			t.Errorf("%s with the wrong key: HTTP %d", c.path, w.Code)
+		}
+		if w := request(c.path, c.body, "fixture-signing", time.Now().Add(-10*time.Minute).Unix()); w.Code != 401 {
+			t.Errorf("%s signed ten minutes ago: HTTP %d", c.path, w.Code)
+		}
+		if w := request(c.path, c.body, "fixture-signing", time.Now().Unix()); w.Code != c.signed {
+			t.Errorf("%s signed now: HTTP %d, want %d", c.path, w.Code, c.signed)
+		}
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"forgetmenote/internal/agentmemory"
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -66,7 +67,7 @@ func (s *Server) checkAutomationEvidence(ctx context.Context, r *automation.Run,
 		}
 	}
 	if upstream && r.Spec.Kind == "assistant" && r.Spec.Delivery != nil {
-		if err := s.verifyMessageMember(ctx, *r.Spec.Delivery); err != nil {
+		if err := s.messaging.VerifyMessageMember(ctx, *r.Spec.Delivery); err != nil {
 			return err
 		}
 	}
@@ -203,7 +204,7 @@ func (s *Server) automationModelTools(r *automation.Run, offered bool) []chat.To
 		tools = append(tools, s.chatActionTools("assistant_status", "assistant_context", "read_personal_source")...)
 	}
 	if r.Spec.Kind == "assistant" && r.Spec.Delivery != nil && (r.Spec.Delivery.Direct || r.Spec.Delivery.Shared) {
-		tools = append(tools, resultArtifactTool())
+		tools = append(tools, messaginghttp.ResultArtifactTool())
 	}
 	return tools
 }
@@ -248,7 +249,7 @@ func (s *Server) automationPromptContext(ctx context.Context, r *automation.Run,
 // reports whether the model may also remember, which needs tools. Someone
 // without a linked account is told how to link one.
 func (s *Server) automationMessageMemory(ctx context.Context, r *automation.Run, offered bool) (string, bool) {
-	if person, settings, _, ok := s.messageMemoryOwner(r); ok {
+	if person, settings, _, ok := s.messaging.MessageMemoryOwner(r); ok {
 		recalled, err := s.memory.MessageContext(ctx, r, person, settings, offered)
 		if err != nil {
 			// The answer does not depend on memory; the person still gets one.
@@ -257,7 +258,7 @@ func (s *Server) automationMessageMemory(ctx context.Context, r *automation.Run,
 		}
 		return recalled, offered
 	}
-	if _, linkable := s.messageMemoryPerson(r); linkable {
+	if _, linkable := s.messaging.MessageMemoryPerson(r); linkable {
 		return "\nThis direct message uses no one's memory. If they ask you to remember something, or about memory, tell them to send `link` here to connect their " + s.catalog.InstanceName() + " account; until then nothing is remembered.\n", false
 	}
 	return "", false
@@ -442,14 +443,14 @@ func (t *automationTurn) callTool(ctx context.Context, call chat.ToolCall) strin
 	var result json.RawMessage
 	proposed := false
 	if err == nil && execution.Name == "call_data_operation" {
-		result, proposed, err = s.proposeDataWrite(ctx, r, execution.Arguments)
+		result, proposed, err = s.messaging.ProposeDataWrite(ctx, r, execution.Arguments)
 	}
 	if err == nil && !proposed {
 		switch execution.Name {
 		case "create_result_artifact":
-			result, err = s.messageArtifact(ctx, r, execution.Arguments)
+			result, err = s.messaging.MessageArtifact(ctx, r, execution.Arguments)
 		case "remember":
-			result, err = s.messageRemember(ctx, r, execution.Arguments)
+			result, err = s.messaging.MessageRemember(ctx, r, execution.Arguments)
 		default:
 			result, err = s.dispatchActionOutcome(ctx, r.Spec.Project, execution.Name, execution.Arguments)
 		}
@@ -466,7 +467,7 @@ func (t *automationTurn) callTool(ctx context.Context, call chat.ToolCall) strin
 		if json.Unmarshal(result, &v) == nil {
 			r.Receipts = append(r.Receipts, v.Receipt)
 			if r.Spec.Kind == "assistant" {
-				retainMessageResult(r, v.Result)
+				messaginghttp.RetainMessageResult(r, v.Result)
 			}
 		}
 	}

@@ -13,6 +13,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -72,7 +73,7 @@ func (s *Server) observeLearningUsage(ctx context.Context, in dataCall, receipt 
 		}
 		// Interactive chat is observed usage; background repairs must never learn
 		// from their own calls. Retain the human's request, not a full transcript.
-		d := messageAddress(*a.Spec.Delivery)
+		d := messaginghttp.MessageAddress(*a.Spec.Delivery)
 		in.LearningContext = &automation.LearningContext{Conversation: automation.Hash([]string{d.Client, d.Workspace, d.Channel, d.Thread, d.User}), Intent: a.Spec.Instruction}
 		if len(in.LearningContext.Intent) > 2000 {
 			in.LearningContext.Intent = ""

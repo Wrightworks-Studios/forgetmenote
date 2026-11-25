@@ -151,3 +151,87 @@ func TestContextAuthorityHasKnownSetters(t *testing.T) {
 		}
 	}
 }
+
+// TestMessagingTestExportsStayInTests keeps the names messaging exports only
+// for web's tests out of production code, with the account-link token minter,
+// which web keeps unexported: any reference from a non-test file anywhere in
+// the module fails. A declaration's own name is not a reference.
+func TestMessagingTestExportsStayInTests(t *testing.T) {
+	testOnly := []string{"MessageConversation", "SendMessage", "SendAttempts", "MessageLinkToken"}
+	for rel, file := range productionFiles(t, 0) {
+		declared := map[*ast.Ident]bool{}
+		for _, decl := range file.Decls {
+			switch d := decl.(type) {
+			case *ast.FuncDecl:
+				declared[d.Name] = true
+			case *ast.GenDecl:
+				for _, spec := range d.Specs {
+					if v, ok := spec.(*ast.ValueSpec); ok {
+						for _, name := range v.Names {
+							declared[name] = true
+						}
+					}
+				}
+			}
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok && slices.Contains(testOnly, id.Name) && !declared[id] {
+				t.Errorf("%s refers to %s, which only tests may use", rel, id.Name)
+			}
+			return true
+		})
+	}
+}
+
+// TestSlackAppHasOneSignatureGate keeps every Slack app endpoint behind
+// slackApp: its first statement checks the request with slackRequest, and it
+// alone calls the events, interactions and slash command handlers.
+func TestSlackAppHasOneSignatureGate(t *testing.T) {
+	handlers := []string{"SlackEvents", "SlackInteractions", "slackCommands"}
+	var called []string
+	gate := false
+	for rel, file := range productionFiles(t, 0) {
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				continue
+			}
+			inGate := rel == "internal/web/slack_config.go" && fn.Name.Name == "slackApp"
+			if inGate {
+				gate = true
+				first, ok := fn.Body.List[0].(*ast.AssignStmt)
+				if !ok || len(first.Rhs) != 1 || calledName(first.Rhs[0]) != "slackRequest" {
+					t.Error("slackApp does not start with slackRequest")
+				}
+			}
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				if sel, ok := n.(*ast.SelectorExpr); ok && slices.Contains(handlers, sel.Sel.Name) {
+					if !inGate {
+						t.Errorf("%s: %s calls %s, which only slackApp may call", rel, fn.Name.Name, sel.Sel.Name)
+					}
+					called = append(called, sel.Sel.Name)
+				}
+				return true
+			})
+		}
+	}
+	slices.Sort(called)
+	if !gate || !slices.Equal(called, []string{"SlackEvents", "SlackInteractions", "slackCommands"}) {
+		t.Fatalf("slackApp found %v; handlers called %v", gate, called)
+	}
+}
+
+// calledName returns the name of the function or method e calls, or "".
+func calledName(e ast.Expr) string {
+	call, ok := e.(*ast.CallExpr)
+	if !ok {
+		return ""
+	}
+	switch f := call.Fun.(type) {
+	case *ast.SelectorExpr:
+		return f.Sel.Name
+	case *ast.Ident:
+		return f.Name
+	}
+	return ""
+}
