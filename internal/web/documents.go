@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/reposource"
@@ -146,7 +147,7 @@ func (s *Server) readDocument(ctx context.Context, in documentRequest) (document
 		if in.Revision == "" {
 			in.Revision = state.Downloaded
 		}
-		if chatScopeFrom(ctx) != nil {
+		if chat.RunScopeFrom(ctx) != nil {
 			if err = repositories.AuthorizeProcessing(ctx, in.Project, in.Source, in.Revision, []string{in.Path}); err != nil {
 				return out, err
 			}
@@ -172,7 +173,7 @@ func (s *Server) readDocument(ctx context.Context, in documentRequest) (document
 	return out, nil
 }
 func (s *Server) documentContentScope(ctx context.Context, store *workspace.Store, selection knowledge.ContainerSelection) (workspace.ContentScope, error) {
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		return scope.Content, scope.Content.Validate()
 	}
 	return withEngine(s, ctx, store, func(e *knowledge.Engine) (workspace.ContentScope, error) {
@@ -194,7 +195,7 @@ func (s *Server) notebookMap(ctx context.Context, in notebookMapRequest) (notebo
 		return out, err
 	}
 	if out.Origin == "notes" {
-		if scope := chatScopeFrom(ctx); scope != nil {
+		if scope := chat.RunScopeFrom(ctx); scope != nil {
 			in.Scope = &scope.Content
 		}
 		result, err := withEngine(s, ctx, store, func(e *knowledge.Engine) (knowledge.MapResult, error) {
@@ -247,7 +248,7 @@ func (s *Server) listDocuments(ctx context.Context, in notebookMapRequest) (docu
 		return out, err
 	}
 	out.Origin = origin
-	if origin == "notes" || chatScopeFrom(ctx) != nil {
+	if origin == "notes" || chat.RunScopeFrom(ctx) != nil {
 		result, err := s.notebookMap(ctx, in)
 		if err != nil {
 			return out, err

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 )
@@ -65,7 +66,7 @@ func (s *Server) observeLearningUsage(ctx context.Context, in dataCall, receipt 
 	if s.automations == nil {
 		return
 	}
-	if a, automated := ctx.Value(automationKey{}).(automationAuth); automated {
+	if a, automated := automation.IdentityFrom(ctx); automated {
 		if a.Spec.Kind != "assistant" || a.Spec.Delivery == nil {
 			return
 		}
@@ -123,7 +124,7 @@ func (s *Server) observeLearningUsage(ctx context.Context, in dataCall, receipt 
 	conversation := contextInput.Conversation
 	if conversation == "" {
 		conversation, _ = ctx.Value(learningSessionKey{}).(string)
-		if scope := chatScopeFrom(ctx); scope != nil {
+		if scope := chat.RunScopeFrom(ctx); scope != nil {
 			conversation = scope.Chat
 		}
 		// Transport sessions can contain multiple conversations. Absent explicit

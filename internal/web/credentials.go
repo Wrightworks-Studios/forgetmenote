@@ -6,8 +6,8 @@ import (
 	"errors"
 	"forgetmenote/internal/actions"
 	"forgetmenote/internal/auth"
+	"forgetmenote/internal/automation"
 	"net/http"
-	"slices"
 	"strings"
 
 	"forgetmenote/internal/catalog"
@@ -21,7 +21,6 @@ type APICredential = auth.APICredential
 type issuedCredential = auth.IssuedCredential
 type credentialContext = auth.CredentialContext
 type credentialContextKey = auth.CredentialKey
-type apiContextKey struct{}
 
 // IssueCredential also serves the operator command, which needs no stopped
 // instance: the database serializes it with the running gateways.
@@ -88,7 +87,7 @@ func (s *Server) checkInvocation(ctx context.Context) error {
 // clientRestrictionsAllow applies the invocation's automation and credential
 // notebook restrictions, which checkInvocation does not look up.
 func clientRestrictionsAllow(ctx context.Context, project string) bool {
-	if a, ok := ctx.Value(automationKey{}).(automationAuth); ok && project != a.Spec.Project && !slices.Contains(a.Spec.ReadProjects, project) {
+	if a, ok := automation.IdentityFrom(ctx); ok && !a.Reads(project) {
 		return false
 	}
 	return auth.ProjectAllowed(ctx, project)
@@ -97,7 +96,7 @@ func (s *Server) clientProjectAllowed(ctx context.Context, project string) bool 
 	return clientRestrictionsAllow(ctx, project) && s.checkInvocation(ctx) == nil
 }
 func (s *Server) clientAccess(ctx context.Context, actor, project, role string) (*workspace.Store, error) {
-	if a, ok := ctx.Value(automationKey{}).(automationAuth); ok && project != a.Spec.Project && role != "read" {
+	if a, ok := automation.IdentityFrom(ctx); ok && !a.Writes(project) && role != "read" {
 		return nil, workspace.ErrForbidden
 	}
 	if !s.clientProjectAllowed(ctx, project) {
@@ -131,15 +130,11 @@ func (s *Server) clientRoleAllowed(ctx context.Context, actor string, p catalog.
 	if role == "read" && !s.hasScope(ctx, "notes:read") || role != "read" && !s.canWrite(ctx) {
 		return false
 	}
-	if a, ok := ctx.Value(automationKey{}).(automationAuth); ok && p.ID != a.Spec.Project && role != "read" {
+	if a, ok := automation.IdentityFrom(ctx); ok && !a.Writes(p.ID) && role != "read" {
 		return false
 	}
 	_, err := s.catalog.Access(actor, p.ID, role)
 	return err == nil
-}
-func clientGlobal(ctx context.Context) bool {
-	g, ok := credentialFrom(ctx)
-	return !ok || g.Grant.AllProjects
 }
 
 func clientActionScope(tool *mcp.Tool) string {
@@ -164,7 +159,7 @@ func (s *Server) clientActionAvailable(ctx context.Context, name, scope string) 
 	if _, token := credentialFrom(ctx); token && (name == "create_api_credential" || organizationActions[name] && name != "project_groups" && name != "set_project_group") {
 		return false
 	}
-	if !clientGlobal(ctx) {
+	if !auth.Global(ctx) {
 		switch name {
 		case "create_project", "import_project_bundle", "administration", "set_user_access":
 			return false
@@ -174,7 +169,7 @@ func (s *Server) clientActionAvailable(ctx context.Context, name, scope string) 
 }
 func (s *Server) guardClientAction(ctx context.Context, name, scope string, raw json.RawMessage) error {
 	_, token := credentialFrom(ctx)
-	if !token && ctx.Value(apiContextKey{}) == nil {
+	if !token && !auth.API(ctx) {
 		return nil
 	}
 	if err := s.checkInvocation(ctx); err != nil {

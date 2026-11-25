@@ -29,7 +29,7 @@ func pinChatCitationReferences(ctx context.Context, store *workspace.Store, cita
 		}
 		if citation.Scope == "" {
 			citation.Scope = "current"
-			if scope := chatScopeFrom(ctx); scope != nil && scope.Run.Options.Corpus.History && citation.Revision != current.Revision {
+			if scope := chat.RunScopeFrom(ctx); scope != nil && scope.Run.Options.Corpus.History && citation.Revision != current.Revision {
 				citation.Scope = "history"
 			}
 		}
@@ -113,7 +113,7 @@ func addChatCitations(run *chat.Run, citations []chat.Citation) bool {
 // A read acknowledgement supplies the exact original bytes and revision. Keep
 // its citation even if a later permission/owner failure prevents dependency
 // pinning; the incomplete provenance then prevents reuse in future context.
-func (s *Server) chatToolEvidence(ctx context.Context, auth runAuth, operationID, name string, result json.RawMessage) ([]chat.Citation, bool) {
+func (s *Server) chatToolEvidence(ctx context.Context, auth chat.RunAuth, operationID, name string, result json.RawMessage) ([]chat.Citation, bool) {
 	if name == "call_data_operation" {
 		var v dataResult
 		if json.Unmarshal(result, &v) != nil || v.Receipt.ID == "" {

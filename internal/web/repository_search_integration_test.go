@@ -160,8 +160,8 @@ func TestChatSourceFileHonorsCurrentOwnerExclusions(t *testing.T) {
 	if resolved.SourceBindings["default"] != state.ID {
 		t.Fatal("run did not freeze source binding")
 	}
-	scope := &chatRunScope{Project: "default", Run: chat.Run{Options: chat.Options{Corpus: resolved}}}
-	ctx = context.WithValue(ctx, chatScopeKey{}, scope)
+	scope := &chat.RunScope{Project: "default", Run: chat.Run{Options: chat.Options{Corpus: resolved}}}
+	ctx = chat.WithScope(ctx, scope)
 	raw, _ := json.Marshal(map[string]string{"project": "default", "source": state.ID, "revision": state.Downloaded, "path": "health.go"})
 	if _, err = app.guardChatAction(ctx, "default", "repository_source_file", raw); err != nil {
 		t.Fatal(err)
@@ -184,7 +184,7 @@ func TestChatSourceCitationKeepsOnlyOriginalBytesWhenTruncated(t *testing.T) {
 	file := reposource.File{Project: "default", Source: state.ID, Revision: state.Downloaded, Path: "health.go", Content: body, URL: "https://github.com/example/source/blob/" + state.Downloaded + "/health.go"}
 	raw, _ := json.Marshal(file)
 	ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-	got, _ := app.chatToolEvidence(ctx, runAuth{User: catalog.Bootstrap}, "fixture", "repository_source_file", raw)
+	got, _ := app.chatToolEvidence(ctx, chat.RunAuth{User: catalog.Bootstrap}, "fixture", "repository_source_file", raw)
 	if len(got) != 1 {
 		t.Fatal("citation missing")
 	}

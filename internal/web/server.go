@@ -454,7 +454,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer done()
 	}
 	if target.api {
-		r = r.WithContext(context.WithValue(r.Context(), apiContextKey{}, true))
+		r = r.WithContext(auth.WithAPI(r.Context()))
 		s.apiHTTP(w, r)
 		return
 	}

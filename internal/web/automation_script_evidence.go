@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/workspace"
@@ -109,7 +110,7 @@ func (s *Server) scriptReadDocument(e *scriptExecution, in scriptRequest) (any, 
 		return nil, err
 	}
 	raw, _ := json.Marshal(doc)
-	citations, _ := s.chatToolEvidence(e.ctx, runAuth{User: e.run.Spec.Actor, Project: e.run.Spec.Project}, in.Step, "read_document", raw)
+	citations, _ := s.chatToolEvidence(e.ctx, chat.RunAuth{User: e.run.Spec.Actor, Project: e.run.Spec.Project}, in.Step, "read_document", raw)
 	for _, citation := range citations {
 		citation.Text = ""
 		e.run.Citations = append(e.run.Citations, citation)

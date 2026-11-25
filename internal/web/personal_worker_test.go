@@ -19,6 +19,7 @@ import (
 
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 )
 
@@ -298,7 +299,7 @@ func TestPersonalAssistantCanUseMoreThanTenAuthorizedNotebooks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(chatScopeFrom(ctx).Run.Options.Corpus.NoteProjects) != 12 {
+	if len(chat.RunScopeFrom(ctx).Run.Options.Corpus.NoteProjects) != 12 {
 		t.Fatal("authorized notebooks omitted")
 	}
 }

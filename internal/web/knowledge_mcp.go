@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
@@ -87,7 +88,7 @@ func (s *Server) indexingPassages(ctx context.Context, store *workspace.Store, i
 // projectChanges returns Git changes since a commit, or a snapshot's file
 // metadata without contents.
 func (s *Server) projectChanges(ctx context.Context, store *workspace.Store, in projectChangesInput) (any, error) {
-	if chatScopeFrom(ctx) != nil {
+	if chat.RunScopeFrom(ctx) != nil {
 		return scopedChatMetadata(ctx, store, in.Revision)
 	}
 	if in.Snapshot {
@@ -106,7 +107,7 @@ func (s *Server) submitEmbeddings(ctx context.Context, store *workspace.Store, i
 }
 func (s *Server) semanticSearch(ctx context.Context, store *workspace.Store, query knowledge.SearchQuery) ([]knowledge.Match, error) {
 	return withEngine(s, ctx, store, func(e *knowledge.Engine) ([]knowledge.Match, error) {
-		if chatScopeFrom(ctx) != nil {
+		if chat.RunScopeFrom(ctx) != nil {
 			query.NotesOnly = true
 		}
 		return e.Search(ctx, query)
@@ -114,7 +115,7 @@ func (s *Server) semanticSearch(ctx context.Context, store *workspace.Store, que
 }
 func (s *Server) hybridSearch(ctx context.Context, store *workspace.Store, in hybridSearchInput) (knowledge.HybridResult, error) {
 	return withEngine(s, ctx, store, func(e *knowledge.Engine) (knowledge.HybridResult, error) {
-		if chatScopeFrom(ctx) != nil {
+		if chat.RunScopeFrom(ctx) != nil {
 			in.Query.NotesOnly = true
 			// Chat retrieval already ranks its evidence within the run's budget.
 			in.Query.Rerank = false
@@ -140,7 +141,7 @@ func (s *Server) configureSemanticIndex(ctx context.Context, store *workspace.St
 // noteSources holds the engine only for a chat's scoped evidence; ordinary
 // evidence resolves links across notebooks with its own access checks.
 func (s *Server) noteSources(ctx context.Context, store *workspace.Store, in noteSourcesInput) (knowledge.Evidence, error) {
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		return withEngine(s, ctx, store, func(e *knowledge.Engine) (knowledge.Evidence, error) {
 			return e.EvidenceScoped(ctx, in.Path, scope.Content, scope.Run.Options.Corpus.History)
 		})
@@ -176,7 +177,7 @@ func (s *Server) submitChangeGroup(ctx context.Context, store *workspace.Store, 
 }
 func (s *Server) reviewInbox(ctx context.Context, store *workspace.Store, _ projectArg) (map[string]any, error) {
 	return withEngine(s, ctx, store, func(e *knowledge.Engine) (map[string]any, error) {
-		if chatScopeFrom(ctx) != nil {
+		if chat.RunScopeFrom(ctx) != nil {
 			return s.scopedChatInbox(ctx, store, e)
 		}
 		findings, err := store.Findings(ctx)
@@ -211,7 +212,7 @@ func (s *Server) consumerCheckpoint(ctx context.Context, store *workspace.Store,
 		if err != nil {
 			return nil, err
 		}
-		if chatScopeFrom(ctx) != nil {
+		if chat.RunScopeFrom(ctx) != nil {
 			snapshot, err := scopedChatMetadata(ctx, store, "")
 			return map[string]any{"checkpoint": map[string]string{"revision": cp.Revision}, "snapshot": snapshot, "completionMeaning": "Externally reported; not scoped review completion."}, err
 		}

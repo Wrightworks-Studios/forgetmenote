@@ -47,14 +47,8 @@ func (s *Server) resolveChatCorpus(ctx context.Context, store *workspace.Store, 
 	}
 	return &chat.Corpus{Version: 1, Archives: scope.Policy.Archives, Drafts: scope.Policy.Drafts, History: false}, nil
 }
-func chatContentScope(run chat.Run) (workspace.ContentScope, error) {
-	if err := run.Options.Corpus.Validate(); err != nil {
-		return workspace.ContentScope{}, err
-	}
-	return workspace.ContentScope{NotesOnly: true, Policy: workspace.ContainerPolicy{Version: 1, Archives: run.Options.Corpus.Archives, Drafts: run.Options.Corpus.Drafts}, Collection: "all"}, nil
-}
 func chatCorpusSnapshot(ctx context.Context, store *workspace.Store, run chat.Run, revision string) (workspace.Snapshot, error) {
-	scope, err := chatContentScope(run)
+	scope, err := chat.ContentScope(run)
 	if err != nil {
 		return workspace.Snapshot{}, err
 	}
@@ -72,7 +66,7 @@ func chatCorpusSnapshot(ctx context.Context, store *workspace.Store, run chat.Ru
 	return snapshot, nil
 }
 func bindChatRetrieval(run chat.Run, query knowledge.RetrievalQuery) (knowledge.RetrievalQuery, error) {
-	scope, err := chatContentScope(run)
+	scope, err := chat.ContentScope(run)
 	if err != nil {
 		return query, err
 	}
@@ -90,64 +84,19 @@ func bindChatRetrieval(run chat.Run, query knowledge.RetrievalQuery) (knowledge.
 	return query, nil
 }
 
-type chatScopeKey struct{}
-type chatRunScope struct {
-	Owner, Project, Chat string
-	Run                  chat.Run
-	Origin               chat.Turn
-	Content              workspace.ContentScope
-	// Personal reports that this conversation has used personal assistant
-	// context; outside the person's own assistant notebook its changes need
-	// the person's approval. Approved marks the operation they approved.
-	Personal, Approved bool
-}
-
-func withChatRunScope(ctx context.Context, c chat.Conversation, run chat.Run) (context.Context, error) {
-	if run.Options.Corpus != nil && len(run.Options.Corpus.SourceProjects) > 0 && len(run.Options.Corpus.SourceBindings) != len(run.Options.Corpus.SourceProjects) {
-		return nil, chat.ErrCorpus
-	}
-	scope, err := chatContentScope(run)
-	if err != nil {
-		return nil, err
-	}
-	for _, turn := range c.Turns {
-		if turn.Role == "user" && turn.RunID == run.ID {
-			return context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Owner: c.Owner, Project: c.Project, Chat: c.ID, Run: run, Origin: turn, Content: scope, Personal: chatPersonalContext(c)}), nil
-		}
-	}
-	return nil, errors.New("run is missing its original user turn")
-}
-
-// withChatApproval binds the person's approval of the operation about to run.
-func withChatApproval(ctx context.Context) context.Context {
-	scope := chatScopeFrom(ctx)
-	if scope == nil {
-		return ctx
-	}
-	approved := *scope
-	approved.Approved = true
-	return context.WithValue(ctx, chatScopeKey{}, &approved)
-}
-func chatScopeFrom(ctx context.Context) *chatRunScope {
-	scope, _ := ctx.Value(chatScopeKey{}).(*chatRunScope)
-	return scope
-}
-
-var errOutsideChatCorpus = errors.New("the requested source or action is outside this run's saved corpus")
-
 // Bind shared document operations to an origin selected at run creation. An
 // attachment in the current notebook is never authority to read another one.
 func (s *Server) documentChatScope(ctx context.Context, project, origin, source, revision, path string) (context.Context, error) {
-	scope := chatScopeFrom(ctx)
+	scope := chat.RunScopeFrom(ctx)
 	if scope == nil {
 		return ctx, nil
 	}
 	if scope.Run.Options.Corpus.Validate() != nil {
-		return ctx, errOutsideChatCorpus
+		return ctx, chat.ErrOutsideCorpus
 	}
 	if origin == "notes" {
 		if project != scope.Project && !slices.Contains(scope.Run.Options.Corpus.NoteProjects, project) {
-			return ctx, errOutsideChatCorpus
+			return ctx, chat.ErrOutsideCorpus
 		}
 		if project != scope.Project {
 			copy := *scope
@@ -158,7 +107,7 @@ func (s *Server) documentChatScope(ctx context.Context, project, origin, source,
 					copy.Run.Citations = append(copy.Run.Citations, citation)
 				}
 			}
-			ctx = context.WithValue(ctx, chatScopeKey{}, &copy)
+			ctx = chat.WithScope(ctx, &copy)
 		}
 		return ctx, nil
 	}
@@ -166,14 +115,14 @@ func (s *Server) documentChatScope(ctx context.Context, project, origin, source,
 		return ctx, err
 	}
 	if s.repositories == nil {
-		return ctx, errOutsideChatCorpus
+		return ctx, chat.ErrOutsideCorpus
 	}
 	state, err := s.repositories.Status(project)
 	if err != nil {
 		return ctx, err
 	}
 	if !state.Connected || !state.IndexConfig.ExternalProcessing || state.ID != scope.Run.Options.Corpus.SourceBindings[project] || source != "" && source != state.ID || revision != "" && revision != state.Downloaded {
-		return ctx, errOutsideChatCorpus
+		return ctx, chat.ErrOutsideCorpus
 	}
 	var paths []string
 	if path != "" {
@@ -183,7 +132,7 @@ func (s *Server) documentChatScope(ctx context.Context, project, origin, source,
 }
 
 func chatScopedSnapshot(ctx context.Context, store *workspace.Store, revision string) (workspace.Snapshot, error) {
-	scope := chatScopeFrom(ctx)
+	scope := chat.RunScopeFrom(ctx)
 	if scope == nil {
 		return workspace.Snapshot{}, chat.ErrCorpus
 	}
@@ -207,13 +156,13 @@ func readChatNoteSnapshot(ctx context.Context, store *workspace.Store, path, rev
 // validation pass can share them.
 func readChatNoteFrom(ctx context.Context, store *workspace.Store, path, revision string, snapshot func(revision string) (workspace.Snapshot, error)) (workspace.Document, workspace.Snapshot, error) {
 	var current workspace.Snapshot
-	scope := chatScopeFrom(ctx)
+	scope := chat.RunScopeFrom(ctx)
 	if scope == nil {
 		doc, err := store.Read(ctx, path, revision)
 		return doc, current, err
 	}
 	if path == "AGENTS.md" || workspace.IsTrash(path) {
-		return workspace.Document{}, current, errOutsideChatCorpus
+		return workspace.Document{}, current, chat.ErrOutsideCorpus
 	}
 	var err error
 	current, err = snapshot("")
@@ -235,21 +184,21 @@ func readChatNoteFrom(ctx context.Context, store *workspace.Store, path, revisio
 				return workspace.Document{}, current, err
 			}
 			if workspace.ContentHash(doc.Content) != workspace.ContentHash([]byte(attachment.Content)) {
-				return workspace.Document{}, current, errOutsideChatCorpus
+				return workspace.Document{}, current, chat.ErrOutsideCorpus
 			}
 			return doc, current, nil
 		}
 	}
 	if revision == "" || revision == current.Revision {
 		if !currentEligible {
-			return workspace.Document{}, current, errOutsideChatCorpus
+			return workspace.Document{}, current, chat.ErrOutsideCorpus
 		}
 		doc, err := store.KnowledgeRead(ctx, path, current.Revision)
 		return doc, current, err
 	}
 	if !scope.Run.Options.Corpus.History {
 		if !currentEligible {
-			return workspace.Document{}, current, errOutsideChatCorpus
+			return workspace.Document{}, current, chat.ErrOutsideCorpus
 		}
 		pinned := false
 		for _, citation := range scope.Run.Citations {
@@ -259,7 +208,7 @@ func readChatNoteFrom(ctx context.Context, store *workspace.Store, path, revisio
 			}
 		}
 		if !pinned {
-			return workspace.Document{}, current, errOutsideChatCorpus
+			return workspace.Document{}, current, chat.ErrOutsideCorpus
 		}
 	}
 	historical, err := snapshot(revision)
@@ -272,11 +221,11 @@ func readChatNoteFrom(ctx context.Context, store *workspace.Store, path, revisio
 			return doc, current, err
 		}
 	}
-	return workspace.Document{}, current, errOutsideChatCorpus
+	return workspace.Document{}, current, chat.ErrOutsideCorpus
 }
 
 func scopeChatActionArguments(ctx context.Context, name string, raw json.RawMessage) (json.RawMessage, error) {
-	scope := chatScopeFrom(ctx)
+	scope := chat.RunScopeFrom(ctx)
 	if scope == nil {
 		return raw, nil
 	}
@@ -285,23 +234,23 @@ func scopeChatActionArguments(ctx context.Context, name string, raw json.RawMess
 	}
 	var args map[string]json.RawMessage
 	if json.Unmarshal(raw, &args) != nil {
-		return nil, errOutsideChatCorpus
+		return nil, chat.ErrOutsideCorpus
 	}
 	switch policy(name).Scope {
 	case selectedRepositories:
 		var projects []string
 		if json.Unmarshal(args["projects"], &projects) != nil || len(projects) == 0 {
-			return nil, errOutsideChatCorpus
+			return nil, chat.ErrOutsideCorpus
 		}
 		for _, p := range projects {
 			if !slices.Contains(scope.Run.Options.Corpus.SourceProjects, p) {
-				return nil, errOutsideChatCorpus
+				return nil, chat.ErrOutsideCorpus
 			}
 		}
 	case selectedRepository:
 		var project string
 		if json.Unmarshal(args["project"], &project) != nil || !slices.Contains(scope.Run.Options.Corpus.SourceProjects, project) {
-			return nil, errOutsideChatCorpus
+			return nil, chat.ErrOutsideCorpus
 		}
 	}
 	switch name {
@@ -309,13 +258,13 @@ func scopeChatActionArguments(ctx context.Context, name string, raw json.RawMess
 		query := args
 		if name == "hybrid_search" || name == "semantic_search" {
 			if json.Unmarshal(args["query"], &query) != nil {
-				return nil, errOutsideChatCorpus
+				return nil, chat.ErrOutsideCorpus
 			}
 		}
 		for field, choice := range map[string]string{"archives": scope.Content.Policy.Archives, "drafts": scope.Content.Policy.Drafts} {
 			var supplied string
 			if value, ok := query[field]; ok && (json.Unmarshal(value, &supplied) != nil || supplied != "" && supplied != choice) {
-				return nil, errOutsideChatCorpus
+				return nil, chat.ErrOutsideCorpus
 			}
 			query[field], _ = json.Marshal(choice)
 		}
@@ -323,12 +272,12 @@ func scopeChatActionArguments(ctx context.Context, name string, raw json.RawMess
 		var trash bool
 		if value, ok := query["scope"]; ok {
 			if json.Unmarshal(value, &history) != nil || history == "history" && !scope.Run.Options.Corpus.History {
-				return nil, errOutsideChatCorpus
+				return nil, chat.ErrOutsideCorpus
 			}
 		}
 		if value, ok := query["includeTrash"]; ok {
 			if json.Unmarshal(value, &trash) != nil || trash {
-				return nil, errOutsideChatCorpus
+				return nil, chat.ErrOutsideCorpus
 			}
 		}
 		if name == "hybrid_search" || name == "semantic_search" {
@@ -351,7 +300,7 @@ func (s *Server) resolveChatSourceBindings(ctx context.Context, corpus *chat.Cor
 		return corpus, nil
 	}
 	if s.repositories == nil {
-		return nil, errOutsideChatCorpus
+		return nil, chat.ErrOutsideCorpus
 	}
 	corpus.SourceBindings = map[string]string{}
 	for _, p := range corpus.SourceProjects {
@@ -363,7 +312,7 @@ func (s *Server) resolveChatSourceBindings(ctx context.Context, corpus *chat.Cor
 			return nil, err
 		}
 		if !state.Connected || !state.IndexConfig.ExternalProcessing {
-			return nil, errOutsideChatCorpus
+			return nil, chat.ErrOutsideCorpus
 		}
 		if err = s.repositories.Authorize(ctx, p, state.ID); err != nil {
 			return nil, err

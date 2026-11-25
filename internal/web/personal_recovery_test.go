@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
@@ -50,7 +51,7 @@ func TestPersonalInterruptedMemoryRecoveryIsOwnerAndRevisionBound(t *testing.T) 
 	action := app.actions["recover_assistant_work"]
 	args, _ := json.Marshal(map[string]any{"id": "memory", "revision": stored.Revision, "retry": true})
 	ctx := context.WithValue(t.Context(), identityKey{}, "alice")
-	if _, err = action.Call(context.WithValue(ctx, apiContextKey{}, true), args); err == nil {
+	if _, err = action.Call(auth.WithAPI(ctx), args); err == nil {
 		t.Fatal("agent retried a paid call")
 	}
 	if _, err = action.Call(context.WithValue(ctx, identityKey{}, "bob"), args); err == nil {

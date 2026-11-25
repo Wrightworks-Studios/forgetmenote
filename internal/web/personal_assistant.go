@@ -9,7 +9,9 @@ import (
 	"os"
 	"slices"
 
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -227,8 +229,8 @@ func (s *Server) personalContext(ctx context.Context) (personalContext, error) {
 		if p.ProtectedInbox != "" || p.AssistantOwner != "" && p.ID != settings.Project {
 			continue
 		}
-		api, _ := ctx.Value(apiContextKey{}).(bool)
-		if !api && chatScopeFrom(ctx) == nil {
+		api := auth.API(ctx)
+		if !api && chat.RunScopeFrom(ctx) == nil {
 			out.AvailableProjects = append(out.AvailableProjects, p)
 		}
 		if !slices.Contains(settings.ExcludedProjects, p.ID) {

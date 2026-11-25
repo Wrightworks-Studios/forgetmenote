@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"forgetmenote/internal/agentmemory"
+	"forgetmenote/internal/auth"
+	"forgetmenote/internal/automation"
 	"forgetmenote/internal/decision"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -14,8 +16,8 @@ func (s *Server) initMemory() error {
 	var err error
 	s.memory, err = agentmemory.New(s.catalog, s.indexes, agentmemory.Hooks{
 		Personal: func(ctx context.Context) bool {
-			_, automated := ctx.Value(automationKey{}).(automationAuth)
-			return clientGlobal(ctx) && !automated
+			_, automated := automation.IdentityFrom(ctx)
+			return auth.Global(ctx) && !automated
 		},
 		ClientAccess:         s.clientAccess,
 		ClientProjectAllowed: s.clientProjectAllowed,

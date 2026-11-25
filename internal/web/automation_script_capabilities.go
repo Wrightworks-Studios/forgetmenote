@@ -336,7 +336,7 @@ func (s *Server) scriptSubmit(e *scriptExecution, in scriptRequest) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	writeCtx := context.WithValue(ctx, chatScopeKey{}, (*chatRunScope)(nil))
+	writeCtx := chat.WithoutRunScope(ctx)
 	writeCtx = context.WithValue(writeCtx, scopeKey{}, "notes:read data:read data:write")
 	result, err := s.automationCall(writeCtx, r, call)
 	if err != nil {
@@ -361,7 +361,10 @@ func (s *Server) scriptPublish(e *scriptExecution, in scriptRequest) (any, error
 	if r.DryRun {
 		return map[string]any{"dryRun": true, "content": v.Content}, nil
 	}
-	a := ctx.Value(automationKey{}).(automationAuth)
+	a, ok := automation.IdentityFrom(ctx)
+	if !ok {
+		return nil, workspace.ErrForbidden
+	}
 	var result workspace.GroupResult
 	err := s.catalog.WithProjectAuthority(a.Spec.Actor, a.Spec.Project, a.Account, "edit", a.Epoch, a.ProjectEpoch, func(store *workspace.Store) error {
 		var err error

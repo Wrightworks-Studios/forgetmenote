@@ -9,7 +9,7 @@ import (
 
 // Provider projections are replaceable; original turns and operation receipts
 // are not. Rebuild changed evidence without re-running any completed mutation.
-func (s *Server) refreshChatContext(ctx context.Context, a runAuth, c chat.Conversation, run chat.Run, connection chat.Connection) (bool, error) {
+func (s *Server) refreshChatContext(ctx context.Context, a chat.RunAuth, c chat.Conversation, run chat.Run, connection chat.Connection) (bool, error) {
 	if err := run.Options.Corpus.Validate(); err != nil {
 		return false, err
 	}

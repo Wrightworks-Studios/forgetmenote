@@ -141,9 +141,9 @@ func TestCrossNotebookCitationRevalidatesPinnedContentAfterUnrelatedSave(t *test
 		t.Fatal(err)
 	}
 	run := chat.Run{Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude", NoteProjects: []string{"other"}}}}
-	content, _ := chatContentScope(run)
+	content, _ := chat.ContentScope(run)
 	ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-	ctx = context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Project: "default", Run: run, Content: content})
+	ctx = chat.WithScope(ctx, &chat.RunScope{Project: "default", Run: run, Content: content})
 	run.Citations = []chat.Citation{{Kind: "notebook", Project: "other", Path: "answer.md", Revision: doc.Revision, Hash: workspace.ContentHash(doc.Content)}}
 	if _, err = store.Save(t.Context(), "unrelated.md", []byte("# Another saved note"), doc.Revision, catalog.Bootstrap); err != nil {
 		t.Fatal(err)
@@ -268,12 +268,12 @@ func TestUniversalDocumentsHonorSelectedNotebookOrigins(t *testing.T) {
 		t.Fatalf("explicit note selection rejected: %v", err)
 	}
 	run := chat.Run{Options: chat.Options{Corpus: &corpus}}
-	content, err := chatContentScope(run)
+	content, err := chat.ContentScope(run)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-	ctx = context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Project: "default", Run: run, Content: content})
+	ctx = chat.WithScope(ctx, &chat.RunScope{Project: "default", Run: run, Content: content})
 	if _, err = app.readDocument(ctx, documentRequest{documentRef: documentRef{Project: "allowed", Origin: "notes", Path: "note.md"}}); err != nil {
 		t.Fatal(err)
 	}

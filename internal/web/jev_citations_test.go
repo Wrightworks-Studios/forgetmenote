@@ -251,7 +251,7 @@ func TestJevAutomaticCitationCompletionRequiresAllConsentGates(t *testing.T) {
 				t.Fatal(w.Code, w.Body.String())
 			}
 			setChatFixtureLocalOnly(t, app, test.localOnly)
-			auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+			auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 			app.chatTerminal(auth, c.ID, "run", "completed", nil)
 			check := waitCitation(t, app, path)
 			if calls.Load() != test.wantCalls {
@@ -321,7 +321,7 @@ func TestConversationDeletionAndCitationChecksExcludeEachOtherAcrossGateways(t *
 	if _, err = app.chat.Store.Delete("alice", "default", c.ID, nil); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	if err = app.startCitationCheck(auth, c.ID, "run", true); !errors.Is(err, chat.ErrNotFound) {
 		t.Fatal("a citation check started for a conversation deleted elsewhere", err)
 	}

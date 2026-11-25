@@ -117,7 +117,7 @@ func TestChatCustomToolRejectsUnknownFields(t *testing.T) {
 		c.Runs = append(c.Runs, run)
 		return nil
 	})
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, e := app.runContext(auth)
 	if e != nil {
 		t.Fatal(e)
@@ -144,7 +144,7 @@ func TestChatIncompleteReviewCannotAdvanceWorkflow(t *testing.T) {
 		c.Runs = append(c.Runs, run)
 		return nil
 	})
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, e := app.runContext(auth)
 	if e != nil {
 		t.Fatal(e)
@@ -226,7 +226,7 @@ func TestChatResearchRequiresBothOptInsAndKeepsDurableLimits(t *testing.T) {
 		c.Runs = append(c.Runs, run)
 		return nil
 	})
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)
@@ -309,7 +309,7 @@ func TestChatEmptyTrashApprovalBindsExactPreview(t *testing.T) {
 		c.Runs = append(c.Runs, run)
 		return nil
 	})
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)

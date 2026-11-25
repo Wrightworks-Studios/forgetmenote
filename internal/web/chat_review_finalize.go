@@ -71,7 +71,7 @@ func validateReviewWorkflowArguments(run *chat.Run, arguments json.RawMessage) e
 // A completed receipt is a replay, not a new mutation. A running intent may have
 // committed before its acknowledgement was lost: only the original checkpoint's
 // exact idempotency identity can bypass fresh coverage for reconciliation.
-func (s *Server) reconcileReviewWorkflow(ctx context.Context, a runAuth, run *chat.Run, call chat.ToolCall) (bool, error) {
+func (s *Server) reconcileReviewWorkflow(ctx context.Context, a chat.RunAuth, run *chat.Run, call chat.ToolCall) (bool, error) {
 	key := operationID(run.ID, run.Rounds, call.ID)
 	for _, op := range run.Operations {
 		if op.ID != key || op.Name != "complete_workflow" {
@@ -106,7 +106,7 @@ func (s *Server) reconcileReviewWorkflow(ctx context.Context, a runAuth, run *ch
 
 // Refresh may rebuild context. Preserve the exact native assistant tool block
 // and its already received sibling results when the refreshed coverage is valid.
-func (s *Server) retainPendingWorkflowPair(a runAuth, id string, prior *chat.Run, call chat.ToolCall) error {
+func (s *Server) retainPendingWorkflowPair(a chat.RunAuth, id string, prior *chat.Run, call chat.ToolCall) error {
 	return s.chatRunUpdate(a, id, prior.ID, func(c *chat.Conversation, r *chat.Run) error {
 		for _, pending := range pendingToolCalls(r.Messages) {
 			if pending.ID == call.ID {
@@ -132,7 +132,7 @@ func (s *Server) retainPendingWorkflowPair(a runAuth, id string, prior *chat.Run
 // Resolve the old request explicitly as unexecuted before renewed review. Keep
 // its native block until pending siblings receive their results. Mark that
 // context invalid so the next review preparation rebuilds from fresh originals.
-func (s *Server) deferReviewWorkflow(a runAuth, id string, prior *chat.Run, call chat.ToolCall) error {
+func (s *Server) deferReviewWorkflow(a chat.RunAuth, id string, prior *chat.Run, call chat.ToolCall) error {
 	message := "Review evidence changed or belongs to a prior allowance. No checkpoint was written. Complete the renewed original-source review before requesting workflow completion again."
 	result, _ := json.Marshal(map[string]any{"error": message, "deferred": true, "executed": false})
 	key := operationID(prior.ID, prior.Rounds, call.ID)

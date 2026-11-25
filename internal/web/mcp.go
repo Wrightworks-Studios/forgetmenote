@@ -8,6 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
@@ -52,7 +53,7 @@ func (s *Server) mcpHandler() http.Handler {
 		Path string `json:"path,omitempty"`
 		knowledge.ContainerSelection
 	}) (workspace.FolderBrowse, error) {
-		if chatScopeFrom(ctx) != nil {
+		if chat.RunScopeFrom(ctx) != nil {
 			in.ContainerSelection.NotesOnly = true
 		}
 		if in.Archives != "" || in.Drafts != "" {
@@ -83,7 +84,7 @@ func (s *Server) mcpHandler() http.Handler {
 		if in.Query == "" && in.Tag == "" && in.Status == "" && in.Path == "" {
 			limit = 0
 		}
-		if chatScopeFrom(ctx) != nil {
+		if chat.RunScopeFrom(ctx) != nil {
 			in.ContainerSelection.NotesOnly = true
 		}
 		result, err := withEngine(s, ctx, store, func(e *knowledge.Engine) (workspace.ScopedEntries, error) {
@@ -112,7 +113,7 @@ func (s *Server) mcpHandler() http.Handler {
 		if err != nil {
 			return nil, err
 		}
-		if scope := chatScopeFrom(ctx); scope != nil {
+		if scope := chat.RunScopeFrom(ctx); scope != nil {
 			v, err := store.HistoryScoped(ctx, in.Path, scope.Content)
 			return s.presentHistory(ctx, in.Project, v, err)
 		}

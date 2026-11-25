@@ -88,7 +88,7 @@ func TestChatCrashBoundaryHelper(t *testing.T) {
 		return result, e
 	}
 	app.actions[call.Name] = action
-	auth := runAuth{User: "alice", Project: "default", Epoch: projects.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: projects.Epoch("alice")}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)

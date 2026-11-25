@@ -256,7 +256,10 @@ func (s *Server) compactAutomationProfiles(ctx context.Context, r *automation.Ru
 			if err = s.checkAutomationAuth(ctx); err != nil {
 				return count, err
 			}
-			a := ctx.Value(automationKey{}).(automationAuth)
+			a, ok := automation.IdentityFrom(ctx)
+			if !ok {
+				return count, workspace.ErrForbidden
+			}
 			err = s.catalog.WithProjectAuthority(a.Spec.Actor, a.Spec.Project, a.Account, "edit", a.Epoch, a.ProjectEpoch, func(st *workspace.Store) error { _, e := st.Organize(ctx, action, !r.DryRun); return e })
 			if err != nil {
 				return count, err

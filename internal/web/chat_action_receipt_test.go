@@ -46,7 +46,7 @@ func TestChatApprovedMutationReceiptSurvivesRevocationAndRestart(t *testing.T) {
 	options.Mode = "edit"
 	options.Actions = []string{"notes"}
 	options.BudgetTokens = connection.Limits.RunTokens
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	arguments, _ := json.Marshal(map[string]string{"path": note.Path, "revision": note.Revision, "container": "archive"})
 	call := chat.ToolCall{ID: "archive", Name: "set_note_container", Arguments: arguments}
 	run := chat.Run{ID: chat.NewID(), State: "running", Epoch: auth.Epoch, Options: options, Rounds: 1, RoundLimit: connection.Limits.MaxRounds, ToolLimit: connection.Limits.MaxTools, Usage: chat.Accounting{Reserved: int64(options.BudgetTokens)}, Messages: []chat.Message{{Role: "user", Content: "Archive the requested note."}, {Role: "assistant", ToolCalls: []chat.ToolCall{call}}}}

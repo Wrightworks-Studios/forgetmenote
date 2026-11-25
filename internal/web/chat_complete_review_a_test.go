@@ -176,7 +176,7 @@ func TestCompleteReviewAKnownMutationLostAfterRevocation(t *testing.T) {
 		return result, nil
 	}
 	app.actions["add_comment"] = action
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)

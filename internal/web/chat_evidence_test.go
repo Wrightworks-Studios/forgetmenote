@@ -23,7 +23,7 @@ func TestChatCitationsAtCurrentRevisionPinWithOneSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := chat.Run{ID: "pin-run", Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}}}
-	ctx, err := withChatRunScope(t.Context(), chat.Conversation{Owner: catalog.Bootstrap, Project: "default", ID: "pin-chat", Turns: []chat.Turn{{Role: "user", RunID: run.ID}}}, run)
+	ctx, err := chat.WithRunScope(t.Context(), chat.Conversation{Owner: catalog.Bootstrap, Project: "default", ID: "pin-chat", Turns: []chat.Turn{{Role: "user", RunID: run.ID}}}, run)
 	if err != nil {
 		t.Fatal(err)
 	}

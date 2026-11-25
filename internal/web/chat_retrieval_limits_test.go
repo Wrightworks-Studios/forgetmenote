@@ -39,7 +39,7 @@ func TestChatRetrievalHonorsPerNoteAllowance(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: run.Epoch}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: run.Epoch}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)

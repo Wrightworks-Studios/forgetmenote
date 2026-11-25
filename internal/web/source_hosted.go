@@ -6,6 +6,7 @@ import (
 	"path"
 	"slices"
 
+	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/sources"
@@ -58,7 +59,7 @@ func (s *Server) sourceProcessingPolicy(ctx context.Context, project string, inp
 	if grant, ok := credentialFrom(ctx); ok && !slices.Contains(grant.Grant.Connections, connection.ID) {
 		return nil, connection, denied
 	}
-	if auth, ok := ctx.Value(automationKey{}).(automationAuth); ok && !slices.Contains(auth.Spec.Connections, connection.ID) {
+	if auth, ok := automation.IdentityFrom(ctx); ok && !slices.Contains(auth.Spec.Connections, connection.ID) {
 		return nil, connection, denied
 	}
 	for _, notebook := range s.catalog.List(subject(ctx)) {

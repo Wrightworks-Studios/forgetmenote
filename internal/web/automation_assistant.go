@@ -17,7 +17,7 @@ import (
 )
 
 func (s *Server) automationSourceContext(ctx context.Context, r *automation.Run) (context.Context, error) {
-	if chatScopeFrom(ctx) != nil || !r.Spec.UsesAI() {
+	if chat.RunScopeFrom(ctx) != nil || !r.Spec.UsesAI() {
 		return ctx, nil
 	}
 	corpus := &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}
@@ -46,11 +46,11 @@ func (s *Server) automationSourceContext(ctx context.Context, r *automation.Run)
 		return ctx, err
 	}
 	run := chat.Run{ID: r.ID, Options: chat.Options{Corpus: corpus}}
-	content, err := chatContentScope(run)
+	content, err := chat.ContentScope(run)
 	if err != nil {
 		return ctx, err
 	}
-	return context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Owner: r.Spec.Actor, Project: r.Spec.Project, Run: run, Content: content}), nil
+	return chat.WithScope(ctx, &chat.RunScope{Owner: r.Spec.Actor, Project: r.Spec.Project, Run: run, Content: content}), nil
 }
 
 // Persist only citation metadata with a job, then use the same current-source
@@ -130,7 +130,7 @@ func (s *Server) checkAutomationEvidence(ctx context.Context, r *automation.Run,
 		}
 		return s.checkDataCitations(ctx, r.Citations)
 	}
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		if r.Spec.Kind == "recipe" || r.Spec.Repair != nil && r.Spec.Recipe != "" {
 			store, err := s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "read")
 			if err != nil {
@@ -470,7 +470,7 @@ func (t *automationTurn) callTool(ctx context.Context, call chat.ToolCall) strin
 			}
 		}
 	}
-	citations, _ := s.chatToolEvidence(ctx, runAuth{User: r.Spec.Actor, Project: r.Spec.Project}, call.ID, call.Name, result)
+	citations, _ := s.chatToolEvidence(ctx, chat.RunAuth{User: r.Spec.Actor, Project: r.Spec.Project}, call.ID, call.Name, result)
 	for _, citation := range citations {
 		citation.Text = ""
 		r.Citations = append(r.Citations, citation)

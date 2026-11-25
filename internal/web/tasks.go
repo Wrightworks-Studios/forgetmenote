@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/messaging"
@@ -19,8 +20,8 @@ func (s *Server) initTasks() error {
 	var err error
 	s.tasks, err = taskqueue.New(s.catalog, s.automations, taskqueue.Hooks{
 		Personal: func(ctx context.Context) bool {
-			_, automated := ctx.Value(automationKey{}).(automationAuth)
-			return !automated && clientGlobal(ctx)
+			_, automated := automation.IdentityFrom(ctx)
+			return !automated && auth.Global(ctx)
 		},
 		CheckAutomation: s.checkAutomationAuth,
 		Client:          s.messageClient,

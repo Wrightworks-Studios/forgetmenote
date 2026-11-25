@@ -68,7 +68,7 @@ func (s *Server) appendChatSources(ctx context.Context, run chat.Run, query know
 				}
 			} else if item.Note != nil {
 				r := *item.Note
-				if scope := chatScopeFrom(ctx); scope == nil || item.Project != scope.Project {
+				if scope := chat.RunScopeFrom(ctx); scope == nil || item.Project != scope.Project {
 					if budget.Add("", retrieval.EvidenceTokens(r.Path, r.Text)) {
 						result.Notes = append(result.Notes, notebookEvidence{Project: item.Project, Passage: r})
 					}
@@ -178,13 +178,13 @@ func (s *Server) chatSourceAccess(ctx context.Context, run chat.Run) ([]chatSour
 // after its request context is created; validate against that current
 // evidence set, including after an unrelated save.
 func withChatScopeRun(ctx context.Context, run chat.Run) context.Context {
-	scope := chatScopeFrom(ctx)
+	scope := chat.RunScopeFrom(ctx)
 	if scope == nil {
 		return ctx
 	}
 	copy := *scope
 	copy.Run = run
-	return context.WithValue(ctx, chatScopeKey{}, &copy)
+	return chat.WithScope(ctx, &copy)
 }
 
 // checkChatNoteCitations rereads each cited note of a notebook at its pinned
@@ -234,7 +234,7 @@ func (s *Server) checkChatNoteCitations(ctx context.Context, run chat.Run) error
 		if run.Options.Corpus.History {
 			continue
 		}
-		if chatScopeFrom(n.ctx) == nil {
+		if chat.RunScopeFrom(n.ctx) == nil {
 			latest, err := readChatNote(n.ctx, n.store, citation.Path, "")
 			if err != nil {
 				return err
@@ -252,7 +252,7 @@ func (s *Server) checkChatNoteCitations(ctx context.Context, run chat.Run) error
 			}
 		}
 		if !eligible {
-			return errOutsideChatCorpus
+			return chat.ErrOutsideCorpus
 		}
 	}
 	return nil

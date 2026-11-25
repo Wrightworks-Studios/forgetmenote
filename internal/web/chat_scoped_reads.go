@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
 )
@@ -12,9 +13,9 @@ func scopedChatMetadata(ctx context.Context, store *workspace.Store, revision st
 		return workspace.Snapshot{}, err
 	}
 	if revision != "" && revision != current.Revision {
-		scope := chatScopeFrom(ctx)
+		scope := chat.RunScopeFrom(ctx)
 		if !scope.Run.Options.Corpus.History {
-			return workspace.Snapshot{}, errOutsideChatCorpus
+			return workspace.Snapshot{}, chat.ErrOutsideCorpus
 		}
 		current, err = chatScopedSnapshot(ctx, store, revision)
 		if err != nil {
@@ -47,7 +48,7 @@ func scopedChatDiscussion(ctx context.Context, store *workspace.Store, path stri
 		for _, ref := range comment.Finding.Evidence {
 			if ref.Path != "" {
 				if _, err = readChatNote(ctx, store, ref.Path, ref.Revision); err != nil {
-					return workspace.Discussion{}, errOutsideChatCorpus
+					return workspace.Discussion{}, chat.ErrOutsideCorpus
 				}
 			}
 		}
@@ -77,7 +78,7 @@ func (s *Server) scopedChatInbox(ctx context.Context, store *workspace.Store, e 
 	}
 	proposals := []knowledge.Proposal{}
 	for _, proposal := range all {
-		if validateChatProposal(ctx, store, proposal, chatScopeFrom(ctx).Content) == nil {
+		if validateChatProposal(ctx, store, proposal, chat.RunScopeFrom(ctx).Content) == nil {
 			proposals = append(proposals, proposal)
 		}
 	}

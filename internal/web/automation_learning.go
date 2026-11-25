@@ -96,7 +96,7 @@ func (s *Server) checkLearningEvidence(ctx context.Context, r *automation.Run) e
 		}
 		for _, source := range r.Learning.Sources {
 			if !eligible[source] {
-				return errOutsideChatCorpus
+				return chat.ErrOutsideCorpus
 			}
 		}
 	}

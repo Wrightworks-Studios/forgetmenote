@@ -51,7 +51,7 @@ func reviewProgress(r *chat.Coverage) map[string]any {
 // prepareChatReview inventories authorized committed content. Every batch contains
 // one original note passage; extra comparison passages never count as coverage.
 // A resumed or concurrently changed notebook requeues obsolete analysis.
-func (s *Server) prepareChatReview(ctx context.Context, a runAuth, id, runID string, connection chat.Connection) (bool, error) {
+func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runID string, connection chat.Connection) (bool, error) {
 	if err := s.checkRun(a); err != nil {
 		return false, err
 	}
@@ -67,7 +67,7 @@ func (s *Server) prepareChatReview(ctx context.Context, a runAuth, id, runID str
 	if run == nil {
 		return false, chat.ErrNotFound
 	}
-	ctx, err = withChatRunScope(ctx, c, *run)
+	ctx, err = chat.WithRunScope(ctx, c, *run)
 	if err != nil {
 		return false, err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/reposource"
@@ -28,7 +29,7 @@ func (s *Server) rerankRepositoryResults(ctx context.Context, q reposource.Searc
 		return err
 	}
 	runID, chatID := "source-search-"+RandomToken(), ""
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		runID = scope.Run.ID
 		chatID = scope.Chat
 	}

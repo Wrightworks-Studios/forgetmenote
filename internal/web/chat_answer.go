@@ -55,7 +55,7 @@ func finalChatRequest(request chat.Request) chat.Request {
 // An excess native read call must receive an honest result before an Ask answer
 // can continue. The omission and its matching native result are one durable
 // update; no workspace operation is dispatched and no tool allowance is spent.
-func (s *Server) omitChatBudgetRead(ctx context.Context, a runAuth, id string, run chat.Run, call chat.ToolCall, connection chat.Connection) error {
+func (s *Server) omitChatBudgetRead(ctx context.Context, a chat.RunAuth, id string, run chat.Run, call chat.ToolCall, connection chat.Connection) error {
 	read := false
 	switch call.Name {
 	case "search_passages", "discover_actions":

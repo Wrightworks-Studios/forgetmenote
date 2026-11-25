@@ -41,6 +41,37 @@ under the tool result's `_meta["forgetmenote/error"]` in MCP, with `retryable`
 for capacity and timeouts. Retrieval engine policy, provider configuration and lifecycle
 remain in `internal/search` and `internal/knowledge`.
 
+An invocation's identity and scope travel on its context, each with the package
+that owns its type:
+
+- `chat.RunScope` and `chat.RunAuth` for a chat run
+- `automation.Identity` for an automation run
+- the credential, its scopes and the action API mark in `internal/auth`
+
+Any package may read them. The checks that compare them with current sessions,
+catalog access and instance policy stay in web: `checkRun`,
+`checkAutomationAuth`, `checkInvocation` and `clientAccess`. Other packages reach
+these checks only through Hooks.
+
+The chat run's authorization, the credential readers and the action API mark
+only narrow what an invocation may do. A chat run's scope and an automation's
+identity decide what a run may reach:
+
+- an automation's identity covers its own writes and its code-only data
+  connections
+- a person's approval of a chat operation lifts the personal-context refusal
+- a wider or missing chat scope lifts the run's corpus limits
+
+Their context keys are unexported. The functions that store, replace or clear
+them can be used only where a test allows it, and anything may read them.
+
+Two tests in web hold these boundaries:
+
+- `TestContextAuthorityHasKnownSetters` lists every production file that uses
+  one of those functions, each after its run's own check.
+- `TestOnlyWebServesMCP` keeps tool registration in web, so `addAction` stays
+  the one guard for MCP, the action API, and chat and automation tool calls.
+
 `internal/sourcehttp` owns source preview/import and job HTTP handlers, shared
 input schemas, signed previews and the typed submission/wait pipeline used by
 MCP. It uses the same instance-wide source I/O admission pool as research and

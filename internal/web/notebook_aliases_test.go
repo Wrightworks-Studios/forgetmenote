@@ -80,12 +80,12 @@ func TestNotebookInstructionAliasSharesChatMutationPolicy(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			app, store := fixture(t)
 			run := chat.Run{Options: chat.Options{Mode: "edit", Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}}}
-			content, err := chatContentScope(run)
+			content, err := chat.ContentScope(run)
 			if err != nil {
 				t.Fatal(err)
 			}
 			ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-			ctx = context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Owner: catalog.Bootstrap, Project: "default", Run: run, Content: content})
+			ctx = chat.WithScope(ctx, &chat.RunScope{Owner: catalog.Bootstrap, Project: "default", Run: run, Content: content})
 			var revision string
 			if d, err := store.Read(ctx, "AGENTS.md", ""); err == nil {
 				revision = d.Revision

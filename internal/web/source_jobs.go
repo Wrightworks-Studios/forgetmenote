@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"forgetmenote/internal/automation"
 	"forgetmenote/internal/sourcehttp"
 	"forgetmenote/internal/sources"
 	"forgetmenote/internal/workspace"
@@ -12,12 +13,12 @@ import (
 )
 
 type sourceRestrictions struct {
-	Credential *credentialContext `json:"credential,omitempty"`
-	OAuthHash  string             `json:"oauthHash,omitempty"`
-	Scope      *string            `json:"scope,omitempty"`
-	Client     string             `json:"client,omitempty"`
-	Automation *automationAuth    `json:"automation,omitempty"`
-	Fence      *automationFence   `json:"fence,omitempty"`
+	Credential *credentialContext   `json:"credential,omitempty"`
+	OAuthHash  string               `json:"oauthHash,omitempty"`
+	Scope      *string              `json:"scope,omitempty"`
+	Client     string               `json:"client,omitempty"`
+	Automation *automation.Identity `json:"automation,omitempty"`
+	Fence      *automationFence     `json:"fence,omitempty"`
 }
 
 func (s *Server) sourceScope(ctx context.Context, project string) sources.JobScope {
@@ -32,7 +33,7 @@ func (s *Server) sourceScope(ctx context.Context, project string) sources.JobSco
 	if lease, ok := ctx.Value(leaseKey{}).(revisionLease); ok && lease.key != digest(s.token) && r.Credential == nil {
 		r.OAuthHash = lease.key
 	}
-	if a, ok := ctx.Value(automationKey{}).(automationAuth); ok {
+	if a, ok := automation.IdentityFrom(ctx); ok {
 		r.Automation = &a
 	}
 	if f, ok := ctx.Value(automationFenceKey{}).(automationFence); ok {
@@ -62,7 +63,7 @@ func (s *Server) sourceContext(ctx context.Context, scope sources.JobScope) (con
 		ctx = context.WithValue(ctx, credentialContextKey{}, *r.Credential)
 	}
 	if r.Automation != nil {
-		ctx = context.WithValue(ctx, automationKey{}, *r.Automation)
+		ctx = automation.WithIdentity(ctx, *r.Automation)
 	}
 	if r.Fence != nil {
 		ctx = context.WithValue(ctx, automationFenceKey{}, *r.Fence)

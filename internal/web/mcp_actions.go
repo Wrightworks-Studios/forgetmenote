@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -76,7 +77,7 @@ func (s *Server) actionTools(server *mcp.Server) {
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"instance": instance, "personalAssistant": map[string]any{"statusTool": "assistant_status", "contextTool": "assistant_context", "setupURL": s.origin + "/account/assistant"}, "memory": map[string]any{"recallTool": "recall_memory", "rememberTool": "remember", "statusTool": "assistant_status"}, "dataReadConsent": s.hasScope(ctx, "data:read"), "apiVersion": 1, "headless": s.headless, "user": subject(ctx), "admin": s.catalog.IsAdmin(subject(ctx)), "writeConsent": s.canWrite(ctx), "managementConsent": s.hasScope(ctx, "notes:manage"), "canCreateProjects": clientGlobal(ctx) && s.catalog.CanCreateProjects(subject(ctx)) && s.hasScope(ctx, "notes:manage"), "canAdministerInstance": clientGlobal(ctx) && s.catalog.IsAdmin(subject(ctx)) && s.hasScope(ctx, "notes:manage"), "embeddingEndpointAvailable": endpoint, "projects": projects}, nil
+		return map[string]any{"instance": instance, "personalAssistant": map[string]any{"statusTool": "assistant_status", "contextTool": "assistant_context", "setupURL": s.origin + "/account/assistant"}, "memory": map[string]any{"recallTool": "recall_memory", "rememberTool": "remember", "statusTool": "assistant_status"}, "dataReadConsent": s.hasScope(ctx, "data:read"), "apiVersion": 1, "headless": s.headless, "user": subject(ctx), "admin": s.catalog.IsAdmin(subject(ctx)), "writeConsent": s.canWrite(ctx), "managementConsent": s.hasScope(ctx, "notes:manage"), "canCreateProjects": auth.Global(ctx) && s.catalog.CanCreateProjects(subject(ctx)) && s.hasScope(ctx, "notes:manage"), "canAdministerInstance": auth.Global(ctx) && s.catalog.IsAdmin(subject(ctx)) && s.hasScope(ctx, "notes:manage"), "embeddingEndpointAvailable": endpoint, "projects": projects}, nil
 	})
 	addProjectTool(s, server, "set_note_lock", "Lock or unlock a note/folder. Requires Owner/Admin and notes:write. Supply the current project revision. Unlock only when the user requests it, never to work around a blocked edit.", "owner", func(ctx context.Context, store *workspace.Store, in struct {
 		projectArg
