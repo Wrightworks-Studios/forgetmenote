@@ -25,6 +25,7 @@ import (
 // it. The gateways share only the database and blob storage: neither disk
 // holds the job's files.
 func TestSourceJobMovesBetweenGatewaysThroughBlobStorage(t *testing.T) {
+	requireLocalOCR(t) // the job waits in a page's OCR render
 	stores := map[string]func(t *testing.T) blob.Store{
 		"directory": func(t *testing.T) blob.Store {
 			store, err := blob.OpenDir(t.TempDir())

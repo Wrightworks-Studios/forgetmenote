@@ -81,6 +81,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/sources"
 	"forgetmenote/internal/workspace"
 )
 
@@ -282,6 +283,10 @@ func contractClient(t *testing.T, app *Server, origin, user, scope string) *mcp.
 func (r *contractRun) scenario(name string, fn func(*contractScenario)) {
 	sc := &contractScenario{run: r, t: r.t, name: name, norm: newContractNormalizer(r), steps: []any{}}
 	fn(sc)
+	if sc.unrecorded {
+		r.written[name+".json"] = true
+		return
+	}
 	r.compare(name, sc.steps)
 }
 
@@ -477,6 +482,9 @@ type contractScenario struct {
 	name  string
 	norm  *contractNormalizer
 	steps []any
+	// unrecorded runs the steps without comparing them with the recording,
+	// which is the full build's.
+	unrecorded bool
 }
 
 // contractValue is a raw (unnormalized) tool result, for arguments of later steps.
@@ -1174,6 +1182,9 @@ func contractKnowledge(sc *contractScenario) {
 }
 
 func contractSources(sc *contractScenario) {
+	// A build that leaves out source integrations offers fewer formats than
+	// the recorded contract lists (docs/integrations.md).
+	sc.unrecorded = len(sources.Formats()) != len(workspace.SourceFormats())
 	sc.ok("admin", "supported source formats", "source_formats", contractArgs())
 	text := "Harbour log, morning watch.\nA large whale sighted off the quay.\n"
 	sc.run.literals[workspace.ContentHash([]byte(text))] = true

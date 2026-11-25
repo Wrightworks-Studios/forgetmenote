@@ -24,7 +24,7 @@ test('upload and URL capture keep their inputs separate and submit only the acti
  const previousReader=globalThis.FileReader;globalThis.FileReader=class{readAsDataURL(){this.result='data:text/plain;base64,QW1iZXI=';this.onload();}};
  const sent=[];
  try {
- const sources=initSources({api:async(path)=>path.endsWith('/notes') ? [{path:'research/reference.md'},{path:'notes/start.md'}] : [{extensions:['.png'],describeImages:true,hostedDescriptions:true,externalOCR:true,maxBytes:20*1024*1024},{extensions:['.txt'],maxBytes:20*1024*1024}],post:async(path,input)=>{sent.push(input);throw new Error('preview stopped by fixture');},getProject:()=>({id:'test'}),getNote:()=>null,getFolder:()=> 'research',canEdit:()=>true,dirty:()=>false});
+ const sources=initSources({api:async(path)=>path.endsWith('/notes') ? [{path:'research/reference.md'},{path:'notes/start.md'}] : [{extensions:['.png'],mime:'image/png',describeImages:true,hostedDescriptions:true,externalOCR:true,maxBytes:20*1024*1024},{extensions:['.txt'],maxBytes:20*1024*1024}],post:async(path,input)=>{sent.push(input);throw new Error('preview stopped by fixture');},getProject:()=>({id:'test'}),getNote:()=>null,getFolder:()=> 'research',canEdit:()=>true,dirty:()=>false});
  await sources.open();
  assert.equal(element('archive-folder').value,'research');
  assert.deepEqual(element('archive-folder').children.map(option=>option.value),['','notes','research']);
@@ -61,7 +61,7 @@ test('upload and URL capture keep their inputs separate and submit only the acti
  assert.equal(element('archive-url').disabled,true);
  assert.equal(element('archive-file').required,true);
  assert.equal(element('archive-origin-url').value,'https://example.org/upload-origin');
- assert.match(element('archive-formats').textContent,/20 MiB/);
+ assert.equal(element('archive-formats').textContent,'Documents, images, email, audio, and video · Up to 20 MiB');
  element('archive-file').files=[{name:'large.txt',size:18*1024*1024}];
  await element('archive-form').onsubmit({preventDefault(){}});
  assert.equal(sent.length,4,'configured budget accepts a file beyond the old 16 MiB limit');
@@ -120,6 +120,7 @@ test('durable source preview saves by job ID without resending or re-extracting 
  try {
   const sources=initSources({api:async path=>path.endsWith('/notes')?[]:path.endsWith('/formats')?[{extensions:['.txt'],maxBytes:64*1024*1024}]:{job:{id,state:'ready',pages:0},prepared:{capture:{title:'Evidence',record:{warning:'Original retained'}},html:'<p>Amber evidence</p>'}},post:async(path,input)=>{sent.push({path,input});return path.endsWith('/jobs')?{job:{id,state:'queued',pages:0}}:{path:'sources/evidence.md',revision,metadata:{title:'Evidence'}};},getProject:()=>({id:'test'}),getNote:()=>null,canEdit:()=>true,dirty:()=>false,refresh:async()=>{}});
   await sources.open();element('archive-file').files=[{name:'evidence.txt',size:5}];
+  assert.equal(element('archive-formats').textContent,'Documents, email, audio, and video · Up to 64 MiB','a build without image formats does not offer them');
   await element('archive-form').onsubmit({preventDefault(){}});
   assert.equal(element('archive-save').hidden,false);assert.match(element('archive-job-status').textContent,/Ready/);
   await element('archive-save').onclick();
