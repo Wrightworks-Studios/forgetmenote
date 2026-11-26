@@ -77,6 +77,17 @@ jobs:
           cp "$record" "$RUNNER_TEMP/record/verification.json"
           docker save "$(jq -r .image_id "$record")" | pigz -1 > "$RUNNER_TEMP/image/image.tar.gz"
           echo "verified=true" >> "$GITHUB_OUTPUT"
+      # As in Check's full job: a failed gate's full logs, browser report and traces.
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gate-failure-${{ github.run_attempt }}
+          path: |
+            ~/.cache/forgetmenote/releases/${{ github.sha }}/*.log
+            ~/.cache/forgetmenote/releases/${{ github.sha }}/*.report.json
+            ~/.cache/forgetmenote/releases/${{ github.sha }}/verification.json
+            ~/.cache/forgetmenote/releases/${{ github.sha }}/browser-*-results/
+          retention-days: 7
       # The complete record is evidence; the published attestation names its SHA-256.
       - if: steps.gate.outputs.verified == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

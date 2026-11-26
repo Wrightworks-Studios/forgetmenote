@@ -109,7 +109,7 @@ func (s *Service) ExecuteResearchTool(ctx context.Context, a chat.RunAuth, id, r
 		return err
 	}
 	if in.url != "" && !researchURLProvided(in.conversation, *in.run, in.url) {
-		return s.hooks.PrepareOperation(ctx, a, id, runID, call, call.Arguments)
+		return s.prepareChatOperation(ctx, a, id, runID, call, call.Arguments)
 	}
 	return s.performResearch(ctx, a, id, runID, key, call, in, connection, false)
 }

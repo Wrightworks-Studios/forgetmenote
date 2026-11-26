@@ -1,4 +1,4 @@
-package web
+package chatrun
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func classifyChatActionOutcome(result json.RawMessage, failure error) chatAction
 	return outcome
 }
 
-// completeChatOperation runs inside the caller's chatRunUpdate transaction.
+// completeChatOperation runs inside the caller's RunUpdate transaction.
 // A known acknowledgement must survive subsequent revocation: persist its private
 // receipt regardless of disclosure authority. Callers separately gate model/HTTP
 // results and retain their own evidence construction and run transitions.

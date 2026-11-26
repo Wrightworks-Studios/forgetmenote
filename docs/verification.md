@@ -193,7 +193,9 @@ A normal resume reuses successes, runs interrupted work and stops on a previous
 failure. Investigate its original HTTP status/body, application logs and retained
 trace before an explicit `--retry-failed`. There are no automatic retries or
 weakened assertions. A later pass alone does not establish that an intermittent
-bug is fixed. Keep synthetic credentials/data and browser traces private.
+bug is fixed. Keep synthetic credentials/data and browser traces private. The one
+exception is a failed gate on a GitHub runner, whose evidence the
+[Check](#pr-feedback-and-complete-regression) and [Publish](#published-images) jobs upload.
 
 ## Performance targets and known bottlenecks
 
@@ -269,7 +271,15 @@ baseline means all race tests, including the entire web package.
 GitHub Check uses this tier for pull requests. Its manual full
 runs execute `release_image.py --verify-only --mode full` on a standard runner,
 with npm downloads, Playwright browsers and image layers (`FMN_IMAGE_CACHE=gha`)
-in the Actions cache. Pushes to `main` and `next` and a weekly schedule run only
+in the Actions cache. The gate prints only the last 16,000 characters of a failed
+check's log, so a failed full run uploads the candidate's check logs
+(`REVISION/*.log`), browser reports, `verification.json` and `browser-*-results/`
+traces and screenshots as its `gate-failure-ATTEMPT` artifact, kept for seven days.
+Anyone signed in to GitHub can read a public repository's artifacts. These hold only
+synthetic test data, and `release_image.py` keeps the Actions runtime variables
+(`ACTIONS_*`, with the cache token) from every command but the image build, because a
+test may record its environment: the trace of a browser launched with one does.
+Pushes to `main` and `next` and a weekly schedule run only
 the advisory scan; a push to `main` also [publishes an image](#published-images). Publication
 uses `--since DEPLOYED_REVISION --mode auto` by default. An automatic full plan keeps
 every Go, web and browser test. Of the slow container scenarios (source, jev, oidc,
@@ -318,7 +328,8 @@ as `main-COMMIT`:
    `--since-published`: against the newest earlier `main` commit whose image the
    registry serves without a sign-in. Without one, as for the first publication or a
    package that is not public, the gate runs completely. This job holds no registry
-   or signing credentials, although npm packages and every test run in it.
+   or signing credentials, although npm packages and every test run in it. A failed
+   gate uploads the same `gate-failure-ATTEMPT` artifact as Check's full job.
 2. The `publish` job loads the exact image the gate checked and runs only
    `release_image.py --publish-verified`, which refuses a record that is incomplete,
    names another revision or has a failed check, and never replaces a different image

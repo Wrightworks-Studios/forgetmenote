@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/citationchecks"
 	"net/http"
 	"strings"
 	"sync"
@@ -108,7 +109,7 @@ func TestJevR1QueuedCitationChecksDrainAndRecheckAuthority(t *testing.T) {
 				}
 			}
 			w := proxyCall(app, "alice", "GET", paths[3], "")
-			var check jevCitationCheck
+			var check citationchecks.Check
 			json.Unmarshal(w.Body.Bytes(), &check)
 			if w.Code != 200 || check.State != "pending" || check.Turn != "" {
 				t.Fatal("queued pipeline prepared or lost pending state", w.Code, w.Body.String())
@@ -204,7 +205,7 @@ func TestJevR1DeletingQueuedCitationChatRemovesPendingRecord(t *testing.T) {
 	if w := proxyCall(app, "alice", "GET", queued, ""); w.Code != 404 {
 		t.Fatal("deleted queued chat disclosed state", w.Code)
 	}
-	record, e := app.citationRecord("alice", "default", other.ID)
+	record, e := app.chatrun.CitationRecord("alice", "default", other.ID)
 	if e != nil || len(record.Checks) != 0 {
 		t.Fatal("queued worker recreated deleted claims", record, e)
 	}

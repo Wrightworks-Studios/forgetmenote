@@ -123,8 +123,8 @@ the chat embedding policy and the origin, each read at each call.
 `internal/jev` owns Jev reviews and the organizer: review and organization
 jobs, their scheduler, runner, retention and results, notifications, and each
 person's and notebook's Jev settings. Web keeps the shared Jev admission, the
-protected Inbox consent check, the instance AI policy and the citation checks
-a chat run makes. The required hooks bind the browser identity, the instance
+protected Inbox consent check and the instance AI policy; `internal/chatrun`
+makes the citation checks a chat run asks for. The required hooks bind the browser identity, the instance
 AI refusal, the configured judge, that admission and the Inbox check, the
 policy's preferences, the instance AI sync and Quick Notes, each read at each
 call. A run reaches notebooks only through the catalog, so it rechecks its
@@ -169,24 +169,26 @@ those checks. The few exports only tests use are in `testexports.go`. Boundary
 tests fail on a production reference to them, on a grant begun, finished or
 removed outside the connection routes, and on a cookie handled outside web.
 
-`internal/chatrun` owns the chat run engine: the rounds of a run, fitting each
-model request to its connection, retrieval and research, the evidence and
-provenance of tool results, review workflows and the run's terminal state. Web
-keeps the routes, the runner that starts a run, its controls and the Jev
-citation check, and every authorization check: the run recheck, client
-notebook access, data citations, source scope, Jev authorization and personal
-context. The chat leg of the guard (`scopeChatActionArguments`,
-`guardChatAction`, `chatPersonalApproval` and `chatReadOnly`) stays beside the
-dispatcher. A model's tool call reaches an action only through the
-`ExecuteTool` hook, which web binds to its executor: it rechecks the run,
-applies that guard and dispatches. A boundary test fails if the engine reaches
-the action registry or another hub's action methods. The required hooks bind
-those checks, the registered tools a run may offer, knowledge engine access,
-scoped retrieval, Jev preferences, source work admission, the chat runtime,
-data connections, repositories and the origin; those set after startup are
-read at each call. `ExecuteTool`, `PrepareOperation` and `StartCitationCheck`
-are temporary, until the runner and its controls move here. The engine's
-server-level tests stay in web; the exports only tests use are in
+`internal/chatrun` owns embedded chat: its routes, the runner that starts a run
+and executes the model's tool calls, approvals and the other controls,
+deletion, the rounds of a run, fitting each model request to its connection,
+retrieval and research, the evidence and provenance of tool results, review
+workflows, the run's terminal state and the Jev citation check of an answer.
+Web keeps every authorization check: the request's identity, the run's session
+and its recheck (`chatRunAuth`, `checkRun` and `runContext`), client notebook
+access, data citations, source scope, Jev authorization and personal context.
+The chat leg of the guard (`scopeChatActionArguments`, `guardChatAction`,
+`chatPersonalApproval` and `chatReadOnly`) stays beside the dispatcher. A
+model's tool call reaches an action only through the `DispatchAction` hook,
+which web binds to its dispatcher; the run's executor rechecks the run before
+and after it, and the dispatcher applies the guard. The executor also asks the
+dispatcher for canonical arguments and the guard's preflight of a change. A
+boundary test fails if the engine reaches the action registry or another hub's
+action methods. The required hooks bind those checks, the registered tools a
+run may offer, knowledge engine access, scoped retrieval, Jev preferences,
+source work admission, the chat runtime, citation checks, data connections,
+repositories and the origin; those set after startup are read at each call. The
+engine's server-level tests stay in web; the exports only tests use are in
 `testexports.go`, and a boundary test fails on any production reference to
 them.
 

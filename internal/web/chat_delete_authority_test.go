@@ -59,7 +59,7 @@ func TestChatDeleteRechecksQueuedAuthority(t *testing.T) {
 					b := make([]byte, 2<<20)
 					n := runtime.Stack(b, true)
 					for _, stack := range strings.Split(string(b[:n]), "\n\n") {
-						if strings.Contains(stack, "(*Runtime).RetainContent") && strings.Contains(stack, "(*Server).chatDelete") {
+						if strings.Contains(stack, "(*Runtime).RetainContent") && strings.Contains(stack, "chatrun.(*Service).chatDelete") {
 							queued = true
 							break
 						}

@@ -156,7 +156,7 @@ def check_image(image_id, revision, source_url):
     return image
 
 
-def build_and_verify(root, revision, verification, source_url, jobs):
+def build_and_verify(root, revision, verification, source_url, jobs, actions_runtime):
     candidate = verification.candidate
     archive = candidate / "source.tar"
     source = candidate / "source"
@@ -265,7 +265,7 @@ def build_and_verify(root, revision, verification, source_url, jobs):
 
     # The build holds the Docker lane from the start, beside the quick preflight
     # and host checks; containers of the image queue behind it.
-    checks.append(dict(name="build", command=build_command, inputs=build_inputs, cwd=context,
+    checks.append(dict(name="build", command=build_command, inputs=build_inputs, cwd=context, env=actions_runtime,
                        force=not exists, docker=True, eager=True, then=image_checks))
     # Each browser worker drives its own fixture server and Chromium: one slot apiece.
     workers = min(4, max(1, jobs // 3))
@@ -484,6 +484,11 @@ def publish_verified(args, root):
 
 
 def release(args, root):
+    # The Actions runtime variables, token included, are for the image build's layer
+    # cache alone (image_cache_options). Nothing else the gate runs inherits them:
+    # GitHub publishes a failed gate's logs and traces (check.yml), and a test may
+    # record its environment, as the trace of a browser launched with one does.
+    actions_runtime = {name: os.environ.pop(name) for name in list(os.environ) if name.startswith("ACTIONS_")}
     if not args.verify_only and run(["git", "branch", "--show-current"], cwd=root, capture=True) != "main":
         raise ValueError("Release from the main branch.")
     if run(["git", "status", "--porcelain"], cwd=root, capture=True):
@@ -561,7 +566,7 @@ def release(args, root):
             if retained:plan['retained_failed_browser_tests']=retained
         plan['operator_revision']=operator_revision
         verification.plan.update(plan)
-        image_id = build_and_verify(root, revision, verification, source_url, args.jobs)
+        image_id = build_and_verify(root, revision, verification, source_url, args.jobs, actions_runtime)
         if args.verify_only:
             print("Verified source: " + revision + "\nVerified image: " + image_id)
             return
