@@ -301,3 +301,92 @@ func TestAutomationAnswerHidesCheckFailureDetails(t *testing.T) {
 		t.Fatalf("check failure reported as %v after %d requests, %d output tokens", err, requests.Load(), run.OutputTokens)
 	}
 }
+
+// eventTask runs a task job for one batch of events, as the runtime does once
+// they are ready.
+func eventTask(t *testing.T, app *Server, id string, events ...automation.Event) error {
+	t.Helper()
+	spec := automation.Spec{ID: "summarize", Kind: "task", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Output: "summary.md", Instruction: "Summarize the trigger."}
+	run := automation.Run{ID: automation.Hash(id), Spec: spec, Batch: &automation.EventBatch{Expires: time.Now().Add(time.Hour), Events: events}}
+	return app.runAutomation(t.Context(), &run, func() error { return nil })
+}
+
+// An event run answers only while the person whose message raised the event
+// could still read the notebook: once their session is revoked or they leave
+// the notebook, the run asks no model and publishes nothing.
+func TestAutomationEventRunNeedsItsEventAuthorsCurrentAccess(t *testing.T) {
+	for _, change := range []string{"session revoked", "access removed"} {
+		t.Run(change, func(t *testing.T) {
+			model := &answerFixture{}
+			app, _ := runnerFixture(t, model.serve("# Summary\nDone."))
+			if err := app.catalog.Member(catalog.Bootstrap, "default", "alice", "edit"); err != nil {
+				t.Fatal(err)
+			}
+			if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "bob"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := app.catalog.Member(catalog.Bootstrap, "default", "bob", "read"); err != nil {
+				t.Fatal(err)
+			}
+			event := automation.Event{ID: "e1", Actor: "bob", Epoch: app.catalog.Epoch("bob"), Text: "Customer asked about pricing", At: time.Now().UTC().Truncate(time.Second)}
+			if err := eventTask(t, app, "current", event); err != nil || len(model.asked()) != 1 {
+				t.Fatalf("current event: %v after %d model requests", err, len(model.asked()))
+			}
+			var err error
+			if change == "session revoked" {
+				err = app.catalog.Revoke(catalog.Bootstrap, "bob")
+			} else {
+				err = app.catalog.Member(catalog.Bootstrap, "default", "bob", "")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = eventTask(t, app, "stale", event); err == nil || len(model.asked()) != 1 {
+				t.Fatalf("event from an author without access: %v after %d model requests", err, len(model.asked()))
+			}
+		})
+	}
+}
+
+// A repository event answers for the revision it saw. Once the repository has
+// moved past it, a run of the old event asks no model and publishes nothing.
+func TestAutomationRepositoryEventRunStopsOnceTheRepositoryMoves(t *testing.T) {
+	model := &answerFixture{}
+	app, _ := runnerFixture(t, model.serve("# Summary\nDone."))
+	if err := app.catalog.Member(catalog.Bootstrap, "default", "alice", "edit"); err != nil {
+		t.Fatal(err)
+	}
+	advance := configureSearchSource(t, app)
+	state, err := app.repositories.Status("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := automation.Event{ID: "push", Project: "default", Revision: state.Downloaded, At: time.Now().UTC().Truncate(time.Second)}
+	if err = eventTask(t, app, "current", event); err != nil || len(model.asked()) != 1 {
+		t.Fatalf("current repository event: %v after %d model requests", err, len(model.asked()))
+	}
+	advance(map[string]string{"moved.md": "# Moved\n"})
+	if err = eventTask(t, app, "superseded", event); err == nil || err.Error() != "repository event was superseded" || len(model.asked()) != 1 {
+		t.Fatalf("superseded repository event: %v after %d model requests", err, len(model.asked()))
+	}
+}
+
+// A model's call to a tool the run did not offer, such as a note write, stops
+// the answer: the tool does not run and the model is not asked again. The
+// provider already refuses a response that calls a tool its request did not
+// list, before the run's own check of the tools it offered.
+func TestAutomationAnswerStopsAtAToolItWasNotOffered(t *testing.T) {
+	app, run, ctx, requests := automationAnswerFixture(t, 4, 4, func(n int32, _ []chat.Message) string {
+		if n == 1 {
+			return automationToolCalls(`save_note {"project":"default","path":"summary.md","content":"# Written by the model","revision":""}`)
+		}
+		return `{"choices":[{"message":{"role":"assistant","content":"Saved."},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5}}`
+	})
+	if _, err := app.automationAnswer(ctx, run, "Write the summary note.", true); !errors.Is(err, chat.ErrProviderContract) && !errors.Is(err, workspace.ErrForbidden) || requests.Load() != 1 {
+		t.Fatalf("unoffered tool call: %v after %d requests", err, requests.Load())
+	}
+	store, _ := app.catalog.Access(catalog.Bootstrap, "default", "read")
+	if _, err := store.Read(t.Context(), "summary.md", ""); !os.IsNotExist(err) {
+		t.Fatal("unoffered tool wrote a note", err)
+	}
+}

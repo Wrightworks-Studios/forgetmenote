@@ -169,8 +169,9 @@ func TestScriptPackageAdministrationRequiresExplicitPinnedInstall(t *testing.T) 
 	if login.Code != 303 {
 		t.Fatal(login.Code, login.Body.String())
 	}
-	for _, action := range []string{"discover_automation_packages", "prepare_automation_package", "install_automation_package", "save_automation"} {
-		w := localRequest(app, "/api/organization/action/"+action, `{}`, login.Result().Cookies()[0])
+	// Discovery names the notebook it searches, which this owner may read.
+	for action, body := range map[string]string{"discover_automation_packages": `{"project":"default"}`, "prepare_automation_package": `{}`, "install_automation_package": `{}`, "save_automation": `{}`} {
+		w := localRequest(app, "/api/organization/action/"+action, body, login.Result().Cookies()[0])
 		if w.Code != 403 {
 			t.Fatalf("notebook owner could %s: HTTP %d %s", action, w.Code, w.Body.String())
 		}
@@ -306,9 +307,24 @@ func TestScriptRunsInServerWithoutExecutor(t *testing.T) {
 		t.Fatal("missing direct-process result", e.run.Result)
 	}
 }
+
+var scriptReadOperation = connectors.Operation{Name: "read", ReadOnly: true, Method: "GET", Path: "/case"}
+var scriptSubmitOperation = connectors.Operation{Name: "submit", ReadOnly: false, Method: "POST", Path: "/submit", BodyArgument: "body", InputSchema: json.RawMessage(`{"type":"object","properties":{"body":{"type":"object"}},"required":["body"],"additionalProperties":false}`)}
+
 func bindScriptConnector(t *testing.T, app *Server, e *scriptExecution, endpoint string) {
 	t.Helper()
-	c := connectors.Connection{ID: "fixture-api", Label: "Fixture API", Kind: "http", Endpoint: endpoint, ExternalProcessing: true, Operations: []connectors.Operation{{Name: "read", ReadOnly: true, Method: "GET", Path: "/case"}, {Name: "submit", ReadOnly: false, Method: "POST", Path: "/submit", BodyArgument: "body", InputSchema: json.RawMessage(`{"type":"object","properties":{"body":{"type":"object"}},"required":["body"],"additionalProperties":false}`)}}}
+	bindScriptOperations(t, app, e, endpoint, scriptReadOperation, scriptSubmitOperation)
+}
+
+// bindScriptOperations binds the package's api alias to a connection with
+// operations, each granted to the job and to its actor.
+func bindScriptOperations(t *testing.T, app *Server, e *scriptExecution, endpoint string, operations ...connectors.Operation) {
+	t.Helper()
+	names := []string{}
+	for _, op := range operations {
+		names = append(names, op.Name)
+	}
+	c := connectors.Connection{ID: "fixture-api", Label: "Fixture API", Kind: "http", Endpoint: endpoint, ExternalProcessing: true, Operations: operations}
 	raw, _ := json.Marshal(connectors.Config{Version: 1, Connections: []connectors.Connection{c}})
 	file := filepath.Join(t.TempDir(), "connections.json")
 	os.WriteFile(file, raw, 0600)
@@ -316,13 +332,13 @@ func bindScriptConnector(t *testing.T, app *Server, e *scriptExecution, endpoint
 		t.Fatal(err)
 	}
 	e.run.Spec.Connections = []string{c.ID}
-	e.run.Spec.Operations = map[string][]string{c.ID: {"read", "submit"}}
+	e.run.Spec.Operations = map[string][]string{c.ID: names}
 	e.run.Spec.Script.Connections["api"] = c.ID
 	grant, err := app.catalog.ConnectionAccess(catalog.Bootstrap, c.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant.Users = map[string][]string{e.run.Spec.Actor: {"read", "submit"}}
+	grant.Users = map[string][]string{e.run.Spec.Actor: names}
 	if _, err = app.catalog.SetConnectionAccess(catalog.Bootstrap, grant); err != nil {
 		t.Fatal(err)
 	}
@@ -479,5 +495,67 @@ def main(host):
 	}
 	if !e.run.Script.Complete {
 		t.Fatal("missing completion")
+	}
+}
+
+// An installation grants exactly the capabilities its package requests:
+// validation refuses one that withholds a capability the package needs, or
+// grants one it never asked for.
+func TestScriptInstallationGrantsMatchTheCapabilitiesItsPackageRequests(t *testing.T) {
+	app, e := scriptFixture(t, "def main(host): return {}", []string{"checkpoint"}, nil, nil)
+	admin := recoverySession(t, app)
+	validate := func(grants ...string) (int, string) {
+		spec := e.run.Spec
+		script := *spec.Script
+		script.Capabilities = grants
+		spec.Script = &script
+		raw, _ := json.Marshal(map[string]any{"spec": spec})
+		w := localRequest(app, "/api/organization/action/validate_automation", string(raw), admin)
+		return w.Code, w.Body.String()
+	}
+	if code, body := validate("checkpoint"); code != 200 {
+		t.Fatalf("requested grant: HTTP %d %s", code, body)
+	}
+	if code, body := validate(); code == 200 || !strings.Contains(body, "package capability not granted: checkpoint") {
+		t.Errorf("withheld capability: HTTP %d %s", code, body)
+	}
+	if code, body := validate("checkpoint", "web.fetch"); code == 200 || !strings.Contains(body, "grant is not requested by package: web.fetch") {
+		t.Errorf("unrequested grant: HTTP %d %s", code, body)
+	}
+}
+
+// A package's connector call stays within its installation: a call through
+// an alias it never bound, of an operation the package did not request, or of
+// a write through connectors.read is refused before anything reaches the
+// connection.
+func TestScriptConnectorCallsStayWithinThePackagesRequest(t *testing.T) {
+	app, e := scriptFixture(t, "def main(host): return {}", []string{"connectors.read", "connectors.submit"}, map[string][]string{"api": {"read", "submit"}}, nil)
+	requests := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"revision":"one"}`)
+	}))
+	defer upstream.Close()
+	// The job and its actor may also list, which the package never asked for.
+	bindScriptOperations(t, app, e, upstream.URL, scriptReadOperation, connectors.Operation{Name: "list", ReadOnly: true, Method: "GET", Path: "/list"}, scriptSubmitOperation)
+	submission := map[string]any{"body": map[string]string{"submission_id": "stable"}}
+	for _, c := range []struct {
+		step, operation string
+		call            map[string]any
+	}{
+		{"unbound-alias", "connectors.read", map[string]any{"connection": "other", "operation": "read", "arguments": map[string]any{}}},
+		{"unrequested-operation", "connectors.read", map[string]any{"connection": "api", "operation": "list", "arguments": map[string]any{}}},
+		{"write-through-read", "connectors.read", map[string]any{"connection": "api", "operation": "submit", "arguments": submission}},
+	} {
+		if _, err := hostStep(t, app, e, c.step, c.operation, c.call); err == nil {
+			t.Errorf("%s accepted", c.step)
+		}
+	}
+	if requests != 0 {
+		t.Fatalf("refused calls reached the connection %d times", requests)
+	}
+	if _, err := hostStep(t, app, e, "bound-read", "connectors.read", map[string]any{"connection": "api", "operation": "read", "arguments": map[string]any{}}); err != nil || requests != 1 {
+		t.Fatalf("bound read: %v after %d requests", err, requests)
 	}
 }
