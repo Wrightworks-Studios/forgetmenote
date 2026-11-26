@@ -1,13 +1,14 @@
-package web
+package chatrun
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
-	"strings"
-	"time"
 )
 
 // Query inference shares the explicit run deadline and leaves most remaining
@@ -20,9 +21,9 @@ func chatEmbeddingWait(ctx context.Context, connection chat.Connection) time.Dur
 	return max(time.Nanosecond, allowance)
 }
 
-func (s *Server) chatRetrieve(ctx context.Context, id string, run chat.Run, engine *knowledge.Engine, query knowledge.RetrievalQuery, connection chat.Connection, initial bool) (result chatRetrieval, err error) {
+func (s *Service) Retrieve(ctx context.Context, id string, run chat.Run, engine *knowledge.Engine, query knowledge.RetrievalQuery, connection chat.Connection, initial bool) (result chatRetrieval, err error) {
 	ctx = knowledge.WithQueryCache(ctx)
-	query, err = bindChatRetrieval(run, query)
+	query, err = BindRetrieval(run, query)
 	if err != nil {
 		return result, err
 	}
@@ -32,9 +33,9 @@ func (s *Server) chatRetrieve(ctx context.Context, id string, run chat.Run, engi
 		s.chatRetrievalDiagnostic(id, run, connection, result.RetrievalResult, err, initial, queries, time.Since(started))
 	}()
 	if scope := chat.RunScopeFrom(ctx); scope != nil {
-		judge, localOnly := s.jevConfigured()
+		judge, localOnly := s.hooks.JevConfigured()
 		if judge != nil && !localOnly {
-			prefs, prefErr := s.decisionPreferences(scope.Owner)
+			prefs, prefErr := s.hooks.DecisionPreferences(scope.Owner)
 			if prefErr != nil {
 				return result, prefErr
 			}
@@ -46,11 +47,11 @@ func (s *Server) chatRetrieve(ctx context.Context, id string, run chat.Run, engi
 				auth, hasAuth := chat.RunAuthFrom(ctx)
 				query.Jev = &knowledge.JevRanking{Service: judge, Scope: decision.Scope{Actor: account.ID, Notebook: scope.Project, Feature: "rerank", Run: run.ID, Chat: id, Operation: "retrieval"}, Check: func(checkCtx context.Context) error {
 					if hasAuth {
-						if err := s.checkRun(auth); err != nil {
+						if err := s.hooks.CheckRun(auth); err != nil {
 							return err
 						}
 					}
-					if err := s.jevAuthorized(checkCtx, scope.Owner, scope.Project, "rerank", judge); err != nil {
+					if err := s.hooks.JevAuthorized(checkCtx, scope.Owner, scope.Project, "rerank", judge); err != nil {
 						return err
 					}
 					store, err := s.catalog.Access(scope.Owner, scope.Project, "read")

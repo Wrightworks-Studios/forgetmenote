@@ -1,4 +1,4 @@
-package web
+package chatrun
 
 import (
 	"crypto/sha256"
@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/webcore"
 )
 
 var updateChatFit = flag.Bool("update-chat-fit", false, "rewrite testdata/chat-fit-characterization.json")
@@ -102,7 +103,7 @@ func chatFitCase(seed int) (chat.Run, chat.Request, int, func(chat.Request) (int
 				// A legacy result: clipped raw JSON that only its receipt can restore.
 				var result json.RawMessage
 				if name == "read_note" {
-					result, _ = json.Marshal(noteOutput{Path: found[0].Path, Content: found[0].Text, Revision: found[0].Revision})
+					result, _ = json.Marshal(webcore.NoteOutput{Path: found[0].Path, Content: found[0].Text, Revision: found[0].Revision})
 				} else {
 					passages := []map[string]any{}
 					for _, f := range found {
@@ -200,7 +201,7 @@ func TestChatFitCharacterization(t *testing.T) {
 		}
 		raw, _ := json.Marshal(struct {
 			Request chat.Request
-			Fit     chatContextFit
+			Fit     ContextFit
 			Error   string
 		}{fitted, fit, message})
 		sum := sha256.Sum256(raw)

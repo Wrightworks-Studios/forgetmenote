@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/workspace"
 	"forgetmenote/internal/workspace/workspacetest"
 	"net/http"
@@ -182,12 +183,12 @@ func TestChatReviewGuidanceAbsentAndOversized(t *testing.T) {
 
 func TestChatGuidancePinsCommittedRevisionAndPresence(t *testing.T) {
 	store, _ := workspacetest.New(t, t.TempDir(), nil)
-	app := &Server{}
+	app := &Server{chatrun: guidanceEngine(t)}
 	absentSnapshot, err := store.Snapshot(t.Context(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	absent, absentHash, err := app.chatInstructions(t.Context(), store, absentSnapshot.Revision)
+	absent, absentHash, err := app.chatrun.ChatInstructions(t.Context(), store, absentSnapshot.Revision)
 	if err != nil || absent["exists"] != false || absent["revision"] != absentSnapshot.Revision {
 		t.Fatalf("absent committed guidance: %+v %v", absent, err)
 	}
@@ -206,26 +207,26 @@ func TestChatGuidancePinsCommittedRevisionAndPresence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	original, originalHash, err := app.chatInstructions(t.Context(), store, snapshot.Revision)
+	original, originalHash, err := app.chatrun.ChatInstructions(t.Context(), store, snapshot.Revision)
 	if err != nil || original["content"] != string(first.Content) || original["revision"] != snapshot.Revision {
 		t.Fatalf("guidance escaped committed snapshot: %+v %v", original, err)
 	}
-	initial, initialHash, err := app.chatInstructions(t.Context(), store, first.Revision)
+	initial, initialHash, err := app.chatrun.ChatInstructions(t.Context(), store, first.Revision)
 	if err != nil || initialHash != originalHash || initial["content"] != original["content"] {
 		t.Fatalf("unrelated note commit changed guidance identity: %+v %v", initial, err)
 	}
-	current, currentHash, err := app.chatInstructions(t.Context(), store, second.Revision)
+	current, currentHash, err := app.chatrun.ChatInstructions(t.Context(), store, second.Revision)
 	if err != nil || current["content"] != string(second.Content) || currentHash == originalHash || currentHash == absentHash {
 		t.Fatalf("guidance content/presence identity missing: %+v %v", current, err)
 	}
-	if _, _, err = app.chatInstructions(t.Context(), store, "invalid-revision"); !errors.Is(err, workspace.ErrForbidden) {
+	if _, _, err = app.chatrun.ChatInstructions(t.Context(), store, "invalid-revision"); !errors.Is(err, workspace.ErrForbidden) {
 		t.Fatalf("unauthorized revision silently treated as absent: %v", err)
 	}
 	empty, err := store.WriteInstructions(t.Context(), []byte(""), second.Revision, "operator")
 	if err != nil {
 		t.Fatal(err)
 	}
-	emptyGuidance, emptyHash, err := app.chatInstructions(t.Context(), store, empty.Revision)
+	emptyGuidance, emptyHash, err := app.chatrun.ChatInstructions(t.Context(), store, empty.Revision)
 	if err != nil || emptyGuidance["exists"] != true || emptyGuidance["content"] != "" || emptyHash == absentHash {
 		t.Fatalf("empty committed guidance conflated with absence: %+v %v", emptyGuidance, err)
 	}
@@ -242,7 +243,18 @@ func TestChatGuidancePreservesPermissionErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := (&Server{}).chatInstructions(t.Context(), store, snapshot.Revision); !errors.Is(err, workspace.ErrForbidden) {
+	if _, _, err := guidanceEngine(t).ChatInstructions(t.Context(), store, snapshot.Revision); !errors.Is(err, workspace.ErrForbidden) {
 		t.Fatalf("excluded instructions silently treated as absent: %v", err)
 	}
+}
+
+// guidanceEngine is the chat engine of a server with no state, which is all
+// reading committed guidance needs.
+func guidanceEngine(t *testing.T) *chatrun.Service {
+	t.Helper()
+	engine, err := chatrun.New(new(catalog.Catalog), (&Server{}).chatRunHooks())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return engine
 }

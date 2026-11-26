@@ -14,6 +14,7 @@ import (
 	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 )
@@ -339,7 +340,7 @@ func (s *Server) repairRecipe(ctx context.Context, r *automation.Run, save func(
 	if err != nil {
 		return false, err
 	}
-	doc, err := readChatNote(ctx, store, r.Spec.Recipe, "")
+	doc, err := chatrun.ReadNote(ctx, store, r.Spec.Recipe, "")
 	if err != nil {
 		return false, err
 	}

@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/workspace"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // trashLinkersFixture saves F/a.md and two notes linking to it, L/free.md
@@ -84,7 +84,7 @@ func TestChatMoveUpdatesTrashLinksAndReportsOnlyCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	args, _ := json.Marshal(map[string]any{"project": "default", "from": "F", "to": "G", "revision": status.Revision})
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "move", Name: "move_notes", Arguments: args}, app.chat.Config.Connections[0]); err != errChatConfirmation {
+	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "move", Name: "move_notes", Arguments: args}, app.chat.Config.Connections[0]); err != chatrun.ErrConfirmation {
 		t.Fatalf("prepare: %v", err)
 	}
 	prepared, err := app.chat.Store.Read("alice", "default", c.ID)

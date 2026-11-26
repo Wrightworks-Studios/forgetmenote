@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/workspace"
 )
@@ -117,7 +118,7 @@ func (s *Server) routeLearning(ctx context.Context, r *automation.Run, groups ma
 			r.Learning.Sources = append(r.Learning.Sources, p)
 		}
 		body := string(workspace.MarkdownBody(profiles[p].Content))
-		stateProfiles[fmt.Sprintf("p%d", i)] = map[string]any{"path": p, "excerpt": textLimit(body, 1400)}
+		stateProfiles[fmt.Sprintf("p%d", i)] = map[string]any{"path": p, "excerpt": chatrun.TextLimit(body, 1400)}
 	}
 	patterns := map[string]any{}
 	for i, key := range keys {
@@ -131,7 +132,7 @@ func (s *Server) routeLearning(ctx context.Context, r *automation.Run, groups ma
 			}
 			variants = append(variants, map[string]any{"shape": shape, "observations": len(learningExamples(groups[member]))})
 		}
-		patterns[fmt.Sprintf("g%d", i)] = map[string]any{"connection": e.Call.Connection, "operation": e.Call.Operation, "intent": textLimit(e.Intent, 400), "variants": variants}
+		patterns[fmt.Sprintf("g%d", i)] = map[string]any{"connection": e.Call.Connection, "operation": e.Call.Operation, "intent": chatrun.TextLimit(e.Intent, 400), "variants": variants}
 	}
 	request := decision.Request{State: map[string]any{"patterns": patterns, "profiles": stateProfiles}, Questions: map[string]decision.Question{}}
 	for i, key := range keys {

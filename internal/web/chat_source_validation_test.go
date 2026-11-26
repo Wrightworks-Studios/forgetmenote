@@ -59,7 +59,7 @@ func TestChatSourceValidationRereadsOtherNotebookCitations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.validateChatSources(scoped, run, false); err != nil {
+	if err = app.chatrun.ValidateSources(scoped, run, false); err != nil {
 		t.Fatalf("unchanged citations rejected: %v", err)
 	}
 	revise := func(content string) {
@@ -73,7 +73,7 @@ func TestChatSourceValidationRereadsOtherNotebookCitations(t *testing.T) {
 		}
 	}
 	revise("# Note 3\nRevised evidence.")
-	if err = app.validateChatSources(scoped, run, false); !errors.Is(err, workspace.ErrConflict) {
+	if err = app.chatrun.ValidateSources(scoped, run, false); !errors.Is(err, workspace.ErrConflict) {
 		t.Fatalf("changed cited note accepted: %v", err)
 	}
 	history := run
@@ -81,7 +81,7 @@ func TestChatSourceValidationRereadsOtherNotebookCitations(t *testing.T) {
 	if scoped, err = chat.WithRunScope(base, conversation, history); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.validateChatSources(scoped, history, false); err != nil {
+	if err = app.chatrun.ValidateSources(scoped, history, false); err != nil {
 		t.Fatalf("history corpus rejected its pinned revisions: %v", err)
 	}
 	revise("---\nfmn-container: draft\n---\n# Note 3\nDraft.")
@@ -90,7 +90,7 @@ func TestChatSourceValidationRereadsOtherNotebookCitations(t *testing.T) {
 	if scoped, err = chat.WithRunScope(base, conversation, current); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.validateChatSources(scoped, current, false); !errors.Is(err, chat.ErrOutsideCorpus) {
+	if err = app.chatrun.ValidateSources(scoped, current, false); !errors.Is(err, chat.ErrOutsideCorpus) {
 		t.Fatalf("note outside the corpus accepted: %v", err)
 	}
 }

@@ -1,16 +1,17 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/knowledge"
-	"forgetmenote/internal/workspace"
 	"net/url"
 	"sort"
 	"strings"
+
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/workspace"
 )
 
 const reviewChunkRunes = 1200
@@ -28,7 +29,7 @@ func reviewChunks(content string) []string {
 	}
 	return parts
 }
-func reviewComplete(r *chat.Coverage) bool {
+func ReviewComplete(r *chat.Coverage) bool {
 	for _, n := range r.Notes {
 		if n.State != "examined" || n.Cursor != n.Total || !n.Provenance.Complete || !n.Provenance.AttachmentsTracked {
 			return false
@@ -48,18 +49,18 @@ func reviewProgress(r *chat.Coverage) map[string]any {
 	return map[string]any{"corpusId": r.CorpusID, "historyLimited": r.HistoryLimited, "coverageMeaning": "All eligible current notes only. Historical comparisons are bounded and never exhaustive historical coverage.", "revision": r.Revision, "examined": examined, "total": len(r.Notes), "passagesExamined": parts, "passagesTotal": total, "complete": r.Complete, "message": fmt.Sprintf("Examined %d of %d notes (%d of %d original passages)", examined, len(r.Notes), parts, total)}
 }
 
-// prepareChatReview inventories authorized committed content. Every batch contains
+// PrepareReview inventories authorized committed content. Every batch contains
 // one original note passage; extra comparison passages never count as coverage.
 // A resumed or concurrently changed notebook requeues obsolete analysis.
-func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runID string, connection chat.Connection) (bool, error) {
-	if err := s.checkRun(a); err != nil {
+func (s *Service) PrepareReview(ctx context.Context, a chat.RunAuth, id, runID string, connection chat.Connection) (bool, error) {
+	if err := s.hooks.CheckRun(a); err != nil {
 		return false, err
 	}
 	store, err := s.catalog.Access(a.User, a.Project, "read")
 	if err != nil {
 		return false, err
 	}
-	c, err := s.chat.Store.Read(a.User, a.Project, id)
+	c, err := s.hooks.Chat().Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return false, err
 	}
@@ -71,7 +72,7 @@ func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runI
 	if err != nil {
 		return false, err
 	}
-	snapshot, err := chatCorpusSnapshot(ctx, store, *run, "")
+	snapshot, err := CorpusSnapshot(ctx, store, *run, "")
 	if err != nil {
 		return false, err
 	}
@@ -122,7 +123,7 @@ func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runI
 		System       string
 		Instructions string
 		CorpusID     string
-	}{run.Options.Mode, run.Options.Actions, run.Options.Research, attachments, chatSystem, instructionsHash, run.Options.Corpus.ID()})
+	}{run.Options.Mode, run.Options.Actions, run.Options.Research, attachments, System, instructionsHash, run.Options.Corpus.ID()})
 	old := run.Review
 	coverage := chat.Coverage{CorpusID: run.Options.Corpus.ID(), HistoryLimited: run.Options.Corpus.History, InputHash: chat.Hash(inputs), Revision: snapshot.Revision, Visibility: snapshot.Visibility, Purpose: purpose, Model: connection.ID + ":" + run.Options.Model, Notes: []chat.ReviewNote{}}
 	reusable := map[string]chat.ReviewNote{}
@@ -180,13 +181,13 @@ func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runI
 		}
 	}
 	if coverage.BatchPath != "" {
-		return false, s.chatRunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+		return false, s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 			r.Review = &coverage
 			r.Provenance.InstructionsHash = instructionsHash
 			return nil
 		})
 	}
-	coverage.Complete = reviewComplete(&coverage)
+	coverage.Complete = ReviewComplete(&coverage)
 	var messages []chat.Message
 	var citations []chat.Citation
 	provenance := chat.Provenance{CorpusID: run.Options.Corpus.ID(), Complete: true, Revision: snapshot.Revision, Visibility: snapshot.Visibility, InstructionsHash: instructionsHash}
@@ -207,10 +208,10 @@ func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runI
 		link := url.URL{Path: "/" + selected.Path, RawQuery: url.Values{"fmn-rev": {snapshot.Revision}}.Encode()}
 		primary := chat.Citation{ID: "review-original", Path: selected.Path, URL: link.String(), Title: selected.Path, Text: text, Revision: snapshot.Revision, Hash: selected.Hash, Kind: "committed"}
 		citations = append(citations, primary)
-		cfg := s.chat.Snapshot().Config
-		query := textLimit(purpose+" "+text, 1800)
+		cfg := s.hooks.Chat().Snapshot().Config
+		query := TextLimit(purpose+" "+text, 1800)
 		related, err := withEngine(s, ctx, store, func(e *knowledge.Engine) (chatRetrieval, error) {
-			return s.chatRetrieve(ctx, id, *run, e, knowledge.RetrievalQuery{PerNotePassages: connection.Limits.PerNotePassages, Text: query, Limit: 3, TokenBudget: min(1500, max(256, connection.Limits.EvidenceTokens/3)), LocalOnly: cfg.LocalOnly && !cfg.EmbeddingsLocal}, connection, false)
+			return s.Retrieve(ctx, id, *run, e, knowledge.RetrievalQuery{PerNotePassages: connection.Limits.PerNotePassages, Text: query, Limit: 3, TokenBudget: min(1500, max(256, connection.Limits.EvidenceTokens/3)), LocalOnly: cfg.LocalOnly && !cfg.EmbeddingsLocal}, connection, false)
 		})
 		if err != nil {
 			return false, err
@@ -220,7 +221,7 @@ func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runI
 				citations = append(citations, chat.Citation{ID: fmt.Sprintf("compare-%d", len(citations)), Path: p.Path, URL: p.Citation, Title: p.Heading, Text: p.Text, Revision: p.Revision, Hash: p.NoteHash, PassageHash: p.Hash, Kind: "committed"})
 			}
 		}
-		if err := pinChatCitationReferences(ctx, store, citations); err != nil {
+		if err := PinCitationReferences(ctx, store, citations); err != nil {
 			return false, err
 		}
 		summaries := []struct {
@@ -239,7 +240,7 @@ func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runI
 		payload, _ := json.Marshal(map[string]any{"scope": "bounded original-source review batch, not full notebook coverage", "note": selected.Path, "part": selected.Cursor + 1, "parts": selected.Total, "progress": reviewProgress(&coverage), "originalSources": citations, "analysisForNavigationOnly": summaries, "explicitAttachments": attachments, "attachmentSources": attachmentSources, "notebookGuidance": guidance})
 		content := purpose + "\nExamine this original passage for the review purpose. Compare only original passages supplied or fetched with tools; summaries are navigation hints and cannot establish claims. Explicit live/private attachments are separately labelled evidence and never part of committed notebook coverage. Cite exact sources. State what remains unexamined; the server controls completion. Do not label the full notebook reviewed from this batch.\n<untrusted_review_batch>" + string(payload) + "</untrusted_review_batch>"
 		messages = []chat.Message{{Role: "user", Content: content}}
-		if estimateTokens(messages)+estimateTokens(s.runTools(*run, connection))+estimateTokens(chatSystem)+connection.Limits.OutputTokens > connection.Limits.ContextTokens {
+		if estimateTokens(messages)+estimateTokens(s.RunTools(*run, connection))+estimateTokens(System)+connection.Limits.OutputTokens > connection.Limits.ContextTokens {
 			return false, errors.New("review batch exceeds configured context; increase operator context or reduce output budget")
 		}
 		coverage.BatchPath = selected.Path
@@ -258,10 +259,10 @@ func (s *Server) prepareChatReview(ctx context.Context, a chat.RunAuth, id, runI
 			provenance.SnapshotBound = true
 		}
 	}
-	if err = s.checkRun(a); err != nil {
+	if err = s.hooks.CheckRun(a); err != nil {
 		return false, err
 	}
-	err = s.chatRunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+	err = s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 		r.Review = &coverage
 		r.Messages = messages
 		r.Citations = citations
@@ -306,7 +307,7 @@ func finishChatReviewBatch(r *chat.Run, summary string) {
 				break
 			}
 			n.Cursor++
-			n.Summary = textLimit(strings.TrimSpace(n.Summary+"\n"+summary), 2000)
+			n.Summary = TextLimit(strings.TrimSpace(n.Summary+"\n"+summary), 2000)
 			if n.Cursor == n.Total {
 				n.State = "examined"
 			}
@@ -324,7 +325,7 @@ func reviewNavigationNotes(coverage *chat.Coverage) []chat.ReviewNote {
 	size := 0
 	for _, n := range coverage.Notes {
 		if n.Summary != "" && size < 1800 {
-			n.Summary = textLimit(n.Summary, 450)
+			n.Summary = TextLimit(n.Summary, 450)
 			size += len(n.Summary)
 			notes = append(notes, n)
 		}

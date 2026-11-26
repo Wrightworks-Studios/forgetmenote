@@ -17,6 +17,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 func TestChatApprovedMutationReceiptSurvivesRevocationAndRestart(t *testing.T) {
@@ -61,7 +62,7 @@ func TestChatApprovedMutationReceiptSurvivesRevocationAndRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.executeNotebookTool(ctx, auth, c.ID, run.ID, call, connection); !errors.Is(err, errChatConfirmation) {
+	if err = app.executeNotebookTool(ctx, auth, c.ID, run.ID, call, connection); !errors.Is(err, chatrun.ErrConfirmation) {
 		t.Fatalf("approval not prepared: %v", err)
 	}
 	prepared, err := app.chat.Store.Read("alice", "default", c.ID)

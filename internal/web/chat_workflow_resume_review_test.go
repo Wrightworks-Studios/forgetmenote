@@ -13,6 +13,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/sources"
 	"forgetmenote/internal/workspace"
 )
@@ -89,7 +90,7 @@ func TestReleaseSecurityResumeCannotFinalizeOldResearchCoverage(t *testing.T) {
 			return nil, e
 		}
 		run := current.Runs[0]
-		if requests.Load() == 4 && run.ReviewAllowance > 0 && run.Review.Notes[0].Provenance.ExternalAllowance != reviewExternalAllowance(&run) {
+		if requests.Load() == 4 && run.ReviewAllowance > 0 && run.Review.Notes[0].Provenance.ExternalAllowance != chatrun.ReviewExternalAllowance(&run) {
 			staleCompletion.Store(true)
 		}
 		return originalCall(ctx, args)
@@ -103,7 +104,7 @@ func TestReleaseSecurityResumeCannotFinalizeOldResearchCoverage(t *testing.T) {
 	first := waitChatRun(t, app, c.ID)
 	app.chat.Wait()
 	run := first.Runs[0]
-	if requests.Load() != 4 || run.State != "interrupted" || !run.Review.Complete || len(pendingToolCalls(run.Messages)) != 1 || run.Review.Notes[0].Provenance.ExternalAllowance == "" {
+	if requests.Load() != 4 || run.State != "interrupted" || !run.Review.Complete || len(chatrun.PendingToolCalls(run.Messages)) != 1 || run.Review.Notes[0].Provenance.ExternalAllowance == "" {
 		t.Fatalf("fixture failed to pause complete workflow at tool budget: requests=%d run=%+v", requests.Load(), run)
 	}
 	w = proxyCall(app, "alice", "POST", path+"/runs/"+run.ID+"/resume", `{}`)
@@ -195,7 +196,7 @@ func TestChatWorkflowResumeDistinguishesNewIntentsAndReceipts(t *testing.T) {
 				if r.Review.Complete {
 					break
 				}
-				f.update(t, func(r *chat.Run) { finishChatReviewBatch(r, "Previously examined original.") })
+				f.update(t, func(r *chat.Run) { chatrun.FinishReviewBatch(r, "Previously examined original.") })
 			}
 			initial := f.read(t)
 			if !initial.Review.Complete {
@@ -206,7 +207,7 @@ func TestChatWorkflowResumeDistinguishesNewIntentsAndReceipts(t *testing.T) {
 			f.update(t, func(r *chat.Run) {
 				if scenario != "committed-only" {
 					for i := range r.Review.Notes {
-						r.Review.Notes[i].Provenance.ExternalAllowance = reviewExternalAllowance(r)
+						r.Review.Notes[i].Provenance.ExternalAllowance = chatrun.ReviewExternalAllowance(r)
 						r.Review.Notes[i].Provenance.ExternalSources = []chat.ExternalCapture{{URL: "https://example.org/source.txt", CapturedAt: "2026-09-14T12:00:00Z", Hash: strings.Repeat("a", 64)}}
 					}
 				}
@@ -263,7 +264,7 @@ func TestChatWorkflowResumeDistinguishesNewIntentsAndReceipts(t *testing.T) {
 				})
 			} else if scenario == "external-running" {
 				f.update(t, func(r *chat.Run) {
-					r.Operations = append(r.Operations, chat.Operation{ID: operationID(r.ID, r.Rounds, call.ID), ToolCallID: call.ID, Round: r.Rounds, Name: call.Name, Arguments: call.Arguments, Hash: chat.Hash(call.Arguments), State: "running"})
+					r.Operations = append(r.Operations, chat.Operation{ID: chatrun.OperationID(r.ID, r.Rounds, call.ID), ToolCallID: call.ID, Round: r.Rounds, Name: call.Name, Arguments: call.Arguments, Hash: chat.Hash(call.Arguments), State: "running"})
 				})
 			}
 			checkpointBefore, err := engine.Checkpoint(t.Context(), "alice", "receipt-review")
@@ -284,7 +285,7 @@ func TestChatWorkflowResumeDistinguishesNewIntentsAndReceipts(t *testing.T) {
 			if done.State != "completed" || !done.Review.Complete || checkpointAfter.Revision != revision {
 				t.Fatalf("legitimate completion/reconciliation failed: %+v checkpoint=%+v", done, checkpointAfter)
 			}
-			if len(pendingToolCalls(done.Messages)) != 0 {
+			if len(chatrun.PendingToolCalls(done.Messages)) != 0 {
 				t.Fatal("durable native completion pair remains unresolved")
 			}
 			if scenario == "committed-only" && (requests.Load() != 0 || dispatches.Load() != 1) {

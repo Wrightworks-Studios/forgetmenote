@@ -3,13 +3,14 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/workspace"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/workspace"
 )
 
 func notebookCitationConversation(t *testing.T, app *Server, other, selected bool) (chat.Conversation, string, *workspace.Store) {
@@ -36,7 +37,7 @@ func notebookCitationConversation(t *testing.T, app *Server, other, selected boo
 	}
 	client := actionClient(t, app, "alice", "notes:read")
 	raw := actionCall(t, client, "read_document", map[string]any{"project": project, "origin": "notes", "path": "notes/evidence.md"}, false)
-	citations, _ := app.chatToolEvidence(t.Context(), chat.RunAuth{User: "alice", Project: "default"}, "original-read", "read_document", raw)
+	citations, _ := app.chatrun.ToolEvidence(t.Context(), chat.RunAuth{User: "alice", Project: "default"}, "original-read", "read_document", raw)
 	if len(citations) != 1 || citations[0].Kind != "notebook" || citations[0].Project != project {
 		t.Fatalf("missing canonical tool evidence: %+v", citations)
 	}

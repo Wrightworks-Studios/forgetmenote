@@ -3,13 +3,15 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/workspace"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/workspace"
 )
 
 type reviewDependencyFixture struct {
@@ -62,7 +64,7 @@ func (f reviewDependencyFixture) read(t *testing.T) chat.Run {
 }
 func (f reviewDependencyFixture) prepare(t *testing.T) chat.Run {
 	t.Helper()
-	if _, err := f.app.prepareChatReview(t.Context(), f.auth, f.conversation, f.run, f.connection); err != nil {
+	if _, err := f.app.chatrun.PrepareReview(t.Context(), f.auth, f.conversation, f.run, f.connection); err != nil {
 		t.Fatal(err)
 	}
 	return f.read(t)
@@ -105,7 +107,7 @@ func TestChatReviewComparisonDependencies(t *testing.T) {
 				if change == "prepared" {
 					r.Messages = append(r.Messages, chat.Message{Role: "assistant", Content: "UNFINISHED_OLD_COMPARISON_CLAIM"})
 				} else {
-					finishChatReviewBatch(r, "STALE_AGREEMENT_SUMMARY")
+					chatrun.FinishReviewBatch(r, "STALE_AGREEMENT_SUMMARY")
 				}
 			})
 			switch change {
@@ -180,7 +182,7 @@ func TestChatReviewToolDependencySurvivesReload(t *testing.T) {
 				t.Fatal("actual read_note omitted pinned evidence")
 			}
 			if finished {
-				f.update(t, func(r *chat.Run) { finishChatReviewBatch(r, "TOOL_DERIVED_OLD_90") })
+				f.update(t, func(r *chat.Run) { chatrun.FinishReviewBatch(r, "TOOL_DERIVED_OLD_90") })
 			}
 			f.app.chat.Store.Close()
 			reopened, err := chat.OpenStore(f.app.db)
@@ -206,7 +208,7 @@ func TestChatReviewDependencyProofIsBoundedAndLegacyRequeues(t *testing.T) {
 		f := newReviewDependencyFixture(t)
 		f.prepare(t)
 		f.update(t, func(r *chat.Run) {
-			finishChatReviewBatch(r, "LEGACY_UNTRACKED_ANALYSIS")
+			chatrun.FinishReviewBatch(r, "LEGACY_UNTRACKED_ANALYSIS")
 			r.Review.Notes[0].Provenance = chat.Provenance{}
 		})
 		next := f.prepare(t)
@@ -235,15 +237,15 @@ func TestChatReviewDependencyProofIsBoundedAndLegacyRequeues(t *testing.T) {
 						r.Citations = append(r.Citations, source)
 					}
 				}
-				finishChatReviewBatch(r, "UNVERIFIABLE_ANALYSIS")
+				chatrun.FinishReviewBatch(r, "UNVERIFIABLE_ANALYSIS")
 			})
 			stopped := f.read(t)
 			note := stopped.Review.Notes[0]
 			raw, _ := json.Marshal(note.Sources)
-			if note.Provenance.Complete || note.State == "examined" || note.Cursor != 0 || stopped.Review.Complete || reviewComplete(stopped.Review) || len(note.Provenance.Dependencies) > 256 || len(note.Sources) > 256 || len(raw) > 64<<10 {
+			if note.Provenance.Complete || note.State == "examined" || note.Cursor != 0 || stopped.Review.Complete || chatrun.ReviewComplete(stopped.Review) || len(note.Provenance.Dependencies) > 256 || len(note.Sources) > 256 || len(raw) > 64<<10 {
 				t.Fatalf("unverifiable or excessive source proof certified coverage: %+v", note)
 			}
-			if _, err := f.app.prepareChatReview(t.Context(), f.auth, f.conversation, f.run, f.connection); err == nil || !strings.Contains(err.Error(), "evidence dependencies") {
+			if _, err := f.app.chatrun.PrepareReview(t.Context(), f.auth, f.conversation, f.run, f.connection); err == nil || !strings.Contains(err.Error(), "evidence dependencies") {
 				t.Fatalf("fresh unverifiable result silently retried: %v", err)
 			}
 			f.update(t, func(r *chat.Run) { r.State = "queued" })
@@ -274,7 +276,7 @@ func TestChatReviewAccumulatesOriginalSourcesAcrossParts(t *testing.T) {
 	if err = f.app.executeChatTool(ctx, f.auth, f.conversation, f.run, call, f.connection); err != nil {
 		t.Fatal(err)
 	}
-	f.update(t, func(r *chat.Run) { finishChatReviewBatch(r, "First original passage reviewed.") })
+	f.update(t, func(r *chat.Run) { chatrun.FinishReviewBatch(r, "First original passage reviewed.") })
 	next := f.prepare(t)
 	if next.Review.Notes[0].Cursor != 1 || next.Review.BatchCursor != 1 {
 		t.Fatalf("part progress not retained: %+v", next.Review)
@@ -286,7 +288,7 @@ func TestChatReviewAccumulatesOriginalSourcesAcrossParts(t *testing.T) {
 	extra := next.Citations[0]
 	extra.Path = "notes/later-original.md"
 	next.Citations = append(next.Citations, extra)
-	finishChatReviewBatch(&next, "Second original passage reviewed.")
+	chatrun.FinishReviewBatch(&next, "Second original passage reviewed.")
 	if _, exists := originalProof.Dependencies[extra.Path]; exists {
 		t.Fatal("later part mutated previous part's immutable provenance map")
 	}

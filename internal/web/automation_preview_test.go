@@ -90,7 +90,7 @@ func TestAutomationInputNotebooksAreReadableAndRevocationApplies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = app.documentChatScope(ctx, "reference", "notes", "", "", "facts.md"); err != nil {
+	if _, err = app.chatrun.DocumentScope(ctx, "reference", "notes", "", "", "facts.md"); err != nil {
 		t.Fatal("configured input notebook is outside model corpus", err)
 	}
 	if _, err = app.clientAccess(ctx, "robot", "reference", "edit"); err == nil {

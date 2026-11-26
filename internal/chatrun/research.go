@@ -1,13 +1,14 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/sources"
 	"strings"
 	"time"
+
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/sources"
 )
 
 type researchRequest struct {
@@ -18,12 +19,12 @@ type researchRequest struct {
 	count        int
 }
 
-func (s *Server) researchRequest(a chat.RunAuth, id, runID string, call chat.ToolCall) (researchRequest, error) {
-	c, err := s.chat.Store.Read(a.User, a.Project, id)
+func (s *Service) researchRequest(a chat.RunAuth, id, runID string, call chat.ToolCall) (researchRequest, error) {
+	c, err := s.hooks.Chat().Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return researchRequest{}, err
 	}
-	in := researchRequest{run: c.Run(runID), conversation: c, snapshot: s.chat.Snapshot(), count: 5}
+	in := researchRequest{run: c.Run(runID), conversation: c, snapshot: s.hooks.Chat().Snapshot(), count: 5}
 	if in.run == nil {
 		return researchRequest{}, chat.ErrNotFound
 	}
@@ -36,7 +37,7 @@ func (s *Server) researchRequest(a chat.RunAuth, id, runID string, call chat.Too
 			Query string `json:"query"`
 			Count int    `json:"count"`
 		}
-		if strictChatArguments(call.Arguments, &args) != nil || args.Query == "" || len(args.Query) > 2000 || args.Count < 0 || args.Count > 10 {
+		if StrictArguments(call.Arguments, &args) != nil || args.Query == "" || len(args.Query) > 2000 || args.Count < 0 || args.Count > 10 {
 			return researchRequest{}, errors.New("invalid research search arguments")
 		}
 		in.query = args.Query
@@ -48,7 +49,7 @@ func (s *Server) researchRequest(a chat.RunAuth, id, runID string, call chat.Too
 	var args struct {
 		URL string `json:"url"`
 	}
-	if strictChatArguments(call.Arguments, &args) != nil || sources.ValidateURL(args.URL) != nil {
+	if StrictArguments(call.Arguments, &args) != nil || sources.ValidateURL(args.URL) != nil {
 		return researchRequest{}, errors.New("invalid public source arguments")
 	}
 	in.url = args.URL
@@ -84,38 +85,38 @@ func researchURLProvided(c chat.Conversation, run chat.Run, target string) bool 
 	return false
 }
 
-func (s *Server) executeResearchTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
+func (s *Service) ExecuteResearchTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
 	in, err := s.researchRequest(a, id, runID, call)
 	if err != nil {
 		return err
 	}
-	key := operationID(runID, in.run.Rounds, call.ID)
+	key := OperationID(runID, in.run.Rounds, call.ID)
 	for _, op := range in.run.Operations {
 		if op.ID == key {
 			if op.State == "completed" {
-				return s.chatRunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
-					recordChatToolResult(c, r, call.ID, researchToolContext(op.Result), op.Citations, true)
+				return s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+					RecordToolResult(c, r, call.ID, researchToolContext(op.Result), op.Citations, true)
 					return nil
 				})
 			}
 			if op.State == "awaiting_confirmation" {
-				return errChatConfirmation
+				return ErrConfirmation
 			}
 			return errors.New("interrupted research request has unknown external usage; start a new explicit research request")
 		}
 	}
-	if err = s.checkRun(a); err != nil {
+	if err = s.hooks.CheckRun(a); err != nil {
 		return err
 	}
 	if in.url != "" && !researchURLProvided(in.conversation, *in.run, in.url) {
-		return s.prepareChatOperation(ctx, a, id, runID, call, call.Arguments)
+		return s.hooks.PrepareOperation(ctx, a, id, runID, call, call.Arguments)
 	}
 	return s.performResearch(ctx, a, id, runID, key, call, in, connection, false)
 }
 
-// executeApprovedResearch fetches the exact URL the person approved. Like an
+// ExecuteApprovedResearch fetches the exact URL the person approved. Like an
 // approved notebook control, the run then waits for explicit continuation.
-func (s *Server) executeApprovedResearch(ctx context.Context, a chat.RunAuth, id, runID string, op chat.Operation, connection chat.Connection) error {
+func (s *Service) ExecuteApprovedResearch(ctx context.Context, a chat.RunAuth, id, runID string, op chat.Operation, connection chat.Connection) error {
 	call := chat.ToolCall{ID: op.ToolCallID, Name: op.Name, Arguments: op.Arguments}
 	in, err := s.researchRequest(a, id, runID, call)
 	if err != nil {
@@ -127,13 +128,13 @@ func (s *Server) executeApprovedResearch(ctx context.Context, a chat.RunAuth, id
 	return s.performResearch(ctx, a, id, runID, op.ID, call, in, connection, true)
 }
 
-func (s *Server) performResearch(ctx context.Context, a chat.RunAuth, id, runID, key string, call chat.ToolCall, in researchRequest, connection chat.Connection, approved bool) error {
+func (s *Service) performResearch(ctx context.Context, a chat.RunAuth, id, runID, key string, call chat.ToolCall, in researchRequest, connection chat.Connection, approved bool) error {
 	cfg, research, query, sourceURL := in.snapshot.Config, in.snapshot.Research, in.query, in.url
 	// Persist attempts before crossing the network, including interrupted requests.
-	err := s.chatRunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+	err := s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 		if call.Name == "research_search" {
 			if r.ResearchSearches >= cfg.Research.MaxSearches {
-				return chatFailureError(chatResearchBudget, "research search budget reached")
+				return FailureError(chatResearchBudget, "research search budget reached")
 			}
 			r.ResearchSearches++
 			if research.SearchReservation(query) > 0 {
@@ -142,7 +143,7 @@ func (s *Server) performResearch(ctx context.Context, a chat.RunAuth, id, runID,
 			}
 		} else {
 			if r.ResearchFetches >= cfg.Research.MaxFetches {
-				return chatFailureError(chatResearchBudget, "research fetch budget reached")
+				return FailureError(chatResearchBudget, "research fetch budget reached")
 			}
 			r.ResearchFetches++
 		}
@@ -168,7 +169,7 @@ func (s *Server) performResearch(ctx context.Context, a chat.RunAuth, id, runID,
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	release, err := s.acquireSourceWork(ctx)
+	release, err := s.hooks.AcquireSourceWork(ctx)
 	if err != nil {
 		return err
 	}
@@ -184,7 +185,7 @@ func (s *Server) performResearch(ctx context.Context, a chat.RunAuth, id, runID,
 		capture, e := in.snapshot.PrepareSource(ctx, "", sourceURL, nil)
 		err = e
 		if err == nil {
-			citation := chat.Citation{ID: "external-" + key, URL: capture.Record.FinalURL, Title: capture.Title, Text: textLimit(capture.Text, min(12000, connection.Limits.EvidenceTokens*3)), Hash: capture.Record.SHA256, CapturedAt: capture.Record.CapturedAt, Kind: "external"}
+			citation := chat.Citation{ID: "external-" + key, URL: capture.Record.FinalURL, Title: capture.Title, Text: TextLimit(capture.Text, min(12000, connection.Limits.EvidenceTokens*3)), Hash: capture.Record.SHA256, CapturedAt: capture.Record.CapturedAt, Kind: "external"}
 			if citation.URL == "" {
 				citation.URL = sourceURL
 			}
@@ -193,18 +194,18 @@ func (s *Server) performResearch(ctx context.Context, a chat.RunAuth, id, runID,
 		}
 	}
 	if research.SearchReservation(query) > 0 && sourceURL == "" {
-		if settleErr := s.chat.Store.SettleUsage(a.User, a.Project, id, runID, usage, 0); settleErr != nil {
+		if settleErr := s.hooks.Chat().Store.SettleUsage(a.User, a.Project, id, runID, usage, 0); settleErr != nil {
 			return settleErr
 		}
 	}
-	if s.checkRun(a) != nil {
-		return chatFailureError(chatAccessRevoked, "notebook access was revoked")
+	if s.hooks.CheckRun(a) != nil {
+		return FailureError(AccessRevoked, "notebook access was revoked")
 	}
 	if err != nil {
 		result = map[string]string{"error": "External research failed or was interrupted; no source was archived."}
 	}
 	raw, _ := json.Marshal(result)
-	return s.chatRunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+	return s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 		for i := range r.Operations {
 			if r.Operations[i].ID == key {
 				o := &r.Operations[i]
@@ -223,11 +224,11 @@ func (s *Server) performResearch(ctx context.Context, a chat.RunAuth, id, runID,
 			}
 			inheritExternalEvidence(&r.Provenance, p)
 		}
-		recordChatToolResult(c, r, call.ID, researchToolContext(raw), citations, true)
+		RecordToolResult(c, r, call.ID, researchToolContext(raw), citations, true)
 		return nil
 	})
 }
 
 // researchToolContext is the model's view of a research result: the bounded
 // receipt, whose sources are untrusted external captures.
-func researchToolContext(result json.RawMessage) string { return textLimit(string(result), 16000) }
+func researchToolContext(result json.RawMessage) string { return TextLimit(string(result), 16000) }

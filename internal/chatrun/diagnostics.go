@@ -1,12 +1,13 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"errors"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/knowledge"
 	"log/slog"
 	"time"
+
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/knowledge"
 )
 
 type chatFailureReason string
@@ -14,9 +15,9 @@ type chatFailureReason string
 const (
 	chatContextLimit    chatFailureReason = "context_limit"
 	chatRoundBudget     chatFailureReason = "round_budget"
-	chatToolBudget      chatFailureReason = "tool_budget"
+	ToolBudget          chatFailureReason = "tool_budget"
 	chatResearchBudget  chatFailureReason = "research_budget"
-	chatAccessRevoked   chatFailureReason = "access_revoked"
+	AccessRevoked       chatFailureReason = "access_revoked"
 	chatInternalFailure chatFailureReason = "internal_failure"
 )
 
@@ -29,7 +30,7 @@ type chatFailure struct {
 
 func (e *chatFailure) Error() string { return e.message }
 func (e *chatFailure) Unwrap() error { return e.reason }
-func chatFailureError(reason chatFailureReason, message string) error {
+func FailureError(reason chatFailureReason, message string) error {
 	return &chatFailure{reason, message}
 }
 
@@ -40,7 +41,7 @@ func chatFailureCategory(state string, err error) string {
 	var reason chatFailureReason
 	if errors.As(err, &reason) {
 		switch reason {
-		case chatContextLimit, chatRoundBudget, chatToolBudget, chatResearchBudget, chatAccessRevoked, chatInternalFailure:
+		case chatContextLimit, chatRoundBudget, ToolBudget, chatResearchBudget, AccessRevoked, chatInternalFailure:
 			return string(reason)
 		}
 	}
@@ -60,9 +61,9 @@ func chatFailureCategory(state string, err error) string {
 
 // Only structural, server-controlled fields cross this logging boundary. Never
 // include error strings, endpoints, model text, arguments, results or note paths.
-func (s *Server) chatDiagnostic(stage, id string, run chat.Run, fit chatContextFit, category string, persisted bool) {
+func (s *Service) chatDiagnostic(stage, id string, run chat.Run, fit ContextFit, category string, persisted bool) {
 	format := "unknown"
-	cfg := s.chat.Snapshot().Config
+	cfg := s.hooks.Chat().Snapshot().Config
 	if cfg != nil {
 		if connection, err := cfg.Resolve(run.Options.Connection, run.Options.Model); err == nil {
 			format = connection.Format
@@ -82,20 +83,20 @@ func (s *Server) chatDiagnostic(stage, id string, run chat.Run, fit chatContextF
 	slog.Info("chat run "+stage, attributes...)
 }
 
-// recoverChatRun settles every runner exit, including a panic or a failed read
+// RecoverRun settles every runner exit, including a panic or a failed read
 // of the run's own conversation: while a run is unfinished its owner can start
 // no other conversation, and recovery skips the runs of a live gateway. Only a
 // deliberate pause for confirmation outlives the runner.
-func (s *Server) recoverChatRun(auth chat.RunAuth, id, runID string) {
+func (s *Service) RecoverRun(auth chat.RunAuth, id, runID string) {
 	panicked := recover() != nil
 	// A panic value or stack can contain arbitrary notebook/provider content.
 	// Persist a generic terminal outcome and let ordinary structural logging cover it.
-	s.settleChatRun(auth, id, runID, "failed", chatFailureError(chatInternalFailure, "Chat runner stopped unexpectedly; inspect the saved run before continuing."), func(run chat.Run) bool {
+	s.settleChatRun(auth, id, runID, "failed", FailureError(chatInternalFailure, "Chat runner stopped unexpectedly; inspect the saved run before continuing."), func(run chat.Run) bool {
 		return chat.Active(run.State) && (panicked || run.State != "awaiting_confirmation")
 	})
 }
 
-func (s *Server) chatRetrievalDiagnostic(id string, run chat.Run, connection chat.Connection, result knowledge.RetrievalResult, err error, initial bool, queries int, elapsed time.Duration) {
+func (s *Service) chatRetrievalDiagnostic(id string, run chat.Run, connection chat.Connection, result knowledge.RetrievalResult, err error, initial bool, queries int, elapsed time.Duration) {
 	mode := "unknown"
 	if result.Mode == "bm25" || result.Mode == "hybrid" {
 		mode = result.Mode

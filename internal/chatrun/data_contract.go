@@ -1,7 +1,8 @@
-package web
+package chatrun
 
 import (
 	"encoding/json"
+
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 )

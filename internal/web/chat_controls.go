@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/webcore"
-	"forgetmenote/internal/workspace"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
+
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/webcore"
+	"forgetmenote/internal/workspace"
 )
 
 func (s *Server) chatCancel(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +27,7 @@ func (s *Server) chatCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	auth := s.chatRunAuth(r, c)
-	if err = s.chatRunUpdate(auth, c.ID, id, func(c *chat.Conversation, r *chat.Run) error {
+	if err = s.chatrun.RunUpdate(auth, c.ID, id, func(c *chat.Conversation, r *chat.Run) error {
 		r.CancelRequested = true
 		if r.State == "awaiting_confirmation" {
 			r.State = "cancelled"
@@ -208,9 +209,6 @@ func (s *Server) chatSaveNote(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonResponse(w, map[string]any{"path": in.Path, "revision": result.Revision, "replayed": result.Replayed})
 }
-func operationID(runID string, round int, callID string) string {
-	return runID + "-" + strconv.Itoa(round) + "-" + chat.Hash([]byte(callID))[:16]
-}
 
 func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, canonical json.RawMessage) error {
 	c, err := s.chat.Store.Read(a.User, a.Project, id)
@@ -240,7 +238,7 @@ func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, r
 		if json.Unmarshal(obj["group"], &group) != nil {
 			return errors.New("invalid change group")
 		}
-		group.ID = operationID(run.ID, run.Rounds, call.ID)
+		group.ID = chatrun.OperationID(run.ID, run.Rounds, call.ID)
 		obj["group"], _ = json.Marshal(group)
 		canonical, _ = json.Marshal(obj)
 	}
@@ -256,11 +254,11 @@ func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, r
 		canonical, _ = json.Marshal(map[string]any{"project": a.Project, "revision": listing.Revision, "confirmation": listing.Confirmation})
 		preview = listing
 	}
-	op := chat.Operation{ID: operationID(run.ID, run.Rounds, call.ID), ToolCallID: call.ID, Round: run.Rounds, Name: call.Name, Arguments: canonical, Hash: chat.Hash(canonical), State: "awaiting_confirmation", Confirmation: chat.NewID()}
+	op := chat.Operation{ID: chatrun.OperationID(run.ID, run.Rounds, call.ID), ToolCallID: call.ID, Round: run.Rounds, Name: call.Name, Arguments: canonical, Hash: chat.Hash(canonical), State: "awaiting_confirmation", Confirmation: chat.NewID()}
 	if preview != nil {
 		op.Result, _ = json.Marshal(preview)
 	}
-	if err = s.chatRunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+	if err = s.chatrun.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 		r.Operations = append(r.Operations, op)
 		r.ToolCount++
 		r.State = "awaiting_confirmation"
@@ -270,7 +268,7 @@ func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, r
 	}); err != nil {
 		return err
 	}
-	return errChatConfirmation
+	return chatrun.ErrConfirmation
 }
 func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 	c, err := s.chatAuthorized(r)
@@ -352,7 +350,7 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 	}()
 	operationID := op.ID
 	declined, _ := json.Marshal(map[string]string{"message": "The user declined this action."})
-	err = s.chatRunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
+	err = s.chatrun.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
 		if r.Epoch != auth.Epoch || r.State != "awaiting_confirmation" || s.checkRun(auth) != nil {
 			return workspace.ErrForbidden
 		}
@@ -372,7 +370,7 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 			if !o.Approved {
 				o.State = "completed"
 				o.Result = declined
-				recordChatToolResult(c, r, o.ToolCallID, string(declined), nil, true)
+				chatrun.RecordToolResult(c, r, o.ToolCallID, string(declined), nil, true)
 				r.State = "interrupted"
 				r.Error = "Action declined. Continue explicitly to finish the response."
 				r.Usage.Reserved = 0
@@ -392,7 +390,7 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err = s.checkRun(auth); err != nil {
-		s.chatTerminal(auth, c.ID, run.ID, "interrupted", chatFailureError(chatAccessRevoked, "Access changed before the approved action started."))
+		s.chatrun.Terminal(auth, c.ID, run.ID, "interrupted", chatrun.FailureError(chatrun.AccessRevoked, "Access changed before the approved action started."))
 		chatFail(w, err)
 		return
 	}
@@ -403,12 +401,12 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx = chat.WithApproval(ctx)
 	if op.Name == "research_fetch" {
-		if err = s.executeApprovedResearch(ctx, auth, c.ID, run.ID, *op, connection); err != nil {
-			s.chatTerminal(auth, c.ID, run.ID, "interrupted", err)
+		if err = s.chatrun.ExecuteApprovedResearch(ctx, auth, c.ID, run.ID, *op, connection); err != nil {
+			s.chatrun.Terminal(auth, c.ID, run.ID, "interrupted", err)
 			chatFail(w, err)
 			return
 		}
-		err = s.chatRunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
+		err = s.chatrun.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
 			r.State = "interrupted"
 			r.Error = "Action reviewed. Continue explicitly to finish the response."
 			r.Usage.Reserved = 0
@@ -425,12 +423,12 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 	result, actionErr := s.dispatchActionOutcome(ctx, c.Project, op.Name, op.Arguments)
 	outcome := classifyChatActionOutcome(result, actionErr)
 	if outcome.ambiguous {
-		state, cause := "uncertain", errChatUncertain
+		state, cause := "uncertain", chatrun.ErrUncertain
 		if policy(op.Name).Replay {
 			state = "interrupted"
-			cause = errChatPending
+			cause = chatrun.ErrPending
 		}
-		s.chatTerminal(auth, c.ID, run.ID, state, cause)
+		s.chatrun.Terminal(auth, c.ID, run.ID, state, cause)
 		if err = s.checkRun(auth); err != nil {
 			chatFail(w, err)
 			return
@@ -442,12 +440,12 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 	authorizationErr := s.checkRun(auth)
 	// Persist the known outcome even if access changed while the action ran; read
 	// and SSE authorization still prevent disclosure after revocation.
-	err = s.chatRunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
+	err = s.chatrun.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
 		if err := completeChatOperation(c, r, operationID, outcome, nil, false); err != nil {
 			return err
 		}
 		r.Provenance.Complete = false
-		recordChatToolResult(c, r, op.ToolCallID, chatControlResult(op.Name, result), nil, authorizationErr == nil)
+		chatrun.RecordToolResult(c, r, op.ToolCallID, chatrun.ControlResult(op.Name, result), nil, authorizationErr == nil)
 		r.State = "interrupted"
 		r.Error = "Action reviewed. Continue explicitly to finish the response."
 		r.Usage.Reserved = 0
@@ -455,7 +453,7 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if err != nil {
-		s.chatTerminal(auth, c.ID, run.ID, "uncertain", errors.New("The action outcome could not be recorded; inspect the notebook before retrying."))
+		s.chatrun.Terminal(auth, c.ID, run.ID, "uncertain", errors.New("The action outcome could not be recorded; inspect the notebook before retrying."))
 		chatFail(w, err)
 		return
 	}
@@ -465,8 +463,6 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonResponse(w, map[string]any{"run": run.ID, "state": "interrupted", "result": result})
 }
-
-var errChatUncertain = errors.New("an earlier action has an uncertain outcome; inspect the notebook before retrying")
 
 func chatDeletionControl(name string, args json.RawMessage) bool {
 	if name != "submit_change_group" {

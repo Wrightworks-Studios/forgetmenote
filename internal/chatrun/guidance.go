@@ -1,8 +1,9 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"encoding/json"
+
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/workspace"
@@ -10,8 +11,8 @@ import (
 
 // chatInstructions preserves the complete authorized guidance at the evidence
 // snapshot. Callers include it in their normal context budget without truncation.
-func (s *Server) chatInstructions(ctx context.Context, store *workspace.Store, revision string) (map[string]any, string, error) {
-	guidance, err := s.instructionsAt(ctx, store, revision)
+func (s *Service) chatInstructions(ctx context.Context, store *workspace.Store, revision string) (map[string]any, string, error) {
+	guidance, err := s.hooks.InstructionsAt(ctx, store, revision)
 	if err != nil {
 		return nil, "", err
 	}
@@ -28,8 +29,8 @@ func (s *Server) chatInstructions(ctx context.Context, store *workspace.Store, r
 	return guidance, chat.Hash(identity), nil
 }
 
-func (s *Server) assistantInstructions(ctx context.Context, spec automation.Spec) (map[string]any, string, error) {
-	store, err := s.clientAccess(ctx, spec.Actor, spec.Project, "read")
+func (s *Service) AssistantInstructions(ctx context.Context, spec automation.Spec) (map[string]any, string, error) {
+	store, err := s.hooks.ClientAccess(ctx, spec.Actor, spec.Project, "read")
 	if err != nil {
 		return nil, "", err
 	}

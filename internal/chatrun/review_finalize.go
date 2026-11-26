@@ -1,15 +1,17 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+
+	"forgetmenote/internal/actions"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/knowledge"
 )
 
 func reviewFinalizationEnabled(run *chat.Run, connection chat.Connection) bool {
-	return connection.Capabilities.Tools && allowedAction(run.Options.Mode, "complete_workflow", nil, run.Options.Actions, false)
+	return connection.Capabilities.Tools && actions.Allowed(run.Options.Mode, "complete_workflow", nil, run.Options.Actions, false)
 }
 
 // Completion is a separate bounded phase for the user-authorized Edit/Reviews
@@ -38,7 +40,7 @@ func reviewWorkflowCompleted(run *chat.Run) bool {
 			continue
 		}
 		var in struct {
-			Completion completionInput `json:"completion"`
+			Completion knowledge.CompletionInput `json:"completion"`
 		}
 		if json.Unmarshal(op.Arguments, &in) == nil && in.Completion.Revision == run.Review.Revision {
 			return true
@@ -47,9 +49,9 @@ func reviewWorkflowCompleted(run *chat.Run) bool {
 	return false
 }
 
-func validateReviewWorkflowArguments(run *chat.Run, arguments json.RawMessage) error {
+func ValidateReviewWorkflowArguments(run *chat.Run, arguments json.RawMessage) error {
 	var in struct {
-		Completion completionInput `json:"completion"`
+		Completion knowledge.CompletionInput `json:"completion"`
 	}
 	if json.Unmarshal(arguments, &in) != nil || in.Completion.Revision != run.Review.Revision {
 		return errors.New("workflow completion must use the examined review snapshot")
@@ -59,7 +61,7 @@ func validateReviewWorkflowArguments(run *chat.Run, arguments json.RawMessage) e
 			continue
 		}
 		var previous struct {
-			Completion completionInput `json:"completion"`
+			Completion knowledge.CompletionInput `json:"completion"`
 		}
 		if json.Unmarshal(op.Arguments, &previous) == nil && previous.Completion.Consumer == in.Completion.Consumer && (previous.Completion.Previous != in.Completion.Previous || previous.Completion.Reset != in.Completion.Reset) {
 			return errors.New("workflow checkpoint precondition changed; start a new user-directed task instead of rebasing a conflict")
@@ -71,8 +73,8 @@ func validateReviewWorkflowArguments(run *chat.Run, arguments json.RawMessage) e
 // A completed receipt is a replay, not a new mutation. A running intent may have
 // committed before its acknowledgement was lost: only the original checkpoint's
 // exact idempotency identity can bypass fresh coverage for reconciliation.
-func (s *Server) reconcileReviewWorkflow(ctx context.Context, a chat.RunAuth, run *chat.Run, call chat.ToolCall) (bool, error) {
-	key := operationID(run.ID, run.Rounds, call.ID)
+func (s *Service) ReconcileReviewWorkflow(ctx context.Context, a chat.RunAuth, run *chat.Run, call chat.ToolCall) (bool, error) {
+	key := OperationID(run.ID, run.Rounds, call.ID)
 	for _, op := range run.Operations {
 		if op.ID != key || op.Name != "complete_workflow" {
 			continue
@@ -84,7 +86,7 @@ func (s *Server) reconcileReviewWorkflow(ctx context.Context, a chat.RunAuth, ru
 			return false, nil
 		}
 		var in struct {
-			Completion completionInput `json:"completion"`
+			Completion knowledge.CompletionInput `json:"completion"`
 		}
 		if json.Unmarshal(op.Arguments, &in) != nil {
 			return false, errors.New("invalid original workflow intent")
@@ -106,8 +108,8 @@ func (s *Server) reconcileReviewWorkflow(ctx context.Context, a chat.RunAuth, ru
 
 // Refresh may rebuild context. Preserve the exact native assistant tool block
 // and its already received sibling results when the refreshed coverage is valid.
-func (s *Server) retainPendingWorkflowPair(a chat.RunAuth, id string, prior *chat.Run, call chat.ToolCall) error {
-	return s.chatRunUpdate(a, id, prior.ID, func(c *chat.Conversation, r *chat.Run) error {
+func (s *Service) RetainPendingWorkflowPair(a chat.RunAuth, id string, prior *chat.Run, call chat.ToolCall) error {
+	return s.RunUpdate(a, id, prior.ID, func(c *chat.Conversation, r *chat.Run) error {
 		for _, pending := range pendingToolCalls(r.Messages) {
 			if pending.ID == call.ID {
 				return nil
@@ -132,11 +134,11 @@ func (s *Server) retainPendingWorkflowPair(a chat.RunAuth, id string, prior *cha
 // Resolve the old request explicitly as unexecuted before renewed review. Keep
 // its native block until pending siblings receive their results. Mark that
 // context invalid so the next review preparation rebuilds from fresh originals.
-func (s *Server) deferReviewWorkflow(a chat.RunAuth, id string, prior *chat.Run, call chat.ToolCall) error {
+func (s *Service) DeferReviewWorkflow(a chat.RunAuth, id string, prior *chat.Run, call chat.ToolCall) error {
 	message := "Review evidence changed or belongs to a prior allowance. No checkpoint was written. Complete the renewed original-source review before requesting workflow completion again."
 	result, _ := json.Marshal(map[string]any{"error": message, "deferred": true, "executed": false})
-	key := operationID(prior.ID, prior.Rounds, call.ID)
-	return s.chatRunUpdate(a, id, prior.ID, func(c *chat.Conversation, r *chat.Run) error {
+	key := OperationID(prior.ID, prior.Rounds, call.ID)
+	return s.RunUpdate(a, id, prior.ID, func(c *chat.Conversation, r *chat.Run) error {
 		op := chat.Operation{ID: key, ToolCallID: call.ID, Round: prior.Rounds, Name: call.Name, Arguments: call.Arguments, Hash: chat.Hash(call.Arguments), State: "completed", Result: result, Error: message}
 		found := false
 		for i := range r.Operations {
@@ -163,7 +165,7 @@ func (s *Server) deferReviewWorkflow(a chat.RunAuth, id string, prior *chat.Run,
 	})
 }
 
-func reviewWorkflowWasDeferred(run *chat.Run) bool {
+func ReviewWorkflowWasDeferred(run *chat.Run) bool {
 	for _, op := range run.Operations {
 		if op.Round != run.Rounds || op.Name != "complete_workflow" || op.State != "completed" {
 			continue
