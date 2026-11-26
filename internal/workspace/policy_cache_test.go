@@ -34,7 +34,12 @@ func TestCommittedLockPolicyIsReusedUntilItChanges(t *testing.T) {
 	if rules, err := load(); err != nil || !slices.Equal(rules, []string{"protected.md"}) || backend.locksBlob != parsed || s.locksRevision != head {
 		t.Fatal("an unrelated commit:", rules, err)
 	}
-	if state, err := backend.lockState(ctx, "protected.md"); err != nil || state.Revision != head || len(state.Rules) != 1 {
+	// SetLock calls lockState under mu, which guards the observed head that a
+	// hint the notes store delivers late also updates.
+	s.mu.Lock()
+	state, err := backend.lockState(ctx, "protected.md")
+	s.mu.Unlock()
+	if err != nil || state.Revision != head || len(state.Rules) != 1 {
 		t.Fatal("lock state:", state, err)
 	}
 	commitFixture(t, s, fixture(locksPath, `{"version":1,"paths":[]}`))
