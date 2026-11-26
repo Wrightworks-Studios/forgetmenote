@@ -1,4 +1,4 @@
 # Offline WOFF2 regeneration and full glyph/variation/layout equivalence checks.
 # Not needed by the application or ordinary npm builds (generated fonts tracked).
-fonttools==4.60.1
-brotli==1.1.0
+fonttools==4.60.2
+brotli==1.2.1

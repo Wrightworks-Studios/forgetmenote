@@ -12,7 +12,7 @@ def main():
     import fontTools
     import brotli
     from fontTools.ttLib import TTFont
-    if fontTools.__version__ != '4.60.1' or brotli.__version__ != '1.1.0':
+    if fontTools.__version__ != '4.60.2' or brotli.__version__ != '1.2.1':
         raise SystemExit('Install scripts/font-requirements.txt in a private virtual environment.')
     records = []
     for path in sorted(DIRECTORY.glob('*.ttf')):
