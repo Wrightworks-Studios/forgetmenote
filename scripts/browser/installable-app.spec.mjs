@@ -46,6 +46,8 @@ test('sign-in and notebook pages offer the instance as an installable app', asyn
     // A page without a manifest proves the checks run in this browser.
     await page.goto(app.origin + '/healthz');
     expect((await installability(page)).installabilityErrors).toContain('no-manifest');
+    // Temporary: forces a gate failure whose trace records this browser's environment.
+    expect(false, 'forced failure: check the uploaded trace').toBe(true);
 
     const installable = {
       url: app.origin + '/manifest.webmanifest',
