@@ -4,7 +4,6 @@ import json
 import os
 from pathlib import Path
 import secrets
-import socket
 import subprocess
 import tempfile
 import time
@@ -12,6 +11,7 @@ import urllib.error
 import urllib.request
 import uuid
 
+from smoke_app import app_port, container_token, wait_app
 from smoke_database import Database
 
 
@@ -26,9 +26,7 @@ def main():
     image = os.environ.get('SMOKE_IMAGE', 'forgetmenote:poc')
     name = 'fmn-headless-' + uuid.uuid4().hex[:10]
     volume, restored_volume = name+'-data', name+'-restore'
-    with socket.socket() as sock:
-        sock.bind(('127.0.0.1', 0))
-        port = sock.getsockname()[1]
+    port = app_port()
     origin = f'http://localhost:{port}'
     run('docker', 'volume', 'create', volume)
     db = Database()
@@ -37,14 +35,9 @@ def main():
         run('docker','run','--init','-d','--name',name,'--read-only','--tmpfs','/tmp:size=256m',
             '--cap-drop','ALL','--security-opt','no-new-privileges:true','-p',f'127.0.0.1:{port}:8080',
             '-e','PUBLIC_URL=http://localhost:8080','-v',storage+':/data',*db.args(database),image,'serve','--headless')
-        for _ in range(200):
-            try:
-                with urllib.request.urlopen(urllib.request.Request(origin+'/readyz',headers={'Host':'localhost:8080'}),timeout=1) as response:
-                    if response.status==200:
-                        return
-            except (OSError,urllib.error.URLError):
-                time.sleep(.1)
-        raise RuntimeError('headless container did not become ready')
+        wait_app(origin,container_token(name),host='localhost:8080')
+        with urllib.request.urlopen(urllib.request.Request(origin+'/readyz',headers={'Host':'localhost:8080'}),timeout=5) as response:
+            assert response.status==200
 
     def cli(*args, input=None, check=True):
         # A deliberately unavailable DATA_DIR proves client dispatch never opens server storage.
