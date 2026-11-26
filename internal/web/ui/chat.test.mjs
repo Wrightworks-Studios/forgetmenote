@@ -33,6 +33,16 @@ test('final answers replace streamed text, while prepared approvals retain exact
  assert.equal(state.runs[0].operations[0].confirmation,'opaque');
  assert.equal(state.runs[0].state,'awaiting_confirmation');
 });
+test('a retracted answer leaves the transcript of an open stream',()=>{
+ let state={eventCursor:0,turns:[{id:'question',role:'user',content:'Summarize'}],runs:[]};
+ for(const e of [
+  {type:'text_delta',data:{turnId:'answer',text:'Refused text'}},
+  {type:'retracted',data:{turnId:'answer'}},
+  {type:'state',data:{state:'failed',message:'Notebook access or session was revoked.'}}
+ ])state=applyChatEvent(state,{sequence:state.eventCursor+1,run:'run1',...e});
+ assert.deepEqual(state.turns.map(turn=>turn.id),['question']);
+ assert.equal(state.runs[0].state,'failed');
+});
 test('retry after a lost acknowledgement sends the original immutable submission ID and payload',()=>{
  let ids=0;const send=createTurnSubmission(()=>`submission-${++ids}`),options={mode:'ask'},attachments=[];
  const first=send.prepare('question',options,attachments);options.mode='edit';attachments.push({kind:'private',content:'secret'});

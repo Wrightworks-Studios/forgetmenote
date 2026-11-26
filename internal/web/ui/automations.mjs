@@ -1,6 +1,7 @@
 import {confirmAction,feedback} from './feedback.mjs';
 import {element as node,busy} from './dom.mjs';
 import {requestSequence} from './state.mjs';
+import {checkList,chooseOption,notebookChoices} from './pickers.mjs';
 
 const kinds = {native:'Instance maintenance', checks:'Independent checks', digest:'Data digest', monitor:'Condition monitor', recipe:'Check and repair a recipe', learning:'Improve data-access profiles', task:'Maintain a note with AI', 'drive-sync':'Import Google Drive', script:'Repository package'};
 const nativeTasks = ['notebook-health','storage-health','automation-health','profile-health','profile-compaction','activity-summary','email-pairing','task-reminder'];
@@ -9,8 +10,30 @@ const clientTasks = ['email-pairing','task-reminder'];
 const usesAI = draft => !!draft.repair || !!draft.aiConnection || ['task','learning'].includes(draft.kind) || (draft.script?.capabilities||[]).some(c=>['ai.structured', 'ai.decisions','decision.evaluate'].includes(c));
 const checkStates = {healthy:'Healthy',investigating:'Investigating failures',repaired:'Automatically repaired',rolled_back:'Repair reverted',repair_validated:'Repair validated · preview',waiting_upstream:'Waiting on upstream data',upstream_unavailable:'Source unavailable',repair_failed:'Repair could not be validated',failed:'Checks failed'};
 const learningStates = {published:'Profiles published',deferred:'Deferred',unchanged:'No changes',previewed:'Preview finished',failed:'Learning failed'};
+const weekdayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const browserZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+function timeZones() {let zones=[];try{zones=Intl.supportedValuesOf('timeZone');}catch{}return [...new Set(['UTC',browserZone(),...zones])].sort();}
+// Calendar hours and minutes: whole numbers in range, each once. The server
+// checks the same; this names the field to fix before a save.
+function calendarNumbers(text, label, max) {
+  const values = text.split(',').map(v=>v.trim()).filter(Boolean).map(v=>{if(!/^\d{1,2}$/.test(v)||Number(v)>max)throw Error(`${label} must be whole numbers from 0 to ${max}, separated by commas.`);return Number(v);});
+  if (new Set(values).size!==values.length) throw Error(`${label} must list each value once.`);
+  return values;
+}
+// "Run at" is edited in the browser's time zone and saved as RFC3339 with that
+// offset. An unchanged field keeps the saved time exactly.
+const pad = n => String(n).padStart(2,'0');
+function localTime(saved) {
+  const date=new Date(saved||'');
+  return Number.isNaN(date.getTime())?'':`${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+function rfc3339(local) {
+  const date=new Date(local);if(Number.isNaN(date.getTime()))throw Error('Run at needs a date and time.');
+  const offset=-date.getTimezoneOffset(),abs=Math.abs(offset);
+  return (local.length===16?local+':00':local)+(offset?`${offset<0?'-':'+'}${pad(Math.floor(abs/60))}:${pad(abs%60)}`:'Z');
+}
 
-export function initAutomations({manage, report, people}) {
+export function initAutomations({manage, report, people, connections=()=>[]}) {
   const root = document.getElementById('integration-jobs');
   let pageActive=()=>false;
   const views=requestSequence();
@@ -106,13 +129,18 @@ export function initAutomations({manage, report, people}) {
     }
     field('id','ID').required=true; field('name','Name'); field('kind','Task','text',Object.entries(kinds));
     field('actor','Service account','text',[['','Select an account'],...people().users.filter(u=>u.kind==='service'&&!u.disabled).map(u=>[u.id,u.displayName||u.id])]).required=true;
-    field('project','Notebook ID').required=true;
+    field('project','Notebook','text',[['','Choose a notebook'],...notebookChoices(people().projects)]).required=true;
     field('nativeTask','Maintenance task','text',nativeTasks.map(v=>[v,v.replaceAll('-',' ')]));
     field('triggerMode','Trigger','text',[['manual','Manual'],['interval','Interval'],['calendar','Calendar'],['once','Once'],['usage','MCP usage'],['event','Source event']]);
     field('intervalSeconds','Interval (seconds)','number');
-    field('timezone','Timezone'); field('hours','Hours (0–23, comma separated)'); field('minutes','Minutes (0–59, comma separated)'); field('weekdays','Weekdays (0 Sunday–6 Saturday)'); field('once','Run at (RFC3339)');
+    field('timezone','Timezone','text',timeZones().map(zone=>[zone,zone])); field('hours','Hours (0–23, comma separated)').inputMode='numeric'; field('minutes','Minutes (0–59, comma separated)').inputMode='numeric';
+    const lists = {};
+    function list(key,legend,options,missing) {lists[key]=checkList(legend,options,{missing});labels[key]=lists[key].element;lists[key].element.dataset.field=key;fields.append(lists[key].element);}
+    list('weekdays','Weekdays (none for every day)',weekdayNames.map((name,day)=>[String(day),name]));
+    field('once','Run at','datetime-local');
     field('output','Output note'); field('recipe','Recipe note'); field('aiConnection','AI connection (blank uses instance default)');
-    field('connections','Connections (comma separated)'); field('readProjects','Input notebooks (comma separated)');
+    list('connections','Data connections',connections().map(info=>[info.id,info.label&&info.label!==info.id?`${info.label} (${info.id})`:info.id]),value=>`${value} (not listed)`);
+    list('readProjects','Input notebooks',notebookChoices(people().projects));
     field('timeoutSeconds','Maximum runtime (seconds)','number'); field('maxTokens','Maximum tokens (0 uses provider limits)','number'); field('instruction','Instructions','textarea');
     field('repairCooldownSeconds','Repair cooldown (seconds)','number');
     const checks = node('div'); checks.className='automation-checks';
@@ -120,7 +148,6 @@ export function initAutomations({manage, report, people}) {
     const advanced=node('details');advanced.open=importing;advanced.append(node('summary','JSON definition'));
     const json=node('textarea');json.rows=18;json.spellcheck=false;json.setAttribute('aria-label','Automation JSON');advanced.append(json);
     const status=node('p');status.setAttribute('role','status');
-    const split = value => value.split(',').map(v=>v.trim()).filter(Boolean);
     function visibility() {
       const mode=inputs.triggerMode.value;
       for(const key of ['timezone','hours','minutes','weekdays']) labels[key].hidden=mode!=='calendar';
@@ -140,27 +167,33 @@ export function initAutomations({manage, report, people}) {
         else if(key==='sandbox') input.checked=draft.script?.sandbox!==false;
         else if(key==='repairCooldownSeconds') input.value=draft.repair?.cooldownSeconds??3600;
         else if(key==='externalProcessing') input.checked=!!draft[key];
-        else if(['connections','readProjects'].includes(key)) input.value=(draft[key]||[]).join(', ');
-        else if(['timezone','hours','minutes','weekdays','once'].includes(key)) {const value=draft.schedule?.[key];input.value=Array.isArray(value)?value.join(', '):value||'';}
+        else if(key==='timezone') chooseOption(input,draft.schedule?.timezone||browserZone());
+        else if(key==='once') input.value=localTime(draft.schedule?.once);
+        else if(['hours','minutes'].includes(key)) input.value=(draft.schedule?.[key]||[]).join(', ');
         else if(key==='triggerMode') input.value=triggerMode;
-        else if(key==='nativeTask') input.value=draft.native?.task||'notebook-health';
+        else if(key==='nativeTask') chooseOption(input,draft.native?.task||'notebook-health');
+        // A saved value no select offers (another kind, a disabled account) stays.
+        else if(input.tagName==='SELECT') chooseOption(input,String(draft[key]??''),key==='kind'?value=>value:undefined);
         else input.value=draft[key]??'';
         input.disabled=readOnly;
       }
+      for(const key of ['connections','readProjects']) lists[key].set(draft[key]||[]);
+      lists.weekdays.set((draft.schedule?.weekdays||[]).map(String));
+      for(const value of Object.values(lists)) value.element.disabled=readOnly;
       inputs.id.disabled=readOnly||!!job?.id;json.value=JSON.stringify(draft,null,2);json.readOnly=readOnly;jsonDirty=false;visibility();
     }
     function capture() {
       if(jsonDirty) throw Error('Apply JSON changes first.');
-      const previousKind=draft.kind;
+      const previousKind=draft.kind,previousOnce=draft.schedule?.once;
       for(const [key,input] of Object.entries(inputs)) {
         if(key==='enabled') draft.disabled=!input.checked;
         else if(key==='repairEnabled'||key==='repairCooldownSeconds') continue;
         else if(key==='followPrimaryBranch') {if(draft.script){if(input.checked)draft.script.followPrimaryBranch=true;else delete draft.script.followPrimaryBranch;}}
         else if(key==='sandbox') {if(draft.script){if(input.checked)delete draft.script.sandbox;else draft.script.sandbox=false;}}
         else if(key==='externalProcessing') draft[key]=input.checked;
-        else if(['connections','readProjects'].includes(key)) draft[key]=split(input.value);
-        else if(!['triggerMode','nativeTask','timezone','hours','minutes','weekdays','once'].includes(key)) draft[key]=input.type==='number'?Number(input.value):input.value;
+        else if(!['triggerMode','nativeTask','timezone','hours','minutes','once'].includes(key)) draft[key]=input.type==='number'?Number(input.value):input.value;
       }
+      for(const key of ['connections','readProjects']) draft[key]=lists[key].read();
       if(previousKind!==draft.kind) {for(const key of ['repair','native','drive','shadow','script','learning','condition','checks','calls','trigger','alert','retry'])delete draft[key];draft.aiConnection='';draft.recipe='';draft.output='';draft.instruction='';draft.externalProcessing=false;}
       if(draft.kind==='checks') {
         if(inputs.repairEnabled.checked) {draft.repair={...draft.repair,cooldownSeconds:Number(inputs.repairCooldownSeconds.value)||3600};delete draft.output;delete draft.retry;}
@@ -170,9 +203,10 @@ export function initAutomations({manage, report, people}) {
       if(draft.kind==='learning') {draft.learning??={captureInputs:true,folder:'learned',debounceSeconds:120,maxWaitSeconds:900,minExamples:2,retentionHours:24};inputs.triggerMode.value='usage';}
       else if(inputs.triggerMode.value==='usage') inputs.triggerMode.value='manual';
       const mode=inputs.triggerMode.value;
-      delete draft.schedule;
-      if(mode==='calendar') draft.schedule={timezone:inputs.timezone.value||Intl.DateTimeFormat().resolvedOptions().timeZone,hours:split(inputs.hours.value).map(Number),minutes:split(inputs.minutes.value||'0').map(Number),weekdays:split(inputs.weekdays.value).map(Number),catchUpSeconds:job?.spec.schedule?.catchUpSeconds??3600};
-      if(mode==='once') draft.schedule={once:inputs.once.value,catchUpSeconds:3600};
+      let schedule;
+      if(mode==='calendar') schedule={timezone:inputs.timezone.value||browserZone(),hours:calendarNumbers(inputs.hours.value,'Hours',23),minutes:calendarNumbers(inputs.minutes.value||'0','Minutes',59),weekdays:lists.weekdays.read().map(Number),catchUpSeconds:job?.spec.schedule?.catchUpSeconds??3600};
+      if(mode==='once') schedule={once:!inputs.once.value?'':inputs.once.value===localTime(previousOnce)?previousOnce:rfc3339(inputs.once.value),catchUpSeconds:3600};
+      if(schedule) draft.schedule=schedule; else delete draft.schedule;
       if(mode!=='interval') delete draft.intervalSeconds;
       if(mode==='event') draft.trigger??={}; else delete draft.trigger;
       if(['checks','digest','monitor','drive-sync','script','recipe'].includes(draft.kind)||mode==='event') advanced.open=true;
@@ -184,7 +218,7 @@ export function initAutomations({manage, report, people}) {
       if(job?.id&&parsed.id!==job.id)throw Error('Duplicate the job to change its ID.');draft=parsed;draw();
     }
     fields.onchange=()=>{try{capture();}catch(e){report(e);}};checks.onchange=fields.onchange;
-    json.oninput=()=>{jsonDirty=true;for(const input of Object.values(inputs))input.disabled=true;};
+    json.oninput=()=>{jsonDirty=true;for(const input of Object.values(inputs))input.disabled=true;for(const value of Object.values(lists))value.element.disabled=true;};
     if(!readOnly)advanced.append(button('Apply JSON',applyJSON));
     const actions=node('div');actions.className='dialog-actions';actions.append(button('Back',load),button('Validate',async()=>{if(jsonDirty)applyJSON();else capture();await manage('validate_automation',{spec:draft});status.textContent='Definition is valid.';}));
     if(!readOnly) {

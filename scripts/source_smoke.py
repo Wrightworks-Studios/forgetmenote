@@ -5,13 +5,12 @@ import json
 import os
 from pathlib import Path
 import shutil
-import socket
 import subprocess
 import tempfile
-import time
 import urllib.error
 import urllib.request
 
+from smoke_app import app_port, container_token, wait_app
 from smoke_database import Database
 
 
@@ -134,9 +133,7 @@ def main():
     ocr_fixtures = offline_pdf_fixtures(image, full=full)
     name = f'fmn-source-smoke-{os.getpid()}'
     volume = name + '-data'
-    with socket.socket() as sock:
-        sock.bind(('127.0.0.1', 0))
-        port = sock.getsockname()[1]
+    port = app_port()
     origin = f'http://localhost:{port}'
     run('docker', 'volume', 'create', volume)
     db = Database()
@@ -150,20 +147,13 @@ def main():
             return json.load(response)
 
     def ready():
-        for _ in range(80):
-            try:
-                with urllib.request.urlopen(origin + '/healthz', timeout=1):
-                    return
-            except (OSError, urllib.error.URLError):
-                time.sleep(.25)
-        raise RuntimeError('Container did not become ready')
+        return wait_app(origin, container_token(name))
 
     try:
         db.migrate(image)
         run('docker', 'run', '--init', '-d', '--name', name, '--read-only', '--tmpfs', '/tmp:size=64m',
             '-p', f'127.0.0.1:{port}:8080', '-e', f'PUBLIC_URL={origin}', '-v', volume + ':/data', *db.args(), image)
-        ready()
-        token = run('docker', 'exec', name, 'cat', '/data/admin.token')
+        token = ready()
         original = pdf_bytes('Rare amber paradigm')
         prepared = request('/api/sources/preview', {'filename': 'grammar.pdf', 'data': base64.b64encode(original).decode()})
         assert prepared['capture']['record']['extraction'] == 'extracted', prepared['capture']['record']['warning']
