@@ -2,6 +2,7 @@ import {confirmAction,feedback} from './feedback.mjs';
 import {element as node,busy} from './dom.mjs';
 import {requestSequence} from './state.mjs';
 import {checkList,chooseOption,notebookChoices} from './pickers.mjs';
+import {automationSections} from './automation-sections.mjs';
 
 const kinds = {native:'Instance maintenance', checks:'Independent checks', digest:'Data digest', monitor:'Condition monitor', recipe:'Check and repair a recipe', learning:'Improve data-access profiles', task:'Maintain a note with AI', 'drive-sync':'Import Google Drive', script:'Repository package'};
 const nativeTasks = ['notebook-health','storage-health','automation-health','profile-health','profile-compaction','activity-summary','repository-refresh','email-pairing','task-reminder'];
@@ -33,7 +34,7 @@ function rfc3339(local) {
   return (local.length===16?local+':00':local)+(offset?`${offset<0?'-':'+'}${pad(Math.floor(abs/60))}:${pad(abs%60)}`:'Z');
 }
 
-export function initAutomations({manage, report, people, connections=()=>[]}) {
+export function initAutomations({manage, report, people, connections=()=>[], operations=()=>Promise.resolve([])}) {
   const root = document.getElementById('integration-jobs');
   let pageActive=()=>false;
   const views=requestSequence();
@@ -145,6 +146,8 @@ export function initAutomations({manage, report, people, connections=()=>[]}) {
     field('repairCooldownSeconds','Repair cooldown (seconds)','number');
     const checks = node('div'); checks.className='automation-checks';
     for (const [key,label] of [['enabled','Enabled'],['externalProcessing','Allow configured AI processing'],['repairEnabled','Automatically diagnose and repair checks'],['followPrimaryBranch','Adopt compatible primary-branch package changes without review'],['sandbox','Sandbox package code: no instance files or network (requires Linux Landlock; unchecked runs as server code)']]) {const wrap=node('label');labels[key]=wrap;inputs[key]=node('input');inputs[key].type='checkbox';wrap.append(inputs[key],document.createTextNode(label));checks.append(wrap);}
+    // Calls, checks, conditions, Drive, package bindings and source events.
+    const sections=automationSections({manage,operations,connections,notebooks:()=>notebookChoices(people().projects)});let shown=null;
     const advanced=node('details');advanced.open=importing;advanced.append(node('summary','JSON definition'));
     const json=node('textarea');json.rows=18;json.spellcheck=false;json.setAttribute('aria-label','Automation JSON');advanced.append(json);
     const status=node('p');status.setAttribute('role','status');
@@ -160,6 +163,11 @@ export function initAutomations({manage, report, people, connections=()=>[]}) {
     }
     function draw(triggerMode) {
       triggerMode??=draft.kind==='learning'?'usage':draft.trigger?'event':draft.schedule?.once?'once':draft.schedule?'calendar':draft.intervalSeconds?'interval':'manual';
+      // Sections are built again only for another kind, trigger or definition,
+      // so a change elsewhere keeps what they show.
+      const key=draft.kind+(triggerMode==='event'?' event':'');
+      if(shown!==key){sections.render(draft,{event:triggerMode==='event',readOnly});shown=key;}else sections.disable(readOnly);
+      sections.sync(draft);
       for (const [key,input] of Object.entries(inputs)) {
         if(key==='enabled') input.checked=!draft.disabled;
         else if(key==='repairEnabled') input.checked=!!draft.repair;
@@ -182,7 +190,9 @@ export function initAutomations({manage, report, people, connections=()=>[]}) {
       for(const value of Object.values(lists)) value.element.disabled=readOnly;
       inputs.id.disabled=readOnly||!!job?.id;json.value=JSON.stringify(draft,null,2);json.readOnly=readOnly;jsonDirty=false;visibility();
     }
-    function capture() {
+    // A strict capture (save and validate) also names missing choices in the
+    // sections; other changes only update the draft from what is complete.
+    function capture({strict=false}={}) {
       if(jsonDirty) throw Error('Apply JSON changes first.');
       const previousKind=draft.kind,previousOnce=draft.schedule?.once;
       for(const [key,input] of Object.entries(inputs)) {
@@ -194,7 +204,8 @@ export function initAutomations({manage, report, people, connections=()=>[]}) {
         else if(!['triggerMode','nativeTask','timezone','hours','minutes','once'].includes(key)) draft[key]=input.type==='number'?Number(input.value):input.value;
       }
       for(const key of ['connections','readProjects']) draft[key]=lists[key].read();
-      if(previousKind!==draft.kind) {for(const key of ['repair','native','drive','shadow','script','learning','condition','checks','calls','trigger','alert','retry'])delete draft[key];draft.aiConnection='';draft.recipe='';draft.output='';draft.instruction='';draft.externalProcessing=false;}
+      if(previousKind===draft.kind) sections.read(draft,{strict});
+      if(previousKind!==draft.kind) {for(const key of ['repair','native','drive','shadow','script','learning','condition','checks','calls','trigger','alert','retry','usage'])delete draft[key];if(!['digest','monitor','script'].includes(draft.kind))delete draft.notifySlackUser;draft.aiConnection='';draft.recipe='';draft.output='';draft.instruction='';draft.externalProcessing=false;}
       if(draft.kind==='checks') {
         if(inputs.repairEnabled.checked) {draft.repair={...draft.repair,cooldownSeconds:Number(inputs.repairCooldownSeconds.value)||3600};delete draft.output;delete draft.retry;}
         else if(draft.repair) {delete draft.repair;draft.aiConnection='';}
@@ -208,24 +219,25 @@ export function initAutomations({manage, report, people, connections=()=>[]}) {
       if(mode==='once') schedule={once:!inputs.once.value?'':inputs.once.value===localTime(previousOnce)?previousOnce:rfc3339(inputs.once.value),catchUpSeconds:3600};
       if(schedule) draft.schedule=schedule; else delete draft.schedule;
       if(mode!=='interval') delete draft.intervalSeconds;
-      if(mode==='event') draft.trigger??={}; else delete draft.trigger;
-      if(['checks','digest','monitor','drive-sync','script','recipe'].includes(draft.kind)||mode==='event') advanced.open=true;
+      if(mode==='event') draft.trigger??={kind:'repository.updated',project:draft.project,debounceSeconds:120,maxWaitSeconds:900}; else delete draft.trigger;
       // An incomplete date or interval must not change the trigger the user selected.
       draw(mode);
     }
     function applyJSON() {
       const parsed=JSON.parse(json.value);if(!parsed||Array.isArray(parsed)||typeof parsed!=='object')throw Error('Enter one job definition.');
-      if(job?.id&&parsed.id!==job.id)throw Error('Duplicate the job to change its ID.');draft=parsed;draw();
+      if(job?.id&&parsed.id!==job.id)throw Error('Duplicate the job to change its ID.');draft=parsed;shown=null;draw();
     }
-    fields.onchange=()=>{try{capture();}catch(e){report(e);}};checks.onchange=fields.onchange;
-    json.oninput=()=>{jsonDirty=true;for(const input of Object.values(inputs))input.disabled=true;for(const value of Object.values(lists))value.element.disabled=true;};
+    fields.onchange=()=>{try{capture();}catch(e){report(e);}};checks.onchange=fields.onchange;sections.element.onchange=fields.onchange;
+    // The JSON view shows the form as it stands when opened.
+    advanced.addEventListener('toggle',()=>{if(advanced.open&&!jsonDirty&&!readOnly)fields.onchange();});
+    json.oninput=()=>{jsonDirty=true;for(const input of Object.values(inputs))input.disabled=true;for(const value of Object.values(lists))value.element.disabled=true;sections.disable(true);};
     if(!readOnly)advanced.append(button('Apply JSON',applyJSON));
-    const actions=node('div');actions.className='dialog-actions';actions.append(button('Back',load),button('Validate',async()=>{if(jsonDirty)applyJSON();else capture();await manage('validate_automation',{spec:draft});status.textContent='Definition is valid.';}));
+    const actions=node('div');actions.className='dialog-actions';actions.append(button('Back',load),button('Validate',async()=>{if(jsonDirty)applyJSON();else capture({strict:true});await manage('validate_automation',{spec:draft});status.textContent='Definition is valid.';}));
     if(!readOnly) {
       const save=node('button','Save automation','primary');save.type='submit';actions.append(save);
-      form.onsubmit=e=>{e.preventDefault();if(!view())return;return busy(form,async()=>{if(jsonDirty)applyJSON();else capture();await manage(draft.kind==='script'&&draft.disabled?'install_automation_package':'save_automation',{spec:draft,revision:job?.revision||''});if(view())await load();},{controls:save,report,current:view});};
+      form.onsubmit=e=>{e.preventDefault();if(!view())return;return busy(form,async()=>{if(jsonDirty)applyJSON();else capture({strict:true});await manage(draft.kind==='script'&&draft.disabled?'install_automation_package':'save_automation',{spec:draft,revision:job?.revision||''});if(view())await load();},{controls:save,report,current:view});};
     }
-    form.append(node('h4',readOnly?'Mounted automation':job?.id?'Edit automation':'New automation'),fields,checks,advanced,status,actions);root.replaceChildren(form);draw();
+    form.append(node('h4',readOnly?'Mounted automation':job?.id?'Edit automation':'New automation'),fields,checks,sections.element,advanced,status,actions);root.replaceChildren(form);draw();
   }
   return {load};
 }
