@@ -80,7 +80,8 @@ because a stalled download is not a test result.
 Race-test results are reused per Go package and its full test/build dependency
 closure, including embedded assets and runtime fixtures. Shared application
 changes still run all browser cases; test-only Go edits can reuse the browser
-result. Host checks start longest-first using recorded durations, and measured
+result. Host checks start longest-first using recorded durations (on a host
+without them, such as a fresh runner, reviewed typical times), and measured
 web shards keep their membership on resume. Routine releases run the core and
 affected container scenarios. Automatic full releases run every browser case, the
 backup tests and the quick

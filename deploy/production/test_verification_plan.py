@@ -269,6 +269,16 @@ class MappingCoverageTests(unittest.TestCase):
                 with self.subTest(feature=feature, pattern=pattern):
                     self.assertTrue(self.matching(pattern), pattern + ' matches no file')
 
+    def test_every_typical_time_names_a_current_package_or_the_operator_tests(self):
+        # A renamed package would silently lose its place at the front of the gate.
+        typical = verification_plan_module.TYPICAL_SECONDS
+        packages = [name for name in typical if '/' in name]
+        self.assertEqual(set(typical) - set(packages), {'python'})
+        for package in packages:
+            with self.subTest(package):
+                self.assertTrue(package.startswith('forgetmenote/'), package)
+                self.assertTrue(list((ROOT / package.removeprefix('forgetmenote/')).glob('*.go')), package)
+
     def test_critical_web_boundaries_still_exist(self):
         cases = {case for path in (ROOT / 'internal/web').glob('*_test.go') for case in web_cases(path)}
         for name in verification_plan_module.CRITICAL_WEB:

@@ -134,7 +134,10 @@ never replan the checks its publication reuses.
 `--jobs` bounds host slots (1–12, default the host CPUs minus four, capped at
 ten). Browser verification uses one slot per worker, a third of the slots and at
 most four workers. Host checks start longest first by their last measured run;
-without one, as on a fresh GitHub runner, the browser suite starts first. Docker checks stay
+without one, as on a fresh GitHub runner, the browser suite starts first, then the
+checks `TYPICAL_SECONDS` in `verification_plan.py` lists by their reviewed typical
+time on a standard runner, and `check-fast` starts those packages first too. That
+table only orders checks: batching, receipts and limits use measured runs. Docker checks stay
 in one lane because they share memory and OIDC's HTTPS port. No extra runners or
 paid infrastructure are required. Browser suites continue to reset only stopped,
 disposable fixture data; real restart/history cases retain their written data.
