@@ -29,7 +29,7 @@ func (s *Service) Terminal(a chat.RunAuth, id, runID, state string, cause error,
 		// Persist the pending check before clients can observe completion.
 		// The checker independently requires operator enablement, personal remote
 		// processing consent, and the personal citation-check preference.
-		_ = s.hooks.StartCitationCheck(a, id, runID, false)
+		_ = s.startCitationCheck(a, id, runID, false)
 	}
 	s.settleChatRun(a, id, runID, state, cause, nil, fits...)
 }

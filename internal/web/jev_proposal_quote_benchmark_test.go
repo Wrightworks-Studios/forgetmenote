@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
 	"strings"
@@ -27,7 +28,7 @@ func BenchmarkRetainedProposalQuotes(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		match := retainedProposalQuoteMatcher(b.Context(), run, "default")
+		match := chatrun.RetainedProposalQuoteMatcher(b.Context(), run, "default")
 		for j := 0; j < 32; j++ {
 			if found, err := match(evidence, "proposed text"); err != nil || !found {
 				b.Fatal("missing proposed quotation")
@@ -41,7 +42,7 @@ func TestRetainedProposalQuoteCancellation(t *testing.T) {
 		t.Run(map[bool]string{false: "before preparation", true: "after preparation"}[prepared], func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
-			match := retainedProposalQuoteMatcher(ctx, chat.Run{}, "default")
+			match := chatrun.RetainedProposalQuoteMatcher(ctx, chat.Run{}, "default")
 			evidence := knowledge.JudgmentEvidence{Path: "notes/source.md"}
 			if prepared {
 				if found, err := match(evidence, "missing"); err != nil || found {

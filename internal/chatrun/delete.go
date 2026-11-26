@@ -1,39 +1,42 @@
-package web
+package chatrun
 
 import (
 	"errors"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/workspace"
 	"net/http"
 	"time"
+
+	"forgetmenote/internal/auth"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/webcore"
+	"forgetmenote/internal/workspace"
 )
 
-func (s *Server) chatDelete(w http.ResponseWriter, r *http.Request) {
-	user, err := s.interactiveIdentity(r)
+func (s *Service) chatDelete(w http.ResponseWriter, r *http.Request) {
+	user, err := s.hooks.Interactive(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	project := projectID(r.Context())
+	project := webcore.NotebookID(r.Context())
 	if _, err = s.catalog.Access(user, project, "read"); err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	auth := s.chatRunAuth(r, chat.Conversation{Owner: user, Project: project})
+	owner := s.hooks.RunAuth(r, chat.Conversation{Owner: user, Project: project})
 	authorize := func() error {
-		if !s.authenticated(r) || subject(r.Context()) != user {
+		if !s.hooks.Authenticated(r) || auth.Subject(r.Context()) != user {
 			return workspace.ErrForbidden
 		}
-		return s.checkRun(auth)
+		return s.hooks.CheckRun(owner)
 	}
-	content, release := s.chat.RetainContent(user, r.PathValue("chat"))
+	content, release := s.hooks.Chat().RetainContent(user, r.PathValue("chat"))
 	defer release()
 	if !content.TryLock() {
 		http.Error(w, "Conversation is busy; retry deletion shortly", http.StatusConflict)
 		return
 	}
 	defer content.Unlock()
-	list, releaseList := s.chat.RetainContent(user, "")
+	list, releaseList := s.hooks.Chat().RetainContent(user, "")
 	defer releaseList()
 	if !list.TryLock() {
 		http.Error(w, "Conversation list is busy; retry deletion shortly", http.StatusConflict)
@@ -53,22 +56,22 @@ func (s *Server) chatDelete(w http.ResponseWriter, r *http.Request) {
 	defer held()
 	// Admission and provider teardown use this same lock. A terminal disk state
 	// alone does not prove a provider callback or approved mutation has finished.
-	_, retired, err := s.chat.DeleteConversation(user, project, r.PathValue("chat"), authorize)
+	_, retired, err := s.hooks.Chat().DeleteConversation(user, project, r.PathValue("chat"), authorize)
 	if retired {
 		content.Deleted = true
 	}
 	if retired || errors.Is(err, chat.ErrNotFound) || err == nil {
-		cleanupErr := s.citations.ForgetConversation(user, r.PathValue("chat"))
+		cleanupErr := s.hooks.Citations().ForgetConversation(user, r.PathValue("chat"))
 		err = errors.Join(err, cleanupErr)
 	}
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	http.NewResponseController(w).SetWriteDeadline(time.Now().Add(5 * time.Second))
-	jsonResponse(w, map[string]bool{"deleted": true})
+	webcore.JSON(w, map[string]bool{"deleted": true})
 }
 
 // conversationLock is held shared by a citation check of a conversation on any
 // gateway and exclusively by its deletion.
-func conversationLock(user, id string) string { return "conversation " + digest(user+"\x00"+id) }
+func conversationLock(user, id string) string { return "conversation " + auth.Digest(user+"\x00"+id) }

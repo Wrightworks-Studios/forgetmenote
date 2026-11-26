@@ -93,9 +93,9 @@ func TestOnlyWebServesMCP(t *testing.T) {
 func TestContextAuthorityHasKnownSetters(t *testing.T) {
 	setters := map[string][]string{
 		"forgetmenote/internal/automation.WithIdentity": {"internal/web/automation.go", "internal/web/source_jobs.go"},
-		"forgetmenote/internal/chat.WithRunScope":       {"internal/chatrun/context.go", "internal/chatrun/review.go", "internal/chatrun/round.go", "internal/web/chat_controls.go", "internal/web/chat_runner.go", "internal/web/jev_citations.go"},
+		"forgetmenote/internal/chat.WithRunScope":       {"internal/chatrun/citations.go", "internal/chatrun/context.go", "internal/chatrun/controls.go", "internal/chatrun/review.go", "internal/chatrun/round.go", "internal/chatrun/runner.go"},
 		"forgetmenote/internal/chat.WithScope":          {"internal/chatrun/repository.go", "internal/chatrun/scope.go", "internal/web/automation_assistant.go", "internal/web/chat_action_scope.go"},
-		"forgetmenote/internal/chat.WithApproval":       {"internal/web/chat_controls.go", "internal/web/chat_runner.go"},
+		"forgetmenote/internal/chat.WithApproval":       {"internal/chatrun/controls.go", "internal/chatrun/runner.go"},
 		"forgetmenote/internal/chat.WithoutRunScope":    {"internal/web/automation.go", "internal/web/automation_script_capabilities.go"},
 	}
 	owners := map[string]bool{}
@@ -530,9 +530,10 @@ func calledName(e ast.Expr) string {
 
 // TestChatRunRunsToolsOnlyThroughItsHook keeps the chat run engine off the
 // action registry and off every other hub's actions: a model's tool call
-// reaches an action only through the ExecuteTool hook, which web binds to its
-// executor (the run recheck, the chat guard and dispatch). The engine cannot
-// import web, so web's addAction and dispatcher are out of its reach; it may
+// reaches an action only through the DispatchAction hook, which web binds to
+// its dispatcher (the catalog check, the chat guard and the action). The
+// engine cannot import web, so web's addAction and dispatcher are out of its
+// reach; it may
 // read the registered tools through ActionTool and ChatTools and the policy
 // table, but not actions.Registry, Action or TypedCall. A hub's action is a
 // method of that hub that a handler web passes to addAction,
@@ -625,25 +626,25 @@ func TestChatRunRunsToolsOnlyThroughItsHook(t *testing.T) {
 		}
 		path := obj.Pkg().Path()
 		if fn, ok := obj.(*types.Func); ok && actions[fn.Origin().FullName()] {
-			t.Errorf("%s calls %s, which a registered action reaches; run tools through the ExecuteTool hook", code.rel(id), fn.FullName())
+			t.Errorf("%s calls %s, which a registered action reaches; run tools through the DispatchAction hook", code.rel(id), fn.FullName())
 		}
 		if path == "forgetmenote/internal/actions" {
 			if _, ok := obj.(*types.TypeName); ok && slices.Contains(registry, obj.Name()) {
-				t.Errorf("%s uses actions.%s; run tools through the ExecuteTool hook", code.rel(id), obj.Name())
+				t.Errorf("%s uses actions.%s; run tools through the DispatchAction hook", code.rel(id), obj.Name())
 			}
 			if fn, ok := obj.(*types.Func); ok && (slices.Contains(registry, fn.Name()) || receiverIs(fn, path, "Registry")) {
-				t.Errorf("%s uses actions.%s; run tools through the ExecuteTool hook", code.rel(id), fn.Name())
+				t.Errorf("%s uses actions.%s; run tools through the DispatchAction hook", code.rel(id), fn.Name())
 			}
 			if v, ok := obj.(*types.Var); ok && v.IsField() && v.Name() == "Call" {
-				t.Errorf("%s calls an action directly; run tools through the ExecuteTool hook", code.rel(id))
+				t.Errorf("%s calls an action directly; run tools through the DispatchAction hook", code.rel(id))
 			}
 		}
-		if v, ok := obj.(*types.Var); ok && v.IsField() && v.Name() == "ExecuteTool" && path == "forgetmenote/internal/chatrun" && code.rel(id) != "internal/chatrun/service.go" {
+		if v, ok := obj.(*types.Var); ok && v.IsField() && v.Name() == "DispatchAction" && path == "forgetmenote/internal/chatrun" && code.rel(id) != "internal/chatrun/service.go" {
 			hooks++
 		}
 	}
 	if hooks == 0 {
-		t.Fatal("chatrun no longer runs tools through its ExecuteTool hook")
+		t.Fatal("chatrun no longer runs tools through its DispatchAction hook")
 	}
 }
 

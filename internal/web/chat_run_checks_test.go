@@ -17,6 +17,7 @@ import (
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/workspace"
 )
 
@@ -89,7 +90,7 @@ func TestJevCitationJudgmentRevokedDuringTheCallIsNotSaved(t *testing.T) {
 	if w := proxyCall(app, "alice", "POST", path, `{}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	var record jevCitationRecord
+	var record citationchecks.Record
 	for deadline := time.Now().Add(3 * time.Second); ; time.Sleep(10 * time.Millisecond) {
 		var pending bool
 		var err error
@@ -689,7 +690,7 @@ func TestChatApprovedActionWithAnUnknownOutcomeAfterRevocationIsRefused(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.executeNotebookTool(ctx, auth, c.ID, run.ID, call, connection); !errors.Is(err, chatrun.ErrConfirmation) {
+	if err = app.chatrun.ExecuteNotebookTool(ctx, auth, c.ID, run.ID, call, connection); !errors.Is(err, chatrun.ErrConfirmation) {
 		t.Fatalf("approval not prepared: %v", err)
 	}
 	prepared, err := app.chat.Store.Read("alice", "default", c.ID)

@@ -44,7 +44,7 @@ func TestChatRetrievalHonorsPerNoteAllowance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "search", Name: "search_passages", Arguments: json.RawMessage(`{"text":"saffron"}`)}, connection); err != nil {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "search", Name: "search_passages", Arguments: json.RawMessage(`{"text":"saffron"}`)}, connection); err != nil {
 		t.Fatal(err)
 	}
 	saved, err := app.chat.Store.Read("alice", "default", c.ID)

@@ -58,7 +58,7 @@ func TestChatApprovedLockHonorsFixedCorpus(t *testing.T) {
 						t.Fatal(err)
 					}
 					args, _ := json.Marshal(map[string]any{"path": target, "locked": locked, "revision": before.Revision})
-					if err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "lock", Name: "set_note_lock", Arguments: args}, app.chat.Config.Connections[0]); err != chatrun.ErrConfirmation {
+					if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "lock", Name: "set_note_lock", Arguments: args}, app.chat.Config.Connections[0]); err != chatrun.ErrConfirmation {
 						t.Fatalf("prepare: %v", err)
 					}
 					prepared, err := app.chat.Store.Read("alice", "default", c.ID)
