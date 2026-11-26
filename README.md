@@ -4,8 +4,8 @@
 
 # ForgetMeNote
 
-**A collaborative operating system for projects and businesses, where people and AI work from the
-same notebooks.**
+**A collaborative operating system for AI-native companies, where people and AI work from the same
+notebooks.**
 
 Notes, agent memory, tasks and data access in one self-hosted workspace. The unit is the note:
 Markdown in a notebook that has its own members, roles and Git history.
