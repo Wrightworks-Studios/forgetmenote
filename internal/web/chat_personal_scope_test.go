@@ -119,6 +119,25 @@ func TestChatPersonalContextWritesToSharedNotebookNeedApproval(t *testing.T) {
 	}
 }
 
+// A change carrying personal context that the chat guard refuses is not
+// offered for approval: the run checks it as the approved change it would
+// become, before offering it.
+func TestChatPersonalChangeTheGuardRefusesIsNotOfferedForApproval(t *testing.T) {
+	app := personalWriteFixture(t, `read_personal_source {"provider":"google","generation":1,"operation":"email.thread","arguments":"{\"id\":\"t1\"}"}`, `submit_change_group {"mode":"apply","group":{"id":"x","summary":"Summary","edits":[{"path":"AGENTS.md","content":"# Guidance\nPRIVATE_EMAIL_BODY\n","revision":"","hash":""}]}}`)
+	_, run := runPersonalEdit(t, app, "default")
+	if run.PersonalConsent == "" {
+		t.Fatal("the run did not use personal context")
+	}
+	for _, op := range run.Operations {
+		if op.Name == "submit_change_group" {
+			t.Fatalf("a change the guard refuses was offered (run %s): %+v", run.State, op)
+		}
+	}
+	if run.State != "failed" {
+		t.Fatalf("run %s %q", run.State, run.Error)
+	}
+}
+
 // The person's own protected assistant notebook is already where sourced
 // suggestions are committed; personal context may be saved there.
 func TestChatPersonalContextCanWriteOwnAssistantNotebook(t *testing.T) {
