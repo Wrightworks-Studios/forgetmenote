@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {access, mkdtemp, readdir, rm} from 'node:fs/promises';
+import {access, mkdtemp, readFile, readdir, rm} from 'node:fs/promises';
+import {createServer} from 'node:http';
 import {constants, tmpdir} from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {join} from 'node:path';
@@ -53,6 +54,39 @@ test('a stopped baseline isolates cases while ordinary restart preserves their w
     await app.reset();
     assert.equal((await app.api('/p/default/api/note?path=Baseline.md')).revision, baseline.revision);
   } finally {await app.close();}
+});
+
+// The app's port is unbound while it starts, including across every reset and
+// restart. A Go test's httptest server once took it then and answered the
+// readiness probe and the account setup, so a suite's baseline had no
+// administrator and every page opened the first-run setup dialog.
+test('the app port is one the kernel never hands to another process', {timeout: 30000}, async () => {
+  const ephemeral = process.platform === 'darwin'
+    ? Number(execFileSync('sysctl', ['-n', 'net.inet.ip.portrange.first'], {encoding: 'utf8'}))
+    : Number((await readFile('/proc/sys/net/ipv4/ip_local_port_range', 'utf8')).split(/\s+/)[0]);
+  const app = await startApp({name: 'forgetmenote-fixture-port-', account});
+  try {
+    assert.ok(Number(new URL(app.origin).port) < ephemeral, `${app.origin} is in the ephemeral range from ${ephemeral}`);
+  } finally {await app.close();}
+});
+
+test('a server holding the app port is never taken for the app', {timeout: 30000}, async () => {
+  const app = await startApp({name: 'forgetmenote-fixture-impostor-', account});
+  const impostor = createServer((request, response) => {
+    request.resume();
+    response.setHeader('Content-Type', 'application/json');
+    response.end('{"id":"someone-else"}');
+  });
+  try {
+    const exited = once(app.child, 'exit');
+    app.child.kill('SIGTERM');
+    await exited;
+    await new Promise(resolve => impostor.listen(Number(new URL(app.origin).port), '127.0.0.1', resolve));
+    await assert.rejects(app.restart(), /exited before readiness.*address already in use/s);
+  } finally {
+    impostor.close();
+    await app.close();
+  }
 });
 
 test('a failed fixture request reports its method path HTTP status and response body', {timeout: 30000}, async () => {

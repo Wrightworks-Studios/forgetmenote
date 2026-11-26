@@ -7,13 +7,12 @@ import io
 import json
 import os
 from pathlib import Path
-import socket
 import subprocess
 import time
-import urllib.request
 import uuid
 import zipfile
 from source_smoke import pdf_bytes
+from smoke_app import app_port, container_token, wait_app
 from smoke_database import Database
 
 def run(*args):
@@ -41,18 +40,14 @@ def send(port,token,path,body=None):
 def main():
     image=os.environ.get('SMOKE_IMAGE','forgetmenote:poc')
     name='forgetmenote-resource-'+uuid.uuid4().hex[:10]
-    with socket.socket() as sock:
-        sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
+    port=app_port()
     origin=f'http://localhost:{port}'
     db=Database()
     try:
         db.migrate(image)
         # /data itself is size-limited disposable RAM storage, making ENOSPC safe to test.
         run('docker','run','--init','-d','--name',name,'--memory','512m','--memory-swap','512m','--read-only','--tmpfs','/data:size=128m,uid=1000,gid=1000,mode=700','--tmpfs','/tmp:size=64m,mode=1777','-p',f'127.0.0.1:{port}:8080','-e',f'PUBLIC_URL={origin}',*db.args(),image)
-        for _ in range(100):
-            try:
-                if urllib.request.urlopen(origin+'/healthz',timeout=1).status==200:break
-            except OSError:time.sleep(.1)
+        wait_app(origin,container_token(name))
         token=run('docker','exec',name,'forgetmenote','token')
         def request(path,body=None):
             return send(port,token,path,body)
