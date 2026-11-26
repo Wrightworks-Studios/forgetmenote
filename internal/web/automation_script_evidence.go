@@ -110,7 +110,7 @@ func (s *Server) scriptReadDocument(e *scriptExecution, in scriptRequest) (any, 
 		return nil, err
 	}
 	raw, _ := json.Marshal(doc)
-	citations, _ := s.chatToolEvidence(e.ctx, chat.RunAuth{User: e.run.Spec.Actor, Project: e.run.Spec.Project}, in.Step, "read_document", raw)
+	citations, _ := s.chatrun.ToolEvidence(e.ctx, chat.RunAuth{User: e.run.Spec.Actor, Project: e.run.Spec.Project}, in.Step, "read_document", raw)
 	for _, citation := range citations {
 		citation.Text = ""
 		e.run.Citations = append(e.run.Citations, citation)
@@ -131,7 +131,7 @@ func (s *Server) scriptRepositoryNavigation(e *scriptExecution, in scriptRequest
 	if !ok || v.Revision != "" && v.Revision != source.Revision {
 		return nil, workspace.ErrForbidden
 	}
-	if _, err := s.documentChatScope(e.ctx, source.Project, "repository", source.Source, source.Revision, ""); err != nil {
+	if _, err := s.chatrun.DocumentScope(e.ctx, source.Project, "repository", source.Source, source.Revision, ""); err != nil {
 		return nil, err
 	}
 	if in.Operation == "repositories.changes" {

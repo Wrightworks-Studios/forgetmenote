@@ -1,15 +1,18 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"slices"
+
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/retrieval"
+	"forgetmenote/internal/search"
 	"forgetmenote/internal/workspace"
-	"net/url"
-	"slices"
 )
 
 type chatRetrieval struct {
@@ -36,7 +39,7 @@ func notebookCitation(id string, p notebookEvidence) chat.Citation {
 func sourceCitation(id string, p reposource.SourceResult) chat.Citation {
 	return chat.Citation{ID: id, Project: p.Project, Source: p.Source, StartLine: p.StartLine, EndLine: p.EndLine, StartByte: p.StartByte, EndByte: p.EndByte, Path: p.Path, URL: p.Citation, Title: p.Repository + " · " + p.Path, Text: p.Text, Revision: p.Revision, Hash: p.ContentHash, PassageHash: p.ContentHash, Kind: "repository", Scope: "repository"}
 }
-func (s *Server) appendChatSources(ctx context.Context, run chat.Run, query knowledge.RetrievalQuery, result *chatRetrieval) error {
+func (s *Service) appendChatSources(ctx context.Context, run chat.Run, query knowledge.RetrievalQuery, result *chatRetrieval) error {
 	if run.Options.Corpus == nil || len(run.Options.Corpus.SourceProjects)+len(run.Options.Corpus.NoteProjects) == 0 {
 		return nil
 	}
@@ -50,7 +53,7 @@ func (s *Server) appendChatSources(ctx context.Context, run chat.Run, query know
 			projects = append(projects, p)
 		}
 	}
-	found, err := s.retrieveScoped(ctx, retrievalRequest{Projects: projects, Corpora: []string{"notes", "repository"}, Query: query.Text, Mode: mode, Limit: min(retrieval.DefaultLimit, query.Limit)})
+	found, err := s.hooks.RetrieveScoped(ctx, search.Request{Projects: projects, Corpora: []string{"notes", "repository"}, Query: query.Text, Mode: mode, Limit: min(retrieval.DefaultLimit, query.Limit)})
 	if err != nil {
 		return err
 	}
@@ -89,11 +92,11 @@ func (s *Server) appendChatSources(ctx context.Context, run chat.Run, query know
 	return nil
 }
 
-// validateChatSources checks that a run may still send its evidence to a
+// ValidateSources checks that a run may still send its evidence to a
 // model: the grants checkChatSourceAccess covers, each cited note of another
 // notebook unchanged, and, before an upstream request, the processing of each
 // cited repository file.
-func (s *Server) validateChatSources(ctx context.Context, run chat.Run, upstream bool) error {
+func (s *Service) ValidateSources(ctx context.Context, run chat.Run, upstream bool) error {
 	sources, err := s.chatSourceAccess(ctx, run)
 	if err != nil {
 		return err
@@ -104,7 +107,7 @@ func (s *Server) validateChatSources(ctx context.Context, run chat.Run, upstream
 	}
 	if upstream {
 		for _, source := range sources {
-			if err = s.repositories.AuthorizeProcessing(ctx, source.project, source.id, source.revision, source.paths); err != nil {
+			if err = s.hooks.Repositories().AuthorizeProcessing(ctx, source.project, source.id, source.revision, source.paths); err != nil {
 				return err
 			}
 		}
@@ -116,7 +119,7 @@ func (s *Server) validateChatSources(ctx context.Context, run chat.Run, upstream
 // run's evidence depends on: its personal consent, its data grants, and read
 // access to every notebook and connected repository of its corpus at the
 // bound repository snapshot.
-func (s *Server) checkChatSourceAccess(ctx context.Context, run chat.Run) error {
+func (s *Service) checkChatSourceAccess(ctx context.Context, run chat.Run) error {
 	_, err := s.chatSourceAccess(ctx, run)
 	return err
 }
@@ -126,11 +129,11 @@ type chatSourceSnapshot struct {
 	paths                 []string
 }
 
-func (s *Server) chatSourceAccess(ctx context.Context, run chat.Run) ([]chatSourceSnapshot, error) {
-	if run.PersonalConsent != "" && run.PersonalConsent != s.personalConsentStamp(subject(ctx)) {
+func (s *Service) chatSourceAccess(ctx context.Context, run chat.Run) ([]chatSourceSnapshot, error) {
+	if run.PersonalConsent != "" && run.PersonalConsent != s.hooks.PersonalConsentStamp(auth.Subject(ctx)) {
 		return nil, workspace.ErrForbidden
 	}
-	if err := s.checkDataCitations(ctx, run.Citations); err != nil {
+	if err := s.hooks.CheckDataCitations(ctx, run.Citations); err != nil {
 		return nil, err
 	}
 	ctx = withChatScopeRun(ctx, run)
@@ -138,22 +141,22 @@ func (s *Server) chatSourceAccess(ctx context.Context, run chat.Run) ([]chatSour
 		return nil, chat.ErrCorpus
 	}
 	for _, project := range run.Options.Corpus.NoteProjects {
-		if _, err := s.toolStore(ctx, project, "read"); err != nil {
+		if _, err := s.hooks.ToolStore(ctx, project, "read"); err != nil {
 			return nil, err
 		}
 	}
-	if len(run.Options.Corpus.SourceProjects) > 0 && s.repositories == nil {
+	if len(run.Options.Corpus.SourceProjects) > 0 && s.hooks.Repositories() == nil {
 		return nil, reposource.ErrUnavailable
 	}
 	sources := []chatSourceSnapshot{}
 	for _, project := range run.Options.Corpus.SourceProjects {
-		if _, err := s.catalog.Access(subject(ctx), project, "read"); err != nil {
+		if _, err := s.catalog.Access(auth.Subject(ctx), project, "read"); err != nil {
 			return nil, err
 		}
-		if err := s.checkSourceChatScope(ctx, project); err != nil {
+		if err := s.hooks.CheckSourceScope(ctx, project); err != nil {
 			return nil, err
 		}
-		state, err := s.repositories.Status(project)
+		state, err := s.hooks.Repositories().Status(project)
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +194,7 @@ func withChatScopeRun(ctx context.Context, run chat.Run) context.Context {
 // revision and, unless the corpus includes history, requires its current
 // content to be unchanged. One pass shares each notebook's scoped snapshot,
 // and each pinned revision's, across all of that notebook's citations.
-func (s *Server) checkChatNoteCitations(ctx context.Context, run chat.Run) error {
+func (s *Service) checkChatNoteCitations(ctx context.Context, run chat.Run) error {
 	type notebook struct {
 		ctx       context.Context
 		store     *workspace.Store
@@ -204,11 +207,11 @@ func (s *Server) checkChatNoteCitations(ctx context.Context, run chat.Run) error
 		}
 		n := notebooks[citation.Project]
 		if n == nil {
-			bound, err := s.documentChatScope(ctx, citation.Project, "notes", "", "", citation.Path)
+			bound, err := s.DocumentScope(ctx, citation.Project, "notes", "", "", citation.Path)
 			if err != nil {
 				return err
 			}
-			store, err := s.toolStore(bound, citation.Project, "read")
+			store, err := s.hooks.ToolStore(bound, citation.Project, "read")
 			if err != nil {
 				return err
 			}
@@ -219,7 +222,7 @@ func (s *Server) checkChatNoteCitations(ctx context.Context, run chat.Run) error
 			if snapshot, ok := n.snapshots[revision]; ok {
 				return snapshot, nil
 			}
-			snapshot, err := chatScopedSnapshot(n.ctx, n.store, revision)
+			snapshot, err := ScopedSnapshot(n.ctx, n.store, revision)
 			if err == nil {
 				n.snapshots[revision] = snapshot
 			}
@@ -235,7 +238,7 @@ func (s *Server) checkChatNoteCitations(ctx context.Context, run chat.Run) error
 			continue
 		}
 		if chat.RunScopeFrom(n.ctx) == nil {
-			latest, err := readChatNote(n.ctx, n.store, citation.Path, "")
+			latest, err := ReadNote(n.ctx, n.store, citation.Path, "")
 			if err != nil {
 				return err
 			}

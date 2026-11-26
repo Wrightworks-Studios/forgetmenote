@@ -15,6 +15,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 // A revoked browser session stops a streaming answer within the access
@@ -99,7 +100,7 @@ func TestChatRevokedSessionStopsStreamWithinAccessInterval(t *testing.T) {
 	select {
 	case at := <-stopped:
 		t.Logf("stream stopped %s after revocation", at.Sub(revoked))
-		if at.Sub(revoked) > chatAccessInterval+chatAccessInterval/2 {
+		if at.Sub(revoked) > chatrun.AccessInterval+chatrun.AccessInterval/2 {
 			t.Fatalf("revoked stream ran for %s", at.Sub(revoked))
 		}
 	case <-time.After(5 * time.Second):

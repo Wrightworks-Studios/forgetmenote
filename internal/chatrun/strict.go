@@ -1,7 +1,8 @@
-package web
+package chatrun
 
 import (
 	"errors"
+
 	"forgetmenote/internal/chat"
 )
 

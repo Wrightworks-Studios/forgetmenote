@@ -3,8 +3,6 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -12,6 +10,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 func TestChatBudgetOmissionNativeRestartAndCancel(t *testing.T) {
@@ -62,11 +64,11 @@ func TestChatBudgetOmissionNativeRestartAndCancel(t *testing.T) {
 					return
 				}
 				run := saved.Runs[0]
-				if len(run.Operations) != 3 || run.ToolCount != 2 || len(pendingToolCalls(run.Messages)) != 0 {
+				if len(run.Operations) != 3 || run.ToolCount != 2 || len(chatrun.PendingToolCalls(run.Messages)) != 0 {
 					t.Error("native final request arrived without one completed and one omitted paired receipt")
 				}
-				request := finalChatRequest(chat.Request{Model: "synthetic", System: chatSystem, Messages: run.Messages, Tools: app.runTools(run, connection), MaxOutputTokens: connection.Limits.OutputTokens})
-				request, _, err = fitChatRequest(run, request, connection.Limits.ContextTokens, app.chat.Snapshot().Providers["local"].EstimateRequest)
+				request := chatrun.FinalRequest(chat.Request{Model: "synthetic", System: chatrun.System, Messages: run.Messages, Tools: app.chatrun.RunTools(run, connection), MaxOutputTokens: connection.Limits.OutputTokens})
+				request, _, err = chatrun.FitRequest(run, request, connection.Limits.ContextTokens, app.chat.Snapshot().Providers["local"].EstimateRequest)
 				if err != nil {
 					t.Error(err)
 					http.Error(w, "fixture", 500)
@@ -143,8 +145,8 @@ func TestChatBudgetOmissionNativeRestartAndCancel(t *testing.T) {
 			if tc.cancel {
 				wantState = "cancelled"
 			}
-			if run.State != wantState || run.ToolCount != 2 || len(run.Operations) != 3 || len(pendingToolCalls(run.Messages)) != 0 {
-				t.Fatalf("native interruption lost paired receipts: state=%s tools=%d operations=%d pending=%d", run.State, run.ToolCount, len(run.Operations), len(pendingToolCalls(run.Messages)))
+			if run.State != wantState || run.ToolCount != 2 || len(run.Operations) != 3 || len(chatrun.PendingToolCalls(run.Messages)) != 0 {
+				t.Fatalf("native interruption lost paired receipts: state=%s tools=%d operations=%d pending=%d", run.State, run.ToolCount, len(run.Operations), len(chatrun.PendingToolCalls(run.Messages)))
 			}
 			if run.Operations[0].State != "completed" || !strings.Contains(string(run.Operations[0].Result), "73 units") || run.Operations[1].State != "completed" || run.Operations[2].State != "omitted" {
 				t.Fatal("allowed read and omitted read are not distinguished honestly")
@@ -182,7 +184,7 @@ func TestChatBudgetOmissionNativeRestartAndCancel(t *testing.T) {
 			done = waitChatRun(t, app, c.ID)
 			app.chat.Wait()
 			run = done.Runs[0]
-			if run.State != "completed" || requests.Load() != 4 || run.ToolCount != 2 || !reflect.DeepEqual(run.Operations, receipts) || len(pendingToolCalls(run.Messages)) != 0 || run.Usage.Requests != 4 {
+			if run.State != "completed" || requests.Load() != 4 || run.ToolCount != 2 || !reflect.DeepEqual(run.Operations, receipts) || len(chatrun.PendingToolCalls(run.Messages)) != 0 || run.Usage.Requests != 4 {
 				t.Fatal("restart/resume replayed omitted work or changed native receipts/accounting")
 			}
 		})
@@ -210,7 +212,7 @@ func TestChatNonAskToolBudgetStillPausesWithDiagnostic(t *testing.T) {
 	done := waitChatRun(t, app, c.ID)
 	app.chat.Wait()
 	run := done.Runs[0]
-	if run.State != "interrupted" || run.ToolCount != 1 || len(run.Operations) != 1 || len(pendingToolCalls(run.Messages)) != 1 {
+	if run.State != "interrupted" || run.ToolCount != 1 || len(run.Operations) != 1 || len(chatrun.PendingToolCalls(run.Messages)) != 1 {
 		t.Fatal("non-Ask tool budget no longer preserves explicit continuation")
 	}
 	found := false

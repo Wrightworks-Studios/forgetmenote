@@ -93,8 +93,8 @@ func TestOnlyWebServesMCP(t *testing.T) {
 func TestContextAuthorityHasKnownSetters(t *testing.T) {
 	setters := map[string][]string{
 		"forgetmenote/internal/automation.WithIdentity": {"internal/web/automation.go", "internal/web/source_jobs.go"},
-		"forgetmenote/internal/chat.WithRunScope":       {"internal/web/chat_context.go", "internal/web/chat_controls.go", "internal/web/chat_review.go", "internal/web/chat_round.go", "internal/web/chat_runner.go", "internal/web/jev_citations.go"},
-		"forgetmenote/internal/chat.WithScope":          {"internal/web/automation_assistant.go", "internal/web/chat_action_scope.go", "internal/web/chat_repository.go", "internal/web/chat_scope.go"},
+		"forgetmenote/internal/chat.WithRunScope":       {"internal/chatrun/context.go", "internal/chatrun/review.go", "internal/chatrun/round.go", "internal/web/chat_controls.go", "internal/web/chat_runner.go", "internal/web/jev_citations.go"},
+		"forgetmenote/internal/chat.WithScope":          {"internal/chatrun/repository.go", "internal/chatrun/scope.go", "internal/web/automation_assistant.go", "internal/web/chat_action_scope.go"},
 		"forgetmenote/internal/chat.WithApproval":       {"internal/web/chat_controls.go", "internal/web/chat_runner.go"},
 		"forgetmenote/internal/chat.WithoutRunScope":    {"internal/web/automation.go", "internal/web/automation_script_capabilities.go"},
 	}
@@ -293,12 +293,13 @@ func receiverIs(fn *types.Func, path, name string) bool {
 
 // typedCode is the type-checked production code of every module package that
 // is or depends on connectors, which holds personal connections and their
-// grants.
+// grants and which the chat run engine uses, with each package's files.
 type typedCode struct {
 	root     string
 	fset     *token.FileSet
 	info     *types.Info
 	packages map[string]*types.Package
+	files    map[string][]*ast.File
 }
 
 // rel returns the module-relative file that holds id.
@@ -406,7 +407,7 @@ func typeCheckDependents(target string) (*typedCode, error) {
 	for _, p := range exported {
 		exports[p.ImportPath] = p.Export
 	}
-	code := &typedCode{root: root, fset: token.NewFileSet(), packages: map[string]*types.Package{},
+	code := &typedCode{root: root, fset: token.NewFileSet(), packages: map[string]*types.Package{}, files: map[string][]*ast.File{},
 		info: &types.Info{Uses: map[*ast.Ident]types.Object{}}}
 	gc := importer.ForCompiler(code.fset, "gc", func(path string) (io.ReadCloser, error) {
 		if exports[path] == "" {
@@ -434,6 +435,7 @@ func typeCheckDependents(target string) (*typedCode, error) {
 			return nil, fmt.Errorf("type-check %s: %w", p.ImportPath, err)
 		}
 		code.packages[p.ImportPath] = pkg
+		code.files[p.ImportPath] = files
 	}
 	return code, nil
 }
@@ -524,4 +526,174 @@ func calledName(e ast.Expr) string {
 		return f.Name
 	}
 	return ""
+}
+
+// TestChatRunRunsToolsOnlyThroughItsHook keeps the chat run engine off the
+// action registry and off every other hub's actions: a model's tool call
+// reaches an action only through the ExecuteTool hook, which web binds to its
+// executor (the run recheck, the chat guard and dispatch). The engine cannot
+// import web, so web's addAction and dispatcher are out of its reach; it may
+// read the registered tools through ActionTool and ChatTools and the policy
+// table, but not actions.Registry, Action or TypedCall. A hub's action is a
+// method of that hub that a handler web passes to addAction,
+// addManagementTool, addProjectTool or notebookJSON reaches, directly or
+// through web's own functions. The check follows types, so a function of the
+// same name elsewhere is not a use and a method value is.
+func TestChatRunRunsToolsOnlyThroughItsHook(t *testing.T) {
+	code := typedConnectorDependents(t)
+	const web = "forgetmenote/internal/web"
+	hubs := []string{"forgetmenote/internal/jev", "forgetmenote/internal/messaging", "forgetmenote/internal/personal"}
+	registrars := map[string]int{"addAction": 3, "addManagementTool": 5, "addProjectTool": 5, "notebookJSON": 3}
+	server, _ := code.packages[web].Scope().Lookup("Server").(*types.TypeName)
+	bodies := map[string]*ast.BlockStmt{}
+	for _, file := range code.files[web] {
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				continue
+			}
+			var obj types.Object
+			if fn.Recv == nil {
+				obj = code.packages[web].Scope().Lookup(fn.Name.Name)
+			} else if server != nil {
+				obj, _, _ = types.LookupFieldOrMethod(types.NewPointer(server.Type()), false, code.packages[web], fn.Name.Name)
+			}
+			if f, ok := obj.(*types.Func); ok {
+				bodies[f.FullName()] = fn.Body
+			}
+		}
+	}
+	actions, seen := map[string]bool{}, map[string]bool{}
+	var reach func(ast.Node)
+	reach = func(n ast.Node) {
+		ast.Inspect(n, func(n ast.Node) bool {
+			id, ok := n.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			fn, ok := code.info.Uses[id].(*types.Func)
+			if !ok || fn.Pkg() == nil {
+				return true
+			}
+			name := fn.Origin().FullName()
+			switch {
+			case fn.Pkg().Path() == web && bodies[name] != nil && !seen[name]:
+				seen[name] = true
+				reach(bodies[name])
+			case slices.Contains(hubs, fn.Pkg().Path()) && fn.Signature().Recv() != nil:
+				actions[name] = true
+			}
+			return true
+		})
+	}
+	registered := 0
+	for _, file := range code.files[web] {
+		ast.Inspect(file, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			callee := call.Fun
+			if index, ok := callee.(*ast.IndexListExpr); ok {
+				callee = index.X
+			} else if index, ok := callee.(*ast.IndexExpr); ok {
+				callee = index.X
+			}
+			id, ok := callee.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			fn, ok := code.info.Uses[id].(*types.Func)
+			if !ok || fn.Pkg() == nil || fn.Pkg().Path() != web {
+				return true
+			}
+			if arg, ok := registrars[fn.Name()]; ok && arg < len(call.Args) {
+				registered++
+				reach(call.Args[arg])
+			}
+			return true
+		})
+	}
+	if registered < 100 || len(actions) == 0 {
+		t.Fatalf("found %d action registrations reaching %d hub methods; the registrars changed", registered, len(actions))
+	}
+	registry := []string{"Registry", "Action", "TypedCall", "Schemas"}
+	hooks := 0
+	for id, obj := range code.info.Uses {
+		if !strings.HasPrefix(code.rel(id), "internal/chatrun/") || obj.Pkg() == nil {
+			continue
+		}
+		path := obj.Pkg().Path()
+		if fn, ok := obj.(*types.Func); ok && actions[fn.Origin().FullName()] {
+			t.Errorf("%s calls %s, which a registered action reaches; run tools through the ExecuteTool hook", code.rel(id), fn.FullName())
+		}
+		if path == "forgetmenote/internal/actions" {
+			if _, ok := obj.(*types.TypeName); ok && slices.Contains(registry, obj.Name()) {
+				t.Errorf("%s uses actions.%s; run tools through the ExecuteTool hook", code.rel(id), obj.Name())
+			}
+			if fn, ok := obj.(*types.Func); ok && (slices.Contains(registry, fn.Name()) || receiverIs(fn, path, "Registry")) {
+				t.Errorf("%s uses actions.%s; run tools through the ExecuteTool hook", code.rel(id), fn.Name())
+			}
+			if v, ok := obj.(*types.Var); ok && v.IsField() && v.Name() == "Call" {
+				t.Errorf("%s calls an action directly; run tools through the ExecuteTool hook", code.rel(id))
+			}
+		}
+		if v, ok := obj.(*types.Var); ok && v.IsField() && v.Name() == "ExecuteTool" && path == "forgetmenote/internal/chatrun" && code.rel(id) != "internal/chatrun/service.go" {
+			hooks++
+		}
+	}
+	if hooks == 0 {
+		t.Fatal("chatrun no longer runs tools through its ExecuteTool hook")
+	}
+}
+
+// TestChatRunTestExportsStayInTests keeps the names in chatrun's
+// testexports.go, which web's server-level tests use to reach engine
+// internals, out of production code. Every name that file declares is
+// test-only, so a new one is covered when it is added there.
+func TestChatRunTestExportsStayInTests(t *testing.T) {
+	code := typedConnectorDependents(t)
+	const path = "forgetmenote/internal/chatrun"
+	pkg := code.packages[path]
+	if pkg == nil {
+		t.Fatalf("%s was not type-checked", path)
+	}
+	testOnly := map[string]bool{}
+	for _, file := range code.files[path] {
+		if filepath.Base(code.fset.Position(file.Pos()).Filename) != "testexports.go" {
+			continue
+		}
+		for _, decl := range file.Decls {
+			switch decl := decl.(type) {
+			case *ast.FuncDecl:
+				testOnly[decl.Name.Name] = true
+			case *ast.GenDecl:
+				for _, spec := range decl.Specs {
+					switch spec := spec.(type) {
+					case *ast.TypeSpec:
+						testOnly[spec.Name.Name] = true
+					case *ast.ValueSpec:
+						for _, name := range spec.Names {
+							testOnly[name.Name] = true
+						}
+					}
+				}
+			}
+		}
+	}
+	if len(testOnly) < 20 {
+		t.Fatalf("chatrun's testexports.go declares %d names; was it moved?", len(testOnly))
+	}
+	for id, obj := range code.info.Uses {
+		if obj.Pkg() == nil || obj.Pkg().Path() != path || !testOnly[obj.Name()] || code.rel(id) == "internal/chatrun/testexports.go" {
+			continue
+		}
+		if fn, ok := obj.(*types.Func); ok && fn.Signature().Recv() != nil && !receiverIs(fn, path, "Service") {
+			continue
+		}
+		if _, ok := obj.(*types.Func); !ok && obj.Parent() != pkg.Scope() {
+			continue
+		}
+		t.Errorf("%s uses chatrun's %s, which only tests may use", code.rel(id), obj.Name())
+	}
 }

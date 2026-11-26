@@ -1,12 +1,13 @@
-package web
+package chatrun
 
 import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/sources"
-	"time"
 )
 
 // A review can finish the current explicitly bounded allowance using the dated

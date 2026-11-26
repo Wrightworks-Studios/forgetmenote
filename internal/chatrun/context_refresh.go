@@ -1,4 +1,4 @@
-package web
+package chatrun
 
 import (
 	"context"
@@ -9,18 +9,18 @@ import (
 
 // Provider projections are replaceable; original turns and operation receipts
 // are not. Rebuild changed evidence without re-running any completed mutation.
-func (s *Server) refreshChatContext(ctx context.Context, a chat.RunAuth, c chat.Conversation, run chat.Run, connection chat.Connection) (bool, error) {
+func (s *Service) refreshChatContext(ctx context.Context, a chat.RunAuth, c chat.Conversation, run chat.Run, connection chat.Connection) (bool, error) {
 	if err := run.Options.Corpus.Validate(); err != nil {
 		return false, err
 	}
 	if run.Options.Review {
 		return false, nil
-	} // Review batches are revalidated by prepareChatReview.
+	} // Review batches are revalidated by PrepareReview.
 	store, err := s.catalog.Access(a.User, a.Project, "read")
 	if err != nil {
 		return false, err
 	}
-	snapshot, err := chatCorpusSnapshot(ctx, store, run, "")
+	snapshot, err := CorpusSnapshot(ctx, store, run, "")
 	if err != nil {
 		return false, err
 	}
@@ -33,7 +33,7 @@ func (s *Server) refreshChatContext(ctx context.Context, a chat.RunAuth, c chat.
 		return false, nil
 	}
 	if len(pendingToolCalls(run.Messages)) > 0 {
-		return false, errChatPending
+		return false, ErrPending
 	}
 	messages, citations, memory, err := s.initialChatMessages(ctx, c, run, connection)
 	if err != nil {
@@ -52,7 +52,7 @@ func (s *Server) refreshChatContext(ctx context.Context, a chat.RunAuth, c chat.
 		messages = append(messages, chat.Message{Role: "assistant", Content: "Previously completed operation; this projection retains only its receipt identity.", ToolCalls: []chat.ToolCall{{ID: operation.ToolCallID, Name: operation.Name, Arguments: json.RawMessage(`{}`)}}}, chat.Message{Role: "tool", ToolCallID: operation.ToolCallID, Content: string(receipt)})
 	}
 
-	err = s.chatRunUpdate(a, c.ID, run.ID, func(saved *chat.Conversation, current *chat.Run) error {
+	err = s.RunUpdate(a, c.ID, run.ID, func(saved *chat.Conversation, current *chat.Run) error {
 		current.Messages = messages
 		current.Citations = citations
 		current.Provenance = memory.Provenance

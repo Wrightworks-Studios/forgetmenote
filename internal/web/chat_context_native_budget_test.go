@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 func nativeBudgetJSON(t *testing.T, value any) json.RawMessage {
@@ -145,7 +146,7 @@ func TestChatContextNativeBudgetPreservesProviderRoundTrip(t *testing.T) {
 			}
 			request.Messages = run.Messages
 			beforeRun, beforeRequest := nativeBudgetJSON(t, run), nativeBudgetJSON(t, request)
-			fitted, fit, err := fitChatRequest(run, request, connection.Limits.ContextTokens, provider.EstimateRequest)
+			fitted, fit, err := chatrun.FitRequest(run, request, connection.Limits.ContextTokens, provider.EstimateRequest)
 			if err != nil {
 				t.Fatalf("optional evidence should fit: %v", err)
 			}
@@ -330,7 +331,7 @@ func TestChatContextNativeBudgetRejectsMandatoryOverflow(t *testing.T) {
 			}
 			request := chat.Request{Model: "synthetic", System: "Synthetic system", Messages: run.Messages, MaxOutputTokens: 1536}
 			beforeRun, beforeRequest := nativeBudgetJSON(t, run), nativeBudgetJSON(t, request)
-			if _, _, err := fitChatRequest(run, request, 8192); err == nil || !strings.Contains(strings.ToLower(err.Error()), "context") {
+			if _, _, err := chatrun.FitRequest(run, request, 8192); err == nil || !strings.Contains(strings.ToLower(err.Error()), "context") {
 				t.Fatalf("mandatory oversized content needs an explicit context failure: %v", err)
 			}
 			if !bytes.Equal(beforeRun, nativeBudgetJSON(t, run)) || !bytes.Equal(beforeRequest, nativeBudgetJSON(t, request)) {

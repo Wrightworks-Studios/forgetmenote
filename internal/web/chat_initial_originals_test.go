@@ -3,14 +3,16 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
 	"io"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 // Exercise the ordinary admission fit followed immediately by the smaller,
@@ -80,7 +82,7 @@ func TestChatInitialOriginalsSurviveFinalRequestRefit(t *testing.T) {
 				t.Fatalf("state=%s error=%s requests=%d", run.State, run.Error, requests.Load())
 			}
 			messages := append([]chat.Message(nil), run.Messages[:len(run.Messages)-1]...)
-			index, prefix, payload, _ := optionalChatSources(messages, false)
+			index, prefix, payload, _ := chatrun.OptionalSources(messages, false)
 			var durableSources []chat.Citation
 			if err := json.Unmarshal(payload["sources"], &durableSources); err != nil {
 				t.Fatal(err)
@@ -108,8 +110,8 @@ func TestChatInitialOriginalsSurviveFinalRequestRefit(t *testing.T) {
 			payload["sources"], _ = json.Marshal(run.Citations)
 			encoded, _ := json.Marshal(payload)
 			messages[index].Content = prefix + "\n<untrusted_notebook_context>\n" + string(encoded) + "\n</untrusted_notebook_context>"
-			req := finalChatRequest(chat.Request{System: chatSystem, Model: run.Options.Model, Messages: messages, Tools: app.runTools(run, connection), MaxOutputTokens: connection.Limits.OutputTokens})
-			restored, stats, err := fitChatRequest(run, req, limit, provider.EstimateRequest)
+			req := chatrun.FinalRequest(chat.Request{System: chatrun.System, Model: run.Options.Model, Messages: messages, Tools: app.chatrun.RunTools(run, connection), MaxOutputTokens: connection.Limits.OutputTokens})
+			restored, stats, err := chatrun.FitRequest(run, req, limit, provider.EstimateRequest)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -141,7 +143,7 @@ func TestChatInitialOriginalsSurviveFinalRequestRefit(t *testing.T) {
 				t.Fatal("control exceeded real native budget")
 			}
 			if attachment != "" {
-				_, _, sent, _ := optionalChatSources(actual, false)
+				_, _, sent, _ := chatrun.OptionalSources(actual, false)
 				var attachments []chat.Attachment
 				if json.Unmarshal(sent["explicitAttachments"], &attachments) != nil || len(attachments) != 1 || attachments[0].Content != attachment || attachments[0].Hash != chat.Hash([]byte(attachment)) {
 					t.Fatal("mandatory private attachment changed during fitting")
@@ -214,7 +216,7 @@ func TestChatIntermediateIsPublicProjectionOnly(t *testing.T) {
 			t.Error("API-only intermediate flag persisted into the strict legacy record")
 		}
 	}
-	_, _, initialPayload, _ := optionalChatSources(done.Runs[0].Messages, false)
+	_, _, initialPayload, _ := chatrun.OptionalSources(done.Runs[0].Messages, false)
 	var initialSources []chat.Citation
 	if json.Unmarshal(initialPayload["sources"], &initialSources) != nil || len(initialSources) != 1 || initialSources[0].ID != "source-1" || len(done.Runs[0].Citations) <= len(initialSources) {
 		t.Fatal("later tool citations replaced or contaminated the original automatic envelope")

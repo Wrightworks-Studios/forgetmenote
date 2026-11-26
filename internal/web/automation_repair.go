@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 )
@@ -74,7 +75,7 @@ func (s *Server) evaluateChecks(ctx context.Context, r *automation.Run, blocks m
 			if errors.As(err, &failed) || errors.Is(err, connectors.ErrQuery) {
 				v.State = "failed"
 			}
-			v.Error = textLimit(err.Error(), 1000)
+			v.Error = chatrun.TextLimit(err.Error(), 1000)
 			failures = append(failures, fmt.Errorf("check %s: %w", c.Name, err))
 		}
 		v.Fingerprint = automation.Hash([]any{result.Receipt.SchemaHash, result.Receipt.OutputHash, reference.Receipt.SchemaHash, reference.Receipt.OutputHash, v.State, v.Error})
@@ -268,7 +269,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 		if e != nil {
 			return e
 		}
-		doc, err = readChatNote(ctx, store, r.Spec.Recipe, "")
+		doc, err = chatrun.ReadNote(ctx, store, r.Spec.Recipe, "")
 		if err != nil {
 			return err
 		}

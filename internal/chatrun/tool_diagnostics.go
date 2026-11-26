@@ -1,17 +1,18 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
-	"log/slog"
 )
 
 // Tool names are registered server-side. Arguments, results and raw errors can
 // contain company or personal data and never belong in operational logs.
-func chatToolDiagnostic(run, name string, err error) {
+func ToolDiagnostic(run, name string, err error) {
 	outcome := "succeeded"
 	category := "completed"
 	if err != nil {
