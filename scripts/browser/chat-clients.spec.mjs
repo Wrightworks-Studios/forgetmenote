@@ -39,8 +39,11 @@ test('chat client administration persists scoped channels and linked accounts on
         defaultConnection: 'local'
       }
     });
+    await app.api('/api/projects', {id: 'reports', name: 'Reports'});
+    await app.api('/api/projects', {id: 'archive', name: 'Archive'});
     const directory = await app.api('/api/admin'),
-      admin = directory.users.find(u => u.admin && u.id !== '@local-admin');
+      admin = directory.users.find(u => u.admin && u.id !== '@local-admin'),
+      adminName = admin.displayName || directory.usernames?.[admin.id] || admin.id;
     await app.login(page, 'password');
     await page.goto(app.origin);
     await page.locator('#account-actions-toggle').click();
@@ -55,12 +58,15 @@ test('chat client administration persists scoped channels and linked accounts on
     await expect(panel.getByLabel('Slack /task command URL')).toHaveValue(app.origin + '/integrations/slack/commands');
     await panel.getByRole('button', {name: 'Link account'}).click();
     await panel.getByLabel('Chat user ID', {exact: true}).fill('U123');
-    await panel.getByLabel('ForgetMeNote user ID', {exact: true}).fill(admin.id);
+    await panel.getByLabel('ForgetMeNote account', {exact: true}).selectOption(admin.id);
     await panel.getByRole('button', {name: 'Add channel', exact: true}).click();
     const channel = panel.getByRole('group', {name: 'Channel', exact: true});
     await channel.getByLabel('Channel ID', {exact: true}).fill('C123');
-    await channel.getByLabel('Primary notebook', {exact: true}).fill('default');
-    await channel.getByLabel('Allowed members', {exact: true}).fill(admin.id);
+    await channel.getByLabel('Primary notebook', {exact: true}).selectOption('default');
+    await channel
+      .getByRole('group', {name: 'Allowed members', exact: true})
+      .getByLabel(adminName, {exact: true})
+      .check();
     await channel.getByLabel('Shared replies', {exact: true}).check();
     await channel.getByLabel('Approve this channel audience').check();
     await channel.getByLabel('Include thread context').check();
@@ -69,7 +75,37 @@ test('chat client administration persists scoped channels and linked accounts on
     await expect(panel.getByRole('status')).toHaveText('Chat client saved.');
     const saved = await app.api('/api/organization/action/chat_clients', {});
     expect(saved.config.clients.slack.users.U123).toBe(admin.id);
-    expect(saved.config.clients.slack.channels.C123.shared).toBe(true);
+    expect(saved.config.clients.slack.channels.C123).toMatchObject({
+      project: 'default',
+      actors: [admin.id],
+      shared: true,
+      audienceApproved: true,
+      threadHistory: true,
+      attachments: true,
+      externalProcessing: true
+    });
+    // A definition written as JSON keeps its order and its unlisted values
+    // through an unchanged form save.
+    await panel.getByText('JSON configuration', {exact: true}).click();
+    const json = panel.getByLabel('Chat client JSON', {exact: true});
+    const written = JSON.parse(await json.inputValue());
+    written.channels.C123.readProjects = ['reports', 'archive'];
+    written.channels.C123.connections = ['retired'];
+    await json.fill(JSON.stringify(written));
+    await panel.getByRole('button', {name: 'Save chat client'}).click();
+    await expect(panel.getByLabel('Primary notebook', {exact: true})).toHaveValue('default');
+    const notebooks = channel.getByRole('group', {name: 'Additional notebooks', exact: true});
+    await expect(notebooks.getByLabel('Reports (reports)', {exact: true})).toBeChecked();
+    await expect(notebooks.getByLabel('Archive (archive)', {exact: true})).toBeChecked();
+    await expect(
+      channel.getByRole('group', {name: 'Data connections', exact: true}).getByLabel('retired (not listed)')
+    ).toBeChecked();
+    const fromJSON = (await app.api('/api/organization/action/chat_clients', {})).config;
+    await panel.getByRole('button', {name: 'Save chat client'}).click();
+    await expect(panel.getByRole('status')).toHaveText('Chat client saved.');
+    const fromForm = (await app.api('/api/organization/action/chat_clients', {})).config;
+    expect(fromForm.revision).toBe(fromJSON.revision + 1);
+    expect(JSON.stringify(fromForm.clients)).toBe(JSON.stringify(fromJSON.clients));
     expect(JSON.stringify(saved)).not.toContain('synthetic-bot');
     for (const width of [1280, 390]) {
       await page.setViewportSize({width, height: 900});

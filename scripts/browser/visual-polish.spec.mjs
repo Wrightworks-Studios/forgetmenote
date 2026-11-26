@@ -32,7 +32,7 @@ test.beforeEach(async ({context}) => {
 });
 
 for (const schedule of [
-  {mode: 'once', label: 'Run at (RFC3339)', value: '2099-01-01T12:00:00Z'},
+  {mode: 'once', label: 'Run at', value: '2099-01-01T12:00'},
   {mode: 'interval', label: 'Interval (seconds)', value: '3600'}
 ])
   test(`new automation keeps the ${schedule.mode} trigger while completing its fields`, async ({page}) => {
@@ -46,7 +46,7 @@ for (const schedule of [
     await expect(root.getByLabel(schedule.label, {exact: true})).toBeVisible();
     await root.getByLabel('ID', {exact: true}).fill('visual-' + schedule.mode);
     await root.getByLabel('Service account', {exact: true}).selectOption(service.id);
-    await root.getByLabel('Notebook ID', {exact: true}).fill('default');
+    await root.getByLabel('Notebook', {exact: true}).selectOption('default');
     await root.getByLabel(schedule.label, {exact: true}).fill(schedule.value);
     await root.getByRole('button', {name: 'Save automation', exact: true}).click();
     const card = root.locator('[data-automation="visual-' + schedule.mode + '"]');
@@ -75,7 +75,7 @@ test('an unfinished source event cannot silently become a manual automation', as
   await expect(root.getByLabel('Trigger', {exact: true})).toHaveValue('manual');
   await root.getByLabel('ID', {exact: true}).fill('visual-source-event');
   await root.getByLabel('Service account', {exact: true}).selectOption(service.id);
-  await root.getByLabel('Notebook ID', {exact: true}).fill('default');
+  await root.getByLabel('Notebook', {exact: true}).selectOption('default');
   await root.getByLabel('Trigger', {exact: true}).selectOption('event');
   await expect(root.getByLabel('Trigger', {exact: true})).toHaveValue('event');
   await expect(root.getByLabel('Automation JSON')).toBeVisible();
