@@ -39,10 +39,14 @@ func TestLearningCapturesInteractiveChatButNotBackgroundCalls(t *testing.T) {
 	}
 	// The same read-only data boundary is used by scheduled checks; those must not
 	// feed their synthetic usage back into profile learning.
-	background := automation.Spec{ID: "check", Kind: "checks", Actor: "alice", Project: "default", Connections: []string{"db"}, Calls: []automation.Call{{Connection: "db", Operation: "query", Arguments: map[string]any{"sql": "select count(*) from examples where id = 7"}}}}
+	query := automation.Call{Connection: "db", Operation: "query", Arguments: map[string]any{"sql": "select count(*) from examples where id = 7"}}
+	background := automation.Spec{ID: "check", Kind: "checks", Actor: "alice", Project: "default", Connections: []string{"db"}, Checks: []automation.Check{{Name: "count", Call: query, Assertions: []automation.Assertion{{Pointer: "/rows/0/0", Equals: json.RawMessage(`15`)}}}}}
 	r := automation.Run{ID: automation.Hash("background"), Spec: background}
 	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
+	}
+	if len(r.Receipts) != 1 || r.CheckReport == nil || r.CheckReport.State != "healthy" {
+		t.Fatalf("background check did not call the data connection: %d receipts, %+v", len(r.Receipts), r.CheckReport)
 	}
 	runs, err := app.automations.Queue.List()
 	if err != nil || len(runs) != 1 || runs[0].Learning == nil || len(runs[0].Learning.Events) != 2 {
