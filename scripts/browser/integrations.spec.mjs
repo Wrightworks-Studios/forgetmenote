@@ -152,9 +152,9 @@ test('connection grants and a durable digest work through administration', async
     await automationRoot.getByLabel('ID', {exact: true}).fill('notebook-health');
     await automationRoot.getByLabel('Name', {exact: true}).fill('Notebook health');
     await automationRoot.getByLabel('Service account', {exact: true}).selectOption(service.id);
-    await automationRoot.getByLabel('Notebook ID', {exact: true}).fill('default');
+    await automationRoot.getByLabel('Notebook', {exact: true}).selectOption('default');
     await automationRoot.getByLabel('Trigger', {exact: true}).selectOption('calendar');
-    await automationRoot.getByLabel('Timezone', {exact: true}).fill('America/Denver');
+    await automationRoot.getByLabel('Timezone', {exact: true}).selectOption('America/Denver');
     await automationRoot.getByLabel('Hours (0–23, comma separated)').fill('9');
     await automationRoot.getByLabel('Minutes (0–59, comma separated)').fill('15');
     await automationRoot.getByRole('button', {name: 'Validate', exact: true}).click();

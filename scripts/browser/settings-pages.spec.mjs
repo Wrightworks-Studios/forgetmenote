@@ -501,7 +501,7 @@ test('a completed old automation save retains the new editor without loading ove
     await root.getByRole('button', {name: 'New automation', exact: true}).click();
     await root.getByLabel('ID', {exact: true}).fill('old-draft');
     await root.getByLabel('Service account', {exact: true}).selectOption(service.id);
-    await root.getByLabel('Notebook ID', {exact: true}).fill('default');
+    await root.getByLabel('Notebook', {exact: true}).selectOption('default');
     await root.getByRole('button', {name: 'Save automation', exact: true}).click();
     await started;
     await root.getByRole('button', {name: 'Back', exact: true}).click();
