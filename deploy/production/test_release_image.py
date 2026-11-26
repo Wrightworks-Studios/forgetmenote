@@ -24,6 +24,7 @@ tool = pathlib.Path(sys.argv[0]).name
 root = pathlib.Path(os.environ["RELEASE_FIXTURE"])
 record = {"tool": tool, "args": args}
 record['verification_env'] = {key: os.environ[key] for key in ('SMOKE_PROFILE', 'FMN_BROWSER_GREP') if key in os.environ}
+record['actions'] = sorted(key for key in os.environ if key.startswith('ACTIONS_'))
 if tool == "docker" and "login" in args:
     record["password"] = sys.stdin.read().strip()
     config = pathlib.Path(args[args.index("--config") + 1])
@@ -180,7 +181,7 @@ class ReleaseTests(unittest.TestCase):
                     "DOCKER_CONFIG": str(docker_config)}
         # The gate itself may run under these (GitHub Actions, the Check workflow);
         # each test sets what it needs.
-        for inherited in ("GITHUB_ACTOR", "FMN_IMAGE_CACHE"):
+        for inherited in ("GITHUB_ACTOR", "FMN_IMAGE_CACHE", *(key for key in os.environ if key.startswith("ACTIONS_"))):
             self.env.pop(inherited, None)
 
     def git(self, *args):
@@ -592,6 +593,19 @@ class ReleaseTests(unittest.TestCase):
         result = self.release("--verify-only")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("FMN_IMAGE_CACHE", result.stderr)
+
+    def test_only_the_image_build_receives_the_actions_runtime_token(self):
+        # check.yml exports it for the layer cache, and a failed gate publishes the check
+        # logs and browser traces, which can record a test's environment.
+        self.env.update(FMN_IMAGE_CACHE="gha", ACTIONS_RUNTIME_TOKEN="synthetic-runtime-token",
+                        ACTIONS_RESULTS_URL="https://results.example.com/")
+        result = self.release("--verify-only")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.calls()
+        build = next(c for c in calls if c["tool"] == "docker" and "build" in c["args"])
+        self.assertEqual(build["actions"], ["ACTIONS_RESULTS_URL", "ACTIONS_RUNTIME_TOKEN"])
+        self.assertTrue(any("check-browser" in c["args"] for c in calls))
+        self.assertEqual([c for c in calls if c["actions"]], [build])
 
     def test_ghcr_lookups_read_the_registry_signed_in_not_the_package_api(self):
         # GitHub's package API refuses a workflow's own token; the registry accepts it.
