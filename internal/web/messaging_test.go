@@ -32,7 +32,7 @@ func TestMessagingRecoversCommittedAnswerWithoutRepeatingGeneration(t *testing.T
 	app.messageClients["slack"] = transport
 	r := automation.Run{ID: automation.Hash("recover-answer"), Spec: automation.Spec{ID: "recover-answer", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Instruction: "Answer once.", Delivery: &automation.Delivery{Channel: "C123", Thread: "thread", User: "U123"}}}
 	var checkpoint []byte
-	err := app.runAutomation(t.Context(), &r, func() error {
+	err := app.automationrun.RunAutomation(t.Context(), &r, func() error {
 		if r.Answer != "" {
 			return errors.New("fixture checkpoint failure after conversation commit")
 		}
@@ -48,7 +48,7 @@ func TestMessagingRecoversCommittedAnswerWithoutRepeatingGeneration(t *testing.T
 	if !r.GenerationStarted {
 		t.Fatal("model work was not fenced before generation")
 	}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 1 || len(transport.replies) != 1 || transport.replies[0].Text != "Saved answer." {
@@ -59,7 +59,7 @@ func TestMessagingRecoversCommittedAnswerWithoutRepeatingGeneration(t *testing.T
 	r.Answer = ""
 	r.DeliveryState = ""
 	r.Spec.Delivery.Thread = "unknown"
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err == nil || calls != 1 {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err == nil || calls != 1 {
 		t.Fatal("unknown model call repeated", err, calls)
 	}
 }
@@ -77,13 +77,13 @@ func TestMessagingScheduledDMUsesOnlyItsApprovedNotebookScope(t *testing.T) {
 	transport := &fixtureChatTransport{}
 	app.messageClients["slack"] = transport
 	r := automation.Run{Spec: automation.Spec{Kind: "digest", Actor: "alice", Project: "default", ReadProjects: []string{"other"}, NotifySlackUser: "U123"}, Answer: "Includes another notebook."}
-	if err := app.notifyAutomation(t.Context(), &r, func() error { return nil }); err == nil || len(transport.replies) != 0 {
+	if err := app.automationrun.Notify(t.Context(), &r, func() error { return nil }); err == nil || len(transport.replies) != 0 {
 		t.Fatal("notification exceeded DM notebook scope", err)
 	}
 	b := app.slack.config.DirectMessages["U123"]
 	b.ReadProjects = []string{"other"}
 	app.slack.config.DirectMessages["U123"] = b
-	if err := app.notifyAutomation(t.Context(), &r, func() error { return nil }); err != nil || len(transport.replies) != 1 {
+	if err := app.automationrun.Notify(t.Context(), &r, func() error { return nil }); err != nil || len(transport.replies) != 1 {
 		t.Fatal("approved notification rejected", err)
 	}
 }
@@ -118,7 +118,7 @@ func TestSlackSignedFollowupsDeduplicateMessageAndMentionEvents(t *testing.T) {
 		t.Fatal("answered an unrelated channel thread")
 	}
 	send("start", "app_mention", "", "2.0", "", nil)
-	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+	if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 		t.Fatal(err)
 	}
 	send("reply-message", "message", "2.0", "2.1", "", nil)
@@ -184,7 +184,7 @@ func TestSlackLegacyPrivateHistorySurvivesDefaultModel(t *testing.T) {
 	}
 	app.messageClients["slack"] = &fixtureChatTransport{}
 	r := automation.Run{ID: automation.Hash("legacy-followup"), Spec: automation.Spec{ID: "legacy-followup", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Instruction: "Continue", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "1.2", SlackUser: "U123"}}}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if !seen {
@@ -272,7 +272,7 @@ func TestMessagingOtherClientSharesScopedThreadAcrossUsersAndRestart(t *testing.
 		if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			t.Fatal("duplicate event", err)
 		}
-		if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+		if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 			t.Fatal(err)
 		}
 		if i == 0 {
@@ -340,7 +340,7 @@ func TestMessagingAdminUpdateFencesQueuedEvents(t *testing.T) {
 	if len(runs) != 1 {
 		t.Fatal(runs)
 	}
-	if err := app.runAutomation(t.Context(), &runs[0], func() error { return nil }); err == nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &runs[0], func() error { return nil }); err == nil {
 		t.Fatal("disabled client resumed queued work")
 	}
 }
@@ -392,7 +392,7 @@ func TestMessagingEmptyFileConfigScopesSurviveQueueSerialization(t *testing.T) {
 	if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: "empty-lists", Text: "Answer.", Address: messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", User: "U123"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+	if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 		t.Fatal(err)
 	}
 	if len(transport.replies) != 1 {
@@ -428,7 +428,7 @@ func TestMessagingSharedQueryRequiresEveryAudienceMembersGrant(t *testing.T) {
 	app.slack.config.Channels["C123"] = b
 	app.messageClients["slack"] = &fixtureChatTransport{}
 	r := automation.Run{ID: automation.Hash("shared-query"), Spec: automation.Spec{ID: "shared-query", Kind: "assistant", Project: "default", Actor: "alice", AIConnection: "local", Model: "synthetic", Connections: []string{"db"}, ExternalProcessing: true, Instruction: "Show the data to this channel", Delivery: &automation.Delivery{Channel: "C123", User: "U123", Shared: true}}}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if len(r.Receipts) != 0 || step != 2 {

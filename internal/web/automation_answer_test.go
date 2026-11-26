@@ -102,7 +102,7 @@ func TestAutomationDigestPinsOutputAndAsksModelOnce(t *testing.T) {
 	spec := automation.Spec{ID: "daily", Kind: "digest", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Connections: []string{"metrics"}, Calls: []automation.Call{{Connection: "metrics", Operation: "read"}}, Output: "digest.md", Instruction: "Count the items."}
 	run := automation.Run{ID: automation.Hash("digest-one"), Spec: spec}
 	saved, save := checkpoints(&run)
-	if err = app.runAutomation(t.Context(), &run, save); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, save); err != nil {
 		t.Fatal(err)
 	}
 	prompts := model.asked()
@@ -121,14 +121,14 @@ func TestAutomationDigestPinsOutputAndAsksModelOnce(t *testing.T) {
 	}
 
 	retry := (*saved)[0]
-	if err = app.runAutomation(t.Context(), &retry, func() error { return nil }); err == nil || err.Error() != "AI generation outcome unknown; automatic repeat suppressed" || len(model.asked()) != 1 {
+	if err = app.automationrun.RunAutomation(t.Context(), &retry, func() error { return nil }); err == nil || err.Error() != "AI generation outcome unknown; automatic repeat suppressed" || len(model.asked()) != 1 {
 		t.Fatalf("an interrupted generation was bought again: %v", err)
 	}
 
 	// An edit made while the model answers wins over the digest.
 	model.editDuring(t, store, "digest.md", "# Edited by alice\n")
 	again := automation.Run{ID: automation.Hash("digest-two"), Spec: spec}
-	if err = app.runAutomation(t.Context(), &again, func() error { return nil }); !errors.Is(err, workspace.ErrConflict) {
+	if err = app.automationrun.RunAutomation(t.Context(), &again, func() error { return nil }); !errors.Is(err, workspace.ErrConflict) {
 		t.Fatalf("concurrent edit was overwritten: %v", err)
 	}
 	if doc, _ = store.Read(t.Context(), "digest.md", ""); string(doc.Content) != "# Edited by alice\n" {
@@ -151,7 +151,7 @@ func TestAutomationTaskPinsExistingOutputBeforeAskingModel(t *testing.T) {
 	spec := automation.Spec{ID: "summarize", Kind: "task", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Output: "summary.md", Instruction: "Summarize the trigger."}
 	run := automation.Run{ID: automation.Hash("task-one"), Spec: spec, Batch: &automation.EventBatch{Expires: time.Now().Add(time.Hour), Events: events}}
 	saved, save := checkpoints(&run)
-	if err = app.runAutomation(t.Context(), &run, save); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, save); err != nil {
 		t.Fatal(err)
 	}
 	evidence, _ := json.Marshal(events)
@@ -170,13 +170,13 @@ func TestAutomationTaskPinsExistingOutputBeforeAskingModel(t *testing.T) {
 	}
 
 	retry := (*saved)[0]
-	if err = app.runAutomation(t.Context(), &retry, func() error { return nil }); err == nil || err.Error() != "AI generation outcome unknown; automatic repeat suppressed" || len(model.asked()) != 1 {
+	if err = app.automationrun.RunAutomation(t.Context(), &retry, func() error { return nil }); err == nil || err.Error() != "AI generation outcome unknown; automatic repeat suppressed" || len(model.asked()) != 1 {
 		t.Fatalf("an interrupted generation was bought again: %v", err)
 	}
 
 	model.editDuring(t, store, "summary.md", "# Edited by alice\n")
 	again := automation.Run{ID: automation.Hash("task-two"), Spec: spec}
-	if err = app.runAutomation(t.Context(), &again, func() error { return nil }); !errors.Is(err, workspace.ErrConflict) {
+	if err = app.automationrun.RunAutomation(t.Context(), &again, func() error { return nil }); !errors.Is(err, workspace.ErrConflict) {
 		t.Fatalf("concurrent edit was overwritten: %v", err)
 	}
 	if doc, _ = store.Read(t.Context(), "summary.md", ""); string(doc.Content) != "# Edited by alice\n" {
@@ -245,7 +245,7 @@ func TestAutomationAnswerRecordsToolReadsForTheNextRound(t *testing.T) {
 		second = messages
 		return `{"choices":[{"message":{"role":"assistant","content":"Answered from the original."},"finish_reason":"stop"}],"usage":{"prompt_tokens":20,"completion_tokens":5}}`
 	})
-	answer, err := app.automationAnswer(ctx, run, "Read the synthetic note.", true)
+	answer, err := app.automationrun.Answer(ctx, run, "Read the synthetic note.", true)
 	if err != nil || answer != "Answered from the original." || requests.Load() != 2 {
 		t.Fatalf("answer %q after %d requests: %v", answer, requests.Load(), err)
 	}
@@ -276,7 +276,7 @@ func TestAutomationAnswerStopsAtItsLimits(t *testing.T) {
 				}
 				return automationToolCalls(read)
 			})
-			if _, err := app.automationAnswer(ctx, run, "Keep calling tools.", true); err == nil || err.Error() != tc.message || requests.Load() != tc.requests {
+			if _, err := app.automationrun.Answer(ctx, run, "Keep calling tools.", true); err == nil || err.Error() != tc.message || requests.Load() != tc.requests {
 				t.Fatalf("stopped with %v after %d requests", err, requests.Load())
 			}
 		})
@@ -290,7 +290,7 @@ func TestAutomationAnswerHidesCheckFailureDetails(t *testing.T) {
 		return `{"choices":[{"message":{"role":"assistant","content":"Streamed text."},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5}}`
 	})
 	checked := false
-	_, err := app.automationAnswerChecked(ctx, run, "Answer.", false, nil, func(context.Context) error {
+	_, err := app.automationrun.AnswerChecked(ctx, run, "Answer.", false, nil, func(context.Context) error {
 		if checked {
 			return errors.New("PRIVATE_SOURCE_DETAIL")
 		}
@@ -308,7 +308,7 @@ func eventTask(t *testing.T, app *Server, id string, events ...automation.Event)
 	t.Helper()
 	spec := automation.Spec{ID: "summarize", Kind: "task", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Output: "summary.md", Instruction: "Summarize the trigger."}
 	run := automation.Run{ID: automation.Hash(id), Spec: spec, Batch: &automation.EventBatch{Expires: time.Now().Add(time.Hour), Events: events}}
-	return app.runAutomation(t.Context(), &run, func() error { return nil })
+	return app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 }
 
 // An event run answers only while the person whose message raised the event
@@ -382,7 +382,7 @@ func TestAutomationAnswerStopsAtAToolItWasNotOffered(t *testing.T) {
 		}
 		return `{"choices":[{"message":{"role":"assistant","content":"Saved."},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5}}`
 	})
-	if _, err := app.automationAnswer(ctx, run, "Write the summary note.", true); !errors.Is(err, chat.ErrProviderContract) && !errors.Is(err, workspace.ErrForbidden) || requests.Load() != 1 {
+	if _, err := app.automationrun.Answer(ctx, run, "Write the summary note.", true); !errors.Is(err, chat.ErrProviderContract) && !errors.Is(err, workspace.ErrForbidden) || requests.Load() != 1 {
 		t.Fatalf("unoffered tool call: %v after %d requests", err, requests.Load())
 	}
 	store, _ := app.catalog.Access(catalog.Bootstrap, "default", "read")

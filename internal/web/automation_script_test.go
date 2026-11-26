@@ -248,7 +248,7 @@ func TestScriptFailedPreparationKeepsActiveInstallation(t *testing.T) {
 	if current.Revision != active.Revision || current.Spec.Disabled {
 		t.Fatal("failed preparation replaced or paused active installation")
 	}
-	if err = app.runAutomation(t.Context(), e.run, e.save); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), e.run, e.save); err != nil {
 		t.Fatalf("original installation stopped working: %v", err)
 	}
 }

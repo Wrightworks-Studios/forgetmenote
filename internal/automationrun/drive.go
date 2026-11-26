@@ -1,4 +1,4 @@
-package web
+package automationrun
 
 import (
 	"context"
@@ -46,16 +46,16 @@ func driveExport(mime, name string) (string, string, bool) {
 	return "", name, true
 }
 
-func (s *Server) runDriveSync(ctx context.Context, r *automation.Run, save func() error) error {
+func (s *Service) runDriveSync(ctx context.Context, r *automation.Run, save func() error) error {
 	if err := r.Spec.Validate(); err != nil {
 		return err
 	}
 	policy := r.Spec.Drive
-	_, err := s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "edit")
+	_, err := s.hooks.ClientAccess(ctx, r.Spec.Actor, r.Spec.Project, "edit")
 	if err != nil {
 		return err
 	}
-	state, err := s.automations.Queue.ReadDrive(r.Spec.ID)
+	state, err := s.runtime.Queue.ReadDrive(r.Spec.ID)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (s *Server) runDriveSync(ctx context.Context, r *automation.Run, save func(
 		if r.DryRun {
 			return nil
 		}
-		return s.automations.Queue.SaveDrive(r.Spec.ID, state)
+		return s.runtime.Queue.SaveDrive(r.Spec.ID, state)
 	}
 	if err = checkpoint(); err != nil {
 		return err
@@ -91,7 +91,7 @@ func (s *Server) runDriveSync(ctx context.Context, r *automation.Run, save func(
 	// the deterministic worker while contributing no imports to the file budget.
 	for pages := 0; len(state.Folders) > 0 && processed < limit && pages < 32; pages++ {
 		folder := state.Folders[0]
-		result, e := s.automationCall(ctx, r, automation.Call{Connection: policy.Connection, Operation: "list", Arguments: map[string]any{"folder": folder.ID, "pageToken": folder.Cursor}})
+		result, e := s.Call(ctx, r, automation.Call{Connection: policy.Connection, Operation: "list", Arguments: map[string]any{"folder": folder.ID, "pageToken": folder.Cursor}})
 		if e != nil {
 			return e
 		}
@@ -147,7 +147,7 @@ func (s *Server) runDriveSync(ctx context.Context, r *automation.Run, save func(
 				op = "export"
 				args["mimeType"] = format
 			}
-			content, e := s.automationCall(ctx, r, automation.Call{Connection: policy.Connection, Operation: op, Arguments: args})
+			content, e := s.Call(ctx, r, automation.Call{Connection: policy.Connection, Operation: op, Arguments: args})
 			if e != nil {
 				return e
 			}
@@ -165,7 +165,7 @@ func (s *Server) runDriveSync(ctx context.Context, r *automation.Run, save func(
 			if e != nil || len(body) == 0 {
 				return errors.New("invalid Drive file data")
 			}
-			release, e := s.acquireSourceWork(ctx)
+			release, e := s.hooks.AcquireSourceWork(ctx)
 			if e != nil {
 				return e
 			}
@@ -178,7 +178,7 @@ func (s *Server) runDriveSync(ctx context.Context, r *automation.Run, save func(
 			capture.OperationID = "drive-" + automation.Hash([]string{r.Spec.ID, file.ID, version})
 			capture.Record.CapturedAt = file.Modified
 			if !r.DryRun {
-				if err = s.checkAutomationEvidence(ctx, r, true); err != nil {
+				if err = s.hooks.CheckEvidence(ctx, r, true); err != nil {
 					return err
 				}
 				var imported workspace.Document

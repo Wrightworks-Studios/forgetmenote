@@ -31,7 +31,7 @@ func TestCheckSuiteRetainsEveryFailure(t *testing.T) {
 		spec.Checks = append(spec.Checks, automation.Check{Name: name, Call: automation.Call{Connection: "metrics", Operation: "read"}, Assertions: []automation.Assertion{{Pointer: "/rows/0/0", Equals: json.RawMessage(`true`)}}})
 	}
 	run := automation.Run{ID: automation.Hash("all-failures"), Spec: spec, DryRun: true}
-	err = app.runAutomation(t.Context(), &run, func() error { return nil })
+	err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 	if err == nil || len(run.Receipts) != 2 || !strings.Contains(run.Result, "freshness") || !strings.Contains(run.Result, "uniqueness") {
 		t.Fatalf("every failure must be retained: receipts=%d report=%q error=%v", len(run.Receipts), run.Result, err)
 	}
@@ -111,7 +111,7 @@ func TestRepairReportsInvestigationBeforeModelCall(t *testing.T) {
 	f := newRepairTest(t)
 	r := automation.Run{ID: automation.Hash("investigation-status"), Spec: f.spec, State: "running"}
 	observed := false
-	err := f.app.runAutomation(t.Context(), &r, func() error {
+	err := f.app.automationrun.RunAutomation(t.Context(), &r, func() error {
 		if r.GenerationStarted && f.calls == 0 {
 			observed = true
 			status := runStatus(r)
@@ -206,7 +206,7 @@ func TestRepairSendsOnlyFailedQueriesAndDependencies(t *testing.T) {
 func (f *repairTestFixture) run(t *testing.T, id string, preview bool) (automation.Run, error) {
 	t.Helper()
 	r := automation.Run{ID: automation.Hash(id), Spec: f.spec, DryRun: preview}
-	err := f.app.runAutomation(t.Context(), &r, func() error { return nil })
+	err := f.app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil })
 	return r, err
 }
 
@@ -378,7 +378,7 @@ func TestRepairResumesSavedPublicationWithoutAnotherModelCall(t *testing.T) {
 	f.answer = `{"summary":"Fix","sql":{"count":"SELECT count(*) AS n FROM public.events WHERE active = true"}}`
 	r := automation.Run{ID: automation.Hash("interrupted-publication"), Spec: f.spec}
 	var saved automation.Run
-	err := f.app.runAutomation(t.Context(), &r, func() error {
+	err := f.app.automationrun.RunAutomation(t.Context(), &r, func() error {
 		if r.Publication != nil && r.Publication.Content != "" {
 			raw, _ := json.Marshal(r)
 			json.Unmarshal(raw, &saved)
@@ -389,7 +389,7 @@ func TestRepairResumesSavedPublicationWithoutAnotherModelCall(t *testing.T) {
 	if err == nil || saved.Publication == nil || f.calls != 1 {
 		t.Fatal("publication checkpoint was not reached", err, f.calls)
 	}
-	if err = f.app.runAutomation(t.Context(), &saved, func() error { return nil }); err != nil {
+	if err = f.app.automationrun.RunAutomation(t.Context(), &saved, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if f.calls != 1 || saved.CheckReport.State != "repaired" {
@@ -513,7 +513,7 @@ func TestCheckSuiteRepairsOnlySQLAndSkipsHealthyModelCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: automation.Hash("repair"), Spec: spec}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	after, err := store.Read(t.Context(), "recipe.md", "")
@@ -521,7 +521,7 @@ func TestCheckSuiteRepairsOnlySQLAndSkipsHealthyModelCalls(t *testing.T) {
 		t.Fatalf("validated SQL-only repair not published: calls=%d content=%q error=%v", aiCalls, after.Content, err)
 	}
 	run = automation.Run{ID: automation.Hash("healthy"), Spec: spec}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || aiCalls != 1 {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || aiCalls != 1 {
 		t.Fatalf("healthy checks bought generation: calls=%d error=%v", aiCalls, err)
 	}
 }

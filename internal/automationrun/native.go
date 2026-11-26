@@ -1,4 +1,4 @@
-package web
+package automationrun
 
 import (
 	"context"
@@ -16,12 +16,12 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, save func() error) error {
+func (s *Service) runNativeAutomation(ctx context.Context, r *automation.Run, save func() error) error {
 	n := r.Spec.Native
 	if err := r.Spec.Validate(); err != nil {
 		return err
 	}
-	store, err := s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "read")
+	store, err := s.hooks.ClientAccess(ctx, r.Spec.Actor, r.Spec.Project, "read")
 	if err != nil {
 		return err
 	}
@@ -58,8 +58,8 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 		data["revision"] = status.Revision
 		data["dirty"] = status.Dirty
 		incident.Active = status.Dirty
-		if s.repositories != nil && s.catalog.Kind(r.Spec.Project) == "repository" {
-			state, e := s.repositories.Status(r.Spec.Project)
+		if s.hooks.Repositories() != nil && s.catalog.Kind(r.Spec.Project) == "repository" {
+			state, e := s.hooks.Repositories().Status(r.Spec.Project)
 			if e != nil {
 				return e
 			}
@@ -74,8 +74,8 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 			}
 			data["index"] = pending.Status
 		}
-		if s.backups != nil {
-			b, e := s.backups.manager.Status(r.Spec.Project)
+		if s.hooks.Backups() != nil {
+			b, e := s.hooks.Backups().Status(r.Spec.Project)
 			if e != nil {
 				return e
 			}
@@ -87,7 +87,7 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 		}
 		incident.Summary = "Notebook health: " + r.Spec.Project
 	case "automation-health", "profile-health":
-		runs, e := s.automations.Queue.List()
+		runs, e := s.runtime.Queue.List()
 		if e != nil {
 			return e
 		}
@@ -135,7 +135,7 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 		if e != nil {
 			return e
 		}
-		if _, err = s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "owner"); err != nil {
+		if _, err = s.hooks.ClientAccess(ctx, r.Spec.Actor, r.Spec.Project, "owner"); err != nil {
 			return err
 		}
 		state, e := repos.Status(r.Spec.Project)
@@ -146,7 +146,7 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 			return errors.New("notebook has no connected repository")
 		}
 		if !r.DryRun {
-			if err = s.checkAutomationAuth(ctx); err != nil {
+			if err = s.hooks.CheckRun(ctx); err != nil {
 				return err
 			}
 			state, e = repos.Refresh(ctx, r.Spec.Project)
@@ -156,11 +156,11 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 		}
 		data["repository"] = state
 	case "email-pairing":
-		if data, incident, err = s.runEmailPairing(ctx, r); err != nil {
+		if data, incident, err = s.hooks.EmailPairing(ctx, r); err != nil {
 			return err
 		}
 	case "task-reminder":
-		if data, incident, err = s.tasks.RunReminder(ctx, r); err != nil {
+		if data, incident, err = s.hooks.Tasks().RunReminder(ctx, r); err != nil {
 			return err
 		}
 	case "profile-compaction":
@@ -180,7 +180,7 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 	}
 	r.Result = report
 	if incident.Summary != "" {
-		decision, e := s.automations.Queue.Incident(r.Spec, r.ID, incident, time.Now(), r.DryRun)
+		decision, e := s.runtime.Queue.Incident(r.Spec, r.ID, incident, time.Now(), r.DryRun)
 		if e != nil {
 			return e
 		}
@@ -193,14 +193,14 @@ func (s *Server) runNativeAutomation(ctx context.Context, r *automation.Run, sav
 			if e = save(); e != nil {
 				return e
 			}
-			return s.notifyAutomation(ctx, r, save)
+			return s.Notify(ctx, r, save)
 		}
 		return save()
 	}
 	return s.automationReport(ctx, r, report, save)
 }
 
-func (s *Server) automationReport(ctx context.Context, r *automation.Run, report string, save func() error) error {
+func (s *Service) automationReport(ctx context.Context, r *automation.Run, report string, save func() error) error {
 	r.Result = report
 	if r.Spec.Output != "" {
 		if r.Publication == nil {
@@ -210,7 +210,7 @@ func (s *Server) automationReport(ctx context.Context, r *automation.Run, report
 		if err := save(); err != nil {
 			return err
 		}
-		if err := s.publishAutomation(ctx, r); err != nil {
+		if err := s.Publish(ctx, r); err != nil {
 			return err
 		}
 	} else {
@@ -219,15 +219,15 @@ func (s *Server) automationReport(ctx context.Context, r *automation.Run, report
 			return err
 		}
 	}
-	return s.notifyAutomation(ctx, r, save)
+	return s.Notify(ctx, r, save)
 }
 
-func (s *Server) compactAutomationProfiles(ctx context.Context, r *automation.Run) (int, error) {
-	store, err := s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "edit")
+func (s *Service) compactAutomationProfiles(ctx context.Context, r *automation.Run) (int, error) {
+	store, err := s.hooks.ClientAccess(ctx, r.Spec.Actor, r.Spec.Project, "edit")
 	if err != nil {
 		return 0, err
 	}
-	scope, err := s.documentContentScope(ctx, store, knowledge.ContainerSelection{NotesOnly: true})
+	scope, err := s.hooks.DocumentContentScope(ctx, store, knowledge.ContainerSelection{NotesOnly: true})
 	if err != nil {
 		return 0, err
 	}
@@ -253,7 +253,7 @@ func (s *Server) compactAutomationProfiles(ctx context.Context, r *automation.Ru
 		}
 		if old, ok := seen[file.Hash]; ok {
 			action := workspace.OrganizationAction{ID: "automation-" + r.ID + "-" + automation.Hash(file.Path)[:16], Kind: "duplicate", Path: file.Path, Target: old.Path, Allowed: allowed, Expected: expected, Sources: []workspace.MutationSource{{Path: file.Path, Revision: snapshot.Revision, Hash: file.Hash}, {Path: old.Path, Revision: snapshot.Revision, Hash: old.Hash}}}
-			if err = s.checkAutomationAuth(ctx); err != nil {
+			if err = s.hooks.CheckRun(ctx); err != nil {
 				return count, err
 			}
 			a, ok := automation.IdentityFrom(ctx)
@@ -272,32 +272,4 @@ func (s *Server) compactAutomationProfiles(ctx context.Context, r *automation.Ru
 		seen[file.Hash] = file
 	}
 	return count, nil
-}
-
-func (s *Server) runAutomationChecks(ctx context.Context, r *automation.Run, save func() error) error {
-	checks, err := s.evaluateChecks(ctx, r, nil)
-	r.CheckReport = &automation.CheckReport{State: "healthy", Checks: checks}
-	if err != nil {
-		r.CheckReport.State = "failed"
-		r.Result = checkReportText(r.CheckReport) + "\n" + receiptSummary(r.Receipts)
-		if e := save(); e != nil {
-			return e
-		}
-		return err
-	}
-	return s.automationReport(ctx, r, checkReportText(r.CheckReport)+"\n"+receiptSummary(r.Receipts), save)
-}
-
-func checkAutomationAssertions(check automation.Check, data any, duration int64) error {
-	for _, a := range check.Assertions {
-		v, ok := jsonPointer(data, a.Pointer)
-		var expected any
-		if json.Unmarshal(a.Equals, &expected) != nil || !ok || automation.Hash(v) != automation.Hash(expected) {
-			return recipeFailure{fmt.Errorf("check %s failed at %s", check.Name, a.Pointer)}
-		}
-	}
-	if check.MaxDurationMS > 0 && duration > check.MaxDurationMS {
-		return recipeFailure{fmt.Errorf("check %s exceeded %d ms", check.Name, check.MaxDurationMS)}
-	}
-	return nil
 }

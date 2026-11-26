@@ -195,7 +195,7 @@ func TestRepositoryAutomationPackagesThroughHost(t *testing.T) {
 				t.Fatal(err)
 			}
 			e.run.Script = nil
-			if err = app.runAutomation(t.Context(), e.run, e.save); err != nil {
+			if err = app.automationrun.RunAutomation(t.Context(), e.run, e.save); err != nil {
 				t.Fatal(err)
 			}
 			wantModels := int32(0)
@@ -212,7 +212,7 @@ func TestRepositoryAutomationPackagesThroughHost(t *testing.T) {
 			snapshot, _ := json.Marshal(e.run)
 			var restored automation.Run
 			json.Unmarshal(snapshot, &restored)
-			if err = app.runAutomation(t.Context(), &restored, func() error { return nil }); err != nil {
+			if err = app.automationrun.RunAutomation(t.Context(), &restored, func() error { return nil }); err != nil {
 				t.Fatal(err)
 			}
 			if models.Load() != wantModels || reads.Load() != count {
@@ -227,7 +227,7 @@ func TestRepositoryAutomationPackagesThroughHost(t *testing.T) {
 					t.Fatal("exact reference missing", string(doc.Content))
 				}
 				preview := automation.Run{ID: automation.Hash(targetSpec.ID + "preview"), Spec: e.run.Spec, Created: now, DryRun: true}
-				if err = app.runAutomation(t.Context(), &preview, func() error { return nil }); err != nil {
+				if err = app.automationrun.RunAutomation(t.Context(), &preview, func() error { return nil }); err != nil {
 					t.Fatal(err)
 				}
 				after, _ := store.Read(t.Context(), doc.Path, "")
@@ -237,7 +237,7 @@ func TestRepositoryAutomationPackagesThroughHost(t *testing.T) {
 				if targetSpec.ID == "source-change-summary" {
 					conflict.Store(true)
 					collided := automation.Run{ID: automation.Hash("conflict"), Spec: e.run.Spec, Created: now}
-					if err = app.runAutomation(t.Context(), &collided, func() error { return nil }); err == nil {
+					if err = app.automationrun.RunAutomation(t.Context(), &collided, func() error { return nil }); err == nil {
 						t.Fatal("concurrent write overwritten")
 					}
 					after, _ = store.Read(t.Context(), doc.Path, "")

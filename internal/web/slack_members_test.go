@@ -75,7 +75,7 @@ func TestSlackWorkspaceMembersShareChannelRepliesWithoutPrivateHistory(t *testin
 		if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
 			t.Fatal(err)
 		}
-		if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {
+		if ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || !ran {
 			t.Fatalf("run: %v %v", ran, err)
 		}
 	}
@@ -207,7 +207,7 @@ func TestSlackWorkspaceMembersUseScopedIdentityAndPrivateHistory(t *testing.T) {
 		if response.Code != http.StatusOK {
 			t.Fatalf("Slack event: HTTP %d: %s", response.Code, response.Body.String())
 		}
-		if _, err = app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+		if _, err = app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -238,7 +238,7 @@ func TestSlackWorkspaceMembersUseScopedIdentityAndPrivateHistory(t *testing.T) {
 		if err = app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			continue
 		}
-		ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation)
+		ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation)
 		if err != nil || !ran {
 			t.Fatalf("membership check did not run: %v", err)
 		}
@@ -265,7 +265,7 @@ func TestSlackWorkspaceMembersUseScopedIdentityAndPrivateHistory(t *testing.T) {
 	if err = app.catalog.Member(catalog.Bootstrap, "default", service.ID, ""); err != nil {
 		t.Fatal(err)
 	}
-	if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {
+	if ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || !ran {
 		t.Fatalf("revoked request did not run: %v", err)
 	}
 	if len(prompts) != 3 || sent != 3 {

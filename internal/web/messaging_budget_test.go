@@ -62,7 +62,7 @@ func TestMessagingUsesConfiguredDeadline(t *testing.T) {
 				ctx, cancel = context.WithTimeout(ctx, time.Duration(tc.caller)*time.Second)
 				defer cancel()
 			}
-			if err := app.runAutomation(ctx, &run, func() error { return nil }); err != nil {
+			if err := app.automationrun.RunAutomation(ctx, &run, func() error { return nil }); err != nil {
 				t.Fatal(err)
 			}
 			got := transport.deadline.Sub(start)
@@ -119,7 +119,7 @@ func TestMessagingReservesAnswerWithinConfiguredBudget(t *testing.T) {
 			transport := &fixtureChatTransport{}
 			app.messageClients["slack"] = transport
 			run := automation.Run{ID: automation.Hash(tc.name), Spec: automation.Spec{ID: "message-answer", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", Instruction: "Answer this.", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "1.0", User: "U123"}}}
-			if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+			if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 				t.Fatal(err)
 			}
 			if calls != tc.calls || len(transport.replies) != 1 || transport.replies[0].Text != "Answered from available evidence." {

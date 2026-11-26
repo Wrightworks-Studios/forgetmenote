@@ -36,12 +36,12 @@ func TestAutomationIndependentCheckSuiteRejectsChangedResult(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: automation.Hash("first"), Spec: spec, DryRun: true}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || !strings.Contains(run.Result, "same-data") {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || !strings.Contains(run.Result, "same-data") {
 		t.Fatal(err, run.Result)
 	}
 	different = true
 	run = automation.Run{ID: automation.Hash("second"), Spec: spec, DryRun: true}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err == nil {
 		t.Fatal("different result passed")
 	}
 }
@@ -65,7 +65,7 @@ func TestCheckReportPreservesConcurrentEdit(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := automation.Run{ID: automation.Hash("concurrent"), Spec: automation.Spec{ID: "check", Kind: "checks", Actor: catalog.Bootstrap, Project: "default", Output: "report.md", Connections: []string{"metrics"}, Checks: []automation.Check{{Name: "healthy", Call: automation.Call{Connection: "metrics", Operation: "read"}, Assertions: []automation.Assertion{{Pointer: "/ok", Equals: json.RawMessage(`true`)}}}}}}
-	if err = app.runAutomation(t.Context(), &r, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err == nil {
 		t.Fatal("report replaced concurrent edit")
 	}
 	doc, err := store.Read(t.Context(), first.Path, "")
@@ -77,7 +77,7 @@ func TestCheckReportPreservesConcurrentEdit(t *testing.T) {
 func TestAutomationNativeHealthRunsWithoutModel(t *testing.T) {
 	app, _ := fixture(t)
 	run := automation.Run{ID: automation.Hash("health"), DryRun: true, Spec: automation.Spec{ID: "health", Kind: "native", Actor: catalog.Bootstrap, Project: "default", Native: &automation.NativeTask{Task: "notebook-health"}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || !strings.Contains(run.Result, "revision") {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || !strings.Contains(run.Result, "revision") {
 		t.Fatal(err, run.Result)
 	}
 }
@@ -87,7 +87,7 @@ func TestAutomationNativeHealthRunsWithoutModel(t *testing.T) {
 func TestAutomationRepositoryRefreshWithoutSourcesIsUnavailable(t *testing.T) {
 	app, _ := fixture(t)
 	run := automation.Run{ID: automation.Hash("refresh"), DryRun: true, Spec: automation.Spec{ID: "refresh", Kind: "native", Actor: catalog.Bootstrap, Project: "default", Native: &automation.NativeTask{Task: "repository-refresh"}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); !errors.Is(err, reposource.ErrUnavailable) {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); !errors.Is(err, reposource.ErrUnavailable) {
 		t.Fatal(err)
 	}
 }
@@ -105,7 +105,7 @@ func TestAutomationHealthDoesNotHideFailureBehindNextQueuedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := automation.Run{ID: automation.Hash("health"), DryRun: true, Spec: automation.Spec{ID: "health", Kind: "native", Actor: catalog.Bootstrap, Project: "default", Native: &automation.NativeTask{Task: "automation-health"}}}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil || r.Alert == nil || !r.Alert.Incident.Active {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil || r.Alert == nil || !r.Alert.Incident.Active {
 		t.Fatal("failure masked by next scheduled run", r.Alert, err)
 	}
 }

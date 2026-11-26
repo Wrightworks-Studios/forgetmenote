@@ -64,7 +64,7 @@ func TestPersonalBatchBudgetAppliesToItemsWithinProviderPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	_, state, err := app.personal.ReadState(spec)
@@ -75,7 +75,7 @@ func TestPersonalBatchBudgetAppliesToItemsWithinProviderPages(t *testing.T) {
 		t.Fatalf("batch limit exceeded or remaining work lost: Luna=%d Jev=%d pending=%d", calls.Load(), questions.Load(), len(state.Pending))
 	}
 	for completed := 2; completed <= 3; completed++ {
-		if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
+		if err = app.automationrun.RunAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 			t.Fatal(err)
 		}
 		_, state, err = app.personal.ReadState(spec)

@@ -48,7 +48,7 @@ func TestAutomationStrictToolArgumentsReadAndPublish(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: strings.Repeat("a", 64), Spec: automation.Spec{ID: "strict-task", Kind: "task", Actor: "alice", Project: "default", AIConnection: "local", Output: "summary.md", Instruction: "Read context.md and summarize it", ExternalProcessing: true, MaxRounds: 2}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	doc, err := store.Read(t.Context(), "summary.md", "")
@@ -130,14 +130,14 @@ func TestRecipeMaintenanceRepairsChecksAndCommits(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: strings.Repeat("1", 64), Spec: automation.Spec{ID: "maintain", Kind: "recipe", Actor: "alice", Project: "default", Recipe: "recipe.md", Connections: []string{"fixture"}, AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Checks: []automation.Check{{Name: "count", Block: "count", Call: automation.Call{Connection: "fixture", Operation: "query", Arguments: map[string]any{}}, Assertions: []automation.Assertion{{Pointer: "/rows/0/0", Equals: json.RawMessage(`2`)}}}}}}
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	saved, err := store.Read(context.Background(), "recipe.md", "")
 	if err != nil || !strings.Contains(string(saved.Content), "select 2") || saved.Revision == doc.Revision || aiCalls != 1 {
 		t.Fatal(err, string(saved.Content), aiCalls)
 	}
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 		t.Fatal("committed publication failed replay", err)
 	}
 	replayed, _ := store.Read(context.Background(), "recipe.md", "")
@@ -145,7 +145,7 @@ func TestRecipeMaintenanceRepairsChecksAndCommits(t *testing.T) {
 		t.Fatal("replay made another commit")
 	}
 	run.Publication = nil
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil || aiCalls != 1 {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil || aiCalls != 1 {
 		t.Fatal("passing checks should need no AI", err, aiCalls)
 	}
 	// A pending candidate cannot overwrite a newer edit after restart.
@@ -154,7 +154,7 @@ func TestRecipeMaintenanceRepairsChecksAndCommits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err == nil {
 		t.Fatal("stale publication accepted")
 	}
 	actual, _ := store.Read(context.Background(), "recipe.md", "")
@@ -165,7 +165,7 @@ func TestRecipeMaintenanceRepairsChecksAndCommits(t *testing.T) {
 	// Rechecking current content is safe; another paid repair of the same
 	// interrupted run is not, even if the current content still fails checks.
 	run.Publication = nil
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err == nil || aiCalls != 1 {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err == nil || aiCalls != 1 {
 		t.Fatal("ambiguous generation purchased another repair", err, aiCalls)
 	}
 }
@@ -191,7 +191,7 @@ func TestAutomationRespectsRepositoryAIConsent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = app.automationAnswer(ctx, &automation.Run{Spec: spec}, "Inspect the repository", true); err == nil || calls != 0 {
+	if _, err = app.automationrun.Answer(ctx, &automation.Run{Spec: spec}, "Inspect the repository", true); err == nil || calls != 0 {
 		t.Fatal("automation bypassed repository AI consent", err, calls)
 	}
 }
@@ -230,7 +230,7 @@ func TestRecipeFailuresPreserveOriginalAndSkipAIOnOutage(t *testing.T) {
 	for _, unavailable := range []bool{true, false} {
 		outage = unavailable
 		run := automation.Run{ID: strings.Repeat("2", 64), Spec: spec}
-		err = app.runAutomation(t.Context(), &run, func() error { return nil })
+		err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 		if err == nil || run.Publication != nil {
 			t.Fatal("failed check was accepted", err)
 		}
@@ -249,7 +249,7 @@ func TestRecipeFailuresPreserveOriginalAndSkipAIOnOutage(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: strings.Repeat("3", 64), Spec: spec}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err == nil || aiCalls != 1 {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err == nil || aiCalls != 1 {
 		t.Fatal("archived recipe was sent for AI repair", err, aiCalls)
 	}
 }
@@ -269,11 +269,11 @@ func TestAutomationHonorsSharedModelCapacity(t *testing.T) {
 	}
 	limited, cancel := context.WithTimeout(ctx, 30*time.Millisecond)
 	defer cancel()
-	if _, err = app.automationAnswer(limited, &automation.Run{Spec: spec}, "Summarize", false); err == nil || calls != 0 {
+	if _, err = app.automationrun.Answer(limited, &automation.Run{Spec: spec}, "Summarize", false); err == nil || calls != 0 {
 		t.Fatal("automation bypassed model concurrency", err, calls)
 	}
 	delete(app.chat.Active, "existing-chat")
-	if _, err = app.automationAnswer(ctx, &automation.Run{Spec: spec}, "Summarize", false); err != nil || calls != 1 || len(app.chat.Active) != 0 || app.chat.Connections["local"] != 0 {
+	if _, err = app.automationrun.Answer(ctx, &automation.Run{Spec: spec}, "Summarize", false); err != nil || calls != 1 || len(app.chat.Active) != 0 || app.chat.Connections["local"] != 0 {
 		t.Fatal("model slot was not released", err, calls)
 	}
 }
@@ -309,7 +309,7 @@ func TestAutomationRejectsChangedRepositoryExclusions(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{Spec: spec}
-	answer, err := app.automationAnswer(ctx, &run, "Read health.go", true)
+	answer, err := app.automationrun.Answer(ctx, &run, "Read health.go", true)
 	if err == nil || answer != "" || calls != 2 || len(run.Citations) != 1 {
 		t.Fatal("changed source was published", answer, err, calls, run.Citations)
 	}
@@ -332,7 +332,7 @@ func TestRecipeDiscoveryRespectsChatCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err = app.automationSourceContext(ctx, &run)
+	ctx, err = app.automationrun.SourceContext(ctx, &run)
 	if err != nil {
 		t.Fatal(err)
 	}

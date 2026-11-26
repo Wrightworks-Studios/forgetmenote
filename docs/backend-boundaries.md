@@ -192,6 +192,35 @@ engine's server-level tests stay in web; the exports only tests use are in
 `testexports.go`, and a boundary test fails on any production reference to
 them.
 
+`internal/automationrun` owns the automation run engine: the dispatcher that
+runs each queued run by its kind, and the runtime's start; the model turn of an
+answer, with its tool loop, provider and capacity; publication to the run's note
+and notification through the messaging hub; and the task, recipe, digest,
+monitor, checks, native and Drive kinds. Web keeps every authorization check:
+a run's identity and its recheck (`automationContext` and
+`checkAutomationAuth`), the instance AI policy (`automationPolicy` and
+`instanceAIWriting`), the recheck of a run's evidence
+(`checkAutomationEvidence`), client notebook access, data connection grants,
+and personal context and consent. It also keeps definition validation, which
+the automation tools and the package installer run, and the MCP and
+organization tools with their administrator and `notes:manage` checks. An
+automation answer's tool call reaches an action only through the
+`DispatchAction` hook, which web binds to the same dispatcher as chat, and a
+boundary test fails if the engine reaches the action registry or another hub's
+action methods. The engine binds a run's source scope (`scope.go`) after its
+actor's read check on each notebook, and clears it to recheck a direct
+message's recipient as that recipient (`publish.go`);
+`TestContextAuthorityHasKnownSetters` lists both. The required hooks bind those checks, the
+dispatcher, content scope, source bindings, knowledge engine and source work
+admission, the personal assistant's jobs and email pairing. The chat runtime,
+data connections, repositories, backups, messaging, the personal assistant,
+task queues and the Slack app are read at each call. Packages, scripts,
+learning and repair stay in web for now: the engine reaches them through
+temporary hooks, and they use the engine's exported answer, call, publication,
+notification and check methods. The engine's tests stay in web; the export
+only tests use is in `testexports.go`, and a boundary test fails on any
+production reference to it.
+
 `internal/citationchecks` owns citation-check sidecars, bounded queue/read
 admission, worker cancellation and shutdown. Pending check identity is durable
 before work starts; publication checks the current check ID and cannot recreate a

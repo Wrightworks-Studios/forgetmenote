@@ -159,7 +159,7 @@ func TestPersonalInterruptedMemoryDoesNotStopMonitoring(t *testing.T) {
 	if _, err = app.automations.Queue.SaveJobState(personal.MemorySpec(spec), "", raw, false); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 		t.Fatal("memory recovery blocked monitoring", err)
 	}
 	stored, err := app.automations.Queue.JobState(personal.MemorySpec(spec))

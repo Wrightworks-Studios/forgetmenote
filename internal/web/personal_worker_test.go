@@ -179,7 +179,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: automation.Hash("personal-one"), Spec: spec, Created: time.Now()}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	_, state, err := app.personal.ReadState(spec)
@@ -198,7 +198,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 	}
 	opened.Store(true)
 	run.ID = automation.Hash("personal-two")
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if model.Load() != 1 || jev.Load() != 1 || writes.Load() != 0 {
@@ -236,7 +236,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 		t.Fatal("restart repeated mailbox write", writes.Load())
 	}
 	run.Spec = spec
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if model.Load() != 1 || jev.Load() != 1 || writes.Load() != 1 {
@@ -246,7 +246,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 	if _, err = app.catalog.SaveAssistant("alice", settings); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err == nil {
 		t.Fatal("paused assistant continued")
 	}
 }
@@ -303,7 +303,7 @@ func TestPersonalAssistantCanUseMoreThanTenAuthorizedNotebooks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err = app.automationSourceContext(ctx, &automation.Run{Spec: spec})
+	ctx, err = app.automationrun.SourceContext(ctx, &automation.Run{Spec: spec})
 	if err != nil {
 		t.Fatal(err)
 	}

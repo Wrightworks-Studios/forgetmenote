@@ -178,7 +178,7 @@ func TestARefusedReminderIsSentAgainAndABrokenRecordIsNoReminder(t *testing.T) {
 		t.Helper()
 		before := len(f.posts)
 		run := automation.Run{ID: automation.Hash(id), Spec: spec}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
 		return readReminderReport(t, run), f.posts[before:]

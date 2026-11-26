@@ -27,6 +27,7 @@ import (
 	"forgetmenote/internal/attribution"
 	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/backups"
 	"forgetmenote/internal/blob"
 	"forgetmenote/internal/branding"
@@ -83,6 +84,7 @@ type Server struct {
 	messaging            *messaginghttp.Service
 	personal             *personal.Service
 	chatrun              *chatrun.Service
+	automationrun        *automationrun.Service
 	tasks                *taskqueue.Service
 	// messageClients are the configured messaging transports, by client ID.
 	messageClients map[string]messaging.Transport
@@ -299,6 +301,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 		return nil, err
 	}
 	if err = s.initAutomations(); err != nil {
+		return nil, err
+	}
+	if err = s.initAutomationRun(); err != nil {
 		return nil, err
 	}
 	if err = s.initTasks(); err != nil {

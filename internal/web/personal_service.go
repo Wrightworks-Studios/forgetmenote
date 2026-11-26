@@ -35,10 +35,10 @@ func (s *Server) personalHooks() personal.Hooks {
 		MailboxDraft:        s.personalMailboxDraft,
 		CheckAutomationAuth: s.checkAutomationAuth,
 		AutomationAnswer: func(ctx context.Context, r *automation.Run, prompt string, tools bool) (string, error) {
-			return s.automationAnswer(ctx, r, prompt, tools)
+			return s.automationrun.Answer(ctx, r, prompt, tools)
 		},
 		CheckAutomationEvidence: s.checkAutomationEvidence,
-		AutomationCall:          s.automationCall,
+		AutomationCall:          s.automationrun.Call,
 		JevConfigured:           s.jevConfigured,
 		PersonalConnections:     func() *connectors.PersonalConnections { return s.personalConnections },
 		DataConnections:         func() *connectors.Manager { return s.dataConnections },

@@ -36,7 +36,7 @@ func TestMessagingUsesCurrentBoundNotebookInstructions(t *testing.T) {
 		}
 		id := automation.Hash(marker)
 		run := automation.Run{ID: id, Spec: automation.Spec{ID: "guidance", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Instruction: "Help our team.", Delivery: &automation.Delivery{Channel: "C123", Thread: id, User: "U123"}}}
-		if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatal(err)
 		}
 		if len(requests) != i+1 || !strings.Contains(requests[i], marker) {
@@ -71,7 +71,7 @@ func TestMessagingRejectsInstructionChangeDuringGeneration(t *testing.T) {
 		}
 	}
 	run := automation.Run{ID: automation.Hash("changed-guidance"), Spec: automation.Spec{ID: "guidance", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Instruction: "Help our team.", Delivery: &automation.Delivery{Channel: "C123", Thread: "1.2", User: "U123"}}}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err == nil {
 		t.Fatalf("stale guidance delivered: %v %v", err, transport.replies)
 	}
 	for _, reply := range transport.replies {
@@ -97,7 +97,7 @@ func TestMessagingRecoveryRejectsChangedNotebookInstructions(t *testing.T) {
 	}
 	run := automation.Run{ID: automation.Hash("recover-guidance"), Spec: automation.Spec{ID: "guidance", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Instruction: "Help our team.", Delivery: &automation.Delivery{Channel: "C123", Thread: "1.2", User: "U123"}}}
 	var checkpoint []byte
-	err = app.runAutomation(t.Context(), &run, func() error {
+	err = app.automationrun.RunAutomation(t.Context(), &run, func() error {
 		if run.Answer != "" {
 			return fmt.Errorf("checkpoint unavailable after conversation commit")
 		}
@@ -113,7 +113,7 @@ func TestMessagingRecoveryRejectsChangedNotebookInstructions(t *testing.T) {
 	if _, err = store.WriteInstructions(t.Context(), []byte("Revised disposition."), doc.Revision, "test"); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err == nil || calls != 1 {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err == nil || calls != 1 {
 		t.Fatalf("recovered stale answer or repeated model: %v %d", err, calls)
 	}
 	for _, reply := range transport.replies {

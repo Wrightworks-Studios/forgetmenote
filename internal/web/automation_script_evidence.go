@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"time"
 
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
@@ -139,22 +138,4 @@ func (s *Server) scriptRepositoryNavigation(e *scriptExecution, in scriptRequest
 	}
 	v.Revision = source.Revision
 	return s.notebookMap(e.ctx, notebookMapRequest{Project: source.Project, Origin: "repository", Source: source.Source, MapQuery: v.MapQuery})
-}
-
-// Both generic monitors and packages feed the same idempotent incident state.
-// Delivery happens after the result/checkpoint is durable, never inside Python.
-func (s *Server) recordAutomationIncident(r *automation.Run, incident automation.Incident, save func() error) error {
-	decision, err := s.automations.Queue.Incident(r.Spec, r.ID, incident, time.Now(), r.DryRun)
-	if err != nil {
-		return err
-	}
-	r.Alert, r.Result = &decision, incident.Summary
-	if decision.Notify && !r.DryRun {
-		prefix := "Alert"
-		if decision.Recovered {
-			prefix = "Recovered"
-		}
-		r.Answer = prefix + ": " + incident.Summary
-	}
-	return save()
 }

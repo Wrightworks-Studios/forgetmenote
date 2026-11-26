@@ -127,7 +127,7 @@ func personalRunFixture(t *testing.T, o personalRunOptions) (*Server, automation
 func runPersonal(t *testing.T, app *Server, spec automation.Spec) error {
 	t.Helper()
 	run := automation.Run{ID: automation.Hash(t.Name()), Spec: spec, Created: time.Now()}
-	return app.runAutomation(t.Context(), &run, func() error { return nil })
+	return app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 }
 
 // publishedDrafts lists the drafts the run wrote to the assistant notebook.

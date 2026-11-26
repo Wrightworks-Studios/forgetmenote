@@ -5,97 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"slices"
 	"strings"
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 )
-
-func checkExcerpt(data any) json.RawMessage {
-	raw, _ := json.Marshal(data)
-	if len(raw) > 4096 {
-		raw, _ = json.Marshal(map[string]any{"excerpt": string(raw[:4000]), "truncated": true})
-	}
-	return raw
-}
-
-// Every check runs, including fixed guards. Full results are compared locally;
-// bounded excerpts are diagnostic evidence, never the comparison input.
-func (s *Server) evaluateChecks(ctx context.Context, r *automation.Run, blocks map[string]string) ([]automation.CheckResult, error) {
-	out := make([]automation.CheckResult, 0, len(r.Spec.Checks))
-	var failures []error
-	for _, c := range r.Spec.Checks {
-		v := automation.CheckResult{Name: c.Name, Block: c.Block, State: "passed"}
-		call := c.Call
-		var err error
-		if c.Block != "" {
-			var sql string
-			sql, err = connectors.ReadQueryFragment(blocks[c.Block])
-			if err == nil {
-				if c.SQLTemplate != "" {
-					sql = strings.Replace(c.SQLTemplate, "{{sql}}", "\n"+sql+"\n", 1)
-				}
-				call.Arguments = map[string]any{}
-				for k, v := range c.Call.Arguments {
-					call.Arguments[k] = v
-				}
-				call.Arguments["sql"] = sql
-			}
-		}
-		var result, reference connectors.Result
-		if err == nil {
-			result, err = s.automationCall(ctx, r, call)
-		}
-		if err == nil && !result.Receipt.Complete {
-			err = errors.New("incomplete check result")
-		}
-		v.Actual = checkExcerpt(result.Data)
-		if err == nil {
-			err = checkAutomationAssertions(c, result.Data, result.Receipt.DurationMS)
-		}
-		if err == nil && c.Reference != nil {
-			reference, err = s.automationCall(ctx, r, *c.Reference)
-			v.Reference = checkExcerpt(reference.Data)
-			if err == nil && !reference.Receipt.Complete {
-				err = errors.New("incomplete independent reference")
-			}
-			if err == nil && result.Receipt.OutputHash != reference.Receipt.OutputHash {
-				err = recipeFailure{errors.New("differs from independent reference")}
-			}
-		}
-		if err != nil {
-			v.State = "unavailable"
-			var failed recipeFailure
-			if errors.As(err, &failed) || errors.Is(err, connectors.ErrQuery) {
-				v.State = "failed"
-			}
-			v.Error = chatrun.TextLimit(err.Error(), 1000)
-			failures = append(failures, fmt.Errorf("check %s: %w", c.Name, err))
-		}
-		v.Fingerprint = automation.Hash([]any{result.Receipt.SchemaHash, result.Receipt.OutputHash, reference.Receipt.SchemaHash, reference.Receipt.OutputHash, v.State, v.Error})
-		out = append(out, v)
-	}
-	return out, errors.Join(failures...)
-}
-
-func checkReportText(report *automation.CheckReport) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "# %s\n\n%s\n\n", report.State, report.Summary)
-	for _, c := range report.Checks {
-		fmt.Fprintf(&b, "- %s: %s", c.Name, c.State)
-		if c.Error != "" {
-			fmt.Fprintf(&b, " (%s)", c.Error)
-		}
-		b.WriteByte('\n')
-	}
-	return b.String()
-}
 
 func (s *Server) repairEvidence(ctx context.Context, r *automation.Run, results []automation.CheckResult) (string, []any, error) {
 	var fingerprints, data []any
@@ -112,7 +32,7 @@ func (s *Server) repairEvidence(ctx context.Context, r *automation.Run, results 
 			continue
 		}
 		seen[key] = true
-		v, err := s.automationCall(ctx, r, call)
+		v, err := s.automationrun.Call(ctx, r, call)
 		if err != nil {
 			return "", nil, err
 		}
@@ -120,7 +40,7 @@ func (s *Server) repairEvidence(ctx context.Context, r *automation.Run, results 
 			return "", nil, errors.New("incomplete repair evidence")
 		}
 		fingerprints = append(fingerprints, []string{key, v.Receipt.SchemaHash, v.Receipt.OutputHash})
-		data = append(data, map[string]any{"call": call, "result": checkExcerpt(v.Data)})
+		data = append(data, map[string]any{"call": call, "result": automationrun.CheckExcerpt(v.Data)})
 	}
 	return automation.Hash(fingerprints), data, nil
 }
@@ -157,7 +77,7 @@ func repairBlocks(spec automation.Spec, results []automation.CheckResult) map[st
 // Only named SQL contents may change. Prose, frontmatter, unrelated examples,
 // and administrator-owned assertions/references remain byte-for-byte intact.
 func replaceRepairSQL(content string, changes map[string]string, eligible map[string]bool) (string, error) {
-	blocks, err := recipeBlocks(content)
+	blocks, err := automationrun.RecipeBlocks(content)
 	if err != nil {
 		return "", err
 	}
@@ -254,7 +174,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 	}
 	if r.GenerationStarted {
 		var err error
-		ctx, err = s.automationSourceContext(ctx, r)
+		ctx, err = s.automationrun.SourceContext(ctx, r)
 		if err != nil {
 			return err
 		}
@@ -274,17 +194,17 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 			return err
 		}
 	}
-	blocks, err := recipeBlocks(string(doc.Content))
+	blocks, err := automationrun.RecipeBlocks(string(doc.Content))
 	if err != nil {
 		return err
 	}
-	results, checkErr := s.evaluateChecks(ctx, r, blocks)
+	results, checkErr := s.automationrun.EvaluateChecks(ctx, r, blocks)
 	report := &automation.CheckReport{State: "healthy", Checks: results, RecipeHash: workspace.ContentHash(doc.Content)}
 	var diagnostic string
 	finish := func(state, summary string, failure error) error {
 		report.State, report.Summary = state, summary
 		r.CheckReport = report
-		r.Result = checkReportText(report) + "\n" + receiptSummary(r.Receipts) + diagnostic
+		r.Result = automationrun.CheckReportText(report) + "\n" + automationrun.ReceiptSummary(r.Receipts) + diagnostic
 		if !r.DryRun {
 			memo.Report = *report
 			memo.Updated = time.Now().UTC()
@@ -305,11 +225,11 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 		if report.RecipeHash != p.Hash && report.RecipeHash != candidateHash {
 			return workspace.ErrConflict
 		}
-		candidateBlocks, e := recipeBlocks(p.Content)
+		candidateBlocks, e := automationrun.RecipeBlocks(p.Content)
 		if e != nil {
 			return e
 		}
-		validated, e := s.evaluateChecks(ctx, r, candidateBlocks)
+		validated, e := s.automationrun.EvaluateChecks(ctx, r, candidateBlocks)
 		report.Candidate = validated
 		if r.CheckReport == nil {
 			return errors.New("repair publication lost validation checkpoint")
@@ -331,7 +251,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 			memo.Previous = ""
 			memo.PublishedHash = ""
 		}
-		if err = s.publishAutomation(ctx, r); err != nil {
+		if err = s.automationrun.Publish(ctx, r); err != nil {
 			return err
 		}
 		report.Original = r.CheckReport.Original
@@ -363,9 +283,9 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 	// Roll back only our unchanged publication when the same observed upstream
 	// state now proves the prior SQL better. A human edit always wins.
 	if memo.PublishedHash == report.RecipeHash && memo.Previous != "" && memo.EvidenceHash == evidenceHash && len(evidence) > 0 {
-		priorBlocks, e := recipeBlocks(memo.Previous)
+		priorBlocks, e := automationrun.RecipeBlocks(memo.Previous)
 		if e == nil {
-			prior, priorErr := s.evaluateChecks(ctx, r, priorBlocks)
+			prior, priorErr := s.automationrun.EvaluateChecks(ctx, r, priorBlocks)
 			if priorErr == nil {
 				r.Publication = &automation.Publication{Path: doc.Path, Revision: doc.Revision, Hash: report.RecipeHash, Content: memo.Previous}
 				report.Original = results
@@ -375,7 +295,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 				if e = save(); e != nil {
 					return e
 				}
-				if e = s.publishAutomation(ctx, r); e != nil {
+				if e = s.automationrun.Publish(ctx, r); e != nil {
 					return e
 				}
 				report.RecipeHash = workspace.ContentHash([]byte(memo.Previous))
@@ -406,7 +326,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 	if policy, managed := s.catalog.AISettings(); managed && !policy.Writing {
 		return finish("waiting_upstream", "Checks remain active; automatic repair is disabled by instance policy.", checkErr)
 	}
-	ctx, err = s.automationSourceContext(ctx, r)
+	ctx, err = s.automationrun.SourceContext(ctx, r)
 	if err != nil {
 		return finish("waiting_upstream", "AI evidence is unavailable under current permissions or policy.", err)
 	}
@@ -430,7 +350,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 			return err
 		}
 	}
-	answer, err := s.automationAnswer(ctx, r, repairInstructions+"\n\n"+string(input), true)
+	answer, err := s.automationrun.Answer(ctx, r, repairInstructions+"\n\n"+string(input), true)
 	if err != nil {
 		return finish("repair_failed", "Automatic diagnosis failed: "+err.Error(), err)
 	}
@@ -469,11 +389,11 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 	if bytes.Equal(doc.Content, []byte(candidate)) {
 		return finish("waiting_upstream", proposal.Summary, checkErr)
 	}
-	candidateBlocks, err := recipeBlocks(candidate)
+	candidateBlocks, err := automationrun.RecipeBlocks(candidate)
 	if err != nil {
 		return err
 	}
-	validated, validationErr := s.evaluateChecks(ctx, r, candidateBlocks)
+	validated, validationErr := s.automationrun.EvaluateChecks(ctx, r, candidateBlocks)
 	report.Candidate = validated
 	changed := map[string]bool{}
 	for b := range proposal.SQL {
@@ -504,7 +424,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 			return err
 		}
 	}
-	if err = s.publishAutomation(ctx, r); err != nil {
+	if err = s.automationrun.Publish(ctx, r); err != nil {
 		return err
 	}
 	report.RecipeHash = memo.PublishedHash
