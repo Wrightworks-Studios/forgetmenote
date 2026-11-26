@@ -78,9 +78,11 @@ test('an unfinished source event cannot silently become a manual automation', as
   await root.getByLabel('Notebook', {exact: true}).selectOption('default');
   await root.getByLabel('Trigger', {exact: true}).selectOption('event');
   await expect(root.getByLabel('Trigger', {exact: true})).toHaveValue('event');
-  await expect(root.getByLabel('Automation JSON')).toBeVisible();
+  const event = root.getByRole('group', {name: 'Source event', exact: true});
+  await expect(event).toBeVisible();
+  await event.getByLabel('Quiet period (seconds)', {exact: true}).fill('');
   await root.getByRole('button', {name: 'Save automation', exact: true}).click();
-  await expect(page.locator('#admin-status')).toContainText('invalid event debounce');
+  await expect(page.locator('#admin-status')).toContainText('Quiet period is required.');
   await expect(root.getByLabel('Trigger', {exact: true})).toHaveValue('event');
 });
 

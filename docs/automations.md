@@ -2,8 +2,17 @@
 
 Administration → Automation manages background jobs for this instance. The form
 handles identity, service account, notebook, schedule, inputs, output and AI
-consent. The JSON editor handles connector calls, checks, event triggers and
-specialized task options. Changes are saved immediately with revision checks.
+consent, and each task type's own settings: data calls (a connection, one of its
+read-only operations, argument fields from the operation's input schema and time
+arguments), independent checks with assertions or a reference call, a monitor's
+condition and incident alerts, Slack notices, recipe usage rechecks, Google Drive
+folders, a repository package's connection and notebook bindings, optional
+capabilities and parameters (from its manifest), and source events. Arguments a
+schema cannot describe as flat fields stay in a JSON field beside them. The **JSON
+definition** shows the same definition for review, import and duplication; an
+unchanged form save keeps what the JSON saved. The server validates every
+definition however it was built. Changes are saved immediately with revision
+checks.
 All tasks run inside the existing ForgetMeNote process; job definitions cannot
 supply shell commands, scripts, dynamic endpoints or credentials.
 

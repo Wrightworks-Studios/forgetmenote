@@ -41,8 +41,8 @@ export function argumentPlan(schema,values={}){
 }
 
 let described=0;
-function control(field){
-  const {kind,schema,present,value,required}=field,title=typeof schema.title==='string'&&schema.title?schema.title:field.name;
+function control(field,optional){
+  const {kind,schema,present,value}=field,needed=()=>field.required&&!optional(field.name),required=needed(),title=typeof schema.title==='string'&&schema.title?schema.title:field.name;
   const wrap=node('div',undefined,'operation-argument');let input,label;
   if(kind==='boolean'){
     input=node('input');input.type='checkbox';input.checked=present?value:schema.default===true;
@@ -69,6 +69,7 @@ function control(field){
   // Constraints are checked here rather than by the browser, which cannot point
   // at a control inside a closed section and would refuse the submit silently.
   function read(){
+    const required=needed();
     if(state()===initial&&(present||!required))return present?{value}:null;
     if(kind==='boolean')return {value:input.checked};
     if(input.validity?.badInput)throw Error(`${title} must be a number.`);
@@ -87,10 +88,12 @@ function control(field){
 
 // The controls for an operation's arguments. read() returns the arguments
 // object in the saved key order, or throws an Error naming the field to fix.
-export function argumentFields(schema,values={}){
+// `optional(name)` excuses a required argument that something else supplies,
+// such as an automation's time binding; it is asked again at each read().
+export function argumentFields(schema,values={},{optional=()=>false}={}){
   values=isObject(values)?values:{};
   const plan=argumentPlan(schema,values),element=node('div',undefined,'operation-arguments');
-  const fields=plan.fields.map(field=>({name:field.name,...control(field)}));
+  const fields=plan.fields.map(field=>({name:field.name,...control(field,optional)}));
   element.append(...fields.map(field=>field.wrap));
   let json=null;
   if(plan.json){
