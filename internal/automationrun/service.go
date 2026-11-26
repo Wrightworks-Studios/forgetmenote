@@ -130,14 +130,6 @@ func New(c *catalog.Catalog, runtime *automation.Runtime, chats *chatrun.Service
 	return &Service{catalog: c, runtime: runtime, chatrun: chats, memory: memory, outgoing: mode, data: data, hooks: hooks}, nil
 }
 
-// repos is the repository source manager.
-func (s *Service) repos() (*reposource.Manager, error) {
-	if m := s.hooks.Repositories(); m != nil {
-		return m, nil
-	}
-	return nil, reposource.ErrUnavailable
-}
-
 // withEngine runs fn with the notebook's knowledge engine.
 func withEngine[O any](s *Service, ctx context.Context, store *workspace.Store, fn func(*knowledge.Engine) (O, error)) (O, error) {
 	e, release, err := s.hooks.AcquireEngine(ctx, store)

@@ -3,7 +3,7 @@ import {element as node,busy} from './dom.mjs';
 import {requestSequence} from './state.mjs';
 
 const kinds = {native:'Instance maintenance', checks:'Independent checks', digest:'Data digest', monitor:'Condition monitor', recipe:'Check and repair a recipe', learning:'Improve data-access profiles', task:'Maintain a note with AI', 'drive-sync':'Import Google Drive', script:'Repository package'};
-const nativeTasks = ['notebook-health','storage-health','automation-health','profile-health','profile-compaction','activity-summary','repository-refresh','email-pairing','task-reminder'];
+const nativeTasks = ['notebook-health','storage-health','automation-health','profile-health','profile-compaction','activity-summary','email-pairing','task-reminder'];
 // These native tasks act through a messaging client and publish no output.
 const clientTasks = ['email-pairing','task-reminder'];
 const usesAI = draft => !!draft.repair || !!draft.aiConnection || ['task','learning'].includes(draft.kind) || (draft.script?.capabilities||[]).some(c=>['ai.structured', 'ai.decisions','decision.evaluate'].includes(c));

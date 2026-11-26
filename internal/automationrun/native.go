@@ -130,31 +130,6 @@ func (s *Service) runNativeAutomation(ctx context.Context, r *automation.Run, sa
 		if err != nil {
 			return err
 		}
-	case "repository-refresh":
-		repos, e := s.repos()
-		if e != nil {
-			return e
-		}
-		if _, err = s.hooks.ClientAccess(ctx, r.Spec.Actor, r.Spec.Project, "owner"); err != nil {
-			return err
-		}
-		state, e := repos.Status(r.Spec.Project)
-		if e != nil {
-			return e
-		}
-		if !state.Connected {
-			return errors.New("notebook has no connected repository")
-		}
-		if !r.DryRun {
-			if err = s.hooks.CheckRun(ctx); err != nil {
-				return err
-			}
-			state, e = repos.Refresh(ctx, r.Spec.Project)
-			if e != nil {
-				return e
-			}
-		}
-		data["repository"] = state
 	case "email-pairing":
 		if data, incident, err = s.hooks.EmailPairing(ctx, r); err != nil {
 			return err
