@@ -30,6 +30,7 @@ Start with the [application README](../README.md), [editing guide](editor.md) or
 | [Managed private GitHub backups](managed-backups.md) | Operator |
 | [MCP action parity](mcp-actions.md) | User and operator |
 | [Images, files, and video](media.md) | User and operator |
+| [Agent memory](memory.md) | User and operator |
 | [Notebook API and identifier transitions](notebook-compatibility.md) | User and operator |
 | [Notebook language](notebook-language.md) | User and operator |
 | [Organizing Notes](organization.md) | User and operator |
