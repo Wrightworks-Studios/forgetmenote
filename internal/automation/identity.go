@@ -30,6 +30,24 @@ func IdentityFrom(ctx context.Context) (Identity, bool) {
 	return a, ok
 }
 
+type scriptHostKey struct{}
+
+// WithScriptHost marks the invocation as an installed package's host call.
+// Installed Python runs have an explicit host boundary: inside a chat scope,
+// which a script run keeps for notebook freshness checks, the mark admits only
+// the run's own code-only data connections, and it does not turn catalog reads
+// into AI tools. Only the script runner may set it, for the run it started.
+func WithScriptHost(ctx context.Context) context.Context {
+	return context.WithValue(ctx, scriptHostKey{}, true)
+}
+
+// ScriptHost reports whether the invocation is an installed package's host
+// call.
+func ScriptHost(ctx context.Context) bool {
+	host, _ := ctx.Value(scriptHostKey{}).(bool)
+	return host
+}
+
 // Reads reports whether the run may read project: its own notebook or one it
 // was given to read.
 func (a Identity) Reads(project string) bool {

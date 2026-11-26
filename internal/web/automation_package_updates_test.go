@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/catalog"
 )
 
@@ -41,7 +42,7 @@ func automaticPackageFixture(t *testing.T, follow bool) (*Server, func(map[strin
 			return err
 		})
 	})
-	info, _, err := app.automationPackage(t.Context(), bot.ID, packageQuery{Project: "default", Path: "package"}, true)
+	info, _, err := app.automationrun.Package(t.Context(), bot.ID, automationrun.PackageQuery{Project: "default", Path: "package"}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +204,7 @@ func TestAutomaticPackageUpdatePreservesApprovedInstallation(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			app, advance, installed := automaticPackageFixture(t, true)
 			files := map[string]string{"package/main.py": "def main(host): return {'version': 2}"}
-			info, _, err := app.scriptPackage(t.Context(), installed.Spec, false)
+			info, _, err := app.automationrun.ScriptPackage(t.Context(), installed.Spec, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -261,7 +262,7 @@ func TestAutomaticPackageUpdatePreservesApprovedInstallation(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err = app.refreshAutomationPackage(t.Context(), installed); err == nil {
+				if err = app.automationrun.RefreshPackage(t.Context(), installed); err == nil {
 					t.Fatal("stale automatic update replaced an administrator edit")
 				}
 				current, _ := app.automations.Definitions.Get(spec.ID)
@@ -270,7 +271,7 @@ func TestAutomaticPackageUpdatePreservesApprovedInstallation(t *testing.T) {
 				}
 				return
 			}
-			app.refreshAutomationPackages(t.Context())
+			app.automationrun.RefreshPackages(t.Context())
 			current, _ := app.automations.Definitions.Get(installed.Spec.ID)
 			if kind == "enabled" {
 				if current.Spec.Script.Revision != revision || current.Spec.Disabled {
@@ -290,7 +291,7 @@ func TestAutomaticPackageUpdatePreservesApprovedInstallation(t *testing.T) {
 func TestInstalledPackageStaysPinnedAndReportsAvailableUpdate(t *testing.T) {
 	app, advance, installed := automaticPackageFixture(t, false)
 	revision := advance(map[string]string{"package/main.py": "def main(host): return {'version': 2}"})
-	app.refreshAutomationPackages(t.Context())
+	app.automationrun.RefreshPackages(t.Context())
 	current, _ := app.automations.Definitions.Get(installed.Spec.ID)
 	if current.Revision != installed.Revision || current.Spec.Script.Revision != installed.Spec.Script.Revision || current.Spec.Script.Environment != installed.Spec.Script.Environment {
 		t.Fatal("pinned installation adopted unreviewed package code", current)
@@ -300,7 +301,7 @@ func TestInstalledPackageStaysPinnedAndReportsAvailableUpdate(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	var available []packageInfo
+	var available []automationrun.PackageInfo
 	if err := json.Unmarshal(w.Body.Bytes(), &available); err != nil || len(available) != 1 {
 		t.Fatal(w.Body.String(), err)
 	}

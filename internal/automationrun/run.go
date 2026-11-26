@@ -18,7 +18,7 @@ func (s *Service) Start(ctx context.Context) {
 	if s.runtime == nil {
 		return
 	}
-	s.runtime.Start(ctx, automation.Hooks{RefreshPackages: s.hooks.RefreshPackages, Personal: s.hooks.PersonalSpecs, Policy: s.hooks.Policy, Run: s.runAutomation, RepositoryEvent: func(spec automation.Spec) (automation.Event, bool, error) {
+	s.runtime.Start(ctx, automation.Hooks{RefreshPackages: s.refreshAutomationPackages, Personal: s.hooks.PersonalSpecs, Policy: s.hooks.Policy, Run: s.runAutomation, RepositoryEvent: func(spec automation.Spec) (automation.Event, bool, error) {
 		if s.hooks.Repositories() == nil {
 			return automation.Event{}, false, nil
 		}
@@ -51,7 +51,7 @@ func (s *Service) runAutomation(ctx context.Context, r *automation.Run, save fun
 		return err
 	}
 	if r.Spec.Repair != nil {
-		return s.hooks.RunRepair(ctx, r, save)
+		return s.runRepairChecks(ctx, r, save)
 	}
 	ctx, err = s.SourceContext(ctx, r)
 	if err != nil {
@@ -61,7 +61,7 @@ func (s *Service) runAutomation(ctx context.Context, r *automation.Run, save fun
 		return s.hooks.Personal().Run(ctx, r, save)
 	}
 	if r.Spec.Kind == "learning" {
-		return s.hooks.RunLearning(ctx, r, save)
+		return s.runLearning(ctx, r, save)
 	}
 	if r.Publication != nil && r.Publication.Content != "" {
 		if err = s.Publish(ctx, r); err != nil {
@@ -89,7 +89,7 @@ func (s *Service) runAutomation(ctx context.Context, r *automation.Run, save fun
 	}
 	switch r.Spec.Kind {
 	case "script":
-		return s.hooks.RunScript(ctx, r, save)
+		return s.runScript(ctx, r, save)
 	case "drive-sync":
 		return s.runDriveSync(ctx, r, save)
 	case "native":

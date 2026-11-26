@@ -45,7 +45,8 @@ An invocation's identity and scope travel on its context, each with the package
 that owns its type:
 
 - `chat.RunScope` and `chat.RunAuth` for a chat run
-- `automation.Identity` for an automation run
+- `automation.Identity` for an automation run, and the script-host mark for an
+  installed package's host call
 - the credential, its scopes and the action API mark in `internal/auth`
 
 Any package may read them. The checks that compare them with current sessions,
@@ -58,7 +59,7 @@ only narrow what an invocation may do. A chat run's scope and an automation's
 identity decide what a run may reach:
 
 - an automation's identity covers its own writes and its code-only data
-  connections
+  connections, which the script-host mark also admits inside a chat scope
 - a person's approval of a chat operation lifts the personal-context refusal
 - a wider or missing chat scope lifts the run's corpus limits
 
@@ -195,31 +196,39 @@ them.
 `internal/automationrun` owns the automation run engine: the dispatcher that
 runs each queued run by its kind, and the runtime's start; the model turn of an
 answer, with its tool loop, provider and capacity; publication to the run's note
-and notification through the messaging hub; and the task, recipe, digest,
-monitor, checks, native and Drive kinds. Web keeps every authorization check:
-a run's identity and its recheck (`automationContext` and
-`checkAutomationAuth`), the instance AI policy (`automationPolicy` and
-`instanceAIWriting`), the recheck of a run's evidence
-(`checkAutomationEvidence`), client notebook access, data connection grants,
-and personal context and consent. It also keeps definition validation, which
-the automation tools and the package installer run, and the MCP and
-organization tools with their administrator and `notes:manage` checks. An
-automation answer's tool call reaches an action only through the
-`DispatchAction` hook, which web binds to the same dispatcher as chat, and a
-boundary test fails if the engine reaches the action registry or another hub's
-action methods. The engine binds a run's source scope (`scope.go`) after its
-actor's read check on each notebook, and clears it to recheck a direct
-message's recipient as that recipient (`publish.go`);
-`TestContextAuthorityHasKnownSetters` lists both. The required hooks bind those checks, the
-dispatcher, content scope, source bindings, knowledge engine and source work
-admission, the personal assistant's jobs and email pairing. The chat runtime,
-data connections, repositories, backups, messaging, the personal assistant,
-task queues and the Slack app are read at each call. Packages, scripts,
-learning and repair stay in web for now: the engine reaches them through
-temporary hooks, and they use the engine's exported answer, call, publication,
-notification and check methods. The engine's tests stay in web; the export
-only tests use is in `testexports.go`, and a boundary test fails on any
-production reference to it.
+and notification through the messaging hub; the task, recipe, digest, monitor,
+checks, native and Drive kinds; installed script packages, with their host
+operations, analysis cache, structured answers and research, and their
+automatic updates; learning from observed data calls, with its routing; and
+recipe repair. Web keeps every authorization check: a run's identity and its
+recheck (`automationContext` and `checkAutomationAuth`), the instance AI policy
+(`automationPolicy` and `instanceAIWriting`), the recheck of a run's evidence
+(`checkAutomationEvidence`, with a learning run's `checkLearningEvidence`),
+client notebook access, data connection grants (`dataAllowed`), document reads
+(`readDocument` and `notebookMap`), a learning event's actor and credential
+(`learningEventAllowed`), and personal context and consent. It also keeps
+definition validation, which the automation tools, the package installer and a
+package update run; the capture of learning events from interactive data calls,
+which reads the caller's credential and client from web's context; the Python
+runtime's configuration; and the MCP and organization tools, the package tools
+among them, with their administrator and `notes:manage` checks. An automation
+answer's tool call reaches an action only through the `DispatchAction` hook,
+which web binds to the same dispatcher as chat, and a boundary test fails if
+the engine reaches the action registry or another hub's action methods. The
+engine binds a run's source scope (`scope.go`) after its actor's read check on
+each notebook; clears it to recheck a direct message's recipient as that
+recipient (`publish.go`) and for a script's connector submission
+(`script_capabilities.go`); and marks a script's host calls with
+`automation.WithScriptHost` (`script.go`), which admits the run's own code-only
+connections inside a chat scope. `TestContextAuthorityHasKnownSetters` lists
+all four. The required hooks bind those checks, the dispatcher, content scope,
+source bindings, knowledge engine and source work admission, the configured
+judge, the Slack app's post, the personal assistant's jobs and email pairing.
+The chat runtime, data connections, repositories, backups, messaging, the
+personal assistant, task queues, the Slack app and the Python runtime are read
+at each call. The engine's tests stay in web; the exports only tests use are in
+`testexports.go`, and a boundary test fails on any production reference to
+them.
 
 `internal/citationchecks` owns citation-check sidecars, bounded queue/read
 admission, worker cancellation and shutdown. Pending check identity is durable

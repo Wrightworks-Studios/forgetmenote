@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 )
@@ -120,7 +121,7 @@ func TestLearningUsesConfiguredPromptBudget(t *testing.T) {
 			run := runs[0]
 			run.Learning.Decisions = map[string]string{}
 			for _, event := range run.Learning.Events {
-				run.Learning.Decisions[learningGroup(event)] = doc.Path
+				run.Learning.Decisions[automationrun.LearningGroup(event)] = doc.Path
 			}
 			err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 			after, readErr := store.Read(t.Context(), doc.Path, "")
@@ -133,7 +134,7 @@ func TestLearningUsesConfiguredPromptBudget(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || calls != 1 || len(run.Learning.Published) != 1 || len(profileLearningRecord(after.Content).Shapes) != 1 {
+			if err != nil || calls != 1 || len(run.Learning.Published) != 1 || len(automationrun.ProfileLearningRecord(after.Content).Shapes) != 1 {
 				t.Fatal("larger evidence fitting the configured budget was not replay-checked and published", calls, err, run.Learning.Summary)
 			}
 		})
@@ -209,7 +210,7 @@ func testLearningConsolidation(t *testing.T, repeats int) {
 		t.Fatal("missing concise publication result", runStatus(run).Learning)
 	}
 	doc, err := store.Read(t.Context(), notes[0].Path, "")
-	if err != nil || len(profileLearningRecord(doc.Content).Shapes) != 2 {
+	if err != nil || len(automationrun.ProfileLearningRecord(doc.Content).Shapes) != 2 {
 		t.Fatal("each query variant must retain its own validated template", err)
 	}
 	// The next client can discover the committed recipe through the same MCP
@@ -240,7 +241,7 @@ func TestLearningRevocationAndSensitiveInputs(t *testing.T) {
 	run := runs[0]
 	run.Learning.Prepared = true
 	for _, e := range run.Learning.Events {
-		run.Learning.Fresh = append(run.Learning.Fresh, learningGroup(e))
+		run.Learning.Fresh = append(run.Learning.Fresh, automationrun.LearningGroup(e))
 	}
 	if err = app.revokeCredential("alice", "alice", credential.ID); err != nil {
 		t.Fatal(err)
@@ -307,7 +308,7 @@ func TestLearningPreservesConfiguredRecipeContract(t *testing.T) {
 	run := runs[0]
 	run.Learning.Decisions = map[string]string{}
 	for _, e := range run.Learning.Events {
-		run.Learning.Decisions[learningGroup(e)] = doc.Path
+		run.Learning.Decisions[automationrun.LearningGroup(e)] = doc.Path
 	}
 	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)

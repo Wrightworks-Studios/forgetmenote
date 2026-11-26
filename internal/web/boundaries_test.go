@@ -84,19 +84,21 @@ func TestOnlyWebServesMCP(t *testing.T) {
 }
 
 // TestContextAuthorityHasKnownSetters lists every production file that stores,
-// replaces or clears a chat run's scope or an automation's identity. Those
-// values decide what a run may read and change: an automation's identity is
-// the authority for its own writes and admits its code-only connections, a
-// person's approval lifts the personal-context refusal, and a wider or missing
-// chat scope lifts the run's corpus limits. Reading them is free. A new setter
-// belongs here only where the check before it is the run's own.
+// replaces or clears a chat run's scope or an automation's identity, or marks
+// a script's host call. Those values decide what a run may read and change: an
+// automation's identity is the authority for its own writes and admits its
+// code-only connections, the script-host mark admits them inside a chat scope,
+// a person's approval lifts the personal-context refusal, and a wider or
+// missing chat scope lifts the run's corpus limits. Reading them is free. A new
+// setter belongs here only where the check before it is the run's own.
 func TestContextAuthorityHasKnownSetters(t *testing.T) {
 	setters := map[string][]string{
-		"forgetmenote/internal/automation.WithIdentity": {"internal/web/automation.go", "internal/web/source_jobs.go"},
-		"forgetmenote/internal/chat.WithRunScope":       {"internal/chatrun/citations.go", "internal/chatrun/context.go", "internal/chatrun/controls.go", "internal/chatrun/review.go", "internal/chatrun/round.go", "internal/chatrun/runner.go"},
-		"forgetmenote/internal/chat.WithScope":          {"internal/automationrun/scope.go", "internal/chatrun/repository.go", "internal/chatrun/scope.go", "internal/web/chat_action_scope.go"},
-		"forgetmenote/internal/chat.WithApproval":       {"internal/chatrun/controls.go", "internal/chatrun/runner.go"},
-		"forgetmenote/internal/chat.WithoutRunScope":    {"internal/automationrun/publish.go", "internal/web/automation_script_capabilities.go"},
+		"forgetmenote/internal/automation.WithIdentity":   {"internal/web/automation.go", "internal/web/source_jobs.go"},
+		"forgetmenote/internal/automation.WithScriptHost": {"internal/automationrun/script.go"},
+		"forgetmenote/internal/chat.WithRunScope":         {"internal/chatrun/citations.go", "internal/chatrun/context.go", "internal/chatrun/controls.go", "internal/chatrun/review.go", "internal/chatrun/round.go", "internal/chatrun/runner.go"},
+		"forgetmenote/internal/chat.WithScope":            {"internal/automationrun/scope.go", "internal/chatrun/repository.go", "internal/chatrun/scope.go", "internal/web/chat_action_scope.go"},
+		"forgetmenote/internal/chat.WithApproval":         {"internal/chatrun/controls.go", "internal/chatrun/runner.go"},
+		"forgetmenote/internal/chat.WithoutRunScope":      {"internal/automationrun/publish.go", "internal/automationrun/script_capabilities.go"},
 	}
 	owners := map[string]bool{}
 	for setter := range setters {
@@ -676,7 +678,7 @@ func TestChatRunTestExportsStayInTests(t *testing.T) {
 // TestAutomationRunTestExportsStayInTests does the same for the automation
 // run engine's testexports.go.
 func TestAutomationRunTestExportsStayInTests(t *testing.T) {
-	testExportsStayInTests(t, "automationrun", 1)
+	testExportsStayInTests(t, "automationrun", 20)
 }
 
 // testExportsStayInTests fails on a production reference to a name that

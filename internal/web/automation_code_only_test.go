@@ -33,7 +33,7 @@ func TestScriptCodeOnlyConnectorDoesNotBecomeAIOrChatEvidence(t *testing.T) {
 			t.Fatal(err)
 		}
 		app.dataConnections = manager
-		e.run.Script.Contract, err = app.scriptContract(e.run.Spec)
+		e.run.Script.Contract, err = app.automationrun.ScriptContract(e.run.Spec)
 		if err != nil {
 			t.Fatal(err)
 		}

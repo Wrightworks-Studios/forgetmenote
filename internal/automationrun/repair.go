@@ -1,4 +1,4 @@
-package web
+package automationrun
 
 import (
 	"bytes"
@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
-	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 )
 
-func (s *Server) repairEvidence(ctx context.Context, r *automation.Run, results []automation.CheckResult) (string, []any, error) {
+func (s *Service) repairEvidence(ctx context.Context, r *automation.Run, results []automation.CheckResult) (string, []any, error) {
 	var fingerprints, data []any
 	calls := append([]automation.Call(nil), r.Spec.Repair.Evidence...)
 	for i, c := range results {
@@ -32,7 +31,7 @@ func (s *Server) repairEvidence(ctx context.Context, r *automation.Run, results 
 			continue
 		}
 		seen[key] = true
-		v, err := s.automationrun.Call(ctx, r, call)
+		v, err := s.Call(ctx, r, call)
 		if err != nil {
 			return "", nil, err
 		}
@@ -40,7 +39,7 @@ func (s *Server) repairEvidence(ctx context.Context, r *automation.Run, results 
 			return "", nil, errors.New("incomplete repair evidence")
 		}
 		fingerprints = append(fingerprints, []string{key, v.Receipt.SchemaHash, v.Receipt.OutputHash})
-		data = append(data, map[string]any{"call": call, "result": automationrun.CheckExcerpt(v.Data)})
+		data = append(data, map[string]any{"call": call, "result": CheckExcerpt(v.Data)})
 	}
 	return automation.Hash(fingerprints), data, nil
 }
@@ -77,7 +76,7 @@ func repairBlocks(spec automation.Spec, results []automation.CheckResult) map[st
 // Only named SQL contents may change. Prose, frontmatter, unrelated examples,
 // and administrator-owned assertions/references remain byte-for-byte intact.
 func replaceRepairSQL(content string, changes map[string]string, eligible map[string]bool) (string, error) {
-	blocks, err := automationrun.RecipeBlocks(content)
+	blocks, err := RecipeBlocks(content)
 	if err != nil {
 		return "", err
 	}
@@ -168,24 +167,24 @@ func repairPromptInput(spec automation.Spec, content string, blocks map[string]s
 	return input
 }
 
-func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save func() error) error {
+func (s *Service) runRepairChecks(ctx context.Context, r *automation.Run, save func() error) error {
 	if err := r.Spec.Validate(); err != nil {
 		return err
 	}
 	if r.GenerationStarted {
 		var err error
-		ctx, err = s.automationrun.SourceContext(ctx, r)
+		ctx, err = s.SourceContext(ctx, r)
 		if err != nil {
 			return err
 		}
 	}
-	memo, err := s.automations.Queue.RepairMemo(r.Spec)
+	memo, err := s.runtime.Queue.RepairMemo(r.Spec)
 	if err != nil {
 		return err
 	}
 	var doc workspace.Document
 	if r.Spec.Recipe != "" {
-		store, e := s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "edit")
+		store, e := s.hooks.ClientAccess(ctx, r.Spec.Actor, r.Spec.Project, "edit")
 		if e != nil {
 			return e
 		}
@@ -194,21 +193,21 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 			return err
 		}
 	}
-	blocks, err := automationrun.RecipeBlocks(string(doc.Content))
+	blocks, err := RecipeBlocks(string(doc.Content))
 	if err != nil {
 		return err
 	}
-	results, checkErr := s.automationrun.EvaluateChecks(ctx, r, blocks)
+	results, checkErr := s.EvaluateChecks(ctx, r, blocks)
 	report := &automation.CheckReport{State: "healthy", Checks: results, RecipeHash: workspace.ContentHash(doc.Content)}
 	var diagnostic string
 	finish := func(state, summary string, failure error) error {
 		report.State, report.Summary = state, summary
 		r.CheckReport = report
-		r.Result = automationrun.CheckReportText(report) + "\n" + automationrun.ReceiptSummary(r.Receipts) + diagnostic
+		r.Result = CheckReportText(report) + "\n" + ReceiptSummary(r.Receipts) + diagnostic
 		if !r.DryRun {
 			memo.Report = *report
 			memo.Updated = time.Now().UTC()
-			if e := s.automations.Queue.SaveRepairMemo(r.Spec, memo); e != nil {
+			if e := s.runtime.Queue.SaveRepairMemo(r.Spec, memo); e != nil {
 				return e
 			}
 		}
@@ -225,11 +224,11 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 		if report.RecipeHash != p.Hash && report.RecipeHash != candidateHash {
 			return workspace.ErrConflict
 		}
-		candidateBlocks, e := automationrun.RecipeBlocks(p.Content)
+		candidateBlocks, e := RecipeBlocks(p.Content)
 		if e != nil {
 			return e
 		}
-		validated, e := s.automationrun.EvaluateChecks(ctx, r, candidateBlocks)
+		validated, e := s.EvaluateChecks(ctx, r, candidateBlocks)
 		report.Candidate = validated
 		if r.CheckReport == nil {
 			return errors.New("repair publication lost validation checkpoint")
@@ -251,7 +250,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 			memo.Previous = ""
 			memo.PublishedHash = ""
 		}
-		if err = s.automationrun.Publish(ctx, r); err != nil {
+		if err = s.Publish(ctx, r); err != nil {
 			return err
 		}
 		report.Original = r.CheckReport.Original
@@ -283,9 +282,9 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 	// Roll back only our unchanged publication when the same observed upstream
 	// state now proves the prior SQL better. A human edit always wins.
 	if memo.PublishedHash == report.RecipeHash && memo.Previous != "" && memo.EvidenceHash == evidenceHash && len(evidence) > 0 {
-		priorBlocks, e := automationrun.RecipeBlocks(memo.Previous)
+		priorBlocks, e := RecipeBlocks(memo.Previous)
 		if e == nil {
-			prior, priorErr := s.automationrun.EvaluateChecks(ctx, r, priorBlocks)
+			prior, priorErr := s.EvaluateChecks(ctx, r, priorBlocks)
 			if priorErr == nil {
 				r.Publication = &automation.Publication{Path: doc.Path, Revision: doc.Revision, Hash: report.RecipeHash, Content: memo.Previous}
 				report.Original = results
@@ -295,7 +294,7 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 				if e = save(); e != nil {
 					return e
 				}
-				if e = s.automationrun.Publish(ctx, r); e != nil {
+				if e = s.Publish(ctx, r); e != nil {
 					return e
 				}
 				report.RecipeHash = workspace.ContentHash([]byte(memo.Previous))
@@ -323,10 +322,10 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 	if !memo.AttemptedAt.IsZero() && time.Since(memo.AttemptedAt) < time.Duration(r.Spec.Repair.CooldownSeconds)*time.Second {
 		return finish("waiting_upstream", "Evidence changed; investigation is waiting for the configured cooldown.", checkErr)
 	}
-	if policy, managed := s.catalog.AISettings(); managed && !policy.Writing {
+	if s.hooks.AIWriting() != nil {
 		return finish("waiting_upstream", "Checks remain active; automatic repair is disabled by instance policy.", checkErr)
 	}
-	ctx, err = s.automationrun.SourceContext(ctx, r)
+	ctx, err = s.SourceContext(ctx, r)
 	if err != nil {
 		return finish("waiting_upstream", "AI evidence is unavailable under current permissions or policy.", err)
 	}
@@ -346,11 +345,11 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 		return err
 	}
 	if !r.DryRun {
-		if err = s.automations.Queue.SaveRepairMemo(r.Spec, memo); err != nil {
+		if err = s.runtime.Queue.SaveRepairMemo(r.Spec, memo); err != nil {
 			return err
 		}
 	}
-	answer, err := s.automationrun.Answer(ctx, r, repairInstructions+"\n\n"+string(input), true)
+	answer, err := s.Answer(ctx, r, repairInstructions+"\n\n"+string(input), true)
 	if err != nil {
 		return finish("repair_failed", "Automatic diagnosis failed: "+err.Error(), err)
 	}
@@ -389,11 +388,11 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 	if bytes.Equal(doc.Content, []byte(candidate)) {
 		return finish("waiting_upstream", proposal.Summary, checkErr)
 	}
-	candidateBlocks, err := automationrun.RecipeBlocks(candidate)
+	candidateBlocks, err := RecipeBlocks(candidate)
 	if err != nil {
 		return err
 	}
-	validated, validationErr := s.automationrun.EvaluateChecks(ctx, r, candidateBlocks)
+	validated, validationErr := s.EvaluateChecks(ctx, r, candidateBlocks)
 	report.Candidate = validated
 	changed := map[string]bool{}
 	for b := range proposal.SQL {
@@ -420,11 +419,11 @@ func (s *Server) runRepairChecks(ctx context.Context, r *automation.Run, save fu
 		return err
 	}
 	if !r.DryRun {
-		if err = s.automations.Queue.SaveRepairMemo(r.Spec, memo); err != nil {
+		if err = s.runtime.Queue.SaveRepairMemo(r.Spec, memo); err != nil {
 			return err
 		}
 	}
-	if err = s.automationrun.Publish(ctx, r); err != nil {
+	if err = s.Publish(ctx, r); err != nil {
 		return err
 	}
 	report.RecipeHash = memo.PublishedHash

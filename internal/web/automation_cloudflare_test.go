@@ -56,7 +56,7 @@ func TestScriptCloudflareBatchesRecheckNotebookEvidence(t *testing.T) {
 	if err = app.ConfigureChat(config); err != nil {
 		t.Fatal(err)
 	}
-	if app.scriptAnalysisProvider(e.run.Spec) != nil {
+	if app.automationrun.AnalysisProvider(e.run.Spec) != nil {
 		t.Fatal("global default falsely declares an explicit moderation provider")
 	}
 	e.run.Spec.AIConnection = "cf"

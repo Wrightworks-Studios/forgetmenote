@@ -362,7 +362,7 @@ func TestScriptPackageThreadsRepliesUnderItsOwnPost(t *testing.T) {
 		w.Write([]byte(`{"ok":true,"channel":"Cposts","ts":"1700000000.00010` + string(rune('0'+n)) + `"}`))
 	})
 	e.run.Script = nil
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if posts.count() != 2 || posts.bodies[0]["thread_ts"] != nil || posts.bodies[1]["thread_ts"] != "1700000000.000101" {

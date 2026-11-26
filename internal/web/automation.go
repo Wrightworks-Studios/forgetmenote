@@ -3,6 +3,9 @@ package web
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"time"
 
 	"forgetmenote/internal/attribution"
 	"forgetmenote/internal/auth"
@@ -131,3 +134,20 @@ func (s *Server) instanceAIWriting() error {
 	return nil
 }
 func (s *Server) logAutomationError(stage string, err error) { s.automations.Report(stage, err) }
+
+func (s *Server) ConfigureAutomationPython(executable string) error {
+	unlock, err := s.startupConfiguration()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	runtime, err := automation.OpenPython(ctx, filepath.Join(s.data, "automations", "python"), executable, os.Getenv("AUTOMATION_PYTHON_WHEELHOUSE"))
+	if err != nil {
+		return err
+	}
+	s.python = runtime
+	return nil
+}

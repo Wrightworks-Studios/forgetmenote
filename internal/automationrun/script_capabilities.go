@@ -1,4 +1,4 @@
-package web
+package automationrun
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
-	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/messaging"
@@ -26,30 +26,33 @@ type scriptCall struct {
 	Operation  string         `json:"operation"`
 	Arguments  map[string]any `json:"arguments"`
 }
+
 type scriptGuard struct {
 	Read      scriptCall     `json:"read"`
 	Equals    map[string]any `json:"equals"`
 	ExpiresAt time.Time      `json:"expiresAt"`
 }
+
 type scriptSubmit struct {
 	scriptCall
 	Guard          scriptGuard    `json:"guard"`
 	Acknowledgment map[string]any `json:"acknowledgment"`
 }
 
-func (s *Server) boundScriptCall(e *scriptExecution, c scriptCall, write bool) (automation.Call, error) {
+func (s *Service) boundScriptCall(e *scriptExecution, c scriptCall, write bool) (automation.Call, error) {
 	spec := e.run.Spec
 	id := spec.Script.Connections[c.Connection]
-	if id == "" || !e.info.Manifest.RequestsOperation(c.Connection, c.Operation) || !slices.Contains(spec.Connections, id) || !slices.Contains(spec.Operations[id], c.Operation) || !s.dataAllowed(e.ctx, id, c.Operation) {
+	if id == "" || !e.info.Manifest.RequestsOperation(c.Connection, c.Operation) || !slices.Contains(spec.Connections, id) || !slices.Contains(spec.Operations[id], c.Operation) || !s.hooks.DataAllowed(e.ctx, id, c.Operation) {
 		return automation.Call{}, workspace.ErrForbidden
 	}
-	op, ok := s.dataConnections.ConfiguredOperation(id, c.Operation)
+	op, ok := s.hooks.DataConnections().ConfiguredOperation(id, c.Operation)
 	if !ok || op.ReadOnly == write {
 		return automation.Call{}, errors.New("operation does not match the requested read/write capability")
 	}
 	return automation.Call{Connection: id, Operation: c.Operation, Arguments: c.Arguments, SchemaHash: op.SchemaHash}, nil
 }
-func (s *Server) scriptCallAuthority(e *scriptExecution, in scriptRequest) error {
+
+func (s *Service) scriptCallAuthority(e *scriptExecution, in scriptRequest) error {
 	if in.Operation == "ai.structured" {
 		var v struct {
 			Research *struct {
@@ -100,7 +103,7 @@ func (s *Server) scriptCallAuthority(e *scriptExecution, in scriptRequest) error
 		if in.Operation == "connectors.submit" {
 			var v scriptSubmit
 			_ = json.Unmarshal(in.Arguments, &v)
-			managed := s.dataConnections.ManagedWrites(e.run.Spec.Script.Connections[c.Connection])
+			managed := s.hooks.DataConnections().ManagedWrites(e.run.Spec.Script.Connections[c.Connection])
 			if !managed && (len(v.Guard.Equals) == 0 || v.Guard.ExpiresAt.IsZero() || len(v.Acknowledgment) == 0) {
 				return errors.New("submission needs a read guard, original expiry and acknowledgment assertions")
 			}
@@ -139,7 +142,7 @@ func (s *Server) scriptCallAuthority(e *scriptExecution, in scriptRequest) error
 		if p == "" || role == "" || in.Operation == "notebooks.publish" && (role != "edit" || p != e.run.Spec.Project) {
 			return workspace.ErrForbidden
 		}
-		if _, err := s.clientAccess(e.ctx, e.run.Spec.Actor, p, role); err != nil {
+		if _, err := s.hooks.ClientAccess(e.ctx, e.run.Spec.Actor, p, role); err != nil {
 			return err
 		}
 		if err := s.captureScriptSources(e); err != nil {
@@ -154,7 +157,7 @@ func (s *Server) scriptCallAuthority(e *scriptExecution, in scriptRequest) error
 			if in.Operation == "notebooks.read" {
 				paths = []string{v.Path}
 			}
-			if err := s.repositories.AuthorizeIndexedRead(e.ctx, p, source.Source, source.Revision, paths); err != nil {
+			if err := s.hooks.Repositories().AuthorizeIndexedRead(e.ctx, p, source.Source, source.Revision, paths); err != nil {
 				return err
 			}
 		}
@@ -164,28 +167,29 @@ func (s *Server) scriptCallAuthority(e *scriptExecution, in scriptRequest) error
 		if !e.run.Spec.ExternalProcessing {
 			return workspace.ErrForbidden
 		}
-		state, err := s.repositories.Status(e.run.Spec.Script.SourceProject)
+		state, err := s.hooks.Repositories().Status(e.run.Spec.Script.SourceProject)
 		if err != nil {
 			return err
 		}
 		if !state.IndexConfig.ExternalProcessing {
 			return errors.New("package notebook does not consent to external processing")
 		}
-		config := s.chat.Snapshot().Config
+		config := s.hooks.Chat().Snapshot().Config
 		if config != nil && config.LocalOnly && in.Operation != "ai.structured" {
 			return workspace.ErrForbidden
 		}
 	}
 	return nil
 }
-func (s *Server) scriptOperation(e *scriptExecution, in scriptRequest, started time.Time) (any, error) {
+
+func (s *Service) scriptOperation(e *scriptExecution, in scriptRequest, started time.Time) (any, error) {
 	r := e.run
 	switch in.Operation {
 	case "jobstate.get":
 		if r.DryRun && r.Script.PreviewJobState != nil {
 			return *r.Script.PreviewJobState, nil
 		}
-		return s.automations.Queue.JobState(r.Spec)
+		return s.runtime.Queue.JobState(r.Spec)
 	case "jobstate.set":
 		return s.scriptSetJobState(e, in)
 	case "checkpoint.set":
@@ -237,7 +241,8 @@ func (s *Server) scriptOperation(e *scriptExecution, in scriptRequest, started t
 		return nil, errors.New("unsupported host operation")
 	}
 }
-func (s *Server) scriptSetJobState(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptSetJobState(e *scriptExecution, in scriptRequest) (any, error) {
 	r := e.run
 	var v struct {
 		Revision string          `json:"revision"`
@@ -254,13 +259,14 @@ func (s *Server) scriptSetJobState(e *scriptExecution, in scriptRequest) (any, e
 		return next, err
 	}
 
-	next, err := s.automations.Queue.SaveJobState(r.Spec, v.Revision, v.Data, r.DryRun)
+	next, err := s.runtime.Queue.SaveJobState(r.Spec, v.Revision, v.Data, r.DryRun)
 	if err == nil && r.DryRun {
 		r.Script.PreviewJobState = &next
 	}
 	return next, err
 }
-func (s *Server) scriptReportIncident(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptReportIncident(e *scriptExecution, in scriptRequest) (any, error) {
 	r := e.run
 	var fields map[string]json.RawMessage
 	if json.Unmarshal(in.Arguments, &fields) != nil || fields["active"] == nil || string(fields["active"]) == "null" {
@@ -278,19 +284,20 @@ func (s *Server) scriptReportIncident(e *scriptExecution, in scriptRequest) (any
 			return nil, errors.New("one incident finding per run")
 		}
 	}
-	if err := s.automationrun.RecordIncident(r, finding, e.save); err != nil {
+	if err := s.RecordIncident(r, finding, e.save); err != nil {
 		return nil, err
 	}
 	return r.Alert, nil
 }
-func (s *Server) scriptReadConnector(e *scriptExecution, in scriptRequest, started time.Time) (any, error) {
+
+func (s *Service) scriptReadConnector(e *scriptExecution, in scriptRequest, started time.Time) (any, error) {
 	var c scriptCall
 	_ = json.Unmarshal(in.Arguments, &c)
 	call, err := s.boundScriptCall(e, c, false)
 	if err != nil {
 		return nil, err
 	}
-	result, err := s.automationrun.Call(e.ctx, e.run, call)
+	result, err := s.Call(e.ctx, e.run, call)
 	if err != nil {
 		return nil, err
 	}
@@ -299,13 +306,14 @@ func (s *Server) scriptReadConnector(e *scriptExecution, in scriptRequest, start
 	}
 	return map[string]any{"data": result.Data, "receipt": result.Receipt, "receivedAt": started}, nil
 }
-func (s *Server) scriptSubmit(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptSubmit(e *scriptExecution, in scriptRequest) (any, error) {
 	ctx, r := e.ctx, e.run
 	var v scriptSubmit
 	if err := json.Unmarshal(in.Arguments, &v); err != nil {
 		return nil, err
 	}
-	managed := s.dataConnections.ManagedWrites(r.Spec.Script.Connections[v.Connection])
+	managed := s.hooks.DataConnections().ManagedWrites(r.Spec.Script.Connections[v.Connection])
 	if !managed {
 		if !time.Now().Before(v.Guard.ExpiresAt) {
 			return nil, errors.New("guard expired; no submission sent")
@@ -314,7 +322,7 @@ func (s *Server) scriptSubmit(e *scriptExecution, in scriptRequest) (any, error)
 		if err != nil {
 			return nil, err
 		}
-		fresh, err := s.automationrun.Call(ctx, r, read)
+		fresh, err := s.Call(ctx, r, read)
 		if err != nil {
 			return nil, err
 		}
@@ -339,8 +347,8 @@ func (s *Server) scriptSubmit(e *scriptExecution, in scriptRequest) (any, error)
 		return nil, err
 	}
 	writeCtx := chat.WithoutRunScope(ctx)
-	writeCtx = context.WithValue(writeCtx, scopeKey{}, "notes:read data:read data:write")
-	result, err := s.automationrun.Call(writeCtx, r, call)
+	writeCtx = context.WithValue(writeCtx, auth.ScopeKey{}, "notes:read data:read data:write")
+	result, err := s.Call(writeCtx, r, call)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +362,8 @@ func (s *Server) scriptSubmit(e *scriptExecution, in scriptRequest) (any, error)
 	}
 	return map[string]any{"data": result.Data, "receipt": result.Receipt}, nil
 }
-func (s *Server) scriptPublish(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptPublish(e *scriptExecution, in scriptRequest) (any, error) {
 	ctx, r := e.ctx, e.run
 	var v struct{ Notebook, Path, Content, Revision, Hash string }
 	if err := json.Unmarshal(in.Arguments, &v); err != nil {
@@ -394,7 +403,7 @@ type scriptMessage struct {
 // scriptMessageDestination resolves a package post to the job's shared
 // notification channel. The package cannot choose another channel, and the
 // channel's approved audience must cover everything the run has read so far.
-func (s *Server) scriptMessageDestination(e *scriptExecution, raw json.RawMessage) (string, messaging.Post, error) {
+func (s *Service) scriptMessageDestination(e *scriptExecution, raw json.RawMessage) (string, messaging.Post, error) {
 	var v scriptMessage
 	if err := automation.DecodeScriptRequest(raw, &v); err != nil {
 		return "", messaging.Post{}, err
@@ -407,8 +416,8 @@ func (s *Server) scriptMessageDestination(e *scriptExecution, raw json.RawMessag
 	if channel == "" {
 		return "", post, errors.New("messages.post requires the job's shared notifyChannel")
 	}
-	policy, _, ok := s.messaging.MessageClient("slack")
-	if !ok || s.slack == nil {
+	policy, _, ok := s.hooks.Messaging().MessageClient("slack")
+	if !ok || !s.hooks.SlackConfigured() {
 		return "", post, workspace.ErrForbidden
 	}
 	return channel, post, messaginghttp.SharedAudience(policy, channel, e.run)
@@ -416,7 +425,7 @@ func (s *Server) scriptMessageDestination(e *scriptExecution, raw json.RawMessag
 
 // scriptPostMessage returns the posted message's Slack ID so later posts can
 // reply in its thread. A preview checks the destination and sends nothing.
-func (s *Server) scriptPostMessage(e *scriptExecution, in scriptRequest) (any, error) {
+func (s *Service) scriptPostMessage(e *scriptExecution, in scriptRequest) (any, error) {
 	channel, post, err := s.scriptMessageDestination(e, in.Arguments)
 	if err != nil {
 		return nil, messaging.NotPosted(err)
@@ -424,13 +433,14 @@ func (s *Server) scriptPostMessage(e *scriptExecution, in scriptRequest) (any, e
 	if e.run.DryRun {
 		return map[string]any{"dryRun": true, "posted": false}, nil
 	}
-	ts, err := s.slack.Post(e.ctx, channel, post)
+	ts, err := s.hooks.SlackPost(e.ctx, channel, post)
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{"channel": channel, "ts": ts}, nil
 }
-func (s *Server) scriptStructured(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptStructured(e *scriptExecution, in scriptRequest) (any, error) {
 	var v struct {
 		Prompt   string          `json:"prompt"`
 		Schema   json.RawMessage `json:"schema"`
@@ -473,7 +483,8 @@ func (s *Server) scriptStructured(e *scriptExecution, in scriptRequest) (any, er
 	}
 	return s.scriptStructuredAnswer(e, v.Prompt, v.Schema, v.Images)
 }
-func (s *Server) scriptDecisions(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptDecisions(e *scriptExecution, in scriptRequest) (any, error) {
 	r := e.run
 	var v struct {
 		chat.DecisionsRequest
@@ -486,22 +497,22 @@ func (s *Server) scriptDecisions(e *scriptExecution, in scriptRequest) (any, err
 		return nil, workspace.ErrForbidden
 	}
 	v.Model = r.Spec.Model
-	ctx, model, err := s.automationrun.ModelCall(e.ctx, r, func(model automationrun.Model) error {
+	ctx, model, err := s.ModelCall(e.ctx, r, func(model Model) error {
 		estimate, err := model.Provider.EstimateDecisions(v.DecisionsRequest)
 		if err != nil {
 			return err
 		}
-		return automationrun.TokenBudget(r, estimate)
+		return TokenBudget(r, estimate)
 	})
 	if err != nil {
 		return nil, err
 	}
 	defer model.Release()
-	if err = s.checkAutomationEvidence(ctx, r, true); err != nil {
+	if err = s.hooks.CheckEvidence(ctx, r, true); err != nil {
 		return nil, err
 	}
 	v.Check = func(ctx context.Context) error {
-		if err := s.checkAutomationEvidence(ctx, r, true); err != nil {
+		if err := s.hooks.CheckEvidence(ctx, r, true); err != nil {
 			return err
 		}
 		return s.scriptAuthority(e)
@@ -512,24 +523,26 @@ func (s *Server) scriptDecisions(e *scriptExecution, in scriptRequest) (any, err
 	if err != nil {
 		return nil, err
 	}
-	if err = s.checkAutomationEvidence(ctx, r, true); err != nil {
+	if err = s.hooks.CheckEvidence(ctx, r, true); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
-func (s *Server) scriptEvaluateDecision(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptEvaluateDecision(e *scriptExecution, in scriptRequest) (any, error) {
 	r := e.run
 	var request decision.Request
 	if err := json.Unmarshal(in.Arguments, &request); err != nil {
 		return nil, err
 	}
-	judge, local := s.jevConfigured()
+	judge, local := s.hooks.JudgmentsConfigured()
 	if judge == nil {
 		return nil, errors.New("decision provider unavailable")
 	}
 	return judge.Evaluate(e.ctx, decision.Evaluation{Scope: decision.Scope{Actor: r.Spec.Actor, Notebook: r.Spec.Project, Feature: "automation-script", Run: r.ID, Operation: automation.Hash(in.Step)}, Request: request, LocalOnly: local, Background: true, Check: func(context.Context) error { return s.scriptAuthority(e) }})
 }
-func (s *Server) scriptFetch(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptFetch(e *scriptExecution, in scriptRequest) (any, error) {
 	ctx, r := e.ctx, e.run
 	var v struct {
 		URL               string `json:"url"`
@@ -550,7 +563,7 @@ func (s *Server) scriptFetch(e *scriptExecution, in scriptRequest) (any, error) 
 	if v.Image {
 		return s.scriptFetchImage(ctx, v.URL, v.Detail)
 	}
-	cfg := s.chat.Snapshot().Config
+	cfg := s.hooks.Chat().Snapshot().Config
 	maxFetches := 5
 	if cfg != nil && cfg.Research != nil && cfg.Research.MaxFetches > 0 {
 		maxFetches = cfg.Research.MaxFetches
@@ -573,7 +586,7 @@ func (s *Server) scriptFetch(e *scriptExecution, in scriptRequest) (any, error) 
 		}
 		return nil, errors.New("configured research fetch budget exhausted")
 	}
-	release, err := s.acquireSourceWork(ctx)
+	release, err := s.hooks.AcquireSourceWork(ctx)
 	if err != nil {
 		if v.Render {
 			return nil, errors.Join(chat.ErrWebsiteCaptureNotAttempted, err)
@@ -586,18 +599,19 @@ func (s *Server) scriptFetch(e *scriptExecution, in scriptRequest) (any, error) 
 			return s.scriptWebsiteCapture(ctx, v.URL)
 		}
 		if v.DismissPromotions {
-			return s.chat.Snapshot().WebsiteCapture.CaptureAfterDismissingPromotions(ctx, v.URL)
+			return s.hooks.Chat().Snapshot().WebsiteCapture.CaptureAfterDismissingPromotions(ctx, v.URL)
 		}
-		return s.chat.Snapshot().WebsiteCapture.Capture(ctx, v.URL)
+		return s.hooks.Chat().Snapshot().WebsiteCapture.Capture(ctx, v.URL)
 	}
-	prepare := s.chat.Snapshot().PrepareSource
+	prepare := s.hooks.Chat().Snapshot().PrepareSource
 	capture, err := prepare(ctx, "", v.URL, nil)
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{"text": capture.Text, "title": capture.Title, "record": capture.Record}, nil
 }
-func (s *Server) scriptFetchImage(ctx context.Context, url string, detail bool) (any, error) {
+
+func (s *Service) scriptFetchImage(ctx context.Context, url string, detail bool) (any, error) {
 	fetch := sources.Fetch
 	if s.scriptImageFetch != nil {
 		fetch = s.scriptImageFetch
@@ -614,7 +628,7 @@ func (s *Server) scriptFetchImage(ctx context.Context, url string, detail bool) 
 	if !detail {
 		return result, nil
 	}
-	release, err := s.acquireSourceWork(ctx)
+	release, err := s.hooks.AcquireSourceWork(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -640,7 +654,8 @@ func (s *Server) scriptFetchImage(ctx context.Context, url string, detail bool) 
 	}
 	return result, nil
 }
-func (s *Server) scriptExtractDocument(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptExtractDocument(e *scriptExecution, in scriptRequest) (any, error) {
 	var v struct {
 		Name string `json:"name"`
 		Data string `json:"data"`
@@ -652,7 +667,7 @@ func (s *Server) scriptExtractDocument(e *scriptExecution, in scriptRequest) (an
 	if err != nil {
 		return nil, err
 	}
-	release, err := s.acquireSourceWork(e.ctx)
+	release, err := s.hooks.AcquireSourceWork(e.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -663,7 +678,8 @@ func (s *Server) scriptExtractDocument(e *scriptExecution, in scriptRequest) (an
 	}
 	return map[string]any{"text": capture.Text, "title": capture.Title, "record": capture.Record}, nil
 }
-func (s *Server) scriptSearch(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptSearch(e *scriptExecution, in scriptRequest) (any, error) {
 	ctx, r := e.ctx, e.run
 	var v struct {
 		Query       string `json:"query"`
@@ -673,7 +689,7 @@ func (s *Server) scriptSearch(e *scriptExecution, in scriptRequest) (any, error)
 	if err := json.Unmarshal(in.Arguments, &v); err != nil {
 		return nil, err
 	}
-	snapshot := s.chat.Snapshot()
+	snapshot := s.hooks.Chat().Snapshot()
 	cfg, research, search := snapshot.Config, snapshot.Research, snapshot.SearchResearch
 	if cfg == nil || cfg.LocalOnly || cfg.Research == nil || !cfg.Research.Enabled || research == nil {
 		return nil, errors.New("public research is not configured")
@@ -686,18 +702,18 @@ func (s *Server) scriptSearch(e *scriptExecution, in scriptRequest) (any, error)
 	}
 	selected, selectedErr := cfg.Resolve(r.Spec.AIConnection, r.Spec.Model)
 	if r.Spec.AIConnection != "" && selectedErr == nil && selected.Cloudflare != nil {
-		_, _, provider, err := s.automationrun.Provider(r.Spec)
+		_, _, provider, err := s.Provider(r.Spec)
 		if err != nil {
 			return nil, err
 		}
-		if err := s.checkAutomationEvidence(ctx, r, true); err != nil {
+		if err := s.hooks.CheckEvidence(ctx, r, true); err != nil {
 			return nil, err
 		}
 		found, diagnostics, err := provider.CloudflareSearchDiagnostics(ctx, v.Query, v.Limit)
 		if err != nil {
 			return nil, err
 		}
-		if err := s.checkAutomationEvidence(ctx, r, true); err != nil {
+		if err := s.hooks.CheckEvidence(ctx, r, true); err != nil {
 			return nil, err
 		}
 		if v.Diagnostics {
@@ -713,12 +729,12 @@ func (s *Server) scriptSearch(e *scriptExecution, in scriptRequest) (any, error)
 		return nil, errors.New("automation token budget reached")
 	}
 	if connection, paid := research.ModelConnection(); paid {
-		if policy, managed := s.catalog.AISettings(); managed && !policy.Writing {
-			return nil, errInstanceAI
+		if err := s.hooks.AIWriting(); err != nil {
+			return nil, err
 		}
 		var release func()
 		var err error
-		ctx, release, err = s.automationrun.ReserveModel(ctx, cfg, connection)
+		ctx, release, err = s.ReserveModel(ctx, cfg, connection)
 		if err != nil {
 			return nil, err
 		}
@@ -729,6 +745,7 @@ func (s *Server) scriptSearch(e *scriptExecution, in scriptRequest) (any, error)
 	r.OutputTokens += int(usage.OutputTokens)
 	return found, err
 }
+
 func scriptAssertions(data any, assertions map[string]any) error {
 	for p, want := range assertions {
 		got, ok := automation.Pointer(data, p)

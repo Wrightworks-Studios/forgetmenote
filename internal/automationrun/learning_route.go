@@ -1,4 +1,4 @@
-package web
+package automationrun
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-func (s *Server) routeLearning(ctx context.Context, r *automation.Run, groups map[string][]automation.LearningEvent, profiles map[string]workspace.Document, save func() error) (map[string]string, error) {
+func (s *Service) routeLearning(ctx context.Context, r *automation.Run, groups map[string][]automation.LearningEvent, profiles map[string]workspace.Document, save func() error) (map[string]string, error) {
 	keys := []string{}
 	for key := range groups {
 		keys = append(keys, key)
@@ -26,7 +26,7 @@ func (s *Server) routeLearning(ctx context.Context, r *automation.Run, groups ma
 		}
 		return keys[i] < keys[j]
 	})
-	judge, localOnly := s.jevConfigured()
+	judge, localOnly := s.hooks.JudgmentsConfigured()
 	limit := 8
 	if r.Spec.Learning.Jev {
 		if judge == nil || localOnly {
@@ -160,11 +160,11 @@ func (s *Server) routeLearning(ctx context.Context, r *automation.Run, groups ma
 		return nil, err
 	}
 	result, err := judge.Evaluate(ctx, decision.Evaluation{Scope: decision.Scope{Actor: account.ID, Notebook: r.Spec.Project, Feature: "profile-learning", Run: r.ID, Operation: "route-v2"}, Background: true, Request: request, Check: func(ctx context.Context) error {
-		current, localOnly := s.jevConfigured()
+		current, localOnly := s.hooks.JudgmentsConfigured()
 		if current != judge || localOnly {
 			return decision.ErrDisabled
 		}
-		return s.checkAutomationEvidence(ctx, r, true)
+		return s.hooks.CheckEvidence(ctx, r, true)
 	}})
 	if err != nil {
 		return nil, err

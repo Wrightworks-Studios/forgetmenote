@@ -1,4 +1,4 @@
-package web
+package automationrun
 
 import (
 	"encoding/json"
@@ -8,22 +8,23 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/workspace"
 )
 
 // Source snapshots have a separate lifetime from the installed package commit.
 // They are frozen once per run, and checked again before every host operation.
-func (s *Server) captureScriptSources(e *scriptExecution) error {
+func (s *Service) captureScriptSources(e *scriptExecution) error {
 	if e.run.Script.Sources != nil {
 		return nil
 	}
 	sources := map[string]automation.ScriptSource{}
 	for alias, project := range e.run.Spec.Script.Notebooks {
-		if s.repositories == nil {
+		if s.hooks.Repositories() == nil {
 			continue
 		}
-		state, err := s.repositories.Status(project)
+		state, err := s.hooks.Repositories().Status(project)
 		if err != nil {
 			return err
 		}
@@ -50,12 +51,12 @@ func (s *Server) captureScriptSources(e *scriptExecution) error {
 	return e.save()
 }
 
-func (s *Server) checkScriptSources(e *scriptExecution) error {
+func (s *Service) checkScriptSources(e *scriptExecution) error {
 	for alias, source := range e.run.Script.Sources {
-		if e.run.Spec.Script.Notebooks[alias] != source.Project || s.repositories == nil {
+		if e.run.Spec.Script.Notebooks[alias] != source.Project || s.hooks.Repositories() == nil {
 			return workspace.ErrForbidden
 		}
-		state, err := s.repositories.Status(source.Project)
+		state, err := s.hooks.Repositories().Status(source.Project)
 		if err != nil {
 			return err
 		}
@@ -69,7 +70,7 @@ func (s *Server) checkScriptSources(e *scriptExecution) error {
 	return nil
 }
 
-func (s *Server) scriptReadDocument(e *scriptExecution, in scriptRequest) (any, error) {
+func (s *Service) scriptReadDocument(e *scriptExecution, in scriptRequest) (any, error) {
 	var v struct {
 		Notebook, Path, Revision, Origin string
 		Optional                         bool
@@ -81,9 +82,9 @@ func (s *Server) scriptReadDocument(e *scriptExecution, in scriptRequest) (any, 
 	if v.Origin == "" {
 		v.Origin = "notes"
 	}
-	ref := documentRef{Project: e.run.Spec.Script.Notebooks[v.Notebook], Origin: v.Origin, Path: v.Path, Revision: v.Revision}
+	ref := notebooks.DocumentRef{Project: e.run.Spec.Script.Notebooks[v.Notebook], Origin: v.Origin, Path: v.Path, Revision: v.Revision}
 	if v.Optional && v.Origin == "notes" {
-		store, err := s.clientAccess(e.ctx, e.run.Spec.Actor, ref.Project, "read")
+		store, err := s.hooks.ClientAccess(e.ctx, e.run.Spec.Actor, ref.Project, "read")
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +102,7 @@ func (s *Server) scriptReadDocument(e *scriptExecution, in scriptRequest) (any, 
 		}
 		ref.Source, ref.Revision = source.Source, source.Revision
 	}
-	doc, err := s.readDocument(e.ctx, documentRequest{documentRef: ref, LineRange: v.LineRange})
+	doc, err := s.hooks.ReadDocument(e.ctx, ref, v.LineRange)
 	if err != nil {
 		if v.Optional && errors.Is(err, os.ErrNotExist) {
 			return map[string]any{"missing": true, "path": v.Path, "revision": "", "hash": ""}, nil
@@ -118,7 +119,7 @@ func (s *Server) scriptReadDocument(e *scriptExecution, in scriptRequest) (any, 
 	return doc, nil
 }
 
-func (s *Server) scriptRepositoryNavigation(e *scriptExecution, in scriptRequest) (any, error) {
+func (s *Service) scriptRepositoryNavigation(e *scriptExecution, in scriptRequest) (any, error) {
 	var v struct {
 		Notebook string `json:"notebook"`
 		knowledge.MapQuery
@@ -134,8 +135,8 @@ func (s *Server) scriptRepositoryNavigation(e *scriptExecution, in scriptRequest
 		return nil, err
 	}
 	if in.Operation == "repositories.changes" {
-		return s.repositories.IndexedChanges(e.ctx, source.Project, source.Source, source.PreviousRevision, source.Revision)
+		return s.hooks.Repositories().IndexedChanges(e.ctx, source.Project, source.Source, source.PreviousRevision, source.Revision)
 	}
 	v.Revision = source.Revision
-	return s.notebookMap(e.ctx, notebookMapRequest{Project: source.Project, Origin: "repository", Source: source.Source, MapQuery: v.MapQuery})
+	return s.hooks.NotebookMap(e.ctx, source.Project, "repository", source.Source, v.MapQuery)
 }

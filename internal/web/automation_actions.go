@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
@@ -77,7 +78,7 @@ func runStatus(r automation.Run) automationRunStatus {
 	if b := r.Learning; b != nil {
 		patterns := map[string]bool{}
 		for _, e := range b.Events {
-			patterns[learningGroup(e)] = true
+			patterns[automationrun.LearningGroup(e)] = true
 		}
 		learning := &learningRunStatus{State: r.State, Observations: len(b.Events), Patterns: len(patterns), Deferred: b.Deferred, Published: b.Published, ReadyAt: b.ReadyAt.Format(time.RFC3339), Expires: b.Expires.Format(time.RFC3339)}
 		if r.State == "completed" {
@@ -155,7 +156,7 @@ func (s *Server) automationTools(server *mcp.Server) {
 			if in.Spec.Script.Environment == "" {
 				return automation.Definition{}, errors.New("prepare or install this package before saving its definition")
 			}
-			if _, _, err := s.scriptPackage(ctx, in.Spec, true); err != nil {
+			if _, _, err := s.automationrun.ScriptPackage(ctx, in.Spec, true); err != nil {
 				return automation.Definition{}, err
 			}
 		}
@@ -323,7 +324,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 		}
 	}
 	if spec.Script != nil {
-		_, files, err := s.scriptPackage(ctx, spec, false)
+		_, files, err := s.automationrun.ScriptPackage(ctx, spec, false)
 		if err != nil {
 			return err
 		}

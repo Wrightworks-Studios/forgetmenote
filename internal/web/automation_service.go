@@ -1,11 +1,17 @@
 package web
 
 import (
+	"context"
+
+	"forgetmenote/internal/automation"
 	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/backups"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/personal"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/taskqueue"
@@ -24,12 +30,15 @@ func (s *Server) initAutomationRun() error {
 // automationRunHooks binds the engine to this instance's checks: a run's
 // identity, its recheck and the instance AI policy (automation.go), the
 // recheck of a run's evidence (automation_evidence.go), client access
-// (credentials.go), data connections (data_connections.go) and personal
-// context and consent (personal_ui.go), and to the action dispatcher
-// (actions.go). The chat runtime, data connections, repository sources,
-// backups, messaging, the personal assistant, task queues and the Slack app
-// are read at each call, since web sets or replaces them after startup or
-// starts them after the engine.
+// (credentials.go), data connections (data_connections.go), document reads
+// (documents.go), definition validation (automation_actions.go), a learning
+// event's actor and credential (automation_learning_capture.go), the
+// configured judge (jev.go) and personal context and consent
+// (personal_ui.go), and to the action dispatcher (actions.go). The chat
+// runtime, data connections, repository sources, backups, messaging, the
+// personal assistant, task queues, the Slack app and the Python runtime are
+// read at each call, since web sets or replaces them after startup or starts
+// them after the engine.
 func (s *Server) automationRunHooks() automationrun.Hooks {
 	return automationrun.Hooks{
 		Chat:            func() *chat.Runtime { return s.chat },
@@ -45,6 +54,10 @@ func (s *Server) automationRunHooks() automationrun.Hooks {
 		Personal:        func() *personal.Service { return s.personal },
 		Tasks:           func() *taskqueue.Service { return s.tasks },
 		SlackConfigured: func() bool { return s.slack != nil },
+		Python:          func() *automation.Python { return s.python },
+		SlackPost: func(ctx context.Context, channel string, post messaging.Post) (string, error) {
+			return s.slack.Post(ctx, channel, post)
+		},
 
 		RunContext:    s.automationContext,
 		CheckRun:      s.checkAutomationAuth,
@@ -53,8 +66,19 @@ func (s *Server) automationRunHooks() automationrun.Hooks {
 		CheckEvidence: s.checkAutomationEvidence,
 
 		ClientAccess: s.clientAccess,
+		DataAllowed:  s.dataAllowed,
 		DataExecute:  s.dataExecute,
 		DataList:     s.dataList,
+		ReadDocument: func(ctx context.Context, ref notebooks.DocumentRef, lines reposource.LineRange) (notebooks.DocumentOutput, error) {
+			return s.readDocument(ctx, documentRequest{documentRef: ref, LineRange: lines})
+		},
+		NotebookMap: func(ctx context.Context, project, origin, source string, q knowledge.MapQuery) (any, error) {
+			return s.notebookMap(ctx, notebookMapRequest{Project: project, Origin: origin, Source: source, MapQuery: q})
+		},
+
+		ValidateDefinition:  s.validateAutomationDefinition,
+		CheckLearningEvent:  s.learningEventAllowed,
+		JudgmentsConfigured: s.jevConfigured,
 
 		DispatchAction:        s.dispatchActionOutcome,
 		DocumentContentScope:  s.documentContentScope,
@@ -66,10 +90,5 @@ func (s *Server) automationRunHooks() automationrun.Hooks {
 		ConsentStamp:    s.personalConsentStamp,
 		PersonalSpecs:   s.personalSpecs,
 		EmailPairing:    s.runEmailPairing,
-
-		RefreshPackages: s.refreshAutomationPackages,
-		RunScript:       s.runScript,
-		RunLearning:     s.runLearning,
-		RunRepair:       s.runRepairChecks,
 	}
 }

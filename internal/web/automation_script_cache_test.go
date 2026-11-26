@@ -34,7 +34,7 @@ func TestScriptAnalysisCacheAcrossRunsAndConsent(t *testing.T) {
 		e.run.ID = automation.Hash(id)
 		e.run.Script.Steps = map[string]*automation.ScriptStep{}
 		var err error
-		e.run.Script.Contract, err = app.scriptContract(e.run.Spec)
+		e.run.Script.Contract, err = app.automationrun.ScriptContract(e.run.Spec)
 		if err != nil {
 			t.Fatal(err)
 		}
