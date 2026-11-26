@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/redshiftdata v1.49.0 // Redshift Data connector
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.1 // S3 blob store web identity exchange
 	github.com/coreos/go-oidc/v3 v3.21.0 // OIDC sign-in token verification
-	github.com/go-jose/go-jose/v4 v4.1.4 // JOSE fixtures for OIDC tests
+	github.com/go-jose/go-jose/v4 v4.1.6 // JOSE fixtures for OIDC tests
 	github.com/golang/snappy v1.0.0 // iWork archive preflight before the native parser
 	github.com/google/jsonschema-go v0.4.3 // typed action and MCP tool schemas
 	github.com/jackc/pgx/v5 v5.11.0 // PostgreSQL data connector and instance control plane (pgxpool)
