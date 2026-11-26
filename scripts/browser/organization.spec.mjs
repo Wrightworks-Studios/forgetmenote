@@ -40,6 +40,10 @@ test('Administration displays the canonical credential-free startup summary', as
     expect(rows[label]).toBe(instance[key] ? 'Configured' : 'Not configured');
   expect(rows['Browser interface']).toBe(instance.headless ? 'Disabled' : 'Enabled');
   expect(rows['Outgoing actions']).toBe(instance.outgoingPaused ? 'Paused' : 'Enabled');
+  const {modules} = await app.api('/api/organization/action/organization_status', {});
+  expect(modules.length).toBeGreaterThan(0);
+  expect(rows['Modules on']).toBe(modules.map(module => module.title).join('; '));
+  expect(rows['Modules off']).toBe('None');
 });
 
 test('groups, invitations and revocation work through real browser sessions', async ({page, browser}) => {
