@@ -30,6 +30,10 @@ The first provider adapters support:
   answers and drafts. These are not complete background copies of Drive.
 - Existing data connections: explicit employee-configured read-only watches for
   logs or other operational results, using the current connection permissions.
+  **Your assistant → Data watches** offers the connections the employee may use
+  that allow AI processing, their read-only operations, and a field for each
+  flat argument in the operation's input schema; other arguments are entered as
+  JSON. Saving checks every watch again.
 
 Daily briefings after 08:30 in the employee's time zone reuse existing grounded
 suggestions without another LLM call. Follow-up reminders require an explicit
