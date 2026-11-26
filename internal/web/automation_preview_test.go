@@ -69,6 +69,29 @@ func TestAutomationTaskPinsRevisionBeforeModel(t *testing.T) {
 	}
 }
 
+// A preview shows what its run would publish only while the run may still
+// publish it. One whose actor loses its session after the answer is written,
+// as the answer's checkpoint is saved, fails its final check and keeps
+// nothing of the answer.
+func TestAutomationPreviewRefusedAtItsFinalCheckKeepsNoResult(t *testing.T) {
+	app, _ := runnerFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"role": "assistant", "content": "# Generated note"}, "finish_reason": "stop"}}})
+	})
+	if err := app.catalog.Member(catalog.Bootstrap, "default", "alice", "edit"); err != nil {
+		t.Fatal(err)
+	}
+	run := automation.Run{ID: strings.Repeat("b", 64), DryRun: true, Spec: automation.Spec{ID: "task", Kind: "task", Actor: "alice", Project: "default", AIConnection: "local", ExternalProcessing: true, Instruction: "Write a short note", Output: "task.md"}}
+	save := func() error {
+		if run.Publication != nil && run.Publication.Content != "" {
+			return app.catalog.Revoke(catalog.Bootstrap, "alice")
+		}
+		return nil
+	}
+	if err := app.runAutomation(context.Background(), &run, save); err == nil || run.Result != "" {
+		t.Fatalf("refused preview: %v, kept %q", err, run.Result)
+	}
+}
+
 func TestAutomationInputNotebooksAreReadableAndRevocationApplies(t *testing.T) {
 	app, _ := fixture(t)
 	if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "robot"}); err != nil {

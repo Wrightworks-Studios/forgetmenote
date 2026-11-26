@@ -518,13 +518,19 @@ func (s *Server) notifyAutomation(ctx context.Context, r *automation.Run, save f
 	}
 	return s.messaging.DeliverSlack(ctx, r, save, automation.Delivery{Channel: r.Spec.NotifySlackUser, SlackUser: r.Spec.NotifySlackUser, Direct: true})
 }
+
+// publishAutomation writes a run's publication to its output note, or for a
+// preview only shows it. The run keeps the publication as its result only once
+// its final check passes: a run refused there keeps no result, including a
+// report set before, so it shows nothing its actor may no longer publish.
 func (s *Server) publishAutomation(ctx context.Context, r *automation.Run) error {
+	if e := s.checkAutomationEvidence(ctx, r, true); e != nil {
+		r.Result = ""
+		return e
+	}
 	if r.DryRun {
 		r.Result = r.Publication.Content
-		return s.checkAutomationEvidence(ctx, r, true)
-	}
-	if e := s.checkAutomationEvidence(ctx, r, true); e != nil {
-		return e
+		return nil
 	}
 	a, ok := automation.IdentityFrom(ctx)
 	if !ok {
