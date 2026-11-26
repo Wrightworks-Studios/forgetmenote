@@ -179,8 +179,8 @@ func TestContextAuthorityHasKnownSetters(t *testing.T) {
 // store through a variable.
 func TestCredentialScopeHasKnownSetters(t *testing.T) {
 	setters := []string{
+		"internal/automationrun/script_capabilities.go (*Service).scriptSubmit",
 		"internal/web/automation.go (*Server).automationContext",
-		"internal/web/automation_script_capabilities.go (*Server).scriptSubmit",
 		"internal/web/credentials.go (*Server).credentialToken",
 		"internal/web/oauth.go (*Server).validAccessToken",
 		"internal/web/source_jobs.go (*Server).sourceContext",
