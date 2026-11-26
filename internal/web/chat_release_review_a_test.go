@@ -43,7 +43,7 @@ func TestReleaseReviewAApprovalEpoch(t *testing.T) {
 		t.Fatal(err)
 	}
 	args, _ := json.Marshal(map[string]any{"path": note.Path, "locked": true, "revision": status.Revision})
-	err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "lock", Name: "set_note_lock", Arguments: args}, app.chat.Config.Connections[0])
+	err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "lock", Name: "set_note_lock", Arguments: args}, app.chat.Config.Connections[0])
 	if err != chatrun.ErrConfirmation {
 		t.Fatalf("prepare: %v", err)
 	}

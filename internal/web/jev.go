@@ -34,8 +34,6 @@ func (s *Server) initJev() error {
 
 func (s *Server) jevRoutes() {
 	s.jev.Register(s.handleProject, s.mux.HandleFunc)
-	s.handleProject("GET /api/chat/{chat}/runs/{run}/citations", "read", s.jevCitations)
-	s.handleProject("POST /api/chat/{chat}/runs/{run}/citations", "read", s.jevCitations)
 }
 
 func (s *Server) jevConfigured() (*decision.Service, bool) {

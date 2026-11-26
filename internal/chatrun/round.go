@@ -405,7 +405,7 @@ func (r *Runner) persist(request chat.Request, streamed chatStreamed) error {
 // or waits for confirmation.
 func (r *Runner) executeTools(ctx context.Context, calls []chat.ToolCall) error {
 	for _, call := range calls {
-		if err := r.s.hooks.ExecuteTool(ctx, r.auth, r.id, r.runID, call, r.connection); err != nil {
+		if err := r.s.executeChatTool(ctx, r.auth, r.id, r.runID, call, r.connection); err != nil {
 			return err
 		}
 	}

@@ -93,7 +93,7 @@ func TestChatCrashBoundaryHelper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.executeNotebookTool(ctx, auth, c.ID, runID, call, chat.Connection{}); err != nil {
+	if err = app.chatrun.ExecuteNotebookTool(ctx, auth, c.ID, runID, call, chat.Connection{}); err != nil {
 		t.Fatal(err)
 	}
 	t.Fatal("crash boundary did not block")

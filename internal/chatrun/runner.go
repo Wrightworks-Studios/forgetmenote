@@ -1,4 +1,4 @@
-package web
+package chatrun
 
 import (
 	"context"
@@ -10,12 +10,20 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"forgetmenote/internal/attribution"
+	"forgetmenote/internal/actions"
 	"forgetmenote/internal/chat"
-	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 )
+
+// savedNote is the part of a save_note call the executor turns into a
+// change group.
+type savedNote struct {
+	Path     string `json:"path"`
+	Content  string `json:"content"`
+	Revision string `json:"revision"`
+}
 
 type chatSubmission struct {
 	SubmissionID string            `json:"submissionId"`
@@ -24,43 +32,14 @@ type chatSubmission struct {
 	Attachments  []chat.Attachment `json:"attachments,omitempty"`
 }
 
-func (s *Server) chatRunAuth(r *http.Request, c chat.Conversation) chat.RunAuth {
-	a := chat.RunAuth{User: c.Owner, Project: c.Project, Epoch: s.catalog.Epoch(c.Owner)}
-	if token, ok := sessionToken(r); ok {
-		a.Session = digest(token)
-	}
-	return a
-}
-func (s *Server) checkRun(a chat.RunAuth) error {
-	if !s.catalog.ValidSession(a.User, a.Epoch) {
-		return workspace.ErrForbidden
-	}
-	if a.Session != "" {
-		g, ok := s.oauth.Session(a.Session)
-		if !ok || g.Subject != a.User || g.Expires <= time.Now().Unix() || g.Epoch != a.Epoch {
-			return workspace.ErrForbidden
-		}
-	}
-	_, err := s.catalog.Access(a.User, a.Project, "read")
-	return err
-}
-func (s *Server) runContext(a chat.RunAuth) (context.Context, error) {
-	account, err := s.catalog.Account(a.User)
-	if err != nil {
-		return nil, err
-	}
-	ctx := context.WithValue(context.Background(), identityKey{}, a.User)
-	ctx = chat.WithRunAuth(ctx, a)
-	return attribution.WithSource(ctx, account.Identity(), "chat", "embedded"), s.checkRun(a)
-}
-func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
+func (s *Service) chatTurn(w http.ResponseWriter, r *http.Request) {
 	c, err := s.chatAuthorized(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	var in chatSubmission
-	if !decode(w, r, &in) {
+	if !webcore.Decode(w, r, &in) {
 		return
 	}
 	if len(in.SubmissionID) < 1 || len(in.SubmissionID) > 128 || strings.TrimSpace(in.Text) == "" || len(in.Text) > 16<<10 || !utf8.ValidString(in.Text) {
@@ -74,10 +53,10 @@ func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if prior.RequestHash != hash {
-			chatFail(w, chat.ErrConflict)
+			webcore.Fail(w, chat.ErrConflict)
 			return
 		}
-		jsonResponse(w, map[string]any{"chat": c.ID, "run": prior.ID, "state": prior.State, "replayed": true})
+		webcore.JSON(w, map[string]any{"chat": c.ID, "run": prior.ID, "state": prior.State, "replayed": true})
 		return
 	}
 	opts := in.Options
@@ -94,7 +73,7 @@ func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	cfg := s.chat.Snapshot().Config
+	cfg := s.hooks.Chat().Snapshot().Config
 	connection, err := cfg.Resolve(opts.Connection, opts.Model)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
@@ -110,13 +89,13 @@ func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
 	}
 	if opts.Mode == "edit" {
 		if _, err = s.catalog.Access(c.Owner, c.Project, "edit"); err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
 	}
 	if opts.Mode == "suggest" {
 		if _, err = s.catalog.Access(c.Owner, c.Project, "comment"); err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
 	}
@@ -126,20 +105,20 @@ func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, chat.ErrCorpus.Error(), 409)
 		return
 	}
-	opts.Corpus, err = s.resolveChatCorpus(r.Context(), projectStore(r.Context()), opts.Corpus, c.Options.Corpus, c.Version == 1)
+	opts.Corpus, err = s.hooks.ResolveCorpus(r.Context(), webcore.NotebookStore(r.Context()), opts.Corpus, c.Options.Corpus, c.Version == 1)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	attachments, err := s.chatrun.Attachments(r.Context(), projectStore(r.Context()), in.Attachments)
+	attachments, err := s.Attachments(r.Context(), webcore.NotebookStore(r.Context()), in.Attachments)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	auth := s.chatRunAuth(r, c)
-	base, err := s.runContext(auth)
+	auth := s.hooks.RunAuth(r, c)
+	base, err := s.hooks.RunContext(auth)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	now := chat.Now()
@@ -147,10 +126,10 @@ func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
 	turn := chat.Turn{ID: chat.NewID(), RunID: run.ID, Role: "user", Content: in.Text, Attachments: attachments}
 	ctx, cancel := context.WithTimeout(base, time.Duration(connection.Limits.RunSeconds)*time.Second)
 	var created chat.Conversation
-	replayed, err := s.chat.Admit(cfg, connection, run.ID, cancel, c.Owner, s.pausedChatAllowed, func() (bool, error) {
+	replayed, err := s.hooks.Chat().Admit(cfg, connection, run.ID, cancel, c.Owner, s.pausedChatAllowed, func() (bool, error) {
 		var replay bool
 		var err error
-		created, replay, err = s.chat.Store.Start(c.Owner, c.Project, c.ID, run, turn)
+		created, replay, err = s.hooks.Chat().Store.Start(c.Owner, c.Project, c.ID, run, turn)
 		return replay, err
 	})
 	if err != nil {
@@ -158,7 +137,7 @@ func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, chat.ErrCapacity) {
 			http.Error(w, "Chat is busy; retry shortly", 429)
 		} else {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 		}
 		return
 	}
@@ -166,35 +145,35 @@ func (s *Server) chatTurn(w http.ResponseWriter, r *http.Request) {
 		cancel()
 		for _, prior := range created.Runs {
 			if prior.SubmissionID == in.SubmissionID {
-				jsonResponse(w, map[string]any{"chat": c.ID, "run": prior.ID, "state": prior.State, "replayed": true})
+				webcore.JSON(w, map[string]any{"chat": c.ID, "run": prior.ID, "state": prior.State, "replayed": true})
 				return
 			}
 		}
 		return
 	}
 	go s.executeChat(ctx, cancel, auth, c.ID, run.ID, connection)
-	jsonResponse(w, map[string]any{"chat": c.ID, "run": run.ID, "state": "queued"})
+	webcore.JSON(w, map[string]any{"chat": c.ID, "run": run.ID, "state": "queued"})
 }
 
 // watchChatCancel stops a run when a cancellation is requested on another
 // gateway, as a local request cancels it directly. It reads the transcript only
 // when the conversation's version changes.
-func (s *Server) watchChatCancel(ctx context.Context, cancel context.CancelFunc, auth chat.RunAuth, id, runID string) {
+func (s *Service) watchChatCancel(ctx context.Context, cancel context.CancelFunc, auth chat.RunAuth, id, runID string) {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
-	seen := s.chat.Store.Generation(auth.User, id)
+	seen := s.hooks.Chat().Store.Generation(auth.User, id)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-tick.C:
 		}
-		generation := s.chat.Store.Generation(auth.User, id)
+		generation := s.hooks.Chat().Store.Generation(auth.User, id)
 		if generation == 0 || generation == seen {
 			continue
 		}
 		seen = generation
-		if c, err := s.chat.Store.Read(auth.User, auth.Project, id); err == nil {
+		if c, err := s.hooks.Chat().Store.Read(auth.User, auth.Project, id); err == nil {
 			if r := c.Run(runID); r != nil && r.CancelRequested {
 				cancel()
 				return
@@ -206,16 +185,16 @@ func (s *Server) watchChatCancel(ctx context.Context, cancel context.CancelFunc,
 // executeChat runs an admitted chat run until it is terminal or waits for a
 // confirmation. Each round loads the run, fits one model request, streams it,
 // persists the answer and then executes the tool calls it made.
-func (s *Server) executeChat(ctx context.Context, cancel context.CancelFunc, auth chat.RunAuth, id, runID string, connection chat.Connection) {
+func (s *Service) executeChat(ctx context.Context, cancel context.CancelFunc, auth chat.RunAuth, id, runID string, connection chat.Connection) {
 	defer func() {
 		cancel()
-		s.chat.Finish(runID, connection.ID)
+		s.hooks.Chat().Finish(runID, connection.ID)
 	}()
 	// Every return below, including one after a failed read of the
 	// conversation, leaves the run terminal or deliberately awaiting confirmation.
-	defer s.chatrun.RecoverRun(auth, id, runID)
+	defer s.RecoverRun(auth, id, runID)
 	go s.watchChatCancel(ctx, cancel, auth, id, runID)
-	runner := s.chatrun.NewRunner(auth, id, runID, connection)
+	runner := s.NewRunner(auth, id, runID, connection)
 	ctx, stop, run, err := runner.Prepare(ctx)
 	defer stop()
 	if err == nil {
@@ -227,14 +206,14 @@ func (s *Server) executeChat(ctx context.Context, cancel context.CancelFunc, aut
 // executeChatTool executes one of the model's tool calls. Passage search and
 // action discovery run within the run; research, notebook actions and a
 // review's workflow checkpoint have their own executors.
-func (s *Server) executeChatTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
+func (s *Service) executeChatTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := s.checkRun(a); err != nil {
+	if err := s.hooks.CheckRun(a); err != nil {
 		return err
 	}
-	c, err := s.chat.Store.Read(a.User, a.Project, id)
+	c, err := s.hooks.Chat().Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return err
 	}
@@ -250,7 +229,7 @@ func (s *Server) executeChatTool(ctx context.Context, a chat.RunAuth, id, runID 
 		return context.Canceled
 	}
 	if !chatToolReplayed(*run, call) {
-		if call, err = chatrun.PrepareToolCall(s.chatrun.RunTools(*run, connection), connection, call, run.Messages); err != nil {
+		if call, err = PrepareToolCall(s.RunTools(*run, connection), connection, call, run.Messages); err != nil {
 			return err
 		}
 	}
@@ -261,16 +240,16 @@ func (s *Server) executeChatTool(ctx context.Context, a chat.RunAuth, id, runID 
 		}
 	}
 	if run.ToolCount >= max(run.ToolLimit, connection.Limits.MaxTools) {
-		if chatrun.OrdinaryAsk(*run) {
-			return s.chatrun.OmitBudgetRead(ctx, a, id, *run, call, connection)
+		if OrdinaryAsk(*run) {
+			return s.OmitBudgetRead(ctx, a, id, *run, call, connection)
 		}
-		return chatrun.FailureError(chatrun.ToolBudget, "Tool-call budget reached")
+		return FailureError(ToolBudget, "Tool-call budget reached")
 	}
 	var result json.RawMessage
 	var citations []chat.Citation
 	switch call.Name {
 	case "research_search", "research_fetch":
-		return s.chatrun.ExecuteResearchTool(ctx, a, id, runID, call, connection)
+		return s.ExecuteResearchTool(ctx, a, id, runID, call, connection)
 	case "search_passages":
 		result, citations, err = s.searchChatPassages(ctx, a, id, *run, call, connection)
 	case "discover_actions":
@@ -281,13 +260,13 @@ func (s *Server) executeChatTool(ctx context.Context, a chat.RunAuth, id, runID 
 	if err != nil {
 		return err
 	}
-	if err = s.checkRun(a); err != nil {
+	if err = s.hooks.CheckRun(a); err != nil {
 		return err
 	}
-	return s.chatrun.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+	return s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 		r.ToolCount++
-		chatrun.RecordToolResult(c, r, call.ID, chatrun.ToolResultContext(call.Name, result, citations), citations, true)
-		op := chat.Operation{ID: chatrun.OperationID(runID, r.Rounds, call.ID), ToolCallID: call.ID, Round: r.Rounds, Name: call.Name, Arguments: call.Arguments, Hash: chat.Hash(call.Arguments), State: "completed", Result: result}
+		RecordToolResult(c, r, call.ID, ToolResultContext(call.Name, result, citations), citations, true)
+		op := chat.Operation{ID: OperationID(runID, r.Rounds, call.ID), ToolCallID: call.ID, Round: r.Rounds, Name: call.Name, Arguments: call.Arguments, Hash: chat.Hash(call.Arguments), State: "completed", Result: result}
 		r.Operations = append(r.Operations, op)
 		c.AddEvent(runID, "tool_result", op)
 		return nil
@@ -300,7 +279,7 @@ func (s *Server) executeChatTool(ctx context.Context, a chat.RunAuth, id, runID 
 // never stale content.
 func chatToolReplayed(run chat.Run, call chat.ToolCall) bool {
 	for _, operation := range run.Operations {
-		if operation.ID == chatrun.OperationID(run.ID, run.Rounds, call.ID) && operation.Name == call.Name {
+		if operation.ID == OperationID(run.ID, run.Rounds, call.ID) && operation.Name == call.Name {
 			return true
 		}
 	}
@@ -311,31 +290,31 @@ func chatToolReplayed(run chat.Run, call chat.ToolCall) bool {
 // complete inventory at an unchanged snapshot, with arguments matching it. It
 // reports handled when it executed, deferred or refused the call itself;
 // otherwise it returns the run as it now stands.
-func (s *Server) gateReviewWorkflow(ctx context.Context, a chat.RunAuth, id string, run *chat.Run, call chat.ToolCall, connection chat.Connection) (*chat.Run, bool, error) {
-	reconcile, err := s.chatrun.ReconcileReviewWorkflow(ctx, a, run, call)
+func (s *Service) gateReviewWorkflow(ctx context.Context, a chat.RunAuth, id string, run *chat.Run, call chat.ToolCall, connection chat.Connection) (*chat.Run, bool, error) {
+	reconcile, err := s.ReconcileReviewWorkflow(ctx, a, run, call)
 	if err != nil {
 		return run, true, err
 	}
 	if reconcile {
 		return run, true, s.executeNotebookTool(ctx, a, id, run.ID, call, connection)
 	}
-	if run.Review == nil || !run.Review.Complete || !chatrun.ReviewComplete(run.Review) {
-		if chatrun.ReviewWorkflowWasDeferred(run) {
-			return run, true, s.chatrun.DeferReviewWorkflow(a, id, run, call)
+	if run.Review == nil || !run.Review.Complete || !ReviewComplete(run.Review) {
+		if ReviewWorkflowWasDeferred(run) {
+			return run, true, s.DeferReviewWorkflow(a, id, run, call)
 		}
 		return run, true, errors.New("incomplete review cannot advance a workflow checkpoint")
 	}
-	complete, err := s.chatrun.PrepareReview(ctx, a, id, run.ID, connection)
+	complete, err := s.PrepareReview(ctx, a, id, run.ID, connection)
 	if err != nil {
 		return run, true, err
 	}
 	if !complete {
-		return run, true, s.chatrun.DeferReviewWorkflow(a, id, run, call)
+		return run, true, s.DeferReviewWorkflow(a, id, run, call)
 	}
-	if err = s.chatrun.RetainPendingWorkflowPair(a, id, run, call); err != nil {
+	if err = s.RetainPendingWorkflowPair(a, id, run, call); err != nil {
 		return run, true, err
 	}
-	refreshed, err := s.chat.Store.Read(a.User, a.Project, id)
+	refreshed, err := s.hooks.Chat().Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return run, true, err
 	}
@@ -344,14 +323,14 @@ func (s *Server) gateReviewWorkflow(ctx context.Context, a chat.RunAuth, id stri
 	if err != nil {
 		return run, true, err
 	}
-	snapshot, err := chatrun.CorpusSnapshot(ctx, store, *run, "")
+	snapshot, err := CorpusSnapshot(ctx, store, *run, "")
 	if err != nil {
 		return run, true, err
 	}
 	if snapshot.Revision != run.Review.Revision || snapshot.Visibility != run.Review.Visibility {
 		return run, true, errors.New("review snapshot changed; re-examine before completing the workflow")
 	}
-	if err = chatrun.ValidateReviewWorkflowArguments(run, call.Arguments); err != nil {
+	if err = ValidateReviewWorkflowArguments(run, call.Arguments); err != nil {
 		return run, true, err
 	}
 	return run, false, nil
@@ -360,32 +339,32 @@ func (s *Server) gateReviewWorkflow(ctx context.Context, a chat.RunAuth, id stri
 // searchChatPassages retrieves passages for the model's query and cites them,
 // pinned to their committed references. A failed retrieval is the call's
 // result, not the run's failure.
-func (s *Server) searchChatPassages(ctx context.Context, a chat.RunAuth, id string, run chat.Run, call chat.ToolCall, connection chat.Connection) (json.RawMessage, []chat.Citation, error) {
+func (s *Service) searchChatPassages(ctx context.Context, a chat.RunAuth, id string, run chat.Run, call chat.ToolCall, connection chat.Connection) (json.RawMessage, []chat.Citation, error) {
 	var in struct {
 		Text  string `json:"text"`
 		Scope string `json:"scope"`
 	}
-	if err := chatrun.StrictArguments(call.Arguments, &in); err != nil || strings.TrimSpace(in.Text) == "" || (in.Scope != "" && in.Scope != "current" && in.Scope != "history") {
+	if err := StrictArguments(call.Arguments, &in); err != nil || strings.TrimSpace(in.Text) == "" || (in.Scope != "" && in.Scope != "current" && in.Scope != "history") {
 		return nil, nil, errors.New("invalid passage search arguments")
 	}
 	store, err := s.catalog.Access(a.User, a.Project, "read")
 	if err != nil {
 		return nil, nil, err
 	}
-	e, releaseEngine, err := s.acquireEngine(ctx, store)
+	e, releaseEngine, err := s.hooks.AcquireEngine(ctx, store)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer releaseEngine()
-	cfg := s.chat.Snapshot().Config
-	found, err := s.chatrun.Retrieve(ctx, id, run, e, knowledge.RetrievalQuery{PerNotePassages: connection.Limits.PerNotePassages, Text: in.Text, Scope: in.Scope, Limit: connection.Limits.MaxPassages, TokenBudget: connection.Limits.EvidenceTokens, LocalOnly: cfg.LocalOnly && !cfg.EmbeddingsLocal}, connection, false)
+	cfg := s.hooks.Chat().Snapshot().Config
+	found, err := s.Retrieve(ctx, id, run, e, knowledge.RetrievalQuery{PerNotePassages: connection.Limits.PerNotePassages, Text: in.Text, Scope: in.Scope, Limit: connection.Limits.MaxPassages, TokenBudget: connection.Limits.EvidenceTokens, LocalOnly: cfg.LocalOnly && !cfg.EmbeddingsLocal}, connection, false)
 	if err != nil {
 		result, _ := json.Marshal(map[string]string{"error": err.Error()})
 		return result, nil, nil
 	}
 	result, _ := json.Marshal(found)
-	citations := chatrun.RetrievalCitations(a.Project, chatrun.OperationID(run.ID, run.Rounds, call.ID), found)
-	if err := chatrun.PinCitationReferences(ctx, store, citations); err != nil {
+	citations := RetrievalCitations(a.Project, OperationID(run.ID, run.Rounds, call.ID), found)
+	if err := PinCitationReferences(ctx, store, citations); err != nil {
 		return nil, nil, err
 	}
 	return result, citations, nil
@@ -394,23 +373,23 @@ func (s *Server) searchChatPassages(ctx context.Context, a chat.RunAuth, id stri
 // discoverChatActions returns the schemas of up to three named actions the
 // run's mode allows. Discovery cannot grant action authority; the run keeps
 // offering the discovered tools, up to twelve.
-func (s *Server) discoverChatActions(a chat.RunAuth, id string, run chat.Run, call chat.ToolCall) (json.RawMessage, error) {
+func (s *Service) discoverChatActions(a chat.RunAuth, id string, run chat.Run, call chat.ToolCall) (json.RawMessage, error) {
 	var in struct {
 		Names []string `json:"names"`
 	}
-	if chatrun.StrictArguments(call.Arguments, &in) != nil || len(in.Names) > 3 || len(in.Names) == 0 {
+	if StrictArguments(call.Arguments, &in) != nil || len(in.Names) > 3 || len(in.Names) == 0 {
 		return nil, errors.New("discovery arguments must name one to three actions")
 	}
 	available := []chat.Tool{}
 	for _, name := range in.Names {
-		p := s.actions[name].Policy
+		p := actions.LookupPolicy(name)
 		if !p.ChatAvailable() || p.Control && run.Options.Mode != "edit" || run.Options.Mode == "ask" && !p.Read {
 			continue
 		}
-		available = append(available, s.chatrun.ActionTools(name)...)
+		available = append(available, s.ActionTools(name)...)
 	}
 	result, _ := json.Marshal(available)
-	return result, s.chatrun.RunUpdate(a, id, run.ID, func(c *chat.Conversation, r *chat.Run) error {
+	return result, s.RunUpdate(a, id, run.ID, func(c *chat.Conversation, r *chat.Run) error {
 		for _, tool := range available {
 			if !slices.Contains(r.ToolNames, tool.Name) && len(r.ToolNames) < 12 {
 				r.ToolNames = append(r.ToolNames, tool.Name)
@@ -419,8 +398,9 @@ func (s *Server) discoverChatActions(a chat.RunAuth, id string, run chat.Run, ca
 		return nil
 	})
 }
-func (s *Server) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
-	c, err := s.chat.Store.Read(a.User, a.Project, id)
+
+func (s *Service) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
+	c, err := s.hooks.Chat().Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return err
 	}
@@ -432,7 +412,7 @@ func (s *Server) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, ru
 	if err != nil {
 		return err
 	}
-	key := chatrun.OperationID(runID, run.Rounds, call.ID)
+	key := OperationID(runID, run.Rounds, call.ID)
 	var prior *chat.Operation
 	for i := range run.Operations {
 		if run.Operations[i].ID == key {
@@ -448,44 +428,44 @@ func (s *Server) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, ru
 		canonical = prior.Arguments
 		approved = prior.Approved
 		if prior.State == "awaiting_confirmation" {
-			return chatrun.ErrConfirmation
+			return ErrConfirmation
 		}
-		if !allowedAction(run.Options.Mode, name, canonical, run.Options.Actions, approved) {
+		if !actions.Allowed(run.Options.Mode, name, canonical, run.Options.Actions, approved) {
 			return workspace.ErrForbidden
 		}
 		if approved {
 			ctx = chat.WithApproval(ctx)
 		}
 		if prior.State == "completed" {
-			return s.chatrun.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+			return s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 				r.Provenance.Complete = r.Provenance.Complete && prior.ProvenanceComplete
-				chatrun.RecordToolResult(c, r, call.ID, chatrun.ToolResultContext(name, prior.Result, prior.Citations), prior.Citations, true)
+				RecordToolResult(c, r, call.ID, ToolResultContext(name, prior.Result, prior.Citations), prior.Citations, true)
 				return nil
 			})
 		}
-		if !policy(name).Replay {
-			_ = s.chatrun.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+		if !actions.LookupPolicy(name).Replay {
+			_ = s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 				r.State = "uncertain"
-				r.Error = chatrun.ErrUncertain.Error()
+				r.Error = ErrUncertain.Error()
 				r.Usage.Reserved = 0
 				c.AddEvent(runID, "state", map[string]string{"state": r.State, "message": r.Error})
 				return nil
 			})
-			return chatrun.ErrUncertain
+			return ErrUncertain
 		}
 	} else {
-		p := policy(name)
+		p := actions.LookupPolicy(name)
 		if p.Control || chatDeletionControl(name, call.Arguments) {
-			_, canonical, e := s.actionArguments(a.Project, name, call.Arguments)
+			canonical, e := s.hooks.ActionArguments(a.Project, name, call.Arguments)
 			if e != nil {
 				return e
 			}
 			return s.prepareChatOperation(ctx, a, id, runID, call, canonical)
 		}
-		if !allowedAction(run.Options.Mode, name, call.Arguments, run.Options.Actions, false) {
+		if !actions.Allowed(run.Options.Mode, name, call.Arguments, run.Options.Actions, false) {
 			return workspace.ErrForbidden
 		}
-		_, canonical, err = s.actionArguments(a.Project, name, call.Arguments)
+		canonical, err = s.hooks.ActionArguments(a.Project, name, call.Arguments)
 		if err != nil {
 			if !p.Read {
 				return err
@@ -499,18 +479,18 @@ func (s *Server) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, ru
 		// Mutations still require preflight before a durable operation is prepared;
 		// a change carrying personal context is preflighted as the approved
 		// operation it must become.
-		personal := !p.Read && s.chatPersonalApproval(a.User, a.Project, chat.RunScopeFrom(ctx).Personal)
+		personal := !p.Read && s.hooks.PersonalApproval(a.User, a.Project, chat.RunScopeFrom(ctx).Personal)
 		if !p.Read {
 			preflight := ctx
 			if personal {
 				preflight = chat.WithApproval(ctx)
 			}
-			if _, err = s.guardChatAction(preflight, a.Project, name, canonical); err != nil {
+			if _, err = s.hooks.GuardAction(preflight, a.Project, name, canonical); err != nil {
 				return err
 			}
 		}
 		if name == "save_note" {
-			var in noteInput
+			var in savedNote
 			if json.Unmarshal(canonical, &in) != nil {
 				return errors.New("invalid note edit")
 			}
@@ -556,7 +536,7 @@ func (s *Server) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, ru
 			return s.prepareChatOperation(ctx, a, id, runID, chat.ToolCall{ID: call.ID, Name: name}, canonical)
 		}
 		op := chat.Operation{ID: key, ToolCallID: call.ID, Round: run.Rounds, Name: name, Arguments: canonical, Hash: chat.Hash(canonical), State: "running"}
-		if err = s.chatrun.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+		if err = s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 			r.ToolCount++
 			r.Operations = append(r.Operations, op)
 			c.AddEvent(runID, "tool_started", map[string]string{"id": key, "name": name})
@@ -565,25 +545,25 @@ func (s *Server) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, ru
 			return err
 		}
 	}
-	if err = s.checkRun(a); err != nil {
+	if err = s.hooks.CheckRun(a); err != nil {
 		return err
 	}
-	result, actionErr := s.dispatchActionOutcome(ctx, a.Project, name, canonical)
+	result, actionErr := s.hooks.DispatchAction(ctx, a.Project, name, canonical)
 	outcome := classifyChatActionOutcome(result, actionErr)
 	if outcome.ambiguous {
-		if policy(name).Replay {
-			return chatrun.ErrPending
+		if actions.LookupPolicy(name).Replay {
+			return ErrPending
 		}
-		return chatrun.ErrUncertain
+		return ErrUncertain
 	}
 	result = outcome.result
-	evidence, tracked := s.chatrun.ToolEvidence(ctx, a, key, name, result)
-	authorizationErr := s.checkRun(a)
-	err = s.chatrun.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+	evidence, tracked := s.ToolEvidence(ctx, a, key, name, result)
+	authorizationErr := s.hooks.CheckRun(a)
+	err = s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 		if actionErr == nil {
 			r.Provenance.Complete = r.Provenance.Complete && tracked
 		}
-		chatrun.RecordToolResult(c, r, call.ID, chatrun.ToolResultContext(name, result, evidence), evidence, authorizationErr == nil)
+		RecordToolResult(c, r, call.ID, ToolResultContext(name, result, evidence), evidence, authorizationErr == nil)
 		return completeChatOperation(c, r, key, outcome, evidence, tracked)
 	})
 	if err != nil {
@@ -592,5 +572,5 @@ func (s *Server) executeNotebookTool(ctx context.Context, a chat.RunAuth, id, ru
 	if authorizationErr != nil {
 		return authorizationErr
 	}
-	return s.checkRun(a)
+	return s.hooks.CheckRun(a)
 }

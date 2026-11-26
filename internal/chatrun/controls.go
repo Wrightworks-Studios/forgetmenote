@@ -1,4 +1,4 @@
-package web
+package chatrun
 
 import (
 	"context"
@@ -8,26 +8,26 @@ import (
 	"strings"
 	"time"
 
+	"forgetmenote/internal/actions"
 	"forgetmenote/internal/chat"
-	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 )
 
-func (s *Server) chatCancel(w http.ResponseWriter, r *http.Request) {
+func (s *Service) chatCancel(w http.ResponseWriter, r *http.Request) {
 	c, err := s.chatAuthorized(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	id := r.PathValue("run")
 	run := c.Run(id)
 	if run == nil {
-		chatFail(w, chat.ErrNotFound)
+		webcore.Fail(w, chat.ErrNotFound)
 		return
 	}
-	auth := s.chatRunAuth(r, c)
-	if err = s.chatrun.RunUpdate(auth, c.ID, id, func(c *chat.Conversation, r *chat.Run) error {
+	auth := s.hooks.RunAuth(r, c)
+	if err = s.RunUpdate(auth, c.ID, id, func(c *chat.Conversation, r *chat.Run) error {
 		r.CancelRequested = true
 		if r.State == "awaiting_confirmation" {
 			r.State = "cancelled"
@@ -42,21 +42,22 @@ func (s *Server) chatCancel(w http.ResponseWriter, r *http.Request) {
 		c.AddEvent(id, "state", map[string]any{"state": r.State, "cancelRequested": true})
 		return nil
 	}); err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	s.chat.Cancel(id)
-	jsonResponse(w, map[string]any{"run": id, "cancelRequested": true})
+	s.hooks.Chat().Cancel(id)
+	webcore.JSON(w, map[string]any{"run": id, "cancelRequested": true})
 }
-func (s *Server) chatResume(w http.ResponseWriter, r *http.Request) {
+
+func (s *Service) chatResume(w http.ResponseWriter, r *http.Request) {
 	c, err := s.chatAuthorized(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	run := c.Run(r.PathValue("run"))
 	if run == nil {
-		chatFail(w, chat.ErrNotFound)
+		webcore.Fail(w, chat.ErrNotFound)
 		return
 	}
 	if err := run.Options.Corpus.Validate(); err != nil {
@@ -66,24 +67,24 @@ func (s *Server) chatResume(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		BudgetTokens int `json:"budgetTokens"` // Accepted from legacy clients; ignored.
 	}
-	if !decode(w, r, &in) {
+	if !webcore.Decode(w, r, &in) {
 		return
 	}
-	cfg := s.chat.Snapshot().Config
+	cfg := s.hooks.Chat().Snapshot().Config
 	connection, err := cfg.Resolve(run.Options.Connection, run.Options.Model)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	auth := s.chatRunAuth(r, c)
-	base, err := s.runContext(auth)
+	auth := s.hooks.RunAuth(r, c)
+	base, err := s.hooks.RunContext(auth)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	ctx, cancel := context.WithTimeout(base, time.Duration(connection.Limits.RunSeconds)*time.Second)
-	_, err = s.chat.Admit(cfg, connection, run.ID, cancel, c.Owner, s.pausedChatAllowed, func() (bool, error) {
-		_, err := s.chat.Store.Resume(c.Owner, c.Project, c.ID, run.ID, connection.Limits.MaxRounds, connection.Limits.MaxTools, auth.Epoch)
+	_, err = s.hooks.Chat().Admit(cfg, connection, run.ID, cancel, c.Owner, s.pausedChatAllowed, func() (bool, error) {
+		_, err := s.hooks.Chat().Store.Resume(c.Owner, c.Project, c.ID, run.ID, connection.Limits.MaxRounds, connection.Limits.MaxTools, auth.Epoch)
 		return false, err
 	})
 	if err != nil {
@@ -91,22 +92,23 @@ func (s *Server) chatResume(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, chat.ErrCapacity) || errors.Is(err, chat.ErrRunActive) {
 			http.Error(w, "Chat is busy; retry shortly", 429)
 		} else {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 		}
 		return
 	}
 	go s.executeChat(ctx, cancel, auth, c.ID, run.ID, connection)
-	jsonResponse(w, map[string]any{"run": run.ID, "state": "queued"})
+	webcore.JSON(w, map[string]any{"run": run.ID, "state": "queued"})
 }
-func (s *Server) chatSaveNote(w http.ResponseWriter, r *http.Request) {
+
+func (s *Service) chatSaveNote(w http.ResponseWriter, r *http.Request) {
 	c, err := s.chatAuthorized(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	store, err := s.catalog.Access(c.Owner, c.Project, "edit")
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	var in struct {
@@ -115,7 +117,7 @@ func (s *Server) chatSaveNote(w http.ResponseWriter, r *http.Request) {
 		Revision     string   `json:"revision"`
 		TurnIDs      []string `json:"turnIds"`
 	}
-	if !decode(w, r, &in) {
+	if !webcore.Decode(w, r, &in) {
 		return
 	}
 	if len(in.SubmissionID) < 1 || len(in.SubmissionID) > 128 || len(in.TurnIDs) < 1 || len(in.TurnIDs) > 100 {
@@ -162,56 +164,56 @@ func (s *Server) chatSaveNote(w http.ResponseWriter, r *http.Request) {
 	if in.Revision != "" {
 		old, e := store.Read(r.Context(), in.Path, in.Revision)
 		if e != nil {
-			chatFail(w, e)
+			webcore.Fail(w, e)
 			return
 		}
 		hash = workspace.ContentHash(old.Content)
 	}
-	auth := s.chatRunAuth(r, c)
-	ctx, err := s.runContext(auth)
+	auth := s.hooks.RunAuth(r, c)
+	ctx, err := s.hooks.RunContext(auth)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	group := workspace.EditGroup{ID: "chat-save-" + c.ID + "-" + chat.Hash([]byte(in.SubmissionID))[:24], Summary: "Save selected chat messages to note", Edits: []workspace.NoteEdit{{Path: in.Path, Content: content.String(), Revision: in.Revision, Hash: hash}}}
-	contentFence, release := s.chat.RetainContent(c.Owner, c.ID)
+	contentFence, release := s.hooks.Chat().RetainContent(c.Owner, c.ID)
 	defer release()
 	contentFence.RLock()
 	defer contentFence.RUnlock()
 	if _, err = s.chatAuthorized(r); err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	// The store was opened before the body was read; recheck Edit inside the
 	// fence so a demotion during the request cannot be outrun.
 	if store, err = s.catalog.Access(c.Owner, c.Project, "edit"); err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	result, err := store.ApplyGroup(ctx, group)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	if err = s.checkRun(auth); err != nil {
-		chatFail(w, err)
+	if err = s.hooks.CheckRun(auth); err != nil {
+		webcore.Fail(w, err)
 		return
 	}
-	err = s.chat.Store.Update(c.Owner, c.Project, c.ID, func(c *chat.Conversation) error {
+	err = s.hooks.Chat().Store.Update(c.Owner, c.Project, c.ID, func(c *chat.Conversation) error {
 		c.AddEvent("", "saved_note", map[string]any{"path": in.Path, "revision": result.Revision, "replayed": result.Replayed})
 		return nil
 	})
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	jsonResponse(w, map[string]any{"path": in.Path, "revision": result.Revision, "replayed": result.Replayed})
+	webcore.JSON(w, map[string]any{"path": in.Path, "revision": result.Revision, "replayed": result.Replayed})
 }
 
-func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, canonical json.RawMessage) error {
-	c, err := s.chat.Store.Read(a.User, a.Project, id)
+func (s *Service) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, canonical json.RawMessage) error {
+	c, err := s.hooks.Chat().Store.Read(a.User, a.Project, id)
 	if err != nil {
 		return err
 	}
@@ -219,12 +221,12 @@ func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, r
 	// A research fetch of an unprovided URL, or a change carrying personal
 	// context, needs the same explicit approval in every mode that allows it;
 	// notebook controls remain Edit-only.
-	if run.Options.Mode != "edit" && call.Name != "research_fetch" && !allowedAction(run.Options.Mode, call.Name, canonical, run.Options.Actions, false) {
+	if run.Options.Mode != "edit" && call.Name != "research_fetch" && !actions.Allowed(run.Options.Mode, call.Name, canonical, run.Options.Actions, false) {
 		return workspace.ErrForbidden
 	}
 	if call.Name != "research_fetch" {
 		// Do not offer an approval that dispatch would refuse.
-		if err = chatReadOnly(a.Project, *run); err != nil {
+		if err = s.hooks.ReadOnly(a.Project, *run); err != nil {
 			return err
 		}
 	}
@@ -238,7 +240,7 @@ func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, r
 		if json.Unmarshal(obj["group"], &group) != nil {
 			return errors.New("invalid change group")
 		}
-		group.ID = chatrun.OperationID(run.ID, run.Rounds, call.ID)
+		group.ID = OperationID(run.ID, run.Rounds, call.ID)
 		obj["group"], _ = json.Marshal(group)
 		canonical, _ = json.Marshal(obj)
 	}
@@ -254,11 +256,11 @@ func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, r
 		canonical, _ = json.Marshal(map[string]any{"project": a.Project, "revision": listing.Revision, "confirmation": listing.Confirmation})
 		preview = listing
 	}
-	op := chat.Operation{ID: chatrun.OperationID(run.ID, run.Rounds, call.ID), ToolCallID: call.ID, Round: run.Rounds, Name: call.Name, Arguments: canonical, Hash: chat.Hash(canonical), State: "awaiting_confirmation", Confirmation: chat.NewID()}
+	op := chat.Operation{ID: OperationID(run.ID, run.Rounds, call.ID), ToolCallID: call.ID, Round: run.Rounds, Name: call.Name, Arguments: canonical, Hash: chat.Hash(canonical), State: "awaiting_confirmation", Confirmation: chat.NewID()}
 	if preview != nil {
 		op.Result, _ = json.Marshal(preview)
 	}
-	if err = s.chatrun.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
+	if err = s.RunUpdate(a, id, runID, func(c *chat.Conversation, r *chat.Run) error {
 		r.Operations = append(r.Operations, op)
 		r.ToolCount++
 		r.State = "awaiting_confirmation"
@@ -268,19 +270,20 @@ func (s *Server) prepareChatOperation(ctx context.Context, a chat.RunAuth, id, r
 	}); err != nil {
 		return err
 	}
-	return chatrun.ErrConfirmation
+	return ErrConfirmation
 }
-func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
+
+func (s *Service) chatAction(w http.ResponseWriter, r *http.Request) {
 	c, err := s.chatAuthorized(r)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	var in struct {
 		Decision     string `json:"decision"`
 		Confirmation string `json:"confirmation"`
 	}
-	if !decode(w, r, &in) {
+	if !webcore.Decode(w, r, &in) {
 		return
 	}
 	var run *chat.Run
@@ -294,7 +297,7 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if run == nil || op == nil {
-		chatFail(w, chat.ErrNotFound)
+		webcore.Fail(w, chat.ErrNotFound)
 		return
 	}
 	if err := run.Options.Corpus.Validate(); err != nil {
@@ -302,38 +305,38 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if op.State != "awaiting_confirmation" || op.Confirmation == "" || op.Confirmation != in.Confirmation || in.Decision != "approve" && in.Decision != "decline" {
-		chatFail(w, chat.ErrConflict)
+		webcore.Fail(w, chat.ErrConflict)
 		return
 	}
 	// A fresh login cannot approve a confirmation created by a revoked run.
 	// Reconciliation is durable and releases only unused reservations.
 	err = s.reconcilePausedChats(c.Owner)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	auth := s.chatRunAuth(r, c)
+	auth := s.hooks.RunAuth(r, c)
 	if auth.Epoch != run.Epoch {
-		chatFail(w, workspace.ErrForbidden)
+		webcore.Fail(w, workspace.ErrForbidden)
 		return
 	}
-	base, err := s.runContext(auth)
+	base, err := s.hooks.RunContext(auth)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
-	if op.Name != "research_fetch" && !allowedAction(run.Options.Mode, op.Name, op.Arguments, run.Options.Actions, true) {
-		chatFail(w, workspace.ErrForbidden)
+	if op.Name != "research_fetch" && !actions.Allowed(run.Options.Mode, op.Name, op.Arguments, run.Options.Actions, true) {
+		webcore.Fail(w, workspace.ErrForbidden)
 		return
 	}
-	cfg := s.chat.Snapshot().Config
+	cfg := s.hooks.Chat().Snapshot().Config
 	connection, resolveErr := cfg.Resolve(run.Options.Connection, run.Options.Model)
 	if resolveErr != nil {
 		http.Error(w, resolveErr.Error(), 400)
 		return
 	}
 	ctx, cancel := context.WithTimeout(base, time.Duration(min(30, connection.Limits.RunSeconds))*time.Second)
-	if _, err := s.chat.Admit(cfg, connection, run.ID, cancel, "", nil, nil); err != nil {
+	if _, err := s.hooks.Chat().Admit(cfg, connection, run.ID, cancel, "", nil, nil); err != nil {
 		cancel()
 		if errors.Is(err, chat.ErrRunActive) {
 			http.Error(w, "Run is still pausing; retry shortly", 409)
@@ -342,16 +345,16 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	ctx, stopAccess := webcore.MonitorAccess(ctx, func(context.Context) error { return s.checkRun(auth) })
+	ctx, stopAccess := webcore.MonitorAccess(ctx, func(context.Context) error { return s.hooks.CheckRun(auth) })
 	defer func() {
 		cancel()
 		stopAccess()
-		s.chat.Finish(run.ID, connection.ID)
+		s.hooks.Chat().Finish(run.ID, connection.ID)
 	}()
 	operationID := op.ID
 	declined, _ := json.Marshal(map[string]string{"message": "The user declined this action."})
-	err = s.chatrun.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
-		if r.Epoch != auth.Epoch || r.State != "awaiting_confirmation" || s.checkRun(auth) != nil {
+	err = s.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
+		if r.Epoch != auth.Epoch || r.State != "awaiting_confirmation" || s.hooks.CheckRun(auth) != nil {
 			return workspace.ErrForbidden
 		}
 		for i := range r.Operations {
@@ -370,7 +373,7 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 			if !o.Approved {
 				o.State = "completed"
 				o.Result = declined
-				chatrun.RecordToolResult(c, r, o.ToolCallID, string(declined), nil, true)
+				RecordToolResult(c, r, o.ToolCallID, string(declined), nil, true)
 				r.State = "interrupted"
 				r.Error = "Action declined. Continue explicitly to finish the response."
 				r.Usage.Reserved = 0
@@ -382,31 +385,31 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 		return chat.ErrNotFound
 	})
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	if in.Decision == "decline" {
-		jsonResponse(w, map[string]any{"run": run.ID, "state": "interrupted", "result": json.RawMessage(declined)})
+		webcore.JSON(w, map[string]any{"run": run.ID, "state": "interrupted", "result": json.RawMessage(declined)})
 		return
 	}
-	if err = s.checkRun(auth); err != nil {
-		s.chatrun.Terminal(auth, c.ID, run.ID, "interrupted", chatrun.FailureError(chatrun.AccessRevoked, "Access changed before the approved action started."))
-		chatFail(w, err)
+	if err = s.hooks.CheckRun(auth); err != nil {
+		s.Terminal(auth, c.ID, run.ID, "interrupted", FailureError(AccessRevoked, "Access changed before the approved action started."))
+		webcore.Fail(w, err)
 		return
 	}
 	ctx, err = chat.WithRunScope(ctx, c, *run)
 	if err != nil {
-		chatFail(w, err)
+		webcore.Fail(w, err)
 		return
 	}
 	ctx = chat.WithApproval(ctx)
 	if op.Name == "research_fetch" {
-		if err = s.chatrun.ExecuteApprovedResearch(ctx, auth, c.ID, run.ID, *op, connection); err != nil {
-			s.chatrun.Terminal(auth, c.ID, run.ID, "interrupted", err)
-			chatFail(w, err)
+		if err = s.ExecuteApprovedResearch(ctx, auth, c.ID, run.ID, *op, connection); err != nil {
+			s.Terminal(auth, c.ID, run.ID, "interrupted", err)
+			webcore.Fail(w, err)
 			return
 		}
-		err = s.chatrun.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
+		err = s.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
 			r.State = "interrupted"
 			r.Error = "Action reviewed. Continue explicitly to finish the response."
 			r.Usage.Reserved = 0
@@ -414,38 +417,38 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 		if err != nil {
-			chatFail(w, err)
+			webcore.Fail(w, err)
 			return
 		}
-		jsonResponse(w, map[string]any{"run": run.ID, "state": "interrupted"})
+		webcore.JSON(w, map[string]any{"run": run.ID, "state": "interrupted"})
 		return
 	}
-	result, actionErr := s.dispatchActionOutcome(ctx, c.Project, op.Name, op.Arguments)
+	result, actionErr := s.hooks.DispatchAction(ctx, c.Project, op.Name, op.Arguments)
 	outcome := classifyChatActionOutcome(result, actionErr)
 	if outcome.ambiguous {
-		state, cause := "uncertain", chatrun.ErrUncertain
-		if policy(op.Name).Replay {
+		state, cause := "uncertain", ErrUncertain
+		if actions.LookupPolicy(op.Name).Replay {
 			state = "interrupted"
-			cause = chatrun.ErrPending
+			cause = ErrPending
 		}
-		s.chatrun.Terminal(auth, c.ID, run.ID, state, cause)
-		if err = s.checkRun(auth); err != nil {
-			chatFail(w, err)
+		s.Terminal(auth, c.ID, run.ID, state, cause)
+		if err = s.hooks.CheckRun(auth); err != nil {
+			webcore.Fail(w, err)
 			return
 		}
 		http.Error(w, cause.Error(), 409)
 		return
 	}
 	result = outcome.result
-	authorizationErr := s.checkRun(auth)
+	authorizationErr := s.hooks.CheckRun(auth)
 	// Persist the known outcome even if access changed while the action ran; read
 	// and SSE authorization still prevent disclosure after revocation.
-	err = s.chatrun.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
+	err = s.RunUpdate(auth, c.ID, run.ID, func(c *chat.Conversation, r *chat.Run) error {
 		if err := completeChatOperation(c, r, operationID, outcome, nil, false); err != nil {
 			return err
 		}
 		r.Provenance.Complete = false
-		chatrun.RecordToolResult(c, r, op.ToolCallID, chatrun.ControlResult(op.Name, result), nil, authorizationErr == nil)
+		RecordToolResult(c, r, op.ToolCallID, ControlResult(op.Name, result), nil, authorizationErr == nil)
 		r.State = "interrupted"
 		r.Error = "Action reviewed. Continue explicitly to finish the response."
 		r.Usage.Reserved = 0
@@ -453,15 +456,15 @@ func (s *Server) chatAction(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if err != nil {
-		s.chatrun.Terminal(auth, c.ID, run.ID, "uncertain", errors.New("The action outcome could not be recorded; inspect the notebook before retrying."))
-		chatFail(w, err)
+		s.Terminal(auth, c.ID, run.ID, "uncertain", errors.New("The action outcome could not be recorded; inspect the notebook before retrying."))
+		webcore.Fail(w, err)
 		return
 	}
-	if err = s.checkRun(auth); err != nil {
-		chatFail(w, err)
+	if err = s.hooks.CheckRun(auth); err != nil {
+		webcore.Fail(w, err)
 		return
 	}
-	jsonResponse(w, map[string]any{"run": run.ID, "state": "interrupted", "result": result})
+	webcore.JSON(w, map[string]any{"run": run.ID, "state": "interrupted", "result": result})
 }
 
 func chatDeletionControl(name string, args json.RawMessage) bool {

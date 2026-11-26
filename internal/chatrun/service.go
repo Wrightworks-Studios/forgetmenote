@@ -1,21 +1,26 @@
-// Package chatrun is the chat run engine: the rounds of a chat run, fitting
-// each model request to its connection, the evidence and provenance of tool
-// results, review workflows, research and the run's terminal state. Web keeps
-// the routes, the runner that starts a run, its controls and every
-// authorization check, and the engine reaches them through Hooks.
+// Package chatrun runs embedded chat: its routes, the runner that starts a run
+// and executes the model's tool calls, approvals and other controls, deletion,
+// the rounds of a run, fitting each model request to its connection, the
+// evidence and provenance of tool results, review workflows, research, the
+// run's terminal state and the Jev citation check of an answer. Web keeps
+// every authorization check, the chat guard and the action dispatcher, and the
+// engine reaches them through Hooks.
 package chatrun
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/personal"
+	"forgetmenote/internal/pg"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/search"
 	"forgetmenote/internal/workspace"
@@ -66,47 +71,60 @@ type Hooks struct {
 	DecisionPreferences func(user string) (decision.Preferences, error)
 	AcquireSourceWork   func(ctx context.Context) (func(), error)
 
-	// ExecuteTool runs one of the model's tool calls through web's executor,
-	// which rechecks the run, applies the chat guard and dispatches the
-	// action.
-	//
-	// Temporary: "Move the chat runner, controls and routes into
-	// internal/chatrun", the PR after this one, moves the executor here and
-	// deletes this hook.
-	ExecuteTool func(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error
-	// PrepareOperation records an operation that waits for the person's
-	// confirmation.
-	//
-	// Temporary: "Move the chat runner, controls and routes into
-	// internal/chatrun", the PR after this one, moves it here and deletes
-	// this hook.
-	PrepareOperation func(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, canonical json.RawMessage) error
-	// StartCitationCheck queues the Jev citation check of a completed run.
-	//
-	// Temporary: "Move the chat runner, controls and routes into
-	// internal/chatrun", the PR after this one, moves the citation check
-	// here and deletes this hook.
-	StartCitationCheck func(a chat.RunAuth, id, runID string, explicit bool) error
+	// Interactive is the request's signed-in person; Authenticated
+	// authenticates the request again while a stream or deletion runs.
+	Interactive   func(*http.Request) (string, error)
+	Authenticated func(*http.Request) bool
+	// RunAuth captures the request's session for a conversation's run, and
+	// RunContext is the context a run works in, as its owner, after CheckRun.
+	RunAuth    func(*http.Request, chat.Conversation) chat.RunAuth
+	RunContext func(chat.RunAuth) (context.Context, error)
+	// CheckDataConversation rechecks the data grants a whole conversation
+	// cited; ResolveCorpus resolves and checks the notebooks a run may read.
+	CheckDataConversation func(ctx context.Context, c chat.Conversation) error
+	ResolveCorpus         func(ctx context.Context, store *workspace.Store, requested, inherited *chat.Corpus, legacy bool) (*chat.Corpus, error)
+	// ActionCatalog lists the registered actions for the chat page.
+	ActionCatalog func() []map[string]any
+	// Citations returns the citation check sidecars, which Jev opens after
+	// the engine starts.
+	Citations func() *citationchecks.Runtime
+
+	// A model's tool call reaches an action only through these: the
+	// dispatcher's canonical arguments, the chat guard's preflight of a
+	// change, whether a change carrying personal context needs approval, the
+	// read-only refusal an approval must not outrun, and the dispatcher
+	// itself, which applies the chat guard again. The engine never reaches
+	// the action registry.
+	ActionArguments  func(project, name string, args json.RawMessage) (json.RawMessage, error)
+	GuardAction      func(ctx context.Context, project, name string, args json.RawMessage) (context.Context, error)
+	PersonalApproval func(user, project string, personal bool) bool
+	ReadOnly         func(project string, run chat.Run) error
+	DispatchAction   func(ctx context.Context, project, name string, args json.RawMessage) (json.RawMessage, error)
 }
 
 // Service runs chat runs for one instance.
 type Service struct {
 	catalog *catalog.Catalog
+	db      *pg.DB
 	hooks   Hooks
 }
 
-// New returns the engine. It refuses a nil catalog or hook.
-func New(c *catalog.Catalog, hooks Hooks) (*Service, error) {
+// New returns the engine. db holds the locks a conversation's deletion and
+// citation checks share across gateways. It refuses a nil catalog, database
+// or hook.
+func New(c *catalog.Catalog, db *pg.DB, hooks Hooks) (*Service, error) {
 	h := hooks
-	if c == nil || h.Chat == nil || h.Origin == nil || h.DataConnections == nil || h.Repositories == nil ||
+	if c == nil || db == nil || h.Chat == nil || h.Origin == nil || h.DataConnections == nil || h.Repositories == nil ||
 		h.CheckRun == nil || h.ClientAccess == nil || h.ToolStore == nil || h.CheckDataCitations == nil || h.CheckSourceScope == nil ||
 		h.JevConfigured == nil || h.JevAuthorized == nil || h.PersonalConsentStamp == nil || h.PersonalContext == nil || h.RecordPersonalInteraction == nil ||
 		h.ActionTool == nil || h.ChatTools == nil ||
 		h.AcquireEngine == nil || h.InstructionsAt == nil || h.RetrieveScoped == nil || h.DecisionPreferences == nil || h.AcquireSourceWork == nil ||
-		h.ExecuteTool == nil || h.PrepareOperation == nil || h.StartCitationCheck == nil {
-		return nil, errors.New("the chat engine requires the catalog and every hook")
+		h.Interactive == nil || h.Authenticated == nil || h.RunAuth == nil || h.RunContext == nil ||
+		h.CheckDataConversation == nil || h.ResolveCorpus == nil || h.ActionCatalog == nil || h.Citations == nil ||
+		h.ActionArguments == nil || h.GuardAction == nil || h.PersonalApproval == nil || h.ReadOnly == nil || h.DispatchAction == nil {
+		return nil, errors.New("the chat engine requires the catalog, the database and every hook")
 	}
-	return &Service{catalog: c, hooks: hooks}, nil
+	return &Service{catalog: c, db: db, hooks: hooks}, nil
 }
 
 // withEngine runs fn with the notebook's knowledge engine.

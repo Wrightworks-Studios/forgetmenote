@@ -252,7 +252,7 @@ func TestChatWorkflowResumeDistinguishesNewIntentsAndReceipts(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err = f.app.executeNotebookTool(ctx, f.auth, f.conversation, f.run, call, f.connection); err != nil {
+				if err = f.app.chatrun.ExecuteNotebookTool(ctx, f.auth, f.conversation, f.run, call, f.connection); err != nil {
 					t.Fatal(err)
 				}
 				f.update(t, func(r *chat.Run) {
