@@ -9,15 +9,20 @@ import (
 	"forgetmenote/internal/personal"
 )
 
-// initPersonal binds the personal assistant worker to this instance's consent
-// and access checks (personal_access.go, personal_ui.go, credentials.go), its
-// automation runs, Jev, and its connections and Slack app. It runs after
-// automations and messaging, which the worker uses directly. Connections, the
-// origin and the Slack app are read at each call, since web replaces them
-// after startup.
+// initPersonal starts the personal assistant worker with personalHooks. It
+// runs after automations and messaging, which the worker uses directly.
 func (s *Server) initPersonal() error {
 	var err error
-	s.personal, err = personal.New(s.catalog, s.automations, s.messaging, personal.Hooks{
+	s.personal, err = personal.New(s.catalog, s.automations, s.messaging, s.personalHooks())
+	return err
+}
+
+// personalHooks binds the worker to this instance's consent and access checks
+// (personal_access.go, personal_ui.go, credentials.go), its automation runs,
+// Jev, and its connections and Slack app. Connections, the origin and the
+// Slack app are read at each call, since web replaces them after startup.
+func (s *Server) personalHooks() personal.Hooks {
+	return personal.Hooks{
 		Context: func(ctx context.Context) ([]personal.Memory, error) {
 			out, err := s.personalContext(ctx)
 			return out.Memory, err
@@ -44,6 +49,5 @@ func (s *Server) initPersonal() error {
 			}
 			return s.slack.config.Team, s.slack, s.slack, true
 		},
-	})
-	return err
+	}
 }

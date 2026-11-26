@@ -156,10 +156,10 @@ func TestPersonalNotificationsStopWhenAssistantsAreTurnedOff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := personalState{Drafts: map[string]personalDraft{
-		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}},
+	state := personal.State{Drafts: map[string]personal.Draft{
+		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personal.Observation{Kind: "briefing"}},
 	}}
-	err = app.notifyPersonal(ctx, &automation.Run{Spec: spec}, &state, func() error { return nil })
+	err = app.personal.Notify(ctx, &automation.Run{Spec: spec}, &state, func() error { return nil })
 	if lookups.Load() != 1 {
 		t.Fatal("the worker did not look up alice in Slack", err)
 	}

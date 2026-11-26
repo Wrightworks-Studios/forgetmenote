@@ -21,6 +21,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/workspace"
 )
@@ -130,13 +131,13 @@ func runPersonal(t *testing.T, app *Server, spec automation.Spec) error {
 }
 
 // publishedDrafts lists the drafts the run wrote to the assistant notebook.
-func publishedDrafts(t *testing.T, app *Server, spec automation.Spec) []personalDraft {
+func publishedDrafts(t *testing.T, app *Server, spec automation.Spec) []personal.Draft {
 	t.Helper()
-	_, state, err := app.readPersonalState(spec)
+	_, state, err := app.personal.ReadState(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out []personalDraft
+	var out []personal.Draft
 	for _, d := range state.Drafts {
 		if d.NoteRevision != "" {
 			out = append(out, d)
@@ -342,7 +343,7 @@ func personalAutomationContext(t *testing.T, app *Server, spec automation.Spec) 
 
 // disconnectedPersonalSource is a run of alice's assistant and an observation
 // of her Google mail, which she has since disconnected.
-func disconnectedPersonalSource(t *testing.T) (*Server, context.Context, *automation.Run, []personalObservation) {
+func disconnectedPersonalSource(t *testing.T) (*Server, context.Context, *automation.Run, []personal.Observation) {
 	t.Helper()
 	app, spec := personalRunFixture(t, personalRunOptions{})
 	ctx := personalAutomationContext(t, app, spec)
@@ -351,7 +352,7 @@ func disconnectedPersonalSource(t *testing.T) (*Server, context.Context, *automa
 	if err != nil || len(connections) != 1 {
 		t.Fatal("fixture: alice's Google connection", connections, err)
 	}
-	items := []personalObservation{{Key: "email:t1", Kind: "email", Revision: "101", Source: connectors.PersonalOperation{Provider: "google", Generation: connections[0].Generation, Operation: "email.thread", Arguments: map[string]any{"thread": "t1"}}}}
+	items := []personal.Observation{{Key: "email:t1", Kind: "email", Revision: "101", Source: connectors.PersonalOperation{Provider: "google", Generation: connections[0].Generation, Operation: "email.thread", Arguments: map[string]any{"thread": "t1"}}}}
 	if err = app.checkPersonalSources(ctx, run, items); err != nil {
 		t.Fatal("fixture: the connected source was refused", err)
 	}
@@ -406,7 +407,7 @@ func TestPersonalContextRefusesARunAfterAssistantsAreTurnedOff(t *testing.T) {
 // automaticDraftWithoutConsent is a published draft of a reply in alice's
 // assistant notebook and the context of a run of her assistant. She has not
 // turned on mailbox drafts. drafts counts the mailbox drafts Google receives.
-func automaticDraftWithoutConsent(t *testing.T) (app *Server, ctx context.Context, draft personalDraft, drafts *atomic.Int32) {
+func automaticDraftWithoutConsent(t *testing.T) (app *Server, ctx context.Context, draft personal.Draft, drafts *atomic.Int32) {
 	t.Helper()
 	drafts = new(atomic.Int32)
 	app, spec := personalRunFixture(t, personalRunOptions{google: func(_ *Server, path string) {
