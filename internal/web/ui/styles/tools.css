@@ -133,3 +133,11 @@ fieldset.check-list, #admin-dialog fieldset.check-list { border: 0; border-radiu
 .check-list .check-row > input[type="checkbox"] { flex: 0 0 18px; width: 18px; height: 18px; margin: 3px 0 0; }
 .check-list[data-field="weekdays"] .check-list-options { grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); }
 .chat-destination .check-list { margin-block: 12px; }
+/* A data operation's generated argument controls (operation-arguments.mjs). */
+.operation-arguments { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px 16px; }
+.operation-argument { display: grid; gap: 4px; min-width: 0; align-content: start; }
+.operation-argument > label { margin: 0; }
+.operation-argument > label:not(:has(input[type="checkbox"])) { display: grid; gap: 6px; }
+.operation-argument small { color: var(--muted); }
+.operation-argument-json { grid-column: 1 / -1; }
+.operation-argument-json textarea { font-family: monospace; }

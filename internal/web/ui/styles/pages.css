@@ -31,6 +31,11 @@
 .assistant-page textarea {width:100%;min-height:7rem}
 
 .assistant-page .assistant-controls {border:0;padding:0;margin:0;display:block;min-width:0}
+.assistant-page .assistant-watch {gap:.5rem}
+.assistant-page .assistant-watch .assistant-grid label {display:grid;gap:6px;margin:0}
+.assistant-page .assistant-watch > small {color:var(--muted)}
+.assistant-page .assistant-watch > button {justify-self:start}
+.assistant-page .assistant-watch > :is(small,p,div):empty {display:none}
 
 #assistant-welcome:not([hidden]) {margin:12px 24px;padding:12px 16px;background:var(--sidebar);border:0;border-radius:var(--radius-control);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
