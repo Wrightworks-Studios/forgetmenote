@@ -43,6 +43,7 @@ import (
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/modules"
 	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/outgoing"
 	"forgetmenote/internal/personal"
@@ -89,7 +90,9 @@ type Server struct {
 	messageClients map[string]messaging.Transport
 	headless       bool
 	outgoing       *outgoing.Mode
-	authority      *notebooks.Authority
+	// modules is the startup module set; the zero set runs every module.
+	modules   modules.Set
+	authority *notebooks.Authority
 
 	repositoryConnections *repositoryConnections
 

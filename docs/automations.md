@@ -90,7 +90,9 @@ cannot be read, raise an incident.
 
 A job can run manually, on an interval of at least 60 seconds, once at an RFC3339
 instant, or on a calendar with an IANA timezone. Calendar fields are `hours`,
-`minutes`, and optional `weekdays` (0=Sunday). Catch-up is bounded by
+`minutes`, and optional `weekdays` (0=Sunday). The editor picks **Run at** in the
+browser's time zone and saves it with that offset; an unchanged time keeps the
+saved value. Catch-up is bounded by
 `catchUpSeconds` (up to one day). A repeated DST wall minute executes once; a
 nonexistent wall minute is skipped. Missed intervals are not replayed as a burst.
 

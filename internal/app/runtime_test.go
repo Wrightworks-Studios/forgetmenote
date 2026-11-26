@@ -264,3 +264,53 @@ func TestRestartKeepsTheNotebooksGitExports(t *testing.T) {
 	}
 	testGit(t, export, "fsck", "--strict")
 }
+
+// Until module wiring lands, an instance that turns a module off refuses to
+// open; with an empty or absent modules section it opens and serves as
+// before, runs every module, and keeps that set until it restarts.
+func TestRuntimeRefusesModulesOffAndOpensWithoutThem(t *testing.T) {
+	runtime, err := Open(options(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = runtime.Server.ConfigureInstance(instanceconfig.Resolved{Config: instanceconfig.Config{Version: 1, Modules: instanceconfig.Modules{Off: []string{"personal", "messaging", "tasks"}}}})
+	runtime.Close()
+	if err == nil || !strings.Contains(err.Error(), "instance modules") || !strings.Contains(err.Error(), "not supported yet") {
+		t.Fatalf("an instance with modules off opened: %v", err)
+	}
+	for _, off := range [][]string{nil, {}} {
+		runtime, err := Open(options(t))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer runtime.Close()
+		if err = runtime.Server.ConfigureInstance(instanceconfig.Resolved{Config: instanceconfig.Config{Version: 1, Modules: instanceconfig.Modules{Off: off}}}); err != nil {
+			t.Fatal(err)
+		}
+		for _, module := range runtime.Server.Modules().States() {
+			if !module.Enabled {
+				t.Fatalf("%s is off", module.Name)
+			}
+		}
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		address := listener.Addr().String()
+		listener.Close()
+		go runtime.Serve(t.Context(), &http.Server{Addr: address}, time.Second)
+		admitted := false
+		for deadline := time.Now().Add(3 * time.Second); !admitted && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+			if response, err := http.Get("http://" + address + "/healthz"); err == nil {
+				response.Body.Close()
+				admitted = response.StatusCode == 200
+			}
+		}
+		if !admitted {
+			t.Fatal("runtime never admitted")
+		}
+		if err := runtime.Server.ConfigureModules(nil); err == nil {
+			t.Fatal("the module set changed after request admission")
+		}
+	}
+}

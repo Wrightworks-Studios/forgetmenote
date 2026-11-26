@@ -11,7 +11,6 @@ import json
 import os
 from pathlib import Path
 import secrets
-import socket
 import subprocess
 import tempfile
 import time
@@ -20,6 +19,7 @@ import urllib.parse
 import urllib.request
 import uuid
 
+from smoke_app import app_port, container_token, wait_app
 from smoke_database import Database
 from smoke_export import wait_exported
 
@@ -93,16 +93,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(8888, '0.0.0.0');
 '''
 
-def wait_ready(origin):
-    for _ in range(150):
-        try:
-            with urllib.request.urlopen(origin + '/healthz', timeout=1) as response:
-                if response.status == 200:
-                    return
-        except (OSError, urllib.error.URLError):
-            time.sleep(.1)
-    raise AssertionError('Synthetic application failed to become healthy')
-
 
 def wait_run(browser, path, terminal=None):
     until = time.monotonic() + 15
@@ -124,9 +114,7 @@ def main():
     restored_name = name + '-restored'
     provider_name = name + '-provider'
     volume, restored_volume, network = name + '-data', name + '-restored-data', name + '-network'
-    with socket.socket() as sock:
-        sock.bind(('127.0.0.1', 0))
-        port = sock.getsockname()[1]
+    port = app_port()
     origin = f'http://localhost:{port}'
     with tempfile.TemporaryDirectory(prefix='forgetmenote-chat-config-') as temporary:
         config_dir = Path(temporary)
@@ -177,7 +165,7 @@ def main():
                     '-v', data + ':/data', '-v', str(config_dir) + ':/run/chat:ro', selected_image)
                 actual_image = run('docker', 'inspect', container, '--format', '{{.Image}}')
                 assert actual_image == selected_image, 'Synthetic app started with an unexpected image ID'
-                wait_ready(origin)
+                wait_app(origin, container_token(container))
                 return actual_image
 
             db.migrate(image)

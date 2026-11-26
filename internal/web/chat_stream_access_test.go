@@ -1,6 +1,8 @@
 package web
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -114,5 +116,86 @@ func TestChatRevokedSessionStopsStreamWithinAccessInterval(t *testing.T) {
 		if turn.Role == "assistant" {
 			t.Fatal("revoked stream saved an assistant answer")
 		}
+	}
+}
+
+// Signing one browser session out ends that session's open chat event stream
+// within a poll, though the account and its notebook access are unchanged:
+// another session of the account still opens the stream.
+func TestChatSignedOutSessionEndsItsEventStream(t *testing.T) {
+	app := chatFixture(t)
+	c, err := app.chat.Store.Create("alice", "default", chat.Options{Mode: "ask"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = app.chat.Store.Update("alice", "default", c.ID, func(c *chat.Conversation) error {
+		c.AddEvent("run", "progress", map[string]string{"message": "first"})
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+	open := func(ctx context.Context, session *http.Cookie) *http.Response {
+		t.Helper()
+		r, err := http.NewRequestWithContext(ctx, "GET", srv.URL+"/p/default/api/chat/"+c.ID+"/events?after=0", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Host = app.originHost()
+		r.AddCookie(session)
+		resp, err := srv.Client().Do(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.StatusCode != 200 {
+			t.Fatalf("event stream: %s", resp.Status)
+		}
+		return resp
+	}
+	session := signIn(t, app)
+	resp := open(t.Context(), session)
+	defer resp.Body.Close()
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() && !strings.HasPrefix(scanner.Text(), "data:") {
+	}
+	signOut(t, app, session)
+	ended := make(chan struct{})
+	go func() {
+		for scanner.Scan() {
+		}
+		close(ended)
+	}()
+	select {
+	case <-ended:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the signed-out session's event stream stayed open")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	other := open(ctx, signIn(t, app))
+	other.Body.Close()
+}
+
+// signIn signs alice in and returns the session cookie.
+func signIn(t *testing.T, app *Server) *http.Cookie {
+	t.Helper()
+	login := httptest.NewRecorder()
+	if err := app.createSession(login, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	return login.Result().Cookies()[0]
+}
+
+// signOut signs one browser session out, as its page's Sign out does.
+func signOut(t *testing.T, app *Server, session *http.Cookie) {
+	t.Helper()
+	r := httptest.NewRequest("POST", app.origin+"/logout", nil)
+	r.Header.Set("Origin", app.origin)
+	r.AddCookie(session)
+	w := httptest.NewRecorder()
+	app.ServeHTTP(w, r)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("sign out: %d %s", w.Code, w.Body)
 	}
 }

@@ -20,6 +20,10 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 	if c.Version != 1 {
 		return errors.New("unsupported instance configuration version")
 	}
+	// First, so that every later step can tell which modules this instance runs.
+	if err := s.ConfigureModules(c.Modules.Off); err != nil {
+		return fmt.Errorf("instance modules: %w", err)
+	}
 	// Before any integration is installed, so none is ever briefly unpaused.
 	if err := s.ConfigureOutgoing(c.Server.Outgoing); err != nil {
 		return fmt.Errorf("instance outgoing: %w", err)

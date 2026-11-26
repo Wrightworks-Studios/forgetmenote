@@ -227,6 +227,7 @@ func runArguments(args []string) error {
 	defer stop()
 	server := &http.Server{Addr: *listen, Handler: runtime, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 60 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
 	log.Printf("ForgetMeNote instance configuration: %+v", app.InstanceSummary())
+	log.Printf("ForgetMeNote modules: %s", app.Modules())
 	if omitted := integrations.Omitted(); len(omitted) > 0 {
 		names := []string{}
 		for _, integration := range omitted {

@@ -441,10 +441,11 @@ Mount `SLACK_CONFIG_FILE` with the workspace ID and private runtime secret paths
 ```
 
 Restart once to load the transport, then open **Administration → Chat clients**.
-Link Slack user IDs to active ForgetMeNote user IDs, and add channel or DM
+Link Slack user IDs to active ForgetMeNote accounts, and add channel or DM
 destinations. Each destination selects a primary notebook, additional notebooks
-(including repository notebooks and profiles), allowed data connections, and
-optional thread context and files. Comma-separated lists are accepted in the form.
+(including repository notebooks and profiles), allowed data connections (those
+that allow AI processing), allowed members, and optional thread context and
+files. Slack channel and user IDs are typed: the app has no listing of them.
 Omit `aiConnection` and `model` to use the instance's configured default model.
 `slack.example.json` also demonstrates a complete initial file-managed policy.
 Replace its placeholders and explicitly review the shared audience before using it.
