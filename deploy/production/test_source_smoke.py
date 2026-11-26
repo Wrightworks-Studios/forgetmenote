@@ -1,5 +1,6 @@
-"""Container smokes on a Linux host: private files, a booting Postgres, early refusals."""
+"""Container smokes on a Linux host: private files, a booting Postgres, early refusals, an application port of their own."""
 import http.client
+import http.server
 import os
 from pathlib import Path
 import socket
@@ -14,6 +15,7 @@ from unittest import mock
 SCRIPTS = Path(__file__).resolve().parents[2] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
 import resource_smoke  # noqa: E402
+import smoke_app  # noqa: E402
 import smoke_database  # noqa: E402
 import source_smoke  # noqa: E402
 sys.path.remove(str(SCRIPTS))
@@ -116,6 +118,67 @@ class EarlyRefusal(unittest.TestCase):
     def test_a_connection_lost_without_a_reply_still_fails(self):
         with self.assertRaises((ConnectionError, http.client.HTTPException)):
             resource_smoke.send(self.serve(b''), 'token', '/upload', {'data': 'x' * (32 << 20)})
+
+
+class ApplicationPort(unittest.TestCase):
+    """A smoke's application port is unbound until its container starts, and
+    again while it restarts or is restored. A Go test's httptest server in the
+    same gate once took the browser harness's port in such a gap and answered
+    its readiness probe and account setup with 200."""
+
+    def serve(self, answer):
+        """A server on a port of its own; answer(path, headers) gives each reply."""
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                status, body = answer(self.path, self.headers)
+                self.send_response(status)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join, 5)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return f'http://127.0.0.1:{server.server_port}'
+
+    def container(self, *tokens):
+        """docker: each read of the container's admin.token gives the next of tokens."""
+        reads = iter(tokens)
+
+        def boundary(args, **options):
+            stdout = next(reads, tokens[-1]) if args[-1] == '/data/admin.token' else ''
+            return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr='')
+        return mock.patch.object(smoke_app.subprocess, 'run', side_effect=boundary)
+
+    def test_the_port_is_one_the_kernel_never_hands_to_another_process(self):
+        if sys.platform == 'darwin':
+            ephemeral = int(subprocess.check_output(['sysctl', '-n', 'net.inet.ip.portrange.first'], text=True))
+        else:
+            ephemeral = int(Path('/proc/sys/net/ipv4/ip_local_port_range').read_text().split()[0])
+        self.assertLess(smoke_app.free_port(), ephemeral)
+
+    def test_another_server_on_the_port_is_never_taken_for_the_application(self):
+        url = self.serve(lambda path, headers: (200, b'{"id":"someone-else"}'))
+        with self.container('synthetic-recovery-token'), self.assertRaisesRegex(RuntimeError, 'someone-else'):
+            smoke_app.wait_ready(url, 'synthetic-container', 1)
+
+    def test_the_application_is_ready_once_it_accepts_its_own_recovery_token(self):
+        def answer(path, headers):
+            if path == '/healthz':
+                return 200, b'ok'
+            if path == '/api/me' and headers['Authorization'] == 'Bearer synthetic-recovery-token':
+                return 200, b'{"id":"@local-admin"}'
+            return 401, b'unauthorized'
+
+        # The container has not written its token on the first read.
+        with self.container('', 'synthetic-recovery-token'):
+            smoke_app.wait_ready(self.serve(answer), 'synthetic-container', 5)
 
 
 if __name__ == '__main__':

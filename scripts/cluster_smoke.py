@@ -19,7 +19,6 @@ import os
 import re
 import secrets
 import shutil
-import socket
 import subprocess
 import tempfile
 import time
@@ -29,6 +28,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from smoke_app import free_port, wait_ready
 from smoke_database import Database
 from smoke_export import wait_exported
 
@@ -38,12 +38,6 @@ BUCKET, REGION = 'forgetmenote-smoke', 'us-east-1'
 
 def run(*args):
     return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT).strip()
-
-
-def free_port():
-    with socket.socket() as sock:
-        sock.bind(('127.0.0.1', 0))
-        return sock.getsockname()[1]
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -122,14 +116,7 @@ def main():
             '-e', 'PUBLIC_URL=' + ORIGIN, '-e', 'BLOBS_CONFIG_FILE=/run/cluster/blobs.json',
             '-e', 'AWS_ACCESS_KEY_ID=' + access_key, '-e', 'AWS_SECRET_ACCESS_KEY=' + secret_key, '-e', 'AWS_EC2_METADATA_DISABLED=true',
             image)
-        for _ in range(300):
-            try:
-                if Client().request(ports[label], '/healthz')[0] == 200:
-                    return
-            except OSError:
-                pass
-            time.sleep(0.1)
-        raise RuntimeError(f'gateway {label} failed to become ready:\n' + logs(f'{name}-{label}'))
+        wait_ready(f'http://127.0.0.1:{ports[label]}', f'{name}-{label}', 30, host='localhost:8080')
 
     try:
         db.migrate(image)

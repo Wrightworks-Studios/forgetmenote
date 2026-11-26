@@ -6,14 +6,13 @@ import urllib.parse
 import secrets
 import os
 from pathlib import Path
-import socket
 import subprocess
 import tempfile
-import time
 import urllib.error
 import urllib.request
 import uuid
 
+from smoke_app import free_port, wait_ready
 from smoke_database import Database
 from smoke_export import wait_exported
 
@@ -26,9 +25,7 @@ def main():
     image = os.environ.get("SMOKE_IMAGE", "forgetmenote:poc")
     name = "forgetmenote-smoke-" + uuid.uuid4().hex[:10]
     volume = name + "-data"
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        port = sock.getsockname()[1]
+    port = free_port()
     origin = f"http://localhost:{port}"
     run("docker", "volume", "create", volume)
     db = Database()
@@ -36,14 +33,7 @@ def main():
         db.migrate(image)
         run("docker", "run", "--init", "-d", "--name", name, "--read-only", "--tmpfs", "/tmp:size=64m", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "-p", f"127.0.0.1:{port}:8080", "-e", f"PUBLIC_URL={origin}", "-v", f"{volume}:/data", *db.args(), image)
         def ready():
-            for _ in range(100):
-                try:
-                    with urllib.request.urlopen(origin + "/healthz", timeout=1) as response:
-                        if response.status == 200:
-                            return
-                except (OSError, urllib.error.URLError):
-                    time.sleep(0.1)
-            raise RuntimeError("container failed to become ready")
+            wait_ready(origin, name, 10)
         ready()
         token = run("docker", "exec", name, "forgetmenote", "token")
         def request(path, body=None, authenticated=True):

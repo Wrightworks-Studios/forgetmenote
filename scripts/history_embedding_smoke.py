@@ -2,13 +2,12 @@
 """Exercise historical search with a real Ollama model in a disposable notebook."""
 import argparse
 import json
-import socket
 import subprocess
 import time
-import urllib.error
 import urllib.request
 import uuid
 
+from smoke_app import free_port, wait_ready
 from smoke_database import Database
 
 
@@ -26,9 +25,7 @@ def main():
     args = parser.parse_args()
     name = "forgetmenote-history-check-" + uuid.uuid4().hex[:10]
     volume = name + "-data"
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        port = sock.getsockname()[1]
+    port = free_port()
     origin = f"http://localhost:{port}"
     run("docker", "volume", "create", volume)
     db = Database()
@@ -42,14 +39,7 @@ def main():
             "-v", f"{volume}:/data", args.image)
 
         def ready():
-            for _ in range(150):
-                try:
-                    with urllib.request.urlopen(origin + "/healthz", timeout=1) as response:
-                        if response.status == 200:
-                            return
-                except (OSError, urllib.error.URLError):
-                    time.sleep(0.1)
-            raise AssertionError("disposable server did not become ready")
+            wait_ready(origin, name, 15)
 
         ready()
         run("docker", "network", "connect", args.network, name)

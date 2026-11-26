@@ -5,13 +5,12 @@ import json
 import os
 from pathlib import Path
 import shutil
-import socket
 import subprocess
 import tempfile
-import time
 import urllib.error
 import urllib.request
 
+from smoke_app import free_port, wait_ready
 from smoke_database import Database
 
 
@@ -134,9 +133,7 @@ def main():
     ocr_fixtures = offline_pdf_fixtures(image, full=full)
     name = f'fmn-source-smoke-{os.getpid()}'
     volume = name + '-data'
-    with socket.socket() as sock:
-        sock.bind(('127.0.0.1', 0))
-        port = sock.getsockname()[1]
+    port = free_port()
     origin = f'http://localhost:{port}'
     run('docker', 'volume', 'create', volume)
     db = Database()
@@ -150,13 +147,7 @@ def main():
             return json.load(response)
 
     def ready():
-        for _ in range(80):
-            try:
-                with urllib.request.urlopen(origin + '/healthz', timeout=1):
-                    return
-            except (OSError, urllib.error.URLError):
-                time.sleep(.25)
-        raise RuntimeError('Container did not become ready')
+        wait_ready(origin, name, 20)
 
     try:
         db.migrate(image)
