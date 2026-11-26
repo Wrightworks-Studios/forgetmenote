@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/pg/pgtest"
 	"net/http"
 	"strings"
@@ -186,7 +187,7 @@ func TestLearningUpdatePreservesPriorTemplates(t *testing.T) {
 		// The same route Jev supplies when a new pattern fits an existing recipe.
 		run.Learning.Decisions = map[string]string{}
 		for _, e := range run.Learning.Events {
-			run.Learning.Decisions[learningGroup(e)] = notes[0].Path
+			run.Learning.Decisions[automationrun.LearningGroup(e)] = notes[0].Path
 		}
 		return app.automationrun.RunAutomation(ctx, run, save)
 	})
@@ -194,7 +195,7 @@ func TestLearningUpdatePreservesPriorTemplates(t *testing.T) {
 		t.Fatal(err)
 	}
 	after, err := store.Read(context.Background(), notes[0].Path, "")
-	if err != nil || len(profileLearningRecord(after.Content).Shapes) != 2 || strings.Count(string(after.Content), "{{/arguments/sql}}") != 2 || modelCalls != 2 {
+	if err != nil || len(automationrun.ProfileLearningRecord(after.Content).Shapes) != 2 || strings.Count(string(after.Content), "{{/arguments/sql}}") != 2 || modelCalls != 2 {
 		t.Fatalf("old validated template disappeared after update: %s (%v, calls=%d)", after.Content, err, modelCalls)
 	}
 	// Routine successful use of the now-known pattern must not buy another turn.

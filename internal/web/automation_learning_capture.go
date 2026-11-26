@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/messaginghttp"
@@ -18,50 +18,6 @@ import (
 )
 
 type learningSessionKey struct{}
-
-// These fingerprints are retrieval hints only. They never rewrite executable
-// SQL or establish that two requests have equivalent business semantics.
-var learningSQLTokens = regexp.MustCompile(`(?s)'(?:''|[^'])*'|"(?:""|[^"])*"|--[^\n]*|/\*.*?\*/|\b[0-9]+(?:\.[0-9]+)?\b|\$[0-9]+|[A-Za-z_][A-Za-z_0-9]*|\S`)
-var learningSecret = regexp.MustCompile(`(?i)(password|passwd|authorization|bearer\s|api.?key|access.?token|secret|-----BEGIN|github_pat_|gh[pousr]_|sk-[a-z0-9]{12})`)
-
-func learningShape(value any, key string) any {
-	switch v := value.(type) {
-	case map[string]any:
-		out := map[string]any{}
-		for k, x := range v {
-			out[k] = learningShape(x, k)
-		}
-		return out
-	case []any:
-		out := make([]any, len(v))
-		for i, x := range v {
-			out[i] = learningShape(x, key)
-		}
-		return out
-	case string:
-		if key != "sql" {
-			return "string"
-		}
-		parts := learningSQLTokens.FindAllString(v, -1)
-		for i, p := range parts {
-			switch {
-			case strings.HasPrefix(p, "--"), strings.HasPrefix(p, "/*"):
-				parts[i] = ""
-			case strings.HasPrefix(p, "'"), p[0] >= '0' && p[0] <= '9':
-				parts[i] = "?"
-			case !strings.HasPrefix(p, `"`):
-				parts[i] = strings.ToLower(p)
-			}
-		}
-		return strings.Join(strings.Fields(strings.Join(parts, " ")), " ")
-	case nil:
-		return "null"
-	case bool:
-		return "boolean"
-	default:
-		return "number"
-	}
-}
 
 func (s *Server) observeLearningUsage(ctx context.Context, in dataCall, receipt connectors.Receipt, callErr error, elapsed time.Duration) {
 	if s.automations == nil {
@@ -94,7 +50,7 @@ func (s *Server) observeLearningUsage(ctx context.Context, in dataCall, receipt 
 		return
 	}
 	raw, err := json.Marshal(in.Arguments)
-	if err != nil || len(raw) > 12<<10 || learningSecret.Match(raw) || !s.dataConnections.LearningInputSafe(in.Connection, string(raw)) {
+	if err != nil || len(raw) > 12<<10 || automationrun.LearningSecret.Match(raw) || !s.dataConnections.LearningInputSafe(in.Connection, string(raw)) {
 		return
 	}
 	var input map[string]any
@@ -105,7 +61,7 @@ func (s *Server) observeLearningUsage(ctx context.Context, in dataCall, receipt 
 	if in.LearningContext != nil {
 		contextInput = *in.LearningContext
 	}
-	if len(contextInput.Intent) > 2000 || len(contextInput.Conversation) > 128 || len(contextInput.RequestID) > 128 || learningSecret.MatchString(contextInput.Intent) || !s.dataConnections.LearningInputSafe(in.Connection, contextInput.Intent) {
+	if len(contextInput.Intent) > 2000 || len(contextInput.Conversation) > 128 || len(contextInput.RequestID) > 128 || automationrun.LearningSecret.MatchString(contextInput.Intent) || !s.dataConnections.LearningInputSafe(in.Connection, contextInput.Intent) {
 		return
 	}
 	actor := subject(ctx)
@@ -140,7 +96,7 @@ func (s *Server) observeLearningUsage(ctx context.Context, in dataCall, receipt 
 	if id == "" {
 		id = RandomToken()
 	}
-	shapeJSON, _ := json.Marshal(learningShape(input, ""))
+	shapeJSON, _ := json.Marshal(automationrun.LearningShape(input, ""))
 	shape := string(shapeJSON)
 	outcome := "succeeded"
 	if callErr != nil {

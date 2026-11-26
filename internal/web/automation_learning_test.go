@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
 	"net/http"
@@ -198,7 +199,7 @@ func TestLearningReplayUsesNewestSuccessfulSchema(t *testing.T) {
 		{ID: "old", At: now.Add(-time.Hour), Complete: true, Outcome: "succeeded", Call: automation.Call{SchemaHash: "v1"}},
 		{ID: "new2", At: now.Add(time.Second), Complete: true, Outcome: "succeeded", Call: automation.Call{SchemaHash: "v2"}},
 	}
-	got := learningExamples(events)
+	got := automationrun.LearningExamples(events)
 	if len(got) != 2 || got[0].ID != "new1" || got[1].ID != "new2" {
 		t.Fatal("stale schema entered the reference replay", got)
 	}
@@ -206,7 +207,7 @@ func TestLearningReplayUsesNewestSuccessfulSchema(t *testing.T) {
 
 func TestLearningPreservesOriginalFrontmatterBytes(t *testing.T) {
 	for _, header := range []string{"---\r\ntags: [recipe]\r\ncustom: retained\r\n---\r\n", "---\ntags: [recipe]\ncustom: retained\n---"} {
-		content, err := learningContent([]byte(header), learningCandidate{Content: "# Updated guidance"}, learnedProfile{})
+		content, err := automationrun.LearningContent([]byte(header), automationrun.LearningCandidate{Content: "# Updated guidance"}, automationrun.LearnedProfile{})
 		if err != nil || !strings.HasPrefix(content, header+"\n") {
 			t.Fatalf("frontmatter was replaced: %q (%v)", content, err)
 		}

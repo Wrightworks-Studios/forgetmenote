@@ -97,7 +97,7 @@ func (s *Server) dataAllowed(ctx context.Context, id, operation string) bool {
 		return false
 	}
 	if !info.ExternalProcessing {
-		trustedScript, _ := ctx.Value(scriptHostContextKey{}).(bool)
+		trustedScript := automation.ScriptHost(ctx)
 		if chat.RunScopeFrom(ctx) != nil && !(info.CodeOnly && automated && a.Spec.Kind == "script" && a.Spec.Script != nil && trustedScript) {
 			return false
 		}

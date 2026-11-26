@@ -1,11 +1,10 @@
-package web
+package automationrun
 
 import (
 	"encoding/json"
 	"errors"
 
 	"forgetmenote/internal/automation"
-	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 )
 
@@ -43,19 +42,19 @@ func scriptResearchCalls(r *automation.Run) int {
 	return count
 }
 
-func (s *Server) scriptResearchConfiguration() (chat.Configuration, error) {
-	snapshot := s.chat.Snapshot()
+func (s *Service) scriptResearchConfiguration() (chat.Configuration, error) {
+	snapshot := s.hooks.Chat().Snapshot()
 	cfg := snapshot.Config
 	if cfg == nil || cfg.LocalOnly || cfg.Research == nil || !cfg.Research.Enabled || cfg.Research.Format != "openai" || snapshot.Research == nil {
 		return snapshot, errors.New("structured research requires configured OpenAI research")
 	}
-	if policy, managed := s.catalog.AISettings(); managed && !policy.Writing {
-		return snapshot, errInstanceAI
+	if err := s.hooks.AIWriting(); err != nil {
+		return snapshot, err
 	}
 	return snapshot, nil
 }
 
-func (s *Server) scriptStructuredResearch(e *scriptExecution, request chat.StructuredResearchRequest) (any, error) {
+func (s *Service) scriptStructuredResearch(e *scriptExecution, request chat.StructuredResearchRequest) (any, error) {
 	r := e.run
 	snapshot, err := s.scriptResearchConfiguration()
 	if err != nil {
@@ -66,7 +65,7 @@ func (s *Server) scriptStructuredResearch(e *scriptExecution, request chat.Struc
 		return nil, errors.New("configured research search budget exhausted")
 	}
 	request.Model, request.ReasoningEffort = r.Spec.Model, r.Spec.ReasoningEffort
-	ctx, model, err := s.automationrun.ModelCall(e.ctx, r, func(model automationrun.Model) error {
+	ctx, model, err := s.ModelCall(e.ctx, r, func(model Model) error {
 		if model.Connection.ID != cfg.Research.Connection {
 			return errors.New("structured research must use the automation's configured research connection")
 		}
@@ -77,13 +76,13 @@ func (s *Server) scriptStructuredResearch(e *scriptExecution, request chat.Struc
 		if err != nil {
 			return err
 		}
-		return automationrun.TokenBudget(r, estimate)
+		return TokenBudget(r, estimate)
 	})
 	if err != nil {
 		return nil, err
 	}
 	defer model.Release()
-	if err = s.checkAutomationEvidence(ctx, r, true); err != nil {
+	if err = s.hooks.CheckEvidence(ctx, r, true); err != nil {
 		return nil, err
 	}
 	result, err := research.StructuredUsage(ctx, request)
@@ -95,7 +94,7 @@ func (s *Server) scriptStructuredResearch(e *scriptExecution, request chat.Struc
 	if r.Spec.MaxTokens > 0 && r.InputTokens+r.OutputTokens > r.Spec.MaxTokens {
 		return result, errors.New("research exceeded the automation token budget")
 	}
-	if err = s.checkAutomationEvidence(ctx, r, true); err != nil {
+	if err = s.hooks.CheckEvidence(ctx, r, true); err != nil {
 		return result, err
 	}
 	var value map[string]any

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -14,10 +15,25 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/sandbox"
 )
+
+// scriptExecution is a script run's host state, which a test keeps to drive
+// the run's host operations directly.
+type scriptExecution struct {
+	ctx  context.Context
+	run  *automation.Run
+	save func() error
+	info automationrun.PackageInfo
+}
+
+// host is the engine's host state for the execution as it is now.
+func (e *scriptExecution) host() *automationrun.ScriptExecution {
+	return automationrun.NewScriptExecution(e.ctx, e.run, e.save, e.info)
+}
 
 func scriptFixture(t *testing.T, code string, caps []string, connections map[string][]string, notebooks map[string]string) (*Server, *scriptExecution) {
 	t.Helper()
@@ -50,7 +66,7 @@ func packageFixtureWith(t *testing.T, m automation.Manifest, files map[string]st
 	if err = app.catalog.Member(catalog.Bootstrap, "default", bot.ID, "edit"); err != nil {
 		t.Fatal(err)
 	}
-	info, _, err := app.automationPackage(t.Context(), bot.ID, packageQuery{Project: "default", Path: "package"}, true)
+	info, _, err := app.automationrun.Package(t.Context(), bot.ID, automationrun.PackageQuery{Project: "default", Path: "package"}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +105,7 @@ func packageFixtureWith(t *testing.T, m automation.Manifest, files map[string]st
 	if err != nil {
 		t.Fatal(err)
 	}
-	contract, err := app.scriptContract(spec)
+	contract, err := app.automationrun.ScriptContract(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +126,7 @@ func hostStep(t *testing.T, app *Server, e *scriptExecution, id, op string, args
 	if err != nil {
 		t.Fatal(err)
 	}
-	return app.scriptStep(e, scriptRequest{Step: id, Operation: op, Arguments: raw})
+	return app.automationrun.ScriptStep(e.host(), automationrun.ScriptRequest{Step: id, Operation: op, Arguments: raw})
 }
 func TestScriptHostPermissionAndCheckpointBoundary(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host): return {}", []string{"checkpoint", "notebooks.read"}, nil, map[string]string{"notes": "read"})
@@ -139,11 +155,11 @@ func TestScriptPackageRejectsChangedRevisionAndExclusions(t *testing.T) {
 	copy := *altered.Script
 	copy.Revision = strings.Repeat("b", 40)
 	altered.Script = &copy
-	if _, _, err := app.scriptPackage(t.Context(), altered, false); err == nil {
+	if _, _, err := app.automationrun.ScriptPackage(t.Context(), altered, false); err == nil {
 		t.Fatal("unavailable commit accepted")
 	}
 	for _, p := range []string{"../package", "/package", "package/../package", "package\\file"} {
-		if _, _, err := app.automationPackage(t.Context(), e.run.Spec.Actor, packageQuery{Project: "default", Path: p}, false); err == nil {
+		if _, _, err := app.automationrun.Package(t.Context(), e.run.Spec.Actor, automationrun.PackageQuery{Project: "default", Path: p}, false); err == nil {
 			t.Fatal("unsafe path", p)
 		}
 	}
@@ -231,7 +247,7 @@ func TestScriptFailedPreparationKeepsActiveInstallation(t *testing.T) {
 	app, e := packageFixture(t, m, files, broken)
 	admin := recoverySession(t, app)
 	active, _ := app.automations.Definitions.Get(e.run.Spec.ID)
-	info, _, err := app.automationPackage(t.Context(), e.run.Spec.Actor, packageQuery{Project: "default", Path: "broken"}, false)
+	info, _, err := app.automationrun.Package(t.Context(), e.run.Spec.Actor, automationrun.PackageQuery{Project: "default", Path: "broken"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +302,7 @@ func TestScriptSubmissionRechecksPermissionAfterFreshRead(t *testing.T) {
 func TestScriptUnknownOutcomeIsNotRepeated(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host): return {}", []string{"checkpoint", "notebooks.publish"}, nil, map[string]string{"notes": "edit"})
 	e.run.Script.Steps["paid"] = &automation.ScriptStep{State: "started", Effect: true, Operation: "ai.structured", Input: json.RawMessage(`{"prompt":"original"}`)}
-	if err := app.runScript(e.ctx, e.run, e.save); err == nil || !strings.Contains(err.Error(), "unknown outcome") {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err == nil || !strings.Contains(err.Error(), "unknown outcome") {
 		t.Fatal(err)
 	}
 	if _, err := hostStep(t, app, e, "different-id", "notebooks.publish", map[string]any{"notebook": "notes", "path": "unsafe-continuation.md", "content": "must not publish", "revision": ""}); err == nil || !strings.Contains(err.Error(), "unknown outcome") {
@@ -300,7 +316,7 @@ func TestScriptUnknownOutcomeIsNotRepeated(t *testing.T) {
 func TestScriptRunsInServerWithoutExecutor(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host):\n    host.call('state', 'checkpoint.set', state={'direct': True})\n    return {'direct': True}\n", []string{"checkpoint"}, nil, nil)
 	e.run.Script = nil
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if !e.run.Script.Complete || !strings.Contains(e.run.Result, "direct") {
@@ -343,7 +359,7 @@ func bindScriptOperations(t *testing.T, app *Server, e *scriptExecution, endpoin
 		t.Fatal(err)
 	}
 
-	e.run.Script.Contract, err = app.scriptContract(e.run.Spec)
+	e.run.Script.Contract, err = app.automationrun.ScriptContract(e.run.Spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +462,7 @@ func TestScriptInstallationIsSandboxedByDefault(t *testing.T) {
 	writeInstanceProbe(t, app)
 	e.run.Spec.Script.Sandbox = nil
 	e.run.Script = nil
-	err := app.runScript(e.ctx, e.run, e.save)
+	err := app.automationrun.RunScript(e.ctx, e.run, e.save)
 	if sandbox.Available() != nil {
 		if err == nil || !strings.Contains(err.Error(), "Landlock") || !strings.Contains(err.Error(), `"sandbox": false`) || len(e.run.Script.Steps) != 0 {
 			t.Fatalf("default installation was not refused without Landlock, naming the opt-out: %v %+v", err, e.run.Script)
@@ -468,7 +484,7 @@ func TestScriptSandboxOptOutRunsAsServerCode(t *testing.T) {
 	writeInstanceProbe(t, app)
 	e.run.Spec.Script.Sandbox = new(false)
 	e.run.Script = nil
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if !e.run.Script.Complete || !strings.Contains(e.run.Result, "read") {
@@ -490,7 +506,7 @@ def main(host):
     return {'direct': True}
 `, []string{"checkpoint"}, nil, nil)
 	e.run.Script = nil
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if !e.run.Script.Complete {

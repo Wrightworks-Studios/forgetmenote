@@ -139,7 +139,7 @@ func TestAutomaticPackageUpdateThatFailsValidationIsNotApplied(t *testing.T) {
 				}
 			}
 			revision := advance(map[string]string{"package/main.py": "def main(host): return {'version': 2}"})
-			err = app.refreshAutomationPackage(t.Context(), saved)
+			err = app.automationrun.RefreshPackage(t.Context(), saved)
 			current, _ := app.automations.Definitions.Get(spec.ID)
 			if !revoked {
 				if err != nil || current.Spec.Script.Revision != revision {

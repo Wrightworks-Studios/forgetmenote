@@ -438,7 +438,7 @@ func TestRepairRollbackRequiresUnchangedPublicationAndEvidence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			evidence, _, err := f.app.repairEvidence(ctx, &evidenceRun, nil)
+			evidence, _, err := f.app.automationrun.RepairEvidence(ctx, &evidenceRun, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

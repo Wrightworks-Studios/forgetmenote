@@ -1,19 +1,20 @@
-package web
+package automationrun
 
 import (
 	"encoding/json"
 	"errors"
-	"forgetmenote/internal/automation"
 	"time"
+
+	"forgetmenote/internal/automation"
 )
 
-func (s *Server) scriptAnalysisIdentity(spec automation.Spec) string {
+func (s *Service) scriptAnalysisIdentity(spec automation.Spec) string {
 	// Configuration contains credential references, never credential values.
-	return automation.Hash([]any{s.chat.Snapshot().Config, spec.AIConnection, spec.Model})
+	return automation.Hash([]any{s.hooks.Chat().Snapshot().Config, spec.AIConnection, spec.Model})
 }
 
-func (s *Server) scriptAnalysisProvider(spec automation.Spec) map[string]string {
-	cfg := s.chat.Snapshot().Config
+func (s *Service) scriptAnalysisProvider(spec automation.Spec) map[string]string {
+	cfg := s.hooks.Chat().Snapshot().Config
 	if cfg == nil || spec.AIConnection == "" {
 		return nil
 	}
@@ -27,7 +28,8 @@ func (s *Server) scriptAnalysisProvider(spec automation.Spec) map[string]string 
 	}
 	return map[string]string{"provider": "cloudflare", "extractionModel": model, "decisionsModel": c.Cloudflare.DecisionModel, "searchProvider": c.Cloudflare.SearchProvider}
 }
-func (s *Server) scriptCachedOperation(e *scriptExecution, in scriptRequest, started time.Time) (any, error) {
+
+func (s *Service) scriptCachedOperation(e *scriptExecution, in scriptRequest, started time.Time) (any, error) {
 	if in.Operation != "ai.structured" && in.Operation != "ai.decisions" && in.Operation != "decision.evaluate" {
 		return s.scriptOperation(e, in, started)
 	}
@@ -47,8 +49,8 @@ func (s *Server) scriptCachedOperation(e *scriptExecution, in scriptRequest, sta
 	if hours == 0 {
 		hours = 24
 	}
-	scope := scriptAnalysisScope(spec)
-	effect, created, err := s.automations.Queue.BeginEffect(automation.Effect{Scope: scope, Action: automation.Hash([]string{in.Operation, key, s.scriptAnalysisIdentity(spec)}), InputHash: automation.Hash(args), Actor: spec.Actor, Operation: in.Operation, RetainUntil: started.Add(time.Duration(hours) * time.Hour)})
+	scope := AnalysisScope(spec)
+	effect, created, err := s.runtime.Queue.BeginEffect(automation.Effect{Scope: scope, Action: automation.Hash([]string{in.Operation, key, s.scriptAnalysisIdentity(spec)}), InputHash: automation.Hash(args), Actor: spec.Actor, Operation: in.Operation, RetainUntil: started.Add(time.Duration(hours) * time.Hour)})
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +66,13 @@ func (s *Server) scriptCachedOperation(e *scriptExecution, in scriptRequest, sta
 		}
 		result = nil
 	}
-	if _, saveErr := s.automations.Queue.FinishEffect(effect.ID, state, result); saveErr != nil {
+	if _, saveErr := s.runtime.Queue.FinishEffect(effect.ID, state, result); saveErr != nil {
 		return nil, saveErr
 	}
 	return result, err
 }
 
-func scriptAnalysisScope(spec automation.Spec) string {
+// AnalysisScope is the effect scope of a script's cached analyses.
+func AnalysisScope(spec automation.Spec) string {
 	return "analysis:" + automation.Hash([]string{spec.ID, spec.Actor, spec.Project})
 }
