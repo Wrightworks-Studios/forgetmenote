@@ -39,7 +39,7 @@ func TestAutomationRepositoryRefreshNeedsAnOwner(t *testing.T) {
 	}
 	refresh := func(actor string) error {
 		run := automation.Run{ID: automation.Hash(actor), Spec: automation.Spec{ID: "refresh", Kind: "native", Actor: actor, Project: "default", Native: &automation.NativeTask{Task: "repository-refresh"}}}
-		return app.runAutomation(t.Context(), &run, func() error { return nil })
+		return app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 	}
 	if err = refresh(bot.ID); !errors.Is(err, workspace.ErrForbidden) {
 		t.Fatal("an editor's refresh was not refused", err)
@@ -162,7 +162,7 @@ func TestPersonalDirectMessageIsNotDeliveredAfterConsentChanges(t *testing.T) {
 	defer upstream.Close()
 	app.slack.endpoint = upstream.URL
 	signedSlackMessage(t, app, "EvConsent", "message", "D123", "", "123.456", "What should I follow up on today?")
-	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+	if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 		t.Fatal(err)
 	}
 	if !answered.Load() || !private.Load() {
