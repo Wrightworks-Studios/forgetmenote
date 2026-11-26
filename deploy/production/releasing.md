@@ -6,9 +6,8 @@ deploys with its own deployment repository's tools.
 
 ## Local image release
 
-Keep the source repository private. `release_image.py` publishes a private image
-at `ghcr.io/OWNER/REPOSITORY` using your existing GitHub CLI login, or to a private
-ECR repository with your AWS sign-in. It builds
+`release_image.py` publishes an image at `ghcr.io/OWNER/REPOSITORY` using your
+existing GitHub CLI login, or to a private ECR repository with your AWS sign-in. It builds
 `linux/amd64`, runs the [selected resumable gate](../../docs/verification.md)
 with bounded concurrency, then pushes `main-COMMIT` and prints the verified digest to deploy.
 It does not deploy a workload or change an existing service.
@@ -95,9 +94,10 @@ Use `--image ghcr.io/OWNER/NAME` to override the destination. The default derive
 from the GitHub `origin` remote. `--image ACCOUNT.dkr.ecr.REGION.amazonaws.com/NAME`
 publishes to ECR instead, signing in with `aws ecr get-login-password` and the host's
 AWS sign-in; it needs no GitHub access. The repository must already exist: create it
-with immutable tags. GitHub creates new container packages as private;
-the publisher refuses an existing public package and checks visibility again
-before and after pushing. It does not change package visibility or permissions.
+with immutable tags. GitHub creates new container packages as private, and only
+the package's settings make one public; the publisher never changes visibility or
+permissions. GHCR lookups read the registry, signed in with the GitHub CLI's token,
+because GitHub's package API refuses a workflow's own token.
 The OCI source label associates the image with its source repository.
 
 The build uses an isolated archive of committed files, excluding ignored local
@@ -110,7 +110,14 @@ libraries are not, so run `make setup-browser` (with root) once on a new gate
 host. Authentication goes through stdin to a temporary
 Docker configuration that is removed on completion or failure, preserving your
 existing Docker login and context. An already-published commit returns its
-existing private digest without rebuilding or replacing the image.
+existing digest without rebuilding or replacing the image.
+
+To keep checks away from registry credentials, verify and publish separately:
+`--verify-only` writes the record, and `--publish-verified DIR` publishes the image a
+complete `verification.json` in `DIR` describes, already loaded under its image ID,
+without rebuilding or checking again. It writes `publication.json` and the published
+`verification-summary.json` beside the record. `--since-published` verifies against
+the newest earlier `main` commit whose image the registry serves anonymously.
 
 Deploy the printed `REPOSITORY@sha256:...` reference. Registry tags can be
 changed outside this script; the digest identifies the exact checked image.
@@ -119,18 +126,17 @@ before running it.
 
 ## GitHub Actions release
 
-An instance's own deployment repository runs its release pipeline from a checkout of
-this repository. Its tools read the instance's live revision and stop when no runtime
-file changed since. If an earlier run already published an image for that runtime,
-it deploys that image without verifying again. Otherwise it verifies with `--since`
-that revision before any cloud sign-in, publishes reusing those checks and deploys.
-A live revision this history lacks, such as one built from a repository this one
-replaced, counts every runtime file as changed, so that release verifies completely.
-
-[Notify deployments](../../.github/workflows/notify-deployments.yml) starts that
-pipeline on each push to `main` that changes more than documents, once the
+[Publish](../../.github/workflows/publish.yml) verifies each push to `main` that
+changes more than documents, publishes the checked image with its attestations, and
+starts a deployment repository's Release with the pinned digest once the
 `DEPLOY_REPOSITORY` and `DEPLOY_DISPATCH_TOKEN` secrets of the `deployments`
-environment are set. The target is a secret so that public logs mask it.
+environment are set ([published images](../../docs/verification.md#published-images)).
+The target is a secret so that public logs mask it.
+
+That deployment repository checks the attestations before it deploys the digest and
+needs no build of its own. Its tools read the instance's live revision and stop when
+no runtime file changed since. A live revision this history lacks, such as one built
+from a repository this one replaced, counts every runtime file as changed.
 
 ### Branches
 
