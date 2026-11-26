@@ -56,5 +56,28 @@ class CheckWorkflowTests(unittest.TestCase):
             self.assertLess(uses.index(action), gate, action)
 
 
+class ScorecardWorkflowTests(unittest.TestCase):
+    def test_scorecard_publishes_from_the_default_branch_and_writes_nothing_else(self):
+        value, triggers = workflow('scorecard.yml')
+        # Scorecard publishes only runs of the default branch (CONTRIBUTING.md: next).
+        self.assertEqual(triggers['push']['branches'], ['next'])
+        self.assertIn('schedule', triggers)
+        self.assertEqual(value['permissions'], 'read-all')
+        job = value['jobs']['analysis']
+        writes = {name for name, level in job['permissions'].items() if level == 'write'}
+        self.assertEqual(writes, {'id-token'})
+        scorecard = next(step for step in job['steps'] if step.get('uses', '').startswith('ossf/scorecard-action@'))
+        self.assertIs(scorecard['with']['publish_results'], True)
+        checkout = next(step for step in job['steps'] if step.get('uses', '').startswith('actions/checkout@'))
+        self.assertIs(checkout['with']['persist-credentials'], False)
+
+
+class DependabotTests(unittest.TestCase):
+    def test_only_actions_get_version_updates_and_they_wait_two_weeks(self):
+        value = yaml.safe_load((ROOT / '.github/dependabot.yml').read_text())
+        self.assertEqual([update['package-ecosystem'] for update in value['updates']], ['github-actions'])
+        self.assertGreaterEqual(value['updates'][0]['cooldown']['default-days'], 14)
+
+
 if __name__ == '__main__':
     unittest.main()

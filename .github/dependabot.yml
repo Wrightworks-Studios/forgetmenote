@@ -1,0 +1,17 @@
+# Keeps the commit-pinned GitHub Actions current. Each update is one grouped pull
+# request to the default branch, and only for releases at least two weeks old, so a
+# compromised release has time to be noticed first. Go and npm modules get pull
+# requests only for known vulnerabilities (Dependabot security updates, a repository
+# setting); other upgrades stay deliberate, each with its purpose recorded
+# (docs/engineering-rules.md).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ['*']

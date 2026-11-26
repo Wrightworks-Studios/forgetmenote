@@ -13,6 +13,7 @@ read and write the same notes under the same permissions as your team.
 [![License: FSL-1.1-ALv2](https://img.shields.io/badge/license-FSL--1.1--ALv2-3299d6)](LICENSE.md)
 [![Go 1.27](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)](go.mod)
 [![MCP server](https://img.shields.io/badge/MCP-server-3299d6)](docs/ai.md)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Wrightworks-Studios/forgetmenote/badge)](https://scorecard.dev/viewer/?uri=github.com/Wrightworks-Studios/forgetmenote)
 
 [Quick start](#quick-start) ·
 [Documentation](docs/README.md) ·
