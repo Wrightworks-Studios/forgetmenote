@@ -11,6 +11,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/jsonfile"
@@ -187,7 +188,7 @@ func (s *Server) initDataOperations() error {
 			if err != nil {
 				return err
 			}
-			_, err = readChatNote(ctx, store, in.ProfilePath, in.ProfileRevision)
+			_, err = chatrun.ReadNote(ctx, store, in.ProfilePath, in.ProfileRevision)
 			return err
 		},
 		Submit: s.dataSubmit,

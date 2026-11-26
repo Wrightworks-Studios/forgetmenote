@@ -1,4 +1,4 @@
-package web
+package chatrun
 
 import (
 	"strings"
@@ -31,7 +31,7 @@ func TestChatSourceExcerptCitesExactBoundedBytes(t *testing.T) {
 // without the durable passage checksums.
 func TestChatSearchResultWithoutCitationsShowsItsPassages(t *testing.T) {
 	raw := []byte(`{"passages":[{"id":"p1","path":"notes/a.md","citation":"/notes/a.md?fmn-rev=r","heading":"A","text":"Passage text","revision":"r","noteHash":"note-hash","hash":"passage-hash"}]}`)
-	compact, ok := compactChatSourceResult("search_passages", raw, nil)
+	compact, ok := CompactSourceResult("search_passages", raw, nil)
 	if !ok || strings.Contains(compact, "passage-hash") || !strings.Contains(compact, `"id":"p1"`) || !strings.Contains(compact, "note-hash") || !strings.Contains(compact, "Passage text") {
 		t.Fatalf("compact search result %s", compact)
 	}

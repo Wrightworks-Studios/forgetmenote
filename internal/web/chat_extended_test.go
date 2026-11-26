@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/workspace"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +11,11 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/workspace"
 )
 
 func TestChatSnapshotIncludesPersistedPartialAnswer(t *testing.T) {
@@ -316,7 +318,7 @@ func TestChatEmptyTrashApprovalBindsExactPreview(t *testing.T) {
 	}
 	call := chat.ToolCall{ID: "empty", Name: "empty_trash", Arguments: json.RawMessage(`{"revision":"model-cannot-authorize","confirmation":"model-cannot-approve"}`)}
 	err = app.executeChatTool(ctx, auth, c.ID, run.ID, call, app.chat.Config.Connections[0])
-	if err != errChatConfirmation {
+	if err != chatrun.ErrConfirmation {
 		t.Fatalf("exact approval was not prepared: %v", err)
 	}
 	prepared, _ := app.chat.Store.Read("alice", "default", c.ID)

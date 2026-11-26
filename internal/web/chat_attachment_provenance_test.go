@@ -3,11 +3,13 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/workspace"
 	"net/http"
 	"strings"
 	"testing"
+
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/workspace"
 )
 
 func TestChatExplicitAttachmentSnapshotsRemainBoundAndLabelled(t *testing.T) {
@@ -29,7 +31,7 @@ func TestChatExplicitAttachmentSnapshotsRemainBoundAndLabelled(t *testing.T) {
 			if kind == "private" {
 				input.Content = "ACCEPTED_OLD_SNAPSHOT"
 			}
-			attachments, err := app.chatAttachments(t.Context(), store, []chat.Attachment{input})
+			attachments, err := app.chatrun.Attachments(t.Context(), store, []chat.Attachment{input})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -81,13 +83,13 @@ func TestChatExplicitAttachmentSnapshotsRemainBoundAndLabelled(t *testing.T) {
 				t.Fatal(err)
 			}
 			originalTurn := reloaded.Turns[0]
-			valid := chatEvidenceValidator(snapshot, memory.Provenance.InstructionsHash, []chat.Turn{originalTurn}, c.Options.Corpus.ID())
+			valid := chatrun.EvidenceValidator(snapshot, memory.Provenance.InstructionsHash, []chat.Turn{originalTurn}, c.Options.Corpus.ID())
 			if !valid(memory.Provenance, citations) {
 				t.Fatal("original selected snapshot lost valid proof")
 			}
 			originalTurn.Attachments = append([]chat.Attachment(nil), originalTurn.Attachments...)
 			originalTurn.Attachments[0].Content = "UNVERIFIABLE_CHANGED_INPUT"
-			valid = chatEvidenceValidator(snapshot, memory.Provenance.InstructionsHash, []chat.Turn{originalTurn}, c.Options.Corpus.ID())
+			valid = chatrun.EvidenceValidator(snapshot, memory.Provenance.InstructionsHash, []chat.Turn{originalTurn}, c.Options.Corpus.ID())
 			if valid(memory.Provenance, citations) {
 				t.Fatal("unverifiable accepted input remained reusable")
 			}
@@ -112,7 +114,7 @@ func TestChatPinnedAttachmentNeverAcquiresCurrentFingerprint(t *testing.T) {
 	save("notes/alphalaunch.md", "# Alphalaunch\nUnrelated retrieval.", "")
 	save("notes/attached.md", "ORIGINAL_PINNED_ATTACHMENT", "")
 	store, _ := app.catalog.Access("alice", "default", "read")
-	attachments, err := app.chatAttachments(t.Context(), store, []chat.Attachment{{Kind: "committed", Path: "notes/attached.md"}})
+	attachments, err := app.chatrun.Attachments(t.Context(), store, []chat.Attachment{{Kind: "committed", Path: "notes/attached.md"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,8 +165,8 @@ func TestChatAttachmentProofInheritanceAndBounds(t *testing.T) {
 		t.Fatal("compact memory inherited a prior run’s private attachment exception")
 	}
 	// A same-run descendant retains its source proof, but that does not grant a later turn the attachment.
-	descendant := cloneChatProvenance(first.Provenance)
-	inheritChatProvenance(&descendant, chat.Turn{Provenance: first.Provenance, Citations: citations})
+	descendant := chatrun.CloneProvenance(first.Provenance)
+	chatrun.InheritProvenance(&descendant, chat.Turn{Provenance: first.Provenance, Citations: citations})
 	if !descendant.Complete || len(descendant.AttachmentReferences) != 1 {
 		t.Fatal("same-run attachment inheritance lost bounded proof")
 	}
@@ -192,7 +194,7 @@ func TestChatAttachmentProofInheritanceAndBounds(t *testing.T) {
 	target := chat.Provenance{CorpusID: c.Options.Corpus.ID(), Complete: true, AttachmentsTracked: true}
 	for i := 0; i < 65; i++ {
 		ref := chat.AttachmentReference{TurnID: fmt.Sprint(i), Kind: "private", Path: "notes/private.md", Hash: workspace.ContentHash([]byte(fmt.Sprint(i)))}
-		inheritChatProvenance(&target, chat.Turn{Provenance: chat.Provenance{CorpusID: c.Options.Corpus.ID(), Complete: true, AttachmentsTracked: true, AttachmentReferences: []chat.AttachmentReference{ref}}})
+		chatrun.InheritProvenance(&target, chat.Turn{Provenance: chat.Provenance{CorpusID: c.Options.Corpus.ID(), Complete: true, AttachmentsTracked: true, AttachmentReferences: []chat.AttachmentReference{ref}}})
 	}
 	if target.Complete || len(target.AttachmentReferences) != 64 {
 		t.Fatal("attachment dependency overflow remained reusable or unbounded")

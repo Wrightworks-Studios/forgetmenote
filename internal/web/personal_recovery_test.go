@@ -57,7 +57,7 @@ func TestPersonalInterruptedMemoryRecoveryIsOwnerAndRevisionBound(t *testing.T) 
 	run := chat.Run{PersonalConsent: app.personalConsentStamp("alice")}
 	settings.Enabled = false
 	app.catalog.SaveAssistant("alice", settings)
-	if err = app.validateChatSources(ctx, run, false); !errors.Is(err, workspace.ErrForbidden) {
+	if err = app.chatrun.ValidateSources(ctx, run, false); !errors.Is(err, workspace.ErrForbidden) {
 		t.Fatal("paused consent did not fence retained chat evidence", err)
 	}
 }

@@ -25,8 +25,8 @@ func (s *Server) initMessaging() error {
 		CheckAutomationEvidence: s.checkAutomationEvidence,
 		AnswerOnce:              s.answerOnce,
 		ChatStore:               func() *chat.Store { return s.chat.Store },
-		ValidateChatSources:     s.validateChatSources,
-		AssistantInstructions:   s.assistantInstructions,
+		ValidateChatSources:     s.chatrun.ValidateSources,
+		AssistantInstructions:   s.chatrun.AssistantInstructions,
 		PersonalMessagePolicy:   s.personalMessagePolicy,
 		LinkedOwner: func(client, workspace, user string) string {
 			if s.personalConnections == nil {

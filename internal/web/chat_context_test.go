@@ -20,7 +20,7 @@ func initialChatTestMessages(t *testing.T, app *Server, c chat.Conversation, con
 	c.Turns = append([]chat.Turn(nil), c.Turns...)
 	run := chat.Run{ID: chat.NewID(), Options: c.Options}
 	c.Turns[len(c.Turns)-1].RunID = run.ID
-	return app.initialChatMessages(t.Context(), c, run, connection)
+	return app.chatrun.InitialMessages(t.Context(), c, run, connection)
 }
 
 func TestChatResumeKeepsOriginalTaskHistoryAndAttachments(t *testing.T) {
@@ -66,7 +66,7 @@ func TestChatResumeKeepsOriginalTaskHistoryAndAttachments(t *testing.T) {
 	if err != nil || got.Runs[0].State != "completed" {
 		t.Fatalf("original run failed: %v %+v", err, got.Runs)
 	}
-	_, _, _, err = app.initialChatMessages(t.Context(), got, chat.Run{ID: "missing-origin"}, app.chat.Config.Connections[0])
+	_, _, _, err = app.chatrun.InitialMessages(t.Context(), got, chat.Run{ID: "missing-origin"}, app.chat.Config.Connections[0])
 	if err == nil {
 		t.Fatal("missing original user message silently fell back to newer input")
 	}

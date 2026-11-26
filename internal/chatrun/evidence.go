@@ -1,24 +1,30 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/knowledge"
-	"forgetmenote/internal/reposource"
-	"forgetmenote/internal/workspace"
 	"net/url"
 	"strings"
 	"unicode/utf8"
+
+	"forgetmenote/internal/actions"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/dataops"
+	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/notebooks"
+	"forgetmenote/internal/reposource"
+	"forgetmenote/internal/search"
+	"forgetmenote/internal/webcore"
+	"forgetmenote/internal/workspace"
 )
 
 // Each citation retains the dependencies from the same committed snapshot as its
 // text. Later retrieval cannot renew the provenance of an earlier answer.
-func pinChatCitationReferences(ctx context.Context, store *workspace.Store, citations []chat.Citation) error {
+func PinCitationReferences(ctx context.Context, store *workspace.Store, citations []chat.Citation) error {
 	snapshots := map[string]workspace.Snapshot{}
 	fingerprints := map[string]map[string]string{}
-	current, err := chatScopedSnapshot(ctx, store, "")
+	current, err := ScopedSnapshot(ctx, store, "")
 	if err != nil {
 		return err
 	}
@@ -41,7 +47,7 @@ func pinChatCitationReferences(ctx context.Context, store *workspace.Store, cita
 			// The current snapshot already holds this corpus at its revision.
 			snapshot = current
 			if citation.Revision != current.Revision {
-				if snapshot, err = chatScopedSnapshot(ctx, store, citation.Revision); err != nil {
+				if snapshot, err = ScopedSnapshot(ctx, store, citation.Revision); err != nil {
 					return err
 				}
 			}
@@ -58,10 +64,10 @@ func pinChatCitationReferences(ctx context.Context, store *workspace.Store, cita
 	return nil
 }
 
-// chatRetrievalCitations cites retrieved passages, source excerpts and other
+// RetrievalCitations cites retrieved passages, source excerpts and other
 // notebooks' passages. A tool call's citation IDs carry its operation ID; the
 // initial retrieval's do not.
-func chatRetrievalCitations(project, operation string, found chatRetrieval) []chat.Citation {
+func RetrievalCitations(project, operation string, found chatRetrieval) []chat.Citation {
 	id := func(kind string, i int) string {
 		if operation != "" {
 			return fmt.Sprintf("%s-%s-%d", kind, operation, i+1)
@@ -81,11 +87,11 @@ func chatRetrievalCitations(project, operation string, found chatRetrieval) []ch
 	return citations
 }
 
-// recordChatToolResult adds a finished call's new citations to its run and,
+// RecordToolResult adds a finished call's new citations to its run and,
 // when the run may continue from it, pairs the call with its model-visible
 // result. A revoked run keeps the citations, which still gate access to the
 // transcript, but the result never enters its continuation.
-func recordChatToolResult(c *chat.Conversation, r *chat.Run, toolCallID, content string, citations []chat.Citation, continues bool) {
+func RecordToolResult(c *chat.Conversation, r *chat.Run, toolCallID, content string, citations []chat.Citation, continues bool) {
 	if chat.AddCitations(r, citations) {
 		c.AddEvent(r.ID, "citations", r.Citations)
 	}
@@ -97,32 +103,32 @@ func recordChatToolResult(c *chat.Conversation, r *chat.Run, toolCallID, content
 // A read acknowledgement supplies the exact original bytes and revision. Keep
 // its citation even if a later permission/owner failure prevents dependency
 // pinning; the incomplete provenance then prevents reuse in future context.
-func (s *Server) chatToolEvidence(ctx context.Context, auth chat.RunAuth, operationID, name string, result json.RawMessage) ([]chat.Citation, bool) {
+func (s *Service) ToolEvidence(ctx context.Context, auth chat.RunAuth, operationID, name string, result json.RawMessage) ([]chat.Citation, bool) {
 	if name == "call_data_operation" {
-		var v dataResult
+		var v dataops.Result
 		if json.Unmarshal(result, &v) != nil || v.Receipt.ID == "" {
 			return nil, false
 		}
-		return []chat.Citation{{ID: v.Receipt.ID, Project: auth.Project, Source: v.Receipt.Connection, References: v.Receipt.Operation, URL: "#data-receipt-" + v.Receipt.ID, Title: v.Receipt.Connection + " · " + v.Receipt.Operation, Text: textLimit(string(result), 12000), CapturedAt: v.Receipt.Time, Hash: v.Receipt.OutputHash, Kind: "data"}}, false
+		return []chat.Citation{{ID: v.Receipt.ID, Project: auth.Project, Source: v.Receipt.Connection, References: v.Receipt.Operation, URL: "#data-receipt-" + v.Receipt.ID, Title: v.Receipt.Connection + " · " + v.Receipt.Operation, Text: TextLimit(string(result), 12000), CapturedAt: v.Receipt.Time, Hash: v.Receipt.OutputHash, Kind: "data"}}, false
 	}
 	if name == "read_document" || name == "search_notebooks" {
 		var citations []chat.Citation
 		if name == "read_document" {
-			var doc documentOutput
+			var doc notebooks.DocumentOutput
 			if json.Unmarshal(result, &doc) != nil || doc.Project == "" || doc.Path == "" || doc.Revision == "" || doc.Hash == "" || doc.Citation == "" {
 				return nil, false
 			}
 			if doc.Origin != "notes" && doc.Origin != "repository" || doc.Origin == "repository" && doc.Source == "" {
 				return nil, false
 			}
-			citation := chat.Citation{ID: "document-" + operationID, Project: doc.Project, Source: doc.Source, Path: doc.Path, Revision: doc.Revision, URL: doc.Citation, Text: textLimit(doc.Content, 12000), Hash: doc.Hash, Kind: "notebook", Scope: "notebook"}
+			citation := chat.Citation{ID: "document-" + operationID, Project: doc.Project, Source: doc.Source, Path: doc.Path, Revision: doc.Revision, URL: doc.Citation, Text: TextLimit(doc.Content, 12000), Hash: doc.Hash, Kind: "notebook", Scope: "notebook"}
 			if doc.Origin == "repository" {
 				citation.Kind, citation.Scope = "repository", "repository"
 				citation = chatSourceExcerpt(citation, doc.Content, doc.StartByte, max(1, doc.StartLine))
 			}
 			citations = append(citations, citation)
 		} else {
-			var found scopedRetrieval
+			var found search.Result
 			if json.Unmarshal(result, &found) != nil {
 				return nil, false
 			}
@@ -163,10 +169,10 @@ func (s *Server) chatToolEvidence(ctx context.Context, auth chat.RunAuth, operat
 			if _, err := s.catalog.Access(auth.User, c.Project, "read"); err != nil {
 				return nil, false
 			}
-			if err := s.checkSourceChatScope(ctx, c.Project); err != nil {
+			if err := s.hooks.CheckSourceScope(ctx, c.Project); err != nil {
 				return nil, false
 			}
-			state, err := s.repositories.Status(c.Project)
+			state, err := s.hooks.Repositories().Status(c.Project)
 			if err != nil || state.Downloaded != c.Revision || state.ID != c.Source {
 				return nil, false
 			}
@@ -176,20 +182,20 @@ func (s *Server) chatToolEvidence(ctx context.Context, auth chat.RunAuth, operat
 	if name != "read_note" {
 		return nil, false
 	}
-	var note noteOutput
+	var note webcore.NoteOutput
 	if json.Unmarshal(result, &note) != nil || note.Path == "" || note.Revision == "" {
 		return nil, false
 	}
 	link := url.URL{Path: "/" + note.Path, RawQuery: url.Values{"fmn-rev": {note.Revision}}.Encode()}
-	citations := []chat.Citation{{ID: "read-" + operationID, Project: auth.Project, Path: note.Path, URL: link.String(), Title: note.Path, Text: textLimit(note.Content, 12000), Revision: note.Revision, Hash: workspace.ContentHash([]byte(note.Content)), Kind: "committed"}}
-	if s.checkRun(auth) != nil {
+	citations := []chat.Citation{{ID: "read-" + operationID, Project: auth.Project, Path: note.Path, URL: link.String(), Title: note.Path, Text: TextLimit(note.Content, 12000), Revision: note.Revision, Hash: workspace.ContentHash([]byte(note.Content)), Kind: "committed"}}
+	if s.hooks.CheckRun(auth) != nil {
 		return citations, false
 	}
 	store, err := s.catalog.Access(auth.User, auth.Project, "read")
 	if err != nil {
 		return citations, false
 	}
-	if err = pinChatCitationReferences(ctx, store, citations); err != nil {
+	if err = PinCitationReferences(ctx, store, citations); err != nil {
 		return citations, false
 	}
 	return citations, citations[0].References != ""
@@ -212,11 +218,11 @@ func chatSourceExcerpt(citation chat.Citation, content string, startByte, startL
 	return citation
 }
 
-func chatToolResultContext(name string, result json.RawMessage, citations []chat.Citation) string {
-	if p := policy(name); p.Control || p.Edit || p.Proposal {
-		return chatControlResult(name, result)
+func ToolResultContext(name string, result json.RawMessage, citations []chat.Citation) string {
+	if p := actions.LookupPolicy(name); p.Control || p.Edit || p.Proposal {
+		return ControlResult(name, result)
 	}
-	if compact, ok := compactChatSourceResult(name, result, citations); ok {
+	if compact, ok := CompactSourceResult(name, result, citations); ok {
 		return compact
 	}
 	text := string(result)
@@ -340,7 +346,7 @@ func addChatAttachmentReference(provenance *chat.Provenance, reference chat.Atta
 
 // Explicit noncommitted input stays the exact immutable accepted snapshot. Never
 // read a newer shared document or ask the browser for a draft during validation.
-func (s *Server) chatAttachmentProvenance(ctx context.Context, store *workspace.Store, turn chat.Turn, provenance *chat.Provenance) ([]chat.Citation, error) {
+func (s *Service) chatAttachmentProvenance(ctx context.Context, store *workspace.Store, turn chat.Turn, provenance *chat.Provenance) ([]chat.Citation, error) {
 	provenance.AttachmentsTracked = true
 	citations := []chat.Citation{}
 	for i, attachment := range turn.Attachments {
@@ -357,7 +363,7 @@ func (s *Server) chatAttachmentProvenance(ctx context.Context, store *workspace.
 			}
 			link := url.URL{Path: "/" + attachment.Path, RawQuery: url.Values{"fmn-rev": {attachment.Revision}}.Encode()}
 			evidence := []chat.Citation{{ID: fmt.Sprintf("attachment-%d", i+1), Path: attachment.Path, URL: link.String(), Title: attachment.Path, Revision: attachment.Revision, Hash: reference.Hash, Kind: "committed", Scope: "attachment", References: "attachment:" + reference.Hash}}
-			if err := pinChatCitationReferences(ctx, store, evidence); err != nil {
+			if err := PinCitationReferences(ctx, store, evidence); err != nil {
 				return nil, err
 			}
 			reference.References = evidence[0].References
@@ -515,7 +521,7 @@ func chatHistoricalValidator(ctx context.Context, store *workspace.Store, run ch
 		notes, ok := cache[dependency.Revision]
 		if !ok {
 			notes = map[string]string{}
-			snapshot, err := chatCorpusSnapshot(ctx, store, run, dependency.Revision)
+			snapshot, err := CorpusSnapshot(ctx, store, run, dependency.Revision)
 			if err != nil || snapshot.Visibility != current.Visibility {
 				return false
 			}

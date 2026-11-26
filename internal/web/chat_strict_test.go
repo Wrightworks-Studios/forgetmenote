@@ -187,7 +187,7 @@ func TestStrictChatAllExposedToolSchemas(t *testing.T) {
 		fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)
 	})
 	connection := enableStrictChat(t, app)
-	tools := app.runTools(chat.Run{Options: chat.Options{Mode: "edit", Actions: []string{"notes", "comments", "live", "review"}, Research: true}}, connection)
+	tools := app.chatrun.RunTools(chat.Run{Options: chat.Options{Mode: "edit", Actions: []string{"notes", "comments", "live", "review"}, Research: true}}, connection)
 	names := map[string]bool{}
 	for _, tool := range tools {
 		names[tool.Name] = true

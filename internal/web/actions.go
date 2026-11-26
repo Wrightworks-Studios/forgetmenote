@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"forgetmenote/internal/actions"
-	"forgetmenote/internal/purgehttp"
 	"reflect"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 
+	"forgetmenote/internal/actions"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/workspace"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -246,7 +247,7 @@ func (s *Server) dispatchAction(ctx context.Context, project, name string, args 
 func (s *Server) dispatchActionOutcome(ctx context.Context, project, name string, args json.RawMessage) (out json.RawMessage, callErr error) {
 	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		if _, known := s.actions[name]; known {
-			defer func() { chatToolDiagnostic(scope.Run.ID, name, callErr) }()
+			defer func() { chatrun.ToolDiagnostic(scope.Run.ID, name, callErr) }()
 		}
 	}
 	if _, err := s.catalog.Access(subject(ctx), project, "read"); err != nil {

@@ -1,4 +1,4 @@
-package web
+package chatrun
 
 import (
 	"context"
@@ -13,28 +13,33 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-// chatRunner executes one admitted chat run in phases: prepare, then rounds
+// Runner executes one admitted chat run in phases: prepare, then rounds
 // of fit, stream, persist and tools. The phases share the run's identity,
 // connection and access monitor, and the last request's fit, which the
 // terminal diagnostic reports.
-type chatRunner struct {
-	s          *Server
+type Runner struct {
+	s          *Service
 	auth       chat.RunAuth
 	id, runID  string
 	connection chat.Connection
 	access     *chatRunAccess
-	lastFit    chatContextFit
+	lastFit    ContextFit
+}
+
+// NewRunner returns the runner of one admitted run.
+func (s *Service) NewRunner(auth chat.RunAuth, id, runID string, connection chat.Connection) *Runner {
+	return &Runner{s: s, auth: auth, id: id, runID: runID, connection: connection}
 }
 
 // errChatRunGone stops a runner whose run can no longer be read without
-// reporting a failure; recoverChatRun settles the run.
+// reporting a failure; RecoverRun settles the run.
 var errChatRunGone = errors.New("chat run is unavailable")
 
 // chatRoundRequest is one round's model request, fitted for sending.
 type chatRoundRequest struct {
 	provider *chat.Provider
 	request  chat.Request
-	fit      chatContextFit
+	fit      ContextFit
 }
 
 // chatStreamed is what one streamed model request produced.
@@ -49,16 +54,16 @@ type chatStreamed struct {
 
 // settle reports how the runner stopped. A run that completed, waits for a
 // confirmation or can no longer be read needs nothing more here.
-func (r *chatRunner) settle(ctx context.Context, err error) {
-	if err == nil || errors.Is(err, errChatConfirmation) || errors.Is(err, errChatRunGone) {
+func (r *Runner) Settle(ctx context.Context, err error) {
+	if err == nil || errors.Is(err, ErrConfirmation) || errors.Is(err, errChatRunGone) {
 		return
 	}
 	r.s.failChatRun(ctx, r.auth, r.id, r.runID, err, r.lastFit)
 }
 
 // load reads the run.
-func (r *chatRunner) load() (chat.Conversation, *chat.Run, error) {
-	c, err := r.s.chat.Store.Read(r.auth.User, r.auth.Project, r.id)
+func (r *Runner) load() (chat.Conversation, *chat.Run, error) {
+	c, err := r.s.hooks.Chat().Store.Read(r.auth.User, r.auth.Project, r.id)
 	if err != nil {
 		return c, nil, errChatRunGone
 	}
@@ -73,9 +78,9 @@ func (r *chatRunner) load() (chat.Conversation, *chat.Run, error) {
 // and, for a new run, retrieves its initial evidence. It returns the context
 // for the later phases, the function that stops the monitor, and the run as
 // saved.
-func (r *chatRunner) prepare(ctx context.Context) (context.Context, func(), *chat.Run, error) {
+func (r *Runner) Prepare(ctx context.Context) (context.Context, func(), *chat.Run, error) {
 	stop := func() {}
-	if err := r.s.checkRun(r.auth); err != nil {
+	if err := r.s.hooks.CheckRun(r.auth); err != nil {
 		return ctx, stop, nil, err
 	}
 	c, run, err := r.load()
@@ -100,8 +105,8 @@ func (r *chatRunner) prepare(ctx context.Context) (context.Context, func(), *cha
 
 // retrieveInitialEvidence builds a new run's first request from committed
 // notebook evidence and returns the run as saved with it.
-func (r *chatRunner) retrieveInitialEvidence(ctx context.Context, c chat.Conversation, run chat.Run) (*chat.Run, error) {
-	if err := r.s.chatRunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
+func (r *Runner) retrieveInitialEvidence(ctx context.Context, c chat.Conversation, run chat.Run) (*chat.Run, error) {
+	if err := r.s.RunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
 		current.State = "running"
 		c.AddEvent(r.runID, "progress", map[string]string{"message": "Retrieving committed notebook evidence"})
 		return nil
@@ -112,11 +117,11 @@ func (r *chatRunner) retrieveInitialEvidence(ctx context.Context, c chat.Convers
 	if err != nil {
 		return nil, err
 	}
-	if err := r.s.checkRun(r.auth); err != nil {
+	if err := r.s.hooks.CheckRun(r.auth); err != nil {
 		return nil, err
 	}
 	var saved chat.Run
-	err = r.s.chatRunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
+	err = r.s.RunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
 		current.Messages = messages
 		current.Citations = citations
 		current.Provenance = memory.Provenance
@@ -130,7 +135,7 @@ func (r *chatRunner) retrieveInitialEvidence(ctx context.Context, c chat.Convers
 
 // rounds executes a resumed run's pending tool calls, then model rounds until
 // the run completes or a tool call waits for confirmation.
-func (r *chatRunner) rounds(ctx context.Context, run *chat.Run) error {
+func (r *Runner) Rounds(ctx context.Context, run *chat.Run) error {
 	r.access.set(*run)
 	if err := r.executeTools(ctx, pendingToolCalls(run.Messages)); err != nil {
 		return err
@@ -146,7 +151,7 @@ func (r *chatRunner) rounds(ctx context.Context, run *chat.Run) error {
 
 // round requests one model response and executes the tool calls it makes. It
 // reports done once the run is terminal.
-func (r *chatRunner) round(ctx context.Context, review bool) (bool, error) {
+func (r *Runner) round(ctx context.Context, review bool) (bool, error) {
 	if review {
 		if done, err := r.prepareReview(ctx); done || err != nil {
 			return done, err
@@ -185,12 +190,12 @@ func (r *chatRunner) round(ctx context.Context, review bool) (bool, error) {
 
 // prepareReview prepares a review's next batch. Once the inventory is complete
 // and no workflow remains to finalize, the run completes.
-func (r *chatRunner) prepareReview(ctx context.Context) (bool, error) {
-	complete, err := r.s.prepareChatReview(ctx, r.auth, r.id, r.runID, r.connection)
+func (r *Runner) prepareReview(ctx context.Context) (bool, error) {
+	complete, err := r.s.PrepareReview(ctx, r.auth, r.id, r.runID, r.connection)
 	if err != nil || !complete {
 		return false, err
 	}
-	current, err := r.s.chat.Store.Read(r.auth.User, r.auth.Project, r.id)
+	current, err := r.s.hooks.Chat().Store.Read(r.auth.User, r.auth.Project, r.id)
 	if err != nil {
 		return false, err
 	}
@@ -198,7 +203,7 @@ func (r *chatRunner) prepareReview(ctx context.Context) (bool, error) {
 	if run.Review.Finalizing && !reviewWorkflowCompleted(run) {
 		return false, nil
 	}
-	r.s.chatTerminal(r.auth, r.id, r.runID, "completed", errors.New("Review inventory completed at its recorded revisions; changed notes are rechecked on the next review."), r.lastFit)
+	r.s.Terminal(r.auth, r.id, r.runID, "completed", errors.New("Review inventory completed at its recorded revisions; changed notes are rechecked on the next review."), r.lastFit)
 	return true, nil
 }
 
@@ -206,11 +211,11 @@ func (r *chatRunner) prepareReview(ctx context.Context) (bool, error) {
 // cancellations from other gateways, and checks that the run may continue:
 // its context is live, its access holds, nobody cancelled it and its round
 // budget remains.
-func (r *chatRunner) begin(ctx context.Context) (chat.Conversation, *chat.Run, error) {
+func (r *Runner) begin(ctx context.Context) (chat.Conversation, *chat.Run, error) {
 	if err := ctx.Err(); err != nil {
 		return chat.Conversation{}, nil, err
 	}
-	if err := r.s.checkRun(r.auth); err != nil {
+	if err := r.s.hooks.CheckRun(r.auth); err != nil {
 		return chat.Conversation{}, nil, err
 	}
 	c, run, err := r.load()
@@ -222,45 +227,45 @@ func (r *chatRunner) begin(ctx context.Context) (chat.Conversation, *chat.Run, e
 		return c, nil, context.Canceled
 	}
 	if run.Rounds >= max(run.RoundLimit, r.connection.Limits.MaxRounds) {
-		return c, nil, chatFailureError(chatRoundBudget, "Model round budget reached; review progress before continuing")
+		return c, nil, FailureError(chatRoundBudget, "Model round budget reached; review progress before continuing")
 	}
 	return c, run, nil
 }
 
 // fit builds the round's request from the run's messages, tools and the
 // person's memory, and fits it to the connection's context.
-func (r *chatRunner) fit(ctx context.Context, run *chat.Run) (chatRoundRequest, error) {
-	provider := r.s.chat.Snapshot().Providers[r.connection.ID]
+func (r *Runner) fit(ctx context.Context, run *chat.Run) (chatRoundRequest, error) {
+	provider := r.s.hooks.Chat().Snapshot().Providers[r.connection.ID]
 	if provider == nil {
 		return chatRoundRequest{}, chat.ErrProviderRequest
 	}
-	memory, err := r.s.personalChatContext(ctx)
+	memory, err := r.s.hooks.PersonalContext(ctx)
 	if err != nil {
 		return chatRoundRequest{}, err
 	}
 	if err := r.bindPersonalConsent(run, memory); err != nil {
 		return chatRoundRequest{}, err
 	}
-	request := chat.Request{Model: run.Options.Model, System: chatSystem + memory, Messages: run.Messages, Tools: r.s.runTools(*run, r.connection), MaxOutputTokens: r.connection.Limits.OutputTokens}
-	fitted, fit, err := fitChatRound(ctx, *run, request, r.connection, provider.EstimateRequest)
+	request := chat.Request{Model: run.Options.Model, System: System + memory, Messages: run.Messages, Tools: r.s.RunTools(*run, r.connection), MaxOutputTokens: r.connection.Limits.OutputTokens}
+	fitted, fit, err := FitRound(ctx, *run, request, r.connection, provider.EstimateRequest)
 	r.lastFit = fit
 	return chatRoundRequest{provider: provider, request: fitted, fit: fit}, err
 }
 
 // bindPersonalConsent binds the run to the person's current consent the first
 // time it uses their memory; a changed consent stops the run.
-func (r *chatRunner) bindPersonalConsent(run *chat.Run, memory string) error {
+func (r *Runner) bindPersonalConsent(run *chat.Run, memory string) error {
 	if memory == "" {
 		return nil
 	}
-	stamp := r.s.personalConsentStamp(r.auth.User)
+	stamp := r.s.hooks.PersonalConsentStamp(r.auth.User)
 	if run.PersonalConsent != "" && run.PersonalConsent != stamp {
 		return workspace.ErrForbidden
 	}
 	if run.PersonalConsent != "" {
 		return nil
 	}
-	if err := r.s.chatRunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
+	if err := r.s.RunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
 		current.PersonalConsent = stamp
 		return nil
 	}); err != nil {
@@ -274,11 +279,11 @@ func (r *chatRunner) bindPersonalConsent(run *chat.Run, memory string) error {
 // stream starts the round and streams the model's response, persisting its
 // text as it arrives. A revocation found during or after the stream replaces
 // the response with its error.
-func (r *chatRunner) stream(ctx context.Context, run chat.Run, next chatRoundRequest) (chatStreamed, error) {
+func (r *Runner) stream(ctx context.Context, run chat.Run, next chatRoundRequest) (chatStreamed, error) {
 	if err := ctx.Err(); err != nil {
 		return chatStreamed{}, err
 	}
-	if err := r.s.validateChatSources(ctx, run, true); err != nil {
+	if err := r.s.ValidateSources(ctx, run, true); err != nil {
 		return chatStreamed{}, err
 	}
 	out := chatStreamed{assistantID: chat.NewID()}
@@ -291,7 +296,7 @@ func (r *chatRunner) stream(ctx context.Context, run chat.Run, next chatRoundReq
 			return nil
 		}
 		text := pending.String()
-		if err := r.s.chatRunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
+		if err := r.s.RunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
 			c.AddEvent(r.runID, "text_delta", map[string]string{"turnId": out.assistantID, "text": text})
 			return nil
 		}); err != nil {
@@ -315,7 +320,7 @@ func (r *chatRunner) stream(ctx context.Context, run chat.Run, next chatRoundReq
 	})
 	sourceErr := chatAccessFailure(ctx)
 	if sourceErr == nil {
-		sourceErr = r.s.validateChatSources(ctx, run, true)
+		sourceErr = r.s.ValidateSources(ctx, run, true)
 	}
 	if sourceErr != nil {
 		out.err = sourceErr
@@ -328,9 +333,9 @@ func (r *chatRunner) stream(ctx context.Context, run chat.Run, next chatRoundReq
 
 // startRound counts the round and reserves its estimated tokens before the
 // request is sent.
-func (r *chatRunner) startRound(run chat.Run, next chatRoundRequest) error {
+func (r *Runner) startRound(run chat.Run, next chatRoundRequest) error {
 	fit, request := next.fit, next.request
-	if err := r.s.chatRunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
+	if err := r.s.RunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
 		current.State = "running"
 		current.Rounds++
 		if fit.Changed {
@@ -358,18 +363,18 @@ func (r *chatRunner) startRound(run chat.Run, next chatRoundRequest) error {
 // unless the round failed, its message for the next request. A run whose
 // access was revoked records only its usage. It then reports the round's
 // failure, if any.
-func (r *chatRunner) persist(request chat.Request, streamed chatStreamed) error {
+func (r *Runner) persist(request chat.Request, streamed chatStreamed) error {
 	usage := streamed.response.Usage
 	uncertain := int64(0)
 	if streamed.err != nil && usage.Estimated {
 		uncertain = max(0, int64(request.MaxOutputTokens)-usage.OutputTokens)
 	}
-	if err := r.s.chat.Store.SettleUsage(r.auth.User, r.auth.Project, r.id, r.runID, usage, uncertain); err != nil {
+	if err := r.s.hooks.Chat().Store.SettleUsage(r.auth.User, r.auth.Project, r.id, r.runID, usage, uncertain); err != nil {
 		return err
 	}
 	// Authorize before taking the conversation store's lock.
-	authorized := r.s.checkRun(r.auth) == nil
-	if err := r.s.chatRunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
+	authorized := r.s.hooks.CheckRun(r.auth) == nil
+	if err := r.s.RunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
 		if !authorized {
 			return nil
 		}
@@ -398,9 +403,9 @@ func (r *chatRunner) persist(request chat.Request, streamed chatStreamed) error 
 
 // executeTools executes tool calls in order, stopping at the first that fails
 // or waits for confirmation.
-func (r *chatRunner) executeTools(ctx context.Context, calls []chat.ToolCall) error {
+func (r *Runner) executeTools(ctx context.Context, calls []chat.ToolCall) error {
 	for _, call := range calls {
-		if err := r.s.executeChatTool(ctx, r.auth, r.id, r.runID, call, r.connection); err != nil {
+		if err := r.s.hooks.ExecuteTool(ctx, r.auth, r.id, r.runID, call, r.connection); err != nil {
 			return err
 		}
 	}
@@ -409,8 +414,8 @@ func (r *chatRunner) executeTools(ctx context.Context, calls []chat.ToolCall) er
 
 // complete settles a run whose model answered without tool calls and offers
 // the exchange to the person's memory.
-func (r *chatRunner) complete(ctx context.Context, c chat.Conversation, answer string) {
-	r.s.chatTerminal(r.auth, r.id, r.runID, "completed", nil, r.lastFit)
+func (r *Runner) complete(ctx context.Context, c chat.Conversation, answer string) {
+	r.s.Terminal(r.auth, r.id, r.runID, "completed", nil, r.lastFit)
 	question := ""
 	for _, turn := range c.Turns {
 		if turn.RunID == r.runID && turn.Role == "user" {
@@ -418,8 +423,8 @@ func (r *chatRunner) complete(ctx context.Context, c chat.Conversation, answer s
 			break
 		}
 	}
-	source := r.s.origin + "/?project=" + url.QueryEscape(r.auth.Project) + "&chat=" + url.QueryEscape(r.id)
-	if err := r.s.recordPersonalInteraction(ctx, r.auth.User, personal.Interaction{ID: "chat-" + r.id + "-" + r.runID, UserText: question, Response: answer, Source: source}); err != nil {
+	source := r.s.hooks.Origin() + "/?project=" + url.QueryEscape(r.auth.Project) + "&chat=" + url.QueryEscape(r.id)
+	if err := r.s.hooks.RecordPersonalInteraction(ctx, r.auth.User, personal.Interaction{ID: "chat-" + r.id + "-" + r.runID, UserText: question, Response: answer, Source: source}); err != nil {
 		slog.Warn("personal memory capture failed", "error", err)
 	}
 }

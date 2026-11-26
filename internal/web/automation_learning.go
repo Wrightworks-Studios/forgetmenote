@@ -17,6 +17,7 @@ import (
 
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/workspace"
 )
 
@@ -86,7 +87,7 @@ func (s *Server) checkLearningEvidence(ctx context.Context, r *automation.Run) e
 		if err != nil {
 			return err
 		}
-		snapshot, err := chatScopedSnapshot(ctx, store, "")
+		snapshot, err := chatrun.ScopedSnapshot(ctx, store, "")
 		if err != nil {
 			return err
 		}
@@ -104,7 +105,7 @@ func (s *Server) checkLearningEvidence(ctx context.Context, r *automation.Run) e
 }
 
 func (s *Server) learningProfiles(ctx context.Context, r *automation.Run, store *workspace.Store) (map[string]workspace.Document, error) {
-	snapshot, err := chatScopedSnapshot(ctx, store, "")
+	snapshot, err := chatrun.ScopedSnapshot(ctx, store, "")
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +450,7 @@ func (j *learningJob) learn(ctx context.Context, target learningTarget, groups m
 func (j *learningJob) profile(ctx context.Context, target string) (workspace.Document, error) {
 	old, err := j.store.Read(ctx, target, "")
 	if err == nil {
-		old, err = readChatNote(ctx, j.store, target, "")
+		old, err = chatrun.ReadNote(ctx, j.store, target, "")
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		return workspace.Document{}, nil

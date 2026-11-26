@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/decision"
-	"forgetmenote/internal/pg/pgtest"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +12,11 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/decision"
+	"forgetmenote/internal/pg/pgtest"
 )
 
 func configureSyntheticJev(t *testing.T, app *Server, handler http.HandlerFunc) {
@@ -252,7 +253,7 @@ func TestJevAutomaticCitationCompletionRequiresAllConsentGates(t *testing.T) {
 			}
 			setChatFixtureLocalOnly(t, app, test.localOnly)
 			auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
-			app.chatTerminal(auth, c.ID, "run", "completed", nil)
+			app.chatrun.Terminal(auth, c.ID, "run", "completed", nil)
 			check := waitCitation(t, app, path)
 			if calls.Load() != test.wantCalls {
 				t.Fatalf("completion made %d calls, want %d; check %+v", calls.Load(), test.wantCalls, check)

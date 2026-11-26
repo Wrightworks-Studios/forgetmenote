@@ -1,15 +1,19 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"encoding/json"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/knowledge"
 	"sort"
 	"strings"
+
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/dataops"
+	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/notebooks"
+	"forgetmenote/internal/webcore"
 )
 
-type chatContextFit struct {
+type ContextFit struct {
 	// BeforeTokens is the estimate of the request as received. A request that
 	// fits once its evidence is projected for the model is estimated only once,
 	// so then it equals AfterTokens.
@@ -36,11 +40,11 @@ func modelChatSources(sources []chat.Citation) []chat.Citation {
 	}
 	return out
 }
-func compactChatSourceResult(name string, result json.RawMessage, citations []chat.Citation) (string, bool) {
+func CompactSourceResult(name string, result json.RawMessage, citations []chat.Citation) (string, bool) {
 	envelope := chatSourceContext{Sources: modelChatSources(citations)}
 	switch name {
 	case "read_document":
-		var document documentOutput
+		var document notebooks.DocumentOutput
 		if json.Unmarshal(result, &document) != nil || document.Path == "" || document.Revision == "" || document.Hash == "" {
 			return "", false
 		}
@@ -55,7 +59,7 @@ func compactChatSourceResult(name string, result json.RawMessage, citations []ch
 		}
 		envelope.Kind = "document_evidence"
 	case "read_note":
-		var note noteOutput
+		var note webcore.NoteOutput
 		if json.Unmarshal(result, &note) != nil || note.Path == "" || note.Revision == "" {
 			return "", false
 		}
@@ -131,7 +135,7 @@ func legacyChatSourceResult(run chat.Run, name string, message chat.Message) (st
 		if op.State != "completed" || op.Name != name || op.ToolCallID != message.ToolCallID || len(op.Result) == 0 {
 			continue
 		}
-		old := textLimit(string(op.Result), 12000)
+		old := TextLimit(string(op.Result), 12000)
 		if name == "read_note" && len(op.Citations) > 0 {
 			metadata := append([]chat.Citation(nil), op.Citations...)
 			for i := range metadata {
@@ -143,7 +147,7 @@ func legacyChatSourceResult(run chat.Run, name string, message chat.Message) (st
 		if message.Content != old {
 			continue
 		}
-		compact, ok := compactChatSourceResult(name, op.Result, op.Citations)
+		compact, ok := CompactSourceResult(name, op.Result, op.Citations)
 		if !ok {
 			continue
 		}
@@ -158,7 +162,7 @@ func legacyChatSourceResult(run chat.Run, name string, message chat.Message) (st
 // Fit a private model request, never the durable transcript or native state.
 // Native assistant blocks and call/result identities are indivisible. Only
 // bounded, known evidence excerpts and older conversational history are optional.
-func fitChatRequest(run chat.Run, request chat.Request, contextTokens int, estimators ...func(chat.Request) (int, error)) (chat.Request, chatContextFit, error) {
+func fitChatRequest(run chat.Run, request chat.Request, contextTokens int, estimators ...func(chat.Request) (int, error)) (chat.Request, ContextFit, error) {
 	estimate := func(req chat.Request) (int, error) { return estimateTokens(req), nil }
 	if len(estimators) > 0 && estimators[0] != nil {
 		estimate = estimators[0]
@@ -178,16 +182,16 @@ func fitChatRequest(run chat.Run, request chat.Request, contextTokens int, estim
 	return f.request, f.stats, err
 }
 
-// fitChatRound fits one round's model request. An ordinary Ask answers from
+// FitRound fits one round's model request. An ordinary Ask answers from
 // retained evidence once its exploration allowance is spent, and also when
 // its working request cannot fit.
-func fitChatRound(ctx context.Context, run chat.Run, request chat.Request, connection chat.Connection, estimators ...func(chat.Request) (int, error)) (chat.Request, chatContextFit, error) {
+func FitRound(ctx context.Context, run chat.Run, request chat.Request, connection chat.Connection, estimators ...func(chat.Request) (int, error)) (chat.Request, ContextFit, error) {
 	if chatAnswerDue(ctx, run, connection) {
-		request = finalChatRequest(request)
+		request = FinalRequest(request)
 	}
 	fitted, fit, err := fitChatRequest(run, request, connection.Limits.ContextTokens, estimators...)
-	if err != nil && ordinaryChatAsk(run) && !request.FinalAnswer {
-		request = finalChatRequest(request)
+	if err != nil && OrdinaryAsk(run) && !request.FinalAnswer {
+		request = FinalRequest(request)
 		fitted, fit, err = fitChatRequest(run, request, connection.Limits.ContextTokens, estimators...)
 	}
 	fit.FinalAnswer = request.FinalAnswer
@@ -201,7 +205,7 @@ func fitChatRound(ctx context.Context, run chat.Run, request chat.Request, conne
 type chatFit struct {
 	request       chat.Request
 	estimate      func(chat.Request) (int, error)
-	stats         chatContextFit
+	stats         ContextFit
 	contextTokens int
 	// hard bounds the request beside its output allowance; soft also leaves
 	// room to continue.
@@ -346,7 +350,7 @@ func (f *chatFit) reduce(original chat.Request) error {
 		return err
 	}
 	if f.stats.AfterTokens > f.hard {
-		return chatFailureError(chatContextLimit, "Model context limit reached after reducing optional evidence. The task, notebook guidance, explicit attachments or native tool history still cannot fit; shorten explicit inputs or start a fresh focused conversation")
+		return FailureError(chatContextLimit, "Model context limit reached after reducing optional evidence. The task, notebook guidance, explicit attachments or native tool history still cannot fit; shorten explicit inputs or start a fresh focused conversation")
 	}
 	return nil
 }
@@ -559,7 +563,7 @@ func (f *chatFit) retainExcerpt(entry chatFitCandidate, budgets []int, target in
 // keeps it if the request then fits target.
 func (f *chatFit) trySource(entry chatFitCandidate, budget, target int) (bool, error) {
 	source := entry.source
-	source.Text = textLimit(chatExcerptOriginal(source.Text), budget)
+	source.Text = TextLimit(chatExcerptOriginal(source.Text), budget)
 	if f.covered(source) {
 		return false, nil
 	}
@@ -632,7 +636,7 @@ func (f *chatFit) omitLargeResults() error {
 		message := &f.request.Messages[largest]
 		out := map[string]any{"contextOmitted": true, "error": "The original result does not fit the remaining model context. Do not infer values from this omission. Request a smaller page or aggregate; a retained data receipt can be exported."}
 		if f.calls[message.ToolCallID] == "call_data_operation" {
-			var data dataResult
+			var data dataops.Result
 			if json.Unmarshal([]byte(message.Content), &data) == nil && data.Receipt.ID != "" {
 				out["receipt"] = data.Receipt
 			}

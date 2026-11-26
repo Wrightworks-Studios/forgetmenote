@@ -1,19 +1,21 @@
-package web
+package chatrun
 
 import (
 	"context"
 	"encoding/json"
-	"forgetmenote/internal/chat"
 	"time"
+
+	"forgetmenote/internal/actions"
+	"forgetmenote/internal/chat"
 )
 
-func ordinaryChatAsk(run chat.Run) bool { return run.Options.Mode == "ask" && !run.Options.Review }
+func OrdinaryAsk(run chat.Run) bool { return run.Options.Mode == "ask" && !run.Options.Review }
 
 func chatAnswerDue(ctx context.Context, run chat.Run, connection chat.Connection) bool {
-	if !ordinaryChatAsk(run) {
+	if !OrdinaryAsk(run) {
 		return false
 	}
-	if chatAnswerBudgetDue(ctx, run.Rounds, max(run.RoundLimit, connection.Limits.MaxRounds), run.ToolCount, max(run.ToolLimit, connection.Limits.MaxTools), connection.Limits.RunSeconds) {
+	if AnswerBudgetDue(ctx, run.Rounds, max(run.RoundLimit, connection.Limits.MaxRounds), run.ToolCount, max(run.ToolLimit, connection.Limits.MaxTools), connection.Limits.RunSeconds) {
 		return true
 	}
 	// Notebook retrieval gets two exploration requests. Data workflows must be
@@ -33,7 +35,7 @@ func chatAnswerDue(ctx context.Context, run chat.Run, connection chat.Connection
 	return run.Rounds >= exploratory
 }
 
-func chatAnswerBudgetDue(ctx context.Context, rounds, roundLimit, tools, toolLimit, runSeconds int) bool {
+func AnswerBudgetDue(ctx context.Context, rounds, roundLimit, tools, toolLimit, runSeconds int) bool {
 	if rounds >= max(0, roundLimit-1) || tools >= toolLimit {
 		return true
 	}
@@ -46,7 +48,7 @@ func chatAnswerBudgetDue(ctx context.Context, rounds, roundLimit, tools, toolLim
 	return false
 }
 
-func finalChatRequest(request chat.Request) chat.Request {
+func FinalRequest(request chat.Request) chat.Request {
 	request.FinalAnswer = true
 	request.System += "\n\nFinish the user's current question now. No further tools are available for this answer. Answer naturally and concisely from retained original excerpts. Put Markdown links [source title](exact supplied URL) beside factual summaries or table entries, using the supplied titles and pinned URLs. Do not substitute bare filenames or invent citations. Mention uncertainty, gaps or source distinctions only when they affect the question; omit unrelated retrieval narration. An omitted result does not mean the evidence is absent. Give the useful supported answer even when coverage is partial; do not claim a complete notebook review or invent missing facts. Do not respond with another plan to search."
 	return request
@@ -55,7 +57,7 @@ func finalChatRequest(request chat.Request) chat.Request {
 // An excess native read call must receive an honest result before an Ask answer
 // can continue. The omission and its matching native result are one durable
 // update; no workspace operation is dispatched and no tool allowance is spent.
-func (s *Server) omitChatBudgetRead(ctx context.Context, a chat.RunAuth, id string, run chat.Run, call chat.ToolCall, connection chat.Connection) error {
+func (s *Service) OmitBudgetRead(ctx context.Context, a chat.RunAuth, id string, run chat.Run, call chat.ToolCall, connection chat.Connection) error {
 	read := false
 	switch call.Name {
 	case "search_passages", "discover_actions":
@@ -63,19 +65,19 @@ func (s *Server) omitChatBudgetRead(ctx context.Context, a chat.RunAuth, id stri
 	case "research_search", "research_fetch":
 		read = run.Options.Research
 	default:
-		read = policy(call.Name).Read && allowedAction(run.Options.Mode, call.Name, call.Arguments, run.Options.Actions, false)
+		read = actions.LookupPolicy(call.Name).Read && actions.Allowed(run.Options.Mode, call.Name, call.Arguments, run.Options.Actions, false)
 	}
-	if !ordinaryChatAsk(run) || !read || !offersChatTool(s.runTools(run, connection), call.Name) {
-		return chatFailureError(chatToolBudget, "Tool-call budget reached")
+	if !OrdinaryAsk(run) || !read || !OffersTool(s.RunTools(run, connection), call.Name) {
+		return FailureError(ToolBudget, "Tool-call budget reached")
 	}
-	key := operationID(run.ID, run.Rounds, call.ID)
+	key := OperationID(run.ID, run.Rounds, call.ID)
 	const message = "Tool-call budget reached. This call was not executed; use retained original evidence and report what remains unexamined."
 	result := json.RawMessage(`{"error":"` + message + `","executed":false,"omitted":true}`)
 	// Authorize before taking the conversation store's lock.
-	if err := s.checkRun(a); err != nil {
+	if err := s.hooks.CheckRun(a); err != nil {
 		return err
 	}
-	return s.chatRunUpdate(a, id, run.ID, func(c *chat.Conversation, r *chat.Run) error {
+	return s.RunUpdate(a, id, run.ID, func(c *chat.Conversation, r *chat.Run) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -102,7 +104,7 @@ func (s *Server) omitChatBudgetRead(ctx context.Context, a chat.RunAuth, id stri
 		}
 		op := chat.Operation{ID: key, ToolCallID: call.ID, Round: r.Rounds, Name: call.Name, Arguments: call.Arguments, Hash: chat.Hash(call.Arguments), State: "omitted", Result: result, Error: message}
 		r.Operations = append(r.Operations, op)
-		recordChatToolResult(c, r, call.ID, string(result), nil, true)
+		RecordToolResult(c, r, call.ID, string(result), nil, true)
 		c.AddEvent(run.ID, "tool_result", op)
 		return nil
 	})

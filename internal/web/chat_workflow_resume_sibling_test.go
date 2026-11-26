@@ -12,6 +12,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/sources"
 	"forgetmenote/internal/workspace"
 )
@@ -109,7 +110,7 @@ func TestSecurityIndependentDeferredWorkflowPreservesSiblingPairs(t *testing.T) 
 			return nil, e
 		}
 		run := current.Runs[0]
-		if requests.Load() == 4 && run.ReviewAllowance > 0 && run.Review.Notes[0].Provenance.ExternalAllowance != reviewExternalAllowance(&run) {
+		if requests.Load() == 4 && run.ReviewAllowance > 0 && run.Review.Notes[0].Provenance.ExternalAllowance != chatrun.ReviewExternalAllowance(&run) {
 			staleCompletion.Store(true)
 		}
 		return originalCall(ctx, args)
@@ -123,7 +124,7 @@ func TestSecurityIndependentDeferredWorkflowPreservesSiblingPairs(t *testing.T) 
 	first := waitChatRun(t, app, c.ID)
 	app.chat.Wait()
 	run := first.Runs[0]
-	if requests.Load() != 4 || run.State != "interrupted" || !run.Review.Complete || len(pendingToolCalls(run.Messages)) != 2 || run.Review.Notes[0].Provenance.ExternalAllowance == "" {
+	if requests.Load() != 4 || run.State != "interrupted" || !run.Review.Complete || len(chatrun.PendingToolCalls(run.Messages)) != 2 || run.Review.Notes[0].Provenance.ExternalAllowance == "" {
 		t.Fatalf("fixture failed to pause complete workflow at tool budget: requests=%d run=%+v", requests.Load(), run)
 	}
 	w = proxyCall(app, "alice", "POST", path+"/runs/"+run.ID+"/resume", `{}`)

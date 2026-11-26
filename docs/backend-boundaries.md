@@ -169,6 +169,27 @@ those checks. The few exports only tests use are in `testexports.go`. Boundary
 tests fail on a production reference to them, on a grant begun, finished or
 removed outside the connection routes, and on a cookie handled outside web.
 
+`internal/chatrun` owns the chat run engine: the rounds of a run, fitting each
+model request to its connection, retrieval and research, the evidence and
+provenance of tool results, review workflows and the run's terminal state. Web
+keeps the routes, the runner that starts a run, its controls and the Jev
+citation check, and every authorization check: the run recheck, client
+notebook access, data citations, source scope, Jev authorization and personal
+context. The chat leg of the guard (`scopeChatActionArguments`,
+`guardChatAction`, `chatPersonalApproval` and `chatReadOnly`) stays beside the
+dispatcher. A model's tool call reaches an action only through the
+`ExecuteTool` hook, which web binds to its executor: it rechecks the run,
+applies that guard and dispatches. A boundary test fails if the engine reaches
+the action registry or another hub's action methods. The required hooks bind
+those checks, the registered tools a run may offer, knowledge engine access,
+scoped retrieval, Jev preferences, source work admission, the chat runtime,
+data connections, repositories and the origin; those set after startup are
+read at each call. `ExecuteTool`, `PrepareOperation` and `StartCitationCheck`
+are temporary, until the runner and its controls move here. The engine's
+server-level tests stay in web; the exports only tests use are in
+`testexports.go`, and a boundary test fails on any production reference to
+them.
+
 `internal/citationchecks` owns citation-check sidecars, bounded queue/read
 admission, worker cancellation and shutdown. Pending check identity is durable
 before work starts; publication checks the current check ID and cannot recreate a

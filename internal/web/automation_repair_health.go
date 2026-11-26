@@ -3,14 +3,11 @@ package web
 import (
 	"time"
 
+	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/workspace"
 )
 
-type recipeCheckHealth struct {
-	State     string            `json:"state"`
-	CheckedAt string            `json:"checkedAt,omitempty"`
-	Checks    map[string]string `json:"checks,omitempty"`
-}
+type recipeCheckHealth = notebooks.RecipeHealth
 
 type recipeEntry struct {
 	workspace.Entry

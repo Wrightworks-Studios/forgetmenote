@@ -1,4 +1,4 @@
-package web
+package chatrun
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/webcore"
 )
 
 // contentTokens estimates a request as its messages' content bytes, so step
@@ -82,7 +83,7 @@ func TestChatFitProjectionFindsOptionalSources(t *testing.T) {
 }
 
 func TestChatFitProjectionRestoresLegacyResultFromItsReceipt(t *testing.T) {
-	result, _ := json.Marshal(noteOutput{Path: "notes/read.md", Content: "Original note text", Revision: "rev"})
+	result, _ := json.Marshal(webcore.NoteOutput{Path: "notes/read.md", Content: "Original note text", Revision: "rev"})
 	op := chat.Operation{Name: "read_note", ToolCallID: "read", State: "completed", Result: result, Citations: []chat.Citation{fitStepSource("read", "notes/read.md", "")}}
 	legacy := oldChatSourceRepresentation(op)
 	request := chat.Request{Messages: []chat.Message{{Role: "user", Content: "TASK"}, fitStepCall("read", "read_note"), {Role: "tool", ToolCallID: "read", Content: legacy}}}
@@ -284,4 +285,19 @@ func TestChatFitOmitsTheLargestResultKeepingItsReceipt(t *testing.T) {
 	if err := f.omitLargeResults(); err != nil || f.stats.Changed || f.stats.AfterTokens <= f.hard {
 		t.Fatalf("unomittable request changed: %+v", f.stats)
 	}
+}
+
+// oldChatSourceRepresentation is how a tool result was kept before sources
+// were compacted. web's context fit tests keep their own copy.
+func oldChatSourceRepresentation(op chat.Operation) string {
+	text := TextLimit(string(op.Result), 12000)
+	if op.Name == "read_note" && len(op.Citations) > 0 {
+		metadata := append([]chat.Citation(nil), op.Citations...)
+		for i := range metadata {
+			metadata[i].Text = ""
+		}
+		raw, _ := json.Marshal(metadata)
+		text += "\nPinned notebook evidence: " + string(raw)
+	}
+	return text
 }

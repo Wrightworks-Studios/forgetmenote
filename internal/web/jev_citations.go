@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
+
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
-	"net/http"
-	"regexp"
-	"strings"
 )
 
 type jevCitationItem = citationchecks.Item
@@ -201,7 +203,7 @@ func (s *Server) citationEvidence(ctx context.Context, user, project string, evi
 	if evidence.Project != "" {
 		project = evidence.Project
 	}
-	ctx, err := s.documentChatScope(ctx, project, "notes", "", "", evidence.Path)
+	ctx, err := s.chatrun.DocumentScope(ctx, project, "notes", "", "", evidence.Path)
 	if err != nil {
 		return workspace.Document{}, err
 	}
@@ -209,7 +211,7 @@ func (s *Server) citationEvidence(ctx context.Context, user, project string, evi
 	if err != nil {
 		return workspace.Document{}, err
 	}
-	doc, current, err := readChatNoteSnapshot(ctx, store, evidence.Path, evidence.Revision)
+	doc, current, err := chatrun.ReadNoteSnapshot(ctx, store, evidence.Path, evidence.Revision)
 	if err != nil {
 		return doc, err
 	}
@@ -463,7 +465,7 @@ func (s *Server) citationFingerprint(ctx context.Context, user, project string) 
 	if err != nil {
 		return "", err
 	}
-	snapshot, err := chatScopedSnapshot(ctx, store, "")
+	snapshot, err := chatrun.ScopedSnapshot(ctx, store, "")
 	if err != nil {
 		return "", err
 	}

@@ -3,10 +3,11 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/chat"
 	"net/http"
 	"strings"
 	"testing"
+
+	"forgetmenote/internal/chat"
 )
 
 func TestShipAAttachedCommittedSourceInvalidatesRetainedAnswer(t *testing.T) {
@@ -22,7 +23,7 @@ func TestShipAAttachedCommittedSourceInvalidatesRetainedAnswer(t *testing.T) {
 	save("notes/alphalaunch.md", "# Alphalaunch\nAn independent launch report.", "")
 	save("notes/attached.md", "# Contract\nThe deadline is Tuesday.", "")
 	store, _ := app.catalog.Access("alice", "default", "read")
-	attachments, err := app.chatAttachments(t.Context(), store, []chat.Attachment{{Kind: "committed", Path: "notes/attached.md"}})
+	attachments, err := app.chatrun.Attachments(t.Context(), store, []chat.Attachment{{Kind: "committed", Path: "notes/attached.md"}})
 	if err != nil {
 		t.Fatal(err)
 	}
