@@ -33,6 +33,13 @@ func researchFetchFixture(t *testing.T, calls ...string) (*Server, chat.Conversa
 		name, args, _ := strings.Cut(calls[n-1], " ")
 		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"id": fmt.Sprint("call-", n), "type": "function", "function": map[string]string{"name": name, "arguments": args}}}}, "finish_reason": "tool_calls"}}})
 	})
+	return app, c, enableSyntheticResearch(t, app)
+}
+
+// enableSyntheticResearch turns on research with a synthetic search and source
+// capture, and returns the URLs fetched so far.
+func enableSyntheticResearch(t *testing.T, app *Server) func() []string {
+	t.Helper()
 	secret := filepath.Join(t.TempDir(), "synthetic-search-secret")
 	if err := os.WriteFile(secret, []byte("synthetic"), 0600); err != nil {
 		t.Fatal(err)
@@ -58,7 +65,7 @@ func researchFetchFixture(t *testing.T, calls ...string) (*Server, chat.Conversa
 		return []chat.ResearchResult{{Title: "Candidate", URL: "https://example.org/found.txt", Description: "Synthetic candidate"}}, chat.Usage{}, nil
 	}
 	app.chat.Mu.Unlock()
-	return app, c, func() []string {
+	return func() []string {
 		mu.Lock()
 		defer mu.Unlock()
 		return append([]string(nil), fetched...)

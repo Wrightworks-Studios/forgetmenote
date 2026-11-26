@@ -17,11 +17,17 @@ import (
 
 func runnerFixture(t *testing.T, handler http.HandlerFunc) (*Server, chat.Conversation) {
 	t.Helper()
+	return runnerFixtureLimits(t, handler, map[string]int{"runSeconds": 10})
+}
+
+// runnerFixtureLimits is runnerFixture with the connection's limits.
+func runnerFixtureLimits(t *testing.T, handler http.HandlerFunc, limits map[string]int) (*Server, chat.Conversation) {
+	t.Helper()
 	app := chatFixture(t)
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	file := filepath.Join(t.TempDir(), "chat.json")
-	raw, _ := json.Marshal(map[string]any{"connections": []any{map[string]any{"id": "local", "label": "Synthetic", "format": "chat-completions", "baseURL": srv.URL, "models": []string{"synthetic"}, "local": true, "capabilities": map[string]bool{"tools": true}, "limits": map[string]int{"runSeconds": 10}}}})
+	raw, _ := json.Marshal(map[string]any{"connections": []any{map[string]any{"id": "local", "label": "Synthetic", "format": "chat-completions", "baseURL": srv.URL, "models": []string{"synthetic"}, "local": true, "capabilities": map[string]bool{"tools": true}, "limits": limits}}})
 	if e := os.WriteFile(file, raw, 0600); e != nil {
 		t.Fatal(e)
 	}
