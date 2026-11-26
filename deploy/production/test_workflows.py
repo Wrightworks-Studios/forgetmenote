@@ -24,9 +24,24 @@ class CheckWorkflowTests(unittest.TestCase):
         self.assertTrue(re.fullmatch(r'\S+ \S+ \* \* [0-6]', triggers['schedule'][0]['cron']), triggers['schedule'])
         self.assertNotIn('if', value['jobs']['vulnerabilities'])
         # Pushes and the schedule run the scan alone; PR and manual tiers keep their events.
-        self.assertEqual(value['jobs']['fast']['if'], "github.event_name == 'pull_request'")
+        self.assertEqual(value['jobs']['fast']['if'], "github.event_name == 'pull_request' || github.event_name == 'merge_group'")
         self.assertEqual(value['jobs']['full']['if'], "github.event_name == 'workflow_dispatch'")
         self.assertEqual(set(value['jobs']), {'vulnerabilities', 'fast', 'full'})
+
+    def test_the_merge_queue_runs_the_fast_tier_against_its_base(self):
+        # next requires fast through its merge queue: a queue entry that never
+        # reports fast would wait until it times out.
+        value, triggers = workflow('check.yml')
+        self.assertIn('merge_group', triggers)
+        self.assertIn("github.event_name == 'merge_group'", value['jobs']['fast']['if'])
+        # fast_check diffs from the merge base of HEAD and BASE; a queue entry's
+        # base is next, or the entry ahead of it.
+        self.assertEqual(value['jobs']['fast']['env']['BASE'],
+                         '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}')
+        fetch = next(step for step in value['jobs']['fast']['steps'] if step.get('uses', '').startswith('actions/checkout@'))
+        self.assertEqual(fetch['with']['fetch-depth'], 0)
+        # Only pull request runs give way to a newer push; queue entries finish.
+        self.assertEqual(value['concurrency']['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}")
 
     def test_every_action_is_pinned_to_a_commit(self):
         for path in sorted((ROOT / '.github/workflows').glob('*.yml')):

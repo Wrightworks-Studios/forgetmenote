@@ -1,8 +1,11 @@
 name: Check
-# Pull requests run the fast tier, a manual run the complete regression. Pushes to
-# main and next and the weekly schedule run only the advisory scan (SECURITY.md).
+# Pull requests and the merge queue run the fast tier, a manual run the complete
+# regression. Pushes to main and next and the weekly schedule run only the
+# advisory scan (SECURITY.md). The queue tests each pull request on top of the
+# ones ahead of it, so next never needs a branch updated by hand.
 on:
   pull_request:
+  merge_group:
   push:
     branches: [main, next]
   schedule:
@@ -32,11 +35,11 @@ jobs:
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - run: npm audit --omit=dev --audit-level=low
   fast:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      BASE: ${{ github.event.pull_request.base.sha }}
+      BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
       JOBS: '2'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
