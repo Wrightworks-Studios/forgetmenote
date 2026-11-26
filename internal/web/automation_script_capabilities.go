@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/messaging"
@@ -277,7 +278,7 @@ func (s *Server) scriptReportIncident(e *scriptExecution, in scriptRequest) (any
 			return nil, errors.New("one incident finding per run")
 		}
 	}
-	if err := s.recordAutomationIncident(r, finding, e.save); err != nil {
+	if err := s.automationrun.RecordIncident(r, finding, e.save); err != nil {
 		return nil, err
 	}
 	return r.Alert, nil
@@ -289,7 +290,7 @@ func (s *Server) scriptReadConnector(e *scriptExecution, in scriptRequest, start
 	if err != nil {
 		return nil, err
 	}
-	result, err := s.automationCall(e.ctx, e.run, call)
+	result, err := s.automationrun.Call(e.ctx, e.run, call)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +314,7 @@ func (s *Server) scriptSubmit(e *scriptExecution, in scriptRequest) (any, error)
 		if err != nil {
 			return nil, err
 		}
-		fresh, err := s.automationCall(ctx, r, read)
+		fresh, err := s.automationrun.Call(ctx, r, read)
 		if err != nil {
 			return nil, err
 		}
@@ -339,7 +340,7 @@ func (s *Server) scriptSubmit(e *scriptExecution, in scriptRequest) (any, error)
 	}
 	writeCtx := chat.WithoutRunScope(ctx)
 	writeCtx = context.WithValue(writeCtx, scopeKey{}, "notes:read data:read data:write")
-	result, err := s.automationCall(writeCtx, r, call)
+	result, err := s.automationrun.Call(writeCtx, r, call)
 	if err != nil {
 		return nil, err
 	}
@@ -485,17 +486,17 @@ func (s *Server) scriptDecisions(e *scriptExecution, in scriptRequest) (any, err
 		return nil, workspace.ErrForbidden
 	}
 	v.Model = r.Spec.Model
-	ctx, model, err := s.automationModelCall(e.ctx, r, func(model automationModel) error {
-		estimate, err := model.provider.EstimateDecisions(v.DecisionsRequest)
+	ctx, model, err := s.automationrun.ModelCall(e.ctx, r, func(model automationrun.Model) error {
+		estimate, err := model.Provider.EstimateDecisions(v.DecisionsRequest)
 		if err != nil {
 			return err
 		}
-		return automationTokenBudget(r, estimate)
+		return automationrun.TokenBudget(r, estimate)
 	})
 	if err != nil {
 		return nil, err
 	}
-	defer model.release()
+	defer model.Release()
 	if err = s.checkAutomationEvidence(ctx, r, true); err != nil {
 		return nil, err
 	}
@@ -505,7 +506,7 @@ func (s *Server) scriptDecisions(e *scriptExecution, in scriptRequest) (any, err
 		}
 		return s.scriptAuthority(e)
 	}
-	result, err := model.provider.Decide(ctx, v.DecisionsRequest)
+	result, err := model.Provider.Decide(ctx, v.DecisionsRequest)
 	r.InputTokens += int(result.Usage.InputTokens)
 	r.OutputTokens += int(result.Usage.OutputTokens)
 	if err != nil {
@@ -685,7 +686,7 @@ func (s *Server) scriptSearch(e *scriptExecution, in scriptRequest) (any, error)
 	}
 	selected, selectedErr := cfg.Resolve(r.Spec.AIConnection, r.Spec.Model)
 	if r.Spec.AIConnection != "" && selectedErr == nil && selected.Cloudflare != nil {
-		_, _, provider, err := s.automationProvider(r.Spec)
+		_, _, provider, err := s.automationrun.Provider(r.Spec)
 		if err != nil {
 			return nil, err
 		}
@@ -717,7 +718,7 @@ func (s *Server) scriptSearch(e *scriptExecution, in scriptRequest) (any, error)
 		}
 		var release func()
 		var err error
-		ctx, release, err = s.reserveAutomationModel(ctx, cfg, connection)
+		ctx, release, err = s.automationrun.ReserveModel(ctx, cfg, connection)
 		if err != nil {
 			return nil, err
 		}

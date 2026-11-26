@@ -78,7 +78,7 @@ func TestAutomationBufferedStreamStillRejectsChangedEvidenceAndAccess(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			answer, err := app.automationAnswer(ctx, &run, "Summarize the source", false)
+			answer, err := app.automationrun.Answer(ctx, &run, "Summarize the source", false)
 			if err == nil || answer != "" || errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
 				t.Fatalf("changed evidence/access must reject the buffered answer without waiting for a timeout: %q %v, context %v", answer, err, ctx.Err())
 			}
@@ -133,7 +133,7 @@ func TestAutomationBufferedStreamAssemblesFragmentedReplies(t *testing.T) {
 				t.Fatal(err)
 			}
 			start := time.Now()
-			answer, err := app.automationAnswer(ctx, &run, "Summarize the source", false)
+			answer, err := app.automationrun.Answer(ctx, &run, "Summarize the source", false)
 			t.Logf("fragments=%d elapsed=%s", fragments, time.Since(start))
 			if err != nil || answer != strings.Repeat("x", 40) {
 				t.Fatalf("buffered answer: %q %v", answer, err)

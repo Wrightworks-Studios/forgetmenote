@@ -102,7 +102,7 @@ func TestIncidentReplyKeepsReceiptsInRunHistory(t *testing.T) {
 	app, _ := fixture(t)
 	configureSlackFixture(t, app)
 	run := automation.Run{ID: automation.Hash("incident-receipts"), Spec: automation.Spec{ID: "health", Kind: "native"}, Receipts: []connectors.Receipt{{ID: "PRIVATE_EXECUTION_RECEIPT", Connection: "logs", Operation: "read"}}}
-	if err := app.recordAutomationIncident(&run, automation.Incident{Active: true, Severity: "critical", Summary: "Production database connections are failing across core services."}, func() error { return nil }); err != nil {
+	if err := app.automationrun.RecordIncident(&run, automation.Incident{Active: true, Severity: "critical", Summary: "Production database connections are failing across core services."}, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if run.Answer != "Alert: Production database connections are failing across core services." || len(run.Receipts) != 1 || run.Receipts[0].ID != "PRIVATE_EXECUTION_RECEIPT" {

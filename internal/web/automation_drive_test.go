@@ -36,7 +36,7 @@ func TestDriveSyncPreviewIncrementalAndEditedSourceConflict(t *testing.T) {
 			spec := automation.Spec{ID: "drive", Kind: "drive-sync", Actor: catalog.Bootstrap, Project: "default", Connections: []string{"drive"}, Drive: &automation.DriveSync{Connection: "drive", Folders: []string{"root"}, Destination: "drive"}}
 			run := func(preview bool) error {
 				r := automation.Run{ID: automation.Hash(time.Now().String()), Spec: spec, DryRun: preview}
-				return app.runAutomation(t.Context(), &r, func() error { return nil })
+				return app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil })
 			}
 			if err = spec.Validate(); err != nil {
 				t.Fatal(err)

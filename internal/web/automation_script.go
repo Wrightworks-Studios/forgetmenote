@@ -98,7 +98,7 @@ func (s *Server) runScript(ctx context.Context, r *automation.Run, save func() e
 		return errors.New("interrupted paid call or write has an unknown outcome; reconcile retained steps before another run")
 	}
 	if cp.Complete {
-		return s.notifyAutomation(ctx, r, save)
+		return s.automationrun.Notify(ctx, r, save)
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(r.Spec.TimeoutSeconds)*time.Second)
 	defer cancel()
@@ -130,7 +130,7 @@ func (s *Server) runScript(ctx context.Context, r *automation.Run, save func() e
 	if !cp.Complete {
 		return errors.New("script exited without a durable completion record")
 	}
-	return s.notifyAutomation(ctx, r, save)
+	return s.automationrun.Notify(ctx, r, save)
 }
 func (s *Server) scriptAuthority(e *scriptExecution) error {
 	if err := s.checkAutomationEvidence(e.ctx, e.run, true); err != nil {

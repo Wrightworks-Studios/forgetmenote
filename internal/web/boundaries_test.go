@@ -94,9 +94,9 @@ func TestContextAuthorityHasKnownSetters(t *testing.T) {
 	setters := map[string][]string{
 		"forgetmenote/internal/automation.WithIdentity": {"internal/web/automation.go", "internal/web/source_jobs.go"},
 		"forgetmenote/internal/chat.WithRunScope":       {"internal/chatrun/citations.go", "internal/chatrun/context.go", "internal/chatrun/controls.go", "internal/chatrun/review.go", "internal/chatrun/round.go", "internal/chatrun/runner.go"},
-		"forgetmenote/internal/chat.WithScope":          {"internal/chatrun/repository.go", "internal/chatrun/scope.go", "internal/web/automation_assistant.go", "internal/web/chat_action_scope.go"},
+		"forgetmenote/internal/chat.WithScope":          {"internal/automationrun/scope.go", "internal/chatrun/repository.go", "internal/chatrun/scope.go", "internal/web/chat_action_scope.go"},
 		"forgetmenote/internal/chat.WithApproval":       {"internal/chatrun/controls.go", "internal/chatrun/runner.go"},
-		"forgetmenote/internal/chat.WithoutRunScope":    {"internal/web/automation.go", "internal/web/automation_script_capabilities.go"},
+		"forgetmenote/internal/chat.WithoutRunScope":    {"internal/automationrun/publish.go", "internal/web/automation_script_capabilities.go"},
 	}
 	owners := map[string]bool{}
 	for setter := range setters {
@@ -541,7 +541,24 @@ func calledName(e ast.Expr) string {
 // through web's own functions. The check follows types, so a function of the
 // same name elsewhere is not a use and a method value is.
 func TestChatRunRunsToolsOnlyThroughItsHook(t *testing.T) {
+	runsToolsOnlyThroughDispatch(t, "chatrun")
+}
+
+// TestAutomationRunRunsToolsOnlyThroughItsHook holds the automation run
+// engine to the same rule: an automation answer's tool call reaches an action
+// only through the engine's DispatchAction hook, which web binds to the same
+// dispatcher.
+func TestAutomationRunRunsToolsOnlyThroughItsHook(t *testing.T) {
+	runsToolsOnlyThroughDispatch(t, "automationrun")
+}
+
+// runsToolsOnlyThroughDispatch fails if the engine in internal/name reaches
+// the action registry or a hub's action other than through its DispatchAction
+// hook, or no longer calls that hook outside its service.go.
+func runsToolsOnlyThroughDispatch(t *testing.T, name string) {
+	t.Helper()
 	code := typedConnectorDependents(t)
+	dir, engine := "internal/"+name+"/", "forgetmenote/internal/"+name
 	const web = "forgetmenote/internal/web"
 	hubs := []string{"forgetmenote/internal/jev", "forgetmenote/internal/messaging", "forgetmenote/internal/personal"}
 	registrars := map[string]int{"addAction": 3, "addManagementTool": 5, "addProjectTool": 5, "notebookJSON": 3}
@@ -621,7 +638,7 @@ func TestChatRunRunsToolsOnlyThroughItsHook(t *testing.T) {
 	registry := []string{"Registry", "Action", "TypedCall", "Schemas"}
 	hooks := 0
 	for id, obj := range code.info.Uses {
-		if !strings.HasPrefix(code.rel(id), "internal/chatrun/") || obj.Pkg() == nil {
+		if !strings.HasPrefix(code.rel(id), dir) || obj.Pkg() == nil {
 			continue
 		}
 		path := obj.Pkg().Path()
@@ -639,12 +656,12 @@ func TestChatRunRunsToolsOnlyThroughItsHook(t *testing.T) {
 				t.Errorf("%s calls an action directly; run tools through the DispatchAction hook", code.rel(id))
 			}
 		}
-		if v, ok := obj.(*types.Var); ok && v.IsField() && v.Name() == "DispatchAction" && path == "forgetmenote/internal/chatrun" && code.rel(id) != "internal/chatrun/service.go" {
+		if v, ok := obj.(*types.Var); ok && v.IsField() && v.Name() == "DispatchAction" && path == engine && code.rel(id) != dir+"service.go" {
 			hooks++
 		}
 	}
 	if hooks == 0 {
-		t.Fatal("chatrun no longer runs tools through its DispatchAction hook")
+		t.Fatal(name + " no longer runs tools through its DispatchAction hook")
 	}
 }
 
@@ -653,8 +670,22 @@ func TestChatRunRunsToolsOnlyThroughItsHook(t *testing.T) {
 // internals, out of production code. Every name that file declares is
 // test-only, so a new one is covered when it is added there.
 func TestChatRunTestExportsStayInTests(t *testing.T) {
+	testExportsStayInTests(t, "chatrun", 20)
+}
+
+// TestAutomationRunTestExportsStayInTests does the same for the automation
+// run engine's testexports.go.
+func TestAutomationRunTestExportsStayInTests(t *testing.T) {
+	testExportsStayInTests(t, "automationrun", 1)
+}
+
+// testExportsStayInTests fails on a production reference to a name that
+// internal/name's testexports.go declares, which must declare at least
+// minimum names.
+func testExportsStayInTests(t *testing.T, name string, minimum int) {
+	t.Helper()
 	code := typedConnectorDependents(t)
-	const path = "forgetmenote/internal/chatrun"
+	path := "forgetmenote/internal/" + name
 	pkg := code.packages[path]
 	if pkg == nil {
 		t.Fatalf("%s was not type-checked", path)
@@ -682,11 +713,11 @@ func TestChatRunTestExportsStayInTests(t *testing.T) {
 			}
 		}
 	}
-	if len(testOnly) < 20 {
-		t.Fatalf("chatrun's testexports.go declares %d names; was it moved?", len(testOnly))
+	if len(testOnly) < minimum {
+		t.Fatalf("%s's testexports.go declares %d names; was it moved?", name, len(testOnly))
 	}
 	for id, obj := range code.info.Uses {
-		if obj.Pkg() == nil || obj.Pkg().Path() != path || !testOnly[obj.Name()] || code.rel(id) == "internal/chatrun/testexports.go" {
+		if obj.Pkg() == nil || obj.Pkg().Path() != path || !testOnly[obj.Name()] || code.rel(id) == "internal/"+name+"/testexports.go" {
 			continue
 		}
 		if fn, ok := obj.(*types.Func); ok && fn.Signature().Recv() != nil && !receiverIs(fn, path, "Service") {
@@ -695,6 +726,6 @@ func TestChatRunTestExportsStayInTests(t *testing.T) {
 		if _, ok := obj.(*types.Func); !ok && obj.Parent() != pkg.Scope() {
 			continue
 		}
-		t.Errorf("%s uses chatrun's %s, which only tests may use", code.rel(id), obj.Name())
+		t.Errorf("%s uses %s's %s, which only tests may use", code.rel(id), name, obj.Name())
 	}
 }

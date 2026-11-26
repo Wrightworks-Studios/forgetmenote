@@ -50,7 +50,7 @@ func TestRecipePerformanceRepairStillRequiresCorrectResults(t *testing.T) {
 				t.Fatal(err)
 			}
 			run := automation.Run{ID: automation.Hash(correct), Spec: automation.Spec{ID: "latency", Kind: "recipe", Actor: "alice", Project: "default", Recipe: doc.Path, Connections: []string{"db"}, AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Checks: []automation.Check{{Name: "count", Block: "count", Call: automation.Call{Connection: "db", Operation: "query"}, MaxDurationMS: 100, Assertions: []automation.Assertion{{Pointer: "/rows/0/0", Equals: json.RawMessage(`7`)}}}}}}
-			err = app.runAutomation(t.Context(), &run, func() error { return nil })
+			err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 			if (err == nil) != correct || aiCalls != 1 {
 				t.Fatal("incorrect acceptance", err, aiCalls)
 			}

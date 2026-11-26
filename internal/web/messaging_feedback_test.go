@@ -27,7 +27,7 @@ func TestMessagingReportsFailureAndClearsProgressWithoutRepeating(t *testing.T) 
 	transport := &feedbackTransport{}
 	app.messageClients["slack"] = transport
 	run := automation.Run{ID: automation.Hash("failed-message"), Spec: automation.Spec{ID: "failed-message", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", Instruction: "Answer this.", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "1.0", User: "U123"}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err == nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err == nil {
 		t.Fatal("provider failure disappeared")
 	}
 	if len(transport.replies) != 1 || !strings.Contains(transport.replies[0].Text, "couldn't finish") || strings.Contains(transport.replies[0].Text, "private provider detail") {
@@ -36,7 +36,7 @@ func TestMessagingReportsFailureAndClearsProgressWithoutRepeating(t *testing.T) 
 	if len(transport.statuses) < 2 || transport.statuses[0] == "" || transport.statuses[len(transport.statuses)-1] != "" {
 		t.Fatal("progress not started and cleared", transport.statuses)
 	}
-	app.runAutomation(t.Context(), &run, func() error { return nil })
+	app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 	if len(transport.replies) != 1 {
 		t.Fatal("terminal failure notification repeated")
 	}

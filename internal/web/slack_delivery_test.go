@@ -59,25 +59,25 @@ func TestScheduledMonitorDeliversOnlyMatchingResultsToAuthorizedRecipient(t *tes
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: automation.Hash("quiet"), Spec: spec}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || posts != 0 {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || posts != 0 {
 		t.Fatal("quiet monitor sent or failed", err, posts)
 	}
 	count = 2
 	run = automation.Run{ID: automation.Hash("alert"), Spec: spec}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || posts != 1 {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || posts != 1 {
 		t.Fatal("alert missing", err, posts)
 	}
 	if len(run.Receipts) != 1 || run.Receipts[0].Connection != "health" {
 		t.Fatal("monitor lost private execution evidence", run.Receipts)
 	}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || posts != 1 {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || posts != 1 {
 		t.Fatal("alert replayed", err, posts)
 	}
 	grant.Users = nil
 	if _, err = app.catalog.SetConnectionAccess(catalog.Bootstrap, grant); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err == nil || posts != 1 {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err == nil || posts != 1 {
 		t.Fatal("revocation ignored", err, posts)
 	}
 }

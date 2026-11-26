@@ -255,7 +255,7 @@ func TestAutomationToolsRefuseNotebookOwnersWhoAreNotAdministrators(t *testing.T
 	// One finished run, with a result and receipts, and one still queued.
 	var finished, queued automationRunStatus
 	json.Unmarshal(call("run_automation", `{"id":"daily","requestId":"finished"}`, admin), &finished)
-	if _, err = app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+	if _, err = app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 		t.Fatal(err)
 	}
 	if r, err := app.automations.Queue.Get(finished.ID); err != nil || r.State != "completed" || r.Result == "" || len(r.Receipts) != 1 {
@@ -386,7 +386,7 @@ func TestAutomationRunStopsOnceItsDefinitionChanges(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
-			app.startAutomations(ctx)
+			app.automationrun.Start(ctx)
 			run := waitAutomationRun(t, app, queued.ID)
 			if run.State != "failed" || run.Error != "automation configuration changed" || requests.Load() != 1 {
 				t.Fatalf("run %s (%s) after %d model requests", run.State, run.Error, requests.Load())

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/workspace"
@@ -241,7 +242,7 @@ func (j *learningJob) finish(ctx context.Context) error {
 	if r.Publication == nil {
 		return nil
 	}
-	if err := j.s.publishAutomation(ctx, r); err != nil {
+	if err := j.s.automationrun.Publish(ctx, r); err != nil {
 		return err
 	}
 	for _, key := range r.Publication.LearningShapes {
@@ -407,7 +408,7 @@ func (j *learningJob) learn(ctx context.Context, target learningTarget, groups m
 	if err != nil {
 		return err
 	}
-	pin := pinPublication(target.path, old)
+	pin := automationrun.PinPublication(target.path, old)
 	key := automation.Hash([]any{target.path, keys})[:16]
 	raw, err := j.candidate(ctx, key, target, groups, old, pin.Hash)
 	if err != nil {
@@ -486,7 +487,7 @@ func (j *learningJob) candidate(ctx context.Context, key string, target learning
 	if err = j.save(); err != nil {
 		return nil, err
 	}
-	answer, err := j.s.automationAnswer(ctx, r, string(prompt), false)
+	answer, err := j.s.automationrun.Answer(ctx, r, string(prompt), false)
 	if err != nil {
 		return nil, err
 	}
@@ -582,7 +583,7 @@ func (s *Server) keepsRecipeChecks(ctx context.Context, r *automation.Run, targe
 	for _, spec := range s.automations.Definitions.Specs() {
 		if spec.Kind == "recipe" && spec.Project == r.Spec.Project && spec.Recipe == target {
 			check := automation.Run{Spec: spec}
-			err := s.checkRecipe(ctx, &check, content)
+			err := s.automationrun.CheckRecipe(ctx, &check, content)
 			r.Receipts = append(r.Receipts, check.Receipts...)
 			if err != nil {
 				return false
@@ -668,7 +669,7 @@ func fillLearningTemplate(value any, source any) (any, error) {
 		return out, nil
 	case string:
 		if strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}") {
-			x, ok := jsonPointer(source, v[2:len(v)-2])
+			x, ok := automation.Pointer(source, v[2:len(v)-2])
 			if !ok {
 				return nil, errors.New("missing learned-template parameter")
 			}
@@ -689,7 +690,7 @@ func (s *Server) validateLearningTemplate(ctx context.Context, r *automation.Run
 		}
 		candidate := event.Call
 		candidate.Arguments = args.(map[string]any)
-		baseline, err := s.automationCall(ctx, r, event.Call)
+		baseline, err := s.automationrun.Call(ctx, r, event.Call)
 		if err != nil {
 			return 0, err
 		}
@@ -702,11 +703,11 @@ func (s *Server) validateLearningTemplate(ctx context.Context, r *automation.Run
 			latency = max(latency, baseline.Receipt.DurationMS)
 			continue
 		}
-		result, err := s.automationCall(ctx, r, candidate)
+		result, err := s.automationrun.Call(ctx, r, candidate)
 		if err != nil {
 			return 0, err
 		}
-		control, err := s.automationCall(ctx, r, event.Call)
+		control, err := s.automationrun.Call(ctx, r, event.Call)
 		if err != nil {
 			return 0, err
 		}

@@ -46,7 +46,7 @@ func TestMessagingRecoversNewArtifactReceiptFromCommittedConversation(t *testing
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal("committed export did not recover", err)
 	}
 	if len(transport.replies) != 1 || len(transport.replies[0].Artifacts) != 1 || transport.replies[0].Artifacts[0].Receipt != "fresh" {
@@ -120,7 +120,7 @@ func TestMessagingExportsSourceResultsAndReusesThemOnFollowup(t *testing.T) {
 		if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+		if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 			t.Fatal(err)
 		}
 		if len(transport.replies) != i+1 || len(transport.replies[i].Artifacts) != 1 {
@@ -187,7 +187,7 @@ func TestMessageAssistantOffersResultBoundArtifacts(t *testing.T) {
 	defer upstream.Close()
 	app.slack.endpoint = upstream.URL + "/chat.postEphemeral"
 	run := automation.Run{ID: automation.Hash("artifact-tools"), Spec: automation.Spec{ID: "artifact-tools", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", Instruction: "Make a chart from the result", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "D123", SlackUser: "U123", Direct: true}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if !found {

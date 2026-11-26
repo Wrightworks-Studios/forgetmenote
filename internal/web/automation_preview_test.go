@@ -39,7 +39,7 @@ func TestAutomationPreviewExecutesReadWithoutPublishing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = app.automations.Queue.RunNext(context.Background(), app.runAutomation)
+	_, err = app.automations.Queue.RunNext(context.Background(), app.automationrun.RunAutomation)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,12 +59,12 @@ func TestAutomationTaskPinsRevisionBeforeModel(t *testing.T) {
 	app.catalog.Member(catalog.Bootstrap, "default", "alice", "edit")
 	run := automation.Run{ID: strings.Repeat("a", 64), DryRun: true, Spec: automation.Spec{ID: "task", Kind: "task", Actor: "alice", Project: "default", AIConnection: "local", ExternalProcessing: true, Instruction: "Write a short note", Output: "task.md"}}
 	var checkpoint automation.Run
-	err := app.runAutomation(context.Background(), &run, func() error { b, _ := json.Marshal(run); json.Unmarshal(b, &checkpoint); return nil })
+	err := app.automationrun.RunAutomation(context.Background(), &run, func() error { b, _ := json.Marshal(run); json.Unmarshal(b, &checkpoint); return nil })
 	if err != nil || !strings.Contains(run.Result, "Generated note") {
 		t.Fatal(err, run.Result)
 	}
 	checkpoint.Publication.Content = ""
-	if err = app.runAutomation(context.Background(), &checkpoint, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &checkpoint, func() error { return nil }); err == nil {
 		t.Fatal("ambiguous generation was repeated")
 	}
 }
@@ -87,7 +87,7 @@ func TestAutomationPreviewRefusedAtItsFinalCheckKeepsNoResult(t *testing.T) {
 		}
 		return nil
 	}
-	if err := app.runAutomation(context.Background(), &run, save); err == nil || run.Result != "" {
+	if err := app.automationrun.RunAutomation(context.Background(), &run, save); err == nil || run.Result != "" {
 		t.Fatalf("refused preview: %v, kept %q", err, run.Result)
 	}
 }
@@ -111,7 +111,7 @@ func TestAutomationInputNotebooksAreReadableAndRevocationApplies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err = app.automationSourceContext(ctx, &r)
+	ctx, err = app.automationrun.SourceContext(ctx, &r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestAutomationPreviewStopsWhenItsActorsAuthorityChanges(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err = app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+			if _, err = app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 				t.Fatal(err)
 			}
 			run, err := app.automations.Queue.Get(queued.ID)

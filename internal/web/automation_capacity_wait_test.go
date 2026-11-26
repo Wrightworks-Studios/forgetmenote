@@ -23,7 +23,7 @@ func TestAutomationWaitsForProviderSlotAndReleasesIt(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	go func() {
-		_, release, err := app.reserveAutomationModel(ctx, config, connection)
+		_, release, err := app.automationrun.ReserveModel(ctx, config, connection)
 		done <- admitted{release, err}
 	}()
 	select {
@@ -61,7 +61,7 @@ func TestAutomationWaitingSlotStopsOnConfigurationReplacement(t *testing.T) {
 	app.chat.Mu.Unlock()
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
-	_, release, err := app.reserveAutomationModel(ctx, config, connection)
+	_, release, err := app.automationrun.ReserveModel(ctx, config, connection)
 	if release != nil {
 		release()
 	}

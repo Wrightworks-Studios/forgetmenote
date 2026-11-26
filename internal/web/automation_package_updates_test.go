@@ -64,7 +64,7 @@ func TestInstalledPackageAutomaticallyFollowsPrimaryBranchWhenOptedIn(t *testing
 	defer cancel()
 	// Only the periodic refresh, not a request, may load the new revision.
 	app.automations.PackageRefresh = 500 * time.Millisecond
-	app.startAutomations(ctx)
+	app.automationrun.Start(ctx)
 	revision := advance(map[string]string{"package/main.py": "def main(host): return {'version': 2}"})
 	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
@@ -165,7 +165,7 @@ func TestInstalledPackageRunsWhereItWasNotPrepared(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
-			app.startAutomations(ctx)
+			app.automationrun.Start(ctx)
 			request, _ = json.Marshal(map[string]string{"id": spec.ID, "requestId": "unprepared-preview"})
 			w = localRequest(app, "/api/organization/action/test_automation", string(request), admin)
 			if w.Code != 200 {
@@ -309,7 +309,7 @@ func TestInstalledPackageStaysPinnedAndReportsAvailableUpdate(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	app.startAutomations(ctx)
+	app.automationrun.Start(ctx)
 	request, _ := json.Marshal(map[string]string{"id": installed.Spec.ID, "requestId": "pinned-version-preview"})
 	w = localRequest(app, "/api/organization/action/test_automation", string(request), admin)
 	if w.Code != 200 {

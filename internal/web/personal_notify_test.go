@@ -186,7 +186,7 @@ func TestPersonalDisconnectedQueueDoesNotBlockOtherWork(t *testing.T) {
 	if _, err = app.automations.Queue.SaveJobState(spec, "", raw, false); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 		t.Fatal("disconnected evidence blocked remaining work", err)
 	}
 	_, state, err = app.personal.ReadState(spec)

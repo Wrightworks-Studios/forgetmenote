@@ -57,7 +57,7 @@ func TestLearningDefersCandidatesThatAreNotCompleteAndSafe(t *testing.T) {
 			})
 			captureLearningExamples(t, app, "count")
 			run := queuedLearningRun(t, app)
-			if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+			if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 				t.Fatal(err)
 			}
 			b := run.Learning
@@ -73,7 +73,7 @@ func TestLearningDefersCandidatesThatAreNotCompleteAndSafe(t *testing.T) {
 				}
 			}
 			// The deferred pattern is settled for this batch.
-			if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || calls != 1 || run.Learning.Deferred != 1 {
+			if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || calls != 1 || run.Learning.Deferred != 1 {
 				t.Fatalf("deferred pattern reanalyzed: calls=%d deferred=%d %v", calls, run.Learning.Deferred, err)
 			}
 		})
@@ -87,7 +87,7 @@ func TestLearningInterruptedCandidateIsNotBoughtAgain(t *testing.T) {
 	run := queuedLearningRun(t, app)
 	interrupted := errors.New("crash after pinning the candidate")
 	var checkpoint []byte
-	err := app.runAutomation(t.Context(), &run, func() error {
+	err := app.automationrun.RunAutomation(t.Context(), &run, func() error {
 		if len(run.Learning.Candidates) > 0 {
 			checkpoint, _ = json.Marshal(run)
 			return interrupted
@@ -101,7 +101,7 @@ func TestLearningInterruptedCandidateIsNotBoughtAgain(t *testing.T) {
 	if err = json.Unmarshal(checkpoint, &restored); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &restored, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &restored, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 0 || restored.Learning.Deferred != 1 || !strings.Contains(restored.Learning.Summary, "Deferred: no complete safe candidate was returned or retained.") || learningRecipes(t, app) != 0 {
@@ -115,7 +115,7 @@ func TestLearningPreviewValidatesWithoutPublishing(t *testing.T) {
 	captureLearningExamples(t, app, "count")
 	run := queuedLearningRun(t, app)
 	run.DryRun = true
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	b := run.Learning
@@ -140,7 +140,7 @@ func TestLearningDefersPatternsWithoutCompleteSuccessfulCalls(t *testing.T) {
 		}
 	}
 	run := queuedLearningRun(t, app)
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	b := run.Learning
@@ -154,13 +154,13 @@ func TestLearningReanalyzesAKnownPatternOnlyWhenItRegresses(t *testing.T) {
 	app, _ := learningFixture(t, func(w http.ResponseWriter, r *http.Request) { calls++; learningAnswer(w, r) })
 	captureLearningExamples(t, app, "count")
 	readyLearningQueue(t, app)
-	if _, err := app.automations.Queue.RunNext(context.Background(), app.runAutomation); err != nil || calls != 1 || learningRecipes(t, app) != 1 {
+	if _, err := app.automations.Queue.RunNext(context.Background(), app.automationrun.RunAutomation); err != nil || calls != 1 || learningRecipes(t, app) != 1 {
 		t.Fatal("first pattern not learned", err, calls)
 	}
 	// Routine successful use is unchanged.
 	captureLearningExamples(t, app, "count")
 	run := queuedLearningRun(t, app)
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || calls != 1 {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || calls != 1 {
 		t.Fatal("unchanged pattern reanalyzed", err, calls)
 	}
 	if run.Learning.Summary != "Unchanged: no eligible new or regressed query patterns.\n" || len(run.Learning.Processed) != 1 {
@@ -171,7 +171,7 @@ func TestLearningReanalyzesAKnownPatternOnlyWhenItRegresses(t *testing.T) {
 		t.Fatal("failure fixture unexpectedly succeeded")
 	}
 	run = queuedLearningRun(t, app)
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 2 || len(run.Learning.Published) != 1 || !strings.HasPrefix(run.Learning.Summary, "Improved: learned/pattern-") {

@@ -61,7 +61,7 @@ func TestSlackThreadRetainsOnlyItsRequestersConversation(t *testing.T) {
 			instruction = "Explain that answer."
 		}
 		run := automation.Run{ID: automation.Hash(i), Spec: automation.Spec{ID: "slack-" + strconv.Itoa(i), Kind: "assistant", Actor: "alice", Project: "default", Instruction: instruction, AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: thread, SlackUser: "U123"}}}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatal(err)
 		}
 		if i == 0 {
@@ -210,7 +210,7 @@ func TestSlackDirectMessagesUseMappedPrivateContext(t *testing.T) {
 	if err != nil || len(runs) != 1 || !runs[0].Spec.Delivery.Direct {
 		t.Fatal("DM was not queued", runs, err)
 	}
-	if _, err = app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || posts != 1 {
+	if _, err = app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || posts != 1 {
 		t.Fatal("DM was not delivered", err, posts)
 	}
 	if strings.Join(progress, ",") != "/reactions.add,/chat.postMessage,/reactions.remove" {
@@ -254,7 +254,7 @@ func TestSlackDirectAnswerArrivesWhenMemoryCannotRecordIt(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body)
 	}
-	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || posts != 1 {
+	if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || posts != 1 {
 		t.Fatal("the DM answer was lost to memory recording", err, posts)
 	}
 }
@@ -276,24 +276,24 @@ func TestSlackPrivateDeliveryReplayAndRevocation(t *testing.T) {
 	run := automation.Run{Spec: automation.Spec{ID: "slack-fixture", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", SlackUser: "U123", Thread: "123.456"}}, Answer: "Private answer"}
 	var checkpoints []string
 	save := func() error { checkpoints = append(checkpoints, run.DeliveryState); return nil }
-	if err := app.runAutomation(t.Context(), &run, save); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, save); err != nil {
 		t.Fatal(err)
 	}
 	if posts != 1 || run.DeliveryState != "sent" || len(checkpoints) != 2 || checkpoints[0] != "sending" || checkpoints[1] != "sent" {
 		t.Fatal(posts, checkpoints)
 	}
-	if err := app.runAutomation(t.Context(), &run, save); err != nil || posts != 1 {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, save); err != nil || posts != 1 {
 		t.Fatal("resent acknowledged delivery", err, posts)
 	}
 	run.DeliveryState = "sending"
-	if err := app.runAutomation(t.Context(), &run, save); err == nil || posts != 1 {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, save); err == nil || posts != 1 {
 		t.Fatal("resent ambiguous delivery", err, posts)
 	}
 	run.DeliveryState = ""
 	if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "alice", Disabled: true}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.runAutomation(t.Context(), &run, save); err == nil || posts != 1 {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, save); err == nil || posts != 1 {
 		t.Fatal("delivered after account revocation", err, posts)
 	}
 }

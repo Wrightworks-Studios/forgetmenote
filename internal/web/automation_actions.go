@@ -385,7 +385,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 		}
 	}
 	if spec.UsesAI() {
-		if _, _, _, err := s.automationProvider(spec); err != nil {
+		if _, _, _, err := s.automationrun.Provider(spec); err != nil {
 			return err
 		}
 	}

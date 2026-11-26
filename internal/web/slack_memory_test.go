@@ -80,7 +80,7 @@ func TestSlackDirectMessagesUseAndKeepThePersonsMemory(t *testing.T) {
 	requests := &slackMemoryRequests{remember: `{"items":[{"text":"Alice reviews service health every Monday.","kind":"fact"}]}`}
 	app, posts := slackMemoryFixture(t, requests, true)
 	signedSlackMessage(t, app, "EvMemory", "message", "D123", "", "123.456", "What do I usually check on Mondays?")
-	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || *posts != 1 {
+	if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || *posts != 1 {
 		t.Fatal("the DM was not answered", err, *posts)
 	}
 	if len(requests.prompts) != 2 || !strings.Contains(requests.prompts[0], "Alice owns the Denver office rollout.") || !strings.Contains(strings.Join(requests.tools[0], ","), "remember") {
@@ -139,7 +139,7 @@ func TestSlackMemoryStaysOutOfChannelsAndOffAccounts(t *testing.T) {
 			requests := &slackMemoryRequests{}
 			app, posts := slackMemoryFixture(t, requests, send.memory)
 			signedSlackMessage(t, app, "EvNoMemory", send.kind, send.channel, "", "123.456", "<@UBOT> What do I usually check on Mondays?")
-			if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || *posts != 1 {
+			if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || *posts != 1 {
 				t.Fatal("the message was not answered", err, *posts)
 			}
 			if len(requests.prompts) != 1 || strings.Contains(requests.prompts[0], "Denver office rollout") || strings.Contains(strings.Join(requests.tools[0], ","), "remember") {
