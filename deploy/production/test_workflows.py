@@ -14,6 +14,26 @@ def workflow(name):
     return value, value.get('on', value.get(True))
 
 
+def assert_failed_gate_uploads_its_evidence(test, steps):
+    """The gate prints only the end of a failed log; GitHub discards the rest with the runner."""
+    gate = next(index for index, step in enumerate(steps) if 'release_image.py' in step.get('run', ''))
+    uploads = [step for step in steps if step.get('if') == 'failure()']
+    test.assertEqual(len(uploads), 1)
+    upload = uploads[0]
+    test.assertGreater(steps.index(upload), gate)
+    test.assertTrue(upload['uses'].startswith('actions/upload-artifact@'))
+    # Anyone signed in can read a public repository's artifacts: only the check logs,
+    # browser report and traces of synthetic data, never the snapshots beside them.
+    state = '~/.cache/forgetmenote/releases/${{ github.sha }}/'
+    test.assertEqual(upload['with']['path'].splitlines(), [state + name for name in (
+        '*.log', '*.report.json', 'verification.json', 'browser-*-results/')])
+    test.assertNotIn('include-hidden-files', upload['with'])
+    # A re-run keeps the first attempt's evidence.
+    test.assertIn('${{ github.run_attempt }}', upload['with']['name'])
+    test.assertNotIn('overwrite', upload['with'])
+    test.assertLessEqual(upload['with']['retention-days'], 7)
+
+
 class CheckWorkflowTests(unittest.TestCase):
     def test_advisory_scan_runs_on_every_push_pull_request_and_weekly(self):
         value, triggers = workflow('check.yml')
@@ -55,6 +75,10 @@ class CheckWorkflowTests(unittest.TestCase):
         for action in ('docker/setup-buildx-action', 'crazy-max/ghaction-github-runtime', 'actions/cache'):
             self.assertLess(uses.index(action), gate, action)
 
+    def test_failed_full_check_uploads_its_logs_reports_and_traces(self):
+        value, _ = workflow('check.yml')
+        assert_failed_gate_uploads_its_evidence(self, value['jobs']['full']['steps'])
+
 
 class PublishWorkflowTests(unittest.TestCase):
     def setUp(self):
@@ -82,6 +106,9 @@ class PublishWorkflowTests(unittest.TestCase):
         gate = next(step for step in verify['steps'] if 'release_image.py' in step.get('run', ''))
         self.assertIn('--verify-only --since-published', gate['run'])
         self.assertEqual(gate['env'], {'FMN_IMAGE_CACHE': 'gha'})
+
+    def test_failed_gate_uploads_its_logs_reports_and_traces(self):
+        assert_failed_gate_uploads_its_evidence(self, self.jobs['verify']['steps'])
 
     def test_publication_signs_only_what_the_gate_verified_and_runs_no_project_checks(self):
         publish = self.jobs['publish']
