@@ -1,7 +1,7 @@
 import {icon} from './icons.mjs';
 import {openDialog,dialogShell} from './overlay.mjs';
 import {element as el,actionButton} from './dom.mjs';
-import {poll} from './state.mjs';
+import {poll,moduleOn} from './state.mjs';
 import {notebookPath} from './request.mjs';
 import {feedback} from './feedback.mjs';
 // The configured decision model supplies review judgments. Workspace changes remain explicit guarded actions.
@@ -67,7 +67,7 @@ export function initJudgments({api,post,getUser,getProject,getProjects=()=>[],op
  function canEdit(id){return !!getUser()?.admin || ['edit','owner'].includes(member(id)?.role);}
  function canManage(id){return !!getUser()?.admin || member(id)?.role==='owner';}
  async function refreshNotifications(more=false) {
-  if(!account || account==='@local-admin')return;
+  if(!account || account==='@local-admin' || off())return;
   const t=token(),request=++notificationRequest,version=notificationsVersion,previous=notificationData;
   const current=()=>valid(t)&&request===notificationRequest&&version===notificationsVersion;
   const append=more===true&&previous&&Number.isInteger(previous.next);
@@ -140,6 +140,7 @@ export function initJudgments({api,post,getUser,getProject,getProjects=()=>[],op
   card.append(actions);return card;
  }
  async function openSettings() {
+  if(off())return;
   const t=token(),version=++settingsVersion;settingsBody.replaceChildren(el('p','Loading…'));settings.show();
   try{const data=await api('/api/judgments/settings',requestOptions());if(!valid(t)||version!==settingsVersion||!settings.dialog.open)return;personal=data;renderSettings();}catch(e){if(valid(t))settings.fail(e);}
  }
@@ -152,6 +153,7 @@ export function initJudgments({api,post,getUser,getProject,getProjects=()=>[],op
  }
 
  async function openChecks() {
+  if(off())return;
   const t=token(),id=getProject()?.id,version=++reviewVersion;if(!id)return;selectedJob='';currentJob=null;jobRequest++;jobTimer?.stop();
   reviewBody.replaceChildren(el('p','Loading…'));review.show();
   try{const values=await Promise.all([api('/api/judgments/settings',requestOptions()),api(notebookPath(id)+'/api/judgments/settings',requestOptions()),api(notebookPath(id)+'/api/judgments/jobs',requestOptions())]);if(!checksActive(t,version))return;[personal,notebook]=values;renderChecks(values[2].jobs || []);}catch(e){failChecks(e,t,()=>checksActive(t,version));}
@@ -293,7 +295,7 @@ export function initJudgments({api,post,getUser,getProject,getProjects=()=>[],op
   }catch(e){failChecks(e,t,selected);}
  }
  function mountCitationChecks(host,scope) {
-  const t=token();if(scope.project!==project || !scope.valid())return;
+  const t=token();if(off() || scope.project!==project || !scope.valid())return;
   const key=scope.project+'/'+scope.chat+'/'+scope.run;const endpoint=notebookPath(scope.project)+'/api/chat/'+encodeURIComponent(scope.chat)+'/runs/'+encodeURIComponent(scope.run)+'/citations';
   const current=()=>valid(t)&&scope.valid()&&host.isConnected;
   async function load(recheck=false) {
@@ -320,9 +322,14 @@ export function initJudgments({api,post,getUser,getProject,getProjects=()=>[],op
   }
   if(checks.has(key))render(checks.get(key));load();
  }
+ // An instance that turns judgments off serves none of their routes, so their
+ // buttons, notifications and citation checks are left out.
+ function off() {return !moduleOn(getUser(),'judgments');}
  function projectChanged() {
-  const user=getUser()?.id || '',next=getProject()?.id || '';if(user!==account)submissions.clear();clear();account=user;project=next;bell.hidden=!user||user==='@local-admin';
+  const user=getUser()?.id || '',next=getProject()?.id || '';if(user!==account)submissions.clear();clear();account=user;project=next;bell.hidden=off()||!user||user==='@local-admin';
+  for(const id of ['judgments-settings-open','judgments-review-open'])document.getElementById(id).hidden=off();
   document.getElementById('judgments-review-open').disabled=!next;
+  if(off())return;
   refreshNotifications();const t=token();timer?.stop();timer=poll(()=>refreshNotifications(),{every:30000,active:()=>valid(t)});
  }
  bell.onclick=()=>{notificationsVersion++;notificationData=null;notifications.show();list.replaceChildren(el('p','Loading…'));refreshNotifications();};

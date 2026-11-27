@@ -6,6 +6,7 @@ import (
 	"forgetmenote/internal/blob"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/gitexport"
+	"forgetmenote/internal/modules"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/web"
 	"io"
@@ -23,6 +24,9 @@ type Options struct {
 	// Blobs keeps files and notebook content blocks outside the database, or
 	// is nil for the data directory. The runtime closes it.
 	Blobs blob.Store
+	// Modules is the module set the instance runs, from instance.json's
+	// modules.off; the zero set runs every module.
+	Modules modules.Set
 }
 
 // Runtime owns an instance from store opening through request drain. Provider
@@ -81,7 +85,7 @@ func Open(options Options) (*Runtime, error) {
 	if err = r.Notes.Export(options.Data, gitexport.Options{Notebooks: catalogNotebooks(r.Catalog)}); err != nil {
 		return fail(err)
 	}
-	if r.Server, err = web.NewWithBlobs(r.Catalog, options.Database, r.Blobs, options.Data, options.Origin, options.Token); err != nil {
+	if r.Server, err = web.NewWithBlobs(r.Catalog, options.Database, r.Blobs, options.Modules, options.Data, options.Origin, options.Token); err != nil {
 		return fail(err)
 	}
 	r.Notes.Exporter.Start()

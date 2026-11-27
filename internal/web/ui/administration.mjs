@@ -8,6 +8,7 @@ import {initChatClients} from './chat-clients.mjs';
 import {initTaskQueues} from './task-queues.mjs';
 import {contextMenuPosition} from './editor.mjs';
 import {notebookPath} from './request.mjs';
+import {moduleOn} from './state.mjs';
 const roles = {owner:'Owner', edit:'Editor', comment:'Commenter', read:'Reader'};
 const nameOf = (person, names = {}) => person.displayName || names[person.id] || (person.id === '@local-admin' ? 'Recovery administrator' : person.id);
 function identity(name, id) {
@@ -32,6 +33,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
   const taskCategory=document.querySelector('#admin-dialog [data-settings-category=tasks]');
   taskCategory.addEventListener('click',()=>taskQueues.open());
   const aiCategory=document.querySelector('#admin-dialog [data-settings-category=ai]');
+  const connectionsCategory=document.querySelector('#admin-dialog [data-settings-category=connections]');
   aiCategory.addEventListener('click',()=>ai.open());
   const manages = project => !!project && (getUser()?.admin || project.role === 'owner');
 
@@ -227,6 +229,8 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     try {
     await reloadProjects();if(!page.active())return;
     if (!getUser().admin) { closeSettingsPage($('admin-dialog')); return; }
+    connectionsCategory.hidden=!moduleOn(getUser(),'data-connections');
+    if(connectionsCategory.hidden && connectionsCategory.getAttribute('aria-pressed')==='true')document.querySelector('#admin-dialog [data-settings-category=people]').click();
     const data=await api('/api/admin');if(!page.active())return;directory=data;
     await organization.load(directory,page.active);if(!page.active())return;
     if(aiCategory.getAttribute('aria-pressed')==='true')await ai.open();

@@ -70,11 +70,35 @@ modules that depend on them:
 An unknown name fails before the application opens, and so does a module left
 on while one it needs is off; that error names both modules.
 
-Turning modules off is not supported yet. Each module's wiring lands
-separately, and until it has, startup refuses an `off` list that names the
-module, so that no module runs while its operator believes it is off. The
-setting is read once at startup, before recovery; changing it means restarting
-every gateway. It has no legacy environment variable. The startup log and
+Three modules can be turned off so far: `judgments`, `data-connections` and
+`sources`. Each other module's wiring lands separately, and until it has,
+startup refuses an `off` list that names the module, so that no module runs
+while its operator believes it is off. An instance that turns a module off:
+
+- offers none of its tools: they are absent from MCP and `/api/v1/actions`,
+  and its routes answer 404;
+- runs none of its workers and takes none of its leases. With `sources` off,
+  startup still expires the source jobs left from when the module ran and
+  removes their files;
+- reads none of its settings: with `judgments` off, `ai.decisions` and chat's
+  judgment settings are ignored, and with `data-connections` off,
+  `integrations.data`. Their credentials stay where the operator put them,
+  unread;
+- keeps its data. Migrations still run, its records and files stay, account
+  deletion and purge still reach them, and turning the module on again finds
+  them as they were. Archived sources stay readable notes with their originals;
+  they are neither updated nor verified while `sources` is off.
+
+What other features ask of an off module answers that it is not available:
+chat installs no judge and search offers no judgment ranking, and a person's
+saved data watches are skipped and kept, so their assistant goes on without
+them and they cannot be changed until data connections are on again. The
+browser leaves out the module's controls, and Administration's AI settings and
+instance status say it is off.
+
+The setting is read once at startup, before recovery; changing it means
+restarting every gateway, and a configuration reload with a different set is
+refused. It has no legacy environment variable. The startup log and
 Administration's instance status list each module and whether it is on.
 
 Configured providers do not enable AI processing or grant notebook access.

@@ -61,6 +61,7 @@ For operators:
 - Python automation packages sandboxed by default (Linux Landlock, no instance files or sockets), with an explicit `"sandbox": false` opt-out per installation.
 - Automatic notebook search ranks independent keywords with the chat BM25 index, then partial-word matches; Text stays a literal phrase match. Pressing Enter can ask for a judgment ranking of the leading results once.
 - The Jev feature is now called judgments: it is provider-neutral, and TypeSafe's Jev is one decision model it can use. Its routes move from `/api/jev/*` to `/api/judgments/*`; each former path serves the same route with the same checks for one more release. The `jev_*` tables, the `jev` configuration keys and the `jev` smoke scenario keep their names.
+- An instance can turn off judgments, data connections and archived sources with `modules.off` in `instance.json`. An off module offers no tools, its routes answer 404, it runs no workers, reads none of its settings and keeps its data, which account deletion and purge still reach; the browser leaves out its controls and Administration says it is off. The other modules cannot be turned off yet. See [instance configuration](docs/instance-configuration.md).
 - Folders can move to Archives or Drafts and back. Search leaves Archives out by default, as it does Trash; cancelled requests log as 499 instead of 500.
 
 Storage updates require a completed stopped-instance backup and the recovery

@@ -90,6 +90,11 @@ func (s *Server) acquireSourceWork(ctx context.Context) (func(), error) {
 		return nil, ctx.Err()
 	}
 }
+
+// initSourceJobs opens the source jobs. On an instance that turns the sources
+// module off it closes them again at once: opening still expires the jobs
+// left from when the module ran and removes their files, and after that no
+// source work runs.
 func (s *Server) initSourceJobs() error {
 	jobs, err := sources.OpenJobs(s.db, s.blobs, s.data, func(ctx context.Context, scope sources.JobScope) error {
 		_, err := s.sourceContext(ctx, scope)
@@ -97,6 +102,10 @@ func (s *Server) initSourceJobs() error {
 	})
 	if err != nil {
 		return err
+	}
+	if !s.modules.Enabled("sources") {
+		jobs.Close()
+		return nil
 	}
 	s.sourceJobs = jobs
 	jobs.SetHosted(s.hostedSource)
@@ -108,6 +117,10 @@ func (s *Server) initSourceJobs() error {
 		},
 	})
 	return err
+}
+
+func (s *Server) sourceRoutes(r routeRegistrar) {
+	s.sourceHTTP.Register(r.project)
 }
 
 type sourceJobOutput = sourcehttp.JobOutput

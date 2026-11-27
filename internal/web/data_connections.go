@@ -20,7 +20,13 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// ConfigureDataConnections and ConfigureDataConnectionsConfig install the
+// data connections. On an instance that turns the data-connections module off
+// they install nothing, and the file and its credentials stay unread.
 func (s *Server) ConfigureDataConnections(file string) error {
+	if !s.modules.Enabled("data-connections") {
+		return nil
+	}
 	if err := s.privateRuntimeFile(file); err != nil {
 		return err
 	}
@@ -36,6 +42,9 @@ func (s *Server) ConfigureDataConnectionsConfig(cfg connectors.Config) error {
 		return err
 	}
 	defer unlock()
+	if !s.modules.Enabled("data-connections") {
+		return nil
+	}
 
 	manager, err := connectors.New(cfg)
 	if err != nil {
@@ -238,8 +247,9 @@ func (s *Server) observeRecipeUsage(ctx context.Context, in dataCall, receipt co
 		_ = s.catalog.RecordActivity(subject(ctx), "recipe.maintenance", in.Project, state, map[string]string{"job": spec.ID})
 	}
 }
+
+// dataConnectionTools are the data-connections module's tools.
 func (s *Server) dataConnectionTools(server *mcp.Server) {
-	s.dataEffectTools(server)
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 	addAction(s, server, &mcp.Tool{Name: "list_data_connections", Description: "List live data connections this identity can use. Credentials and endpoints are not returned.", Annotations: readOnly}, func(ctx context.Context, in struct {
 		Project string `json:"project,omitempty"`
@@ -280,13 +290,13 @@ func (s *Server) dataConnectionTools(server *mcp.Server) {
 		}
 		return s.catalog.SetConnectionAccess(subject(ctx), in)
 	})
-	addManagementTool(s, server, "bind_external_identity", "Bind an external issuer/subject to an existing account as instance administrator. Never use an email match as proof of identity.", false, func(ctx context.Context, in struct {
-		Issuer  string `json:"issuer"`
-		Subject string `json:"subject"`
-		User    string `json:"user"`
-	}) (actionResult, error) {
-		err := s.catalog.BindExternalIdentity(subject(ctx), in.Issuer, in.Subject, in.User)
-		return actionResult{err == nil}, err
+	addManagementTool(s, server, "data_connection_effects", "Inspect durable write outcomes. An unknown outcome blocks further writes to this connection until an administrator reconciles it.", true, func(ctx context.Context, in struct {
+		Connection string `json:"connection"`
+	}) ([]automation.Effect, error) {
+		if !s.catalog.IsAdmin(subject(ctx)) {
+			return nil, workspace.ErrForbidden
+		}
+		return s.automations.Queue.Effects("connector:" + in.Connection)
 	})
 }
 

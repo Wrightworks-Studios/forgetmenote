@@ -19,6 +19,10 @@ export function createApplicationState(initial) {
   };
 }
 
+// Whether the instance runs a feature module. /api/me names the modules it
+// turns off, so an account without that list runs every module.
+export function moduleOn(account,name) {return !(account?.modulesOff || []).includes(name);}
+
 // Each sequence is owned by one independent request lifetime. Navigation,
 // previews and metadata must not accidentally cancel one another. A fetch that
 // passes `signal()` is aborted when a newer request of its sequence begins.

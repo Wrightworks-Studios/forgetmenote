@@ -1,6 +1,6 @@
 import {initSettingsPages,closeSettingsPage} from './settings-pages.mjs';
 import {feedback,confirmAction,dismissConfirmation} from './feedback.mjs';
-import {createApplicationState,requestSequence} from './state.mjs';
+import {createApplicationState,requestSequence,moduleOn} from './state.mjs';
 import {icon,setLabel} from './icons.mjs';
 import {initSearch,searchToURL} from './search.mjs';
 import {initQuicknotes} from './quicknotes.mjs';
@@ -314,10 +314,14 @@ function noteAssetURL(href) {
   return link && !link.external && !link.project ? assetURL(project.id,link.path) : null;
 }
 function canEdit(p = project) { return p?.kind!=="repository" && ["edit", "owner"].includes(p?.role); }
+// Whether the instance runs the sources module, which imports sources.
+function sourcesOn() { return moduleOn(user,'sources'); }
 function canCreate() { return canEdit() && !project?.protectedInbox && (current !== null || browsingFolder !== null || inboxVisible); }
 function updateCreationControls() {
   $("search-open").disabled=!project || (!current && browsingFolder===null && !inboxVisible && $("source-document").hidden && $("source-browser").hidden);
   for (const button of document.querySelectorAll("#new-note, #create-source, #first-note, #first-source, #empty-source")) button.disabled = !canCreate();
+  // Set only on a change: a mutation observer runs these controls again.
+  for (const id of ["create-source","first-source","create-source-tab"]) if ($(id).hidden === sourcesOn()) $(id).hidden = !sourcesOn();
   $("notebook-outline").hidden=!project || ($("folder-browser").hidden && $("source-browser").hidden);
   $("note-context-toggle").disabled=!current;
   $("note-creation").hidden=!canCreate();
@@ -848,6 +852,7 @@ function syncMobileNavigation(){
   if(id==="browse-root")button.textContent=project?.kind==="repository"?"Files":"Notes";
   const disabled=source.disabled || source.hidden;
   if(button.disabled!==disabled)button.disabled=disabled;
+  if(id==="create-source"&&button.hidden===sourcesOn())button.hidden=!sourcesOn();
   if(["browse-root","search-open","inbox-open","review-open"].includes(id))button.setAttribute("aria-current",(id==="search-open"?search.isOpen:id==="inbox-open"?inboxVisible || project?.protectedInbox:id==="browse-root"?!search.isOpen && !inboxVisible && !project?.protectedInbox:false)?"page":"false");
  }
 }
@@ -941,7 +946,7 @@ const trash=initTrash({api,post,getProject:appState.notebook,canManage,notice,
  afterMove:async paths=>{if(paths.includes(current?.path)){$('properties-dialog').close();clearDisplayedNote();saving=false;await openFolder('')}else if(paths.length>1 && browsingFolder!==null){saving=false;await openFolder(browsingFolder,false)}},
  refresh:()=>refreshNotebook({invalidate:true})
 });
-const sourceBrowser = initSources({api,post,notice,getProject:appState.notebook,getNote:appState.note,getFolder:()=>browsingFolder ?? current?.path.split("/").slice(0,-1).join("/") ?? "",present:creation.showSource,onBusy:creation.setSourceBusy,canEdit,dirty,openNote,refresh:()=>refreshNotebook(),insertCitation:text=>{
+const sourceBrowser = initSources({api,post,notice,available:sourcesOn,getProject:appState.notebook,getNote:appState.note,getFolder:()=>browsingFolder ?? current?.path.split("/").slice(0,-1).join("/") ?? "",present:creation.showSource,onBusy:creation.setSourceBusy,canEdit,dirty,openNote,refresh:()=>refreshNotebook(),insertCitation:text=>{
  if(!current?.editable || saving)return;
  noteEditor.setRangeText('\n\n'+text+'\n\n',noteEditor.selectionStart,noteEditor.selectionEnd,'end');remember();setMode(true);countWords();preview();noteEditor.focus();
 }});
@@ -1003,7 +1008,7 @@ const search=initSearch({api,post,retrievalSettings,notice,renderCollections,ope
   onStateChange:snapshot=>publishSearchRoute(snapshot),
   onVisibilityChange:syncMobileNavigation,
   openCitation:(...args)=>knowledge.openCitation(...args),openTrash:id=>trash.open(id),
-  openSource:(...args)=>repositories.file(...args),addSource:()=>sourceBrowser.open(),
+  openSource:(...args)=>repositories.file(...args),addSource:()=>sourceBrowser.open(),sourcesOn,
 });
 function publishSearchRoute(snapshot,push=false){
  const query=searchToURL(new URLSearchParams(location.search),snapshot);

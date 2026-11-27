@@ -5,6 +5,7 @@ import (
 	"errors"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/instanceconfig"
+	"forgetmenote/internal/modules"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/pg/pgtest"
 	"io/fs"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -265,7 +267,7 @@ func TestRestartKeepsTheNotebooksGitExports(t *testing.T) {
 	testGit(t, export, "fsck", "--strict")
 }
 
-// Until module wiring lands, an instance that turns a module off refuses to
+// An instance that turns off a module whose wiring has not landed refuses to
 // open; with an empty or absent modules section it opens and serves as
 // before, runs every module, and keeps that set until it restarts.
 func TestRuntimeRefusesModulesOffAndOpensWithoutThem(t *testing.T) {
@@ -311,6 +313,39 @@ func TestRuntimeRefusesModulesOffAndOpensWithoutThem(t *testing.T) {
 		}
 		if err := runtime.Server.ConfigureModules(nil); err == nil {
 			t.Fatal("the module set changed after request admission")
+		}
+	}
+}
+
+// The module set is decided before the server is built, from the same
+// instance.json that configures it: the runtime runs the modules it was
+// opened with, and refuses a configuration that names another set rather
+// than run modules its operator turned off, or leave out ones they did not.
+func TestRuntimeRunsTheModulesItOpensWith(t *testing.T) {
+	off := []string{"sources", "judgments"}
+	set, err := modules.Parse(off)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := options(t)
+	opts.Modules = set
+	runtime, err := Open(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Close()
+	for _, other := range [][]string{nil, {"sources"}, {"judgments", "sources", "data-connections"}} {
+		err := runtime.Server.ConfigureInstance(instanceconfig.Resolved{Config: instanceconfig.Config{Version: 1, Modules: instanceconfig.Modules{Off: other}}})
+		if err == nil || !strings.Contains(err.Error(), "instance modules") || !strings.Contains(err.Error(), "restart") {
+			t.Fatalf("%v: %v", other, err)
+		}
+	}
+	if err := runtime.Server.ConfigureInstance(instanceconfig.Resolved{Config: instanceconfig.Config{Version: 1, Modules: instanceconfig.Modules{Off: []string{"judgments", "sources"}}}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, module := range runtime.Server.Modules().States() {
+		if module.Enabled == slices.Contains(off, module.Name) {
+			t.Fatalf("%s enabled=%v", module.Name, module.Enabled)
 		}
 	}
 }

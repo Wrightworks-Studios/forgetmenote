@@ -3,9 +3,9 @@
 //
 // Every module is on unless instance.json's modules.off names it. The list is
 // fixed in code, like internal/integrations: nothing registers at runtime, and
-// the release image runs every module. A module that is off is meant to be
-// absent on every transport while its stored data stays; each module's wiring
-// lands separately, and until it has, modules.off refuses to name it.
+// the release image runs every module. A module that is off is absent on every
+// transport while its stored data stays. Each module's wiring lands
+// separately, and until it has, modules.off refuses to name it.
 package modules
 
 import (
@@ -34,9 +34,9 @@ type Module struct {
 var all = []Module{
 	{Name: "chat", Title: "Notebook chat"},
 	{Name: "automations", Title: "Automations"},
-	{Name: "judgments", Title: "Judgments"},
-	{Name: "data-connections", Title: "Data connections", Integrations: []string{"postgres", "redshift"}},
-	{Name: "sources", Title: "Archived sources", Integrations: []string{"ocr", "iwork", "outlook"}},
+	{Name: "judgments", Title: "Judgments", wired: true},
+	{Name: "data-connections", Title: "Data connections", Integrations: []string{"postgres", "redshift"}, wired: true},
+	{Name: "sources", Title: "Archived sources", Integrations: []string{"ocr", "iwork", "outlook"}, wired: true},
 	{Name: "repositories", Title: "Repository notebooks"},
 	{Name: "tasks", Title: "Task queues", Requires: []string{"automations"}},
 	{Name: "messaging", Title: "Slack messaging", Requires: []string{"automations", "tasks", "memory", "chat"}, Integrations: []string{"slack"}},
@@ -96,7 +96,7 @@ func Parse(off []string) (Set, error) {
 		for _, name := range names(unwired) {
 			quoted = append(quoted, strconv.Quote(name))
 		}
-		return Set{}, fmt.Errorf("modules.off names %s: turning modules off is not supported yet, so this release runs every module; remove them from modules.off", strings.Join(quoted, ", "))
+		return Set{}, fmt.Errorf("modules.off names %s: turning these modules off is not supported yet; remove them from modules.off", strings.Join(quoted, ", "))
 	}
 	return set, nil
 }
@@ -109,6 +109,16 @@ func lookup(name string) Module {
 		panic("unknown module " + name)
 	}
 	return module
+}
+
+// Equal reports whether two sets run the same modules.
+func (s Set) Equal(other Set) bool {
+	for _, module := range all {
+		if s.off[module.Name] != other.off[module.Name] {
+			return false
+		}
+	}
+	return true
 }
 
 // Enabled reports whether the set runs the named module.

@@ -35,15 +35,16 @@ func (s *Server) mcpHandler() http.Handler {
 	s.personalUITools(server)
 	s.personalRecoveryTools(server)
 	s.connectionTools(server)
-	s.dataConnectionTools(server)
+	s.automationEffectTools(server)
 	s.automationTools(server)
 	s.authorityTools(server)
 	s.collaborationTools(server)
 	s.trashTools(server)
 	s.commentTools(server)
 	s.purgeTools(server)
-	s.sourceTools(server)
 	s.repositoryTools(server)
+	// The tools of the feature modules this instance runs.
+	s.moduleTools(server)
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 	addAction(s, server, &mcp.Tool{Name: "list_projects", Description: "List only the projects this user can access and their Read, Comment, Edit, or Owner role.", Annotations: readOnly}, func(ctx context.Context, in struct{}) ([]catalog.Project, error) {
 		return s.clientProjects(ctx, subject(ctx)), nil

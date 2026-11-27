@@ -23,6 +23,7 @@ import (
 	"forgetmenote/internal/client"
 	"forgetmenote/internal/instanceconfig"
 	"forgetmenote/internal/integrations"
+	"forgetmenote/internal/modules"
 	// The hidden "forgetmenote sandbox-exec" helper that confines local document
 	// extractors. Its init handles that subcommand before main runs.
 	_ "forgetmenote/internal/sandbox"
@@ -197,6 +198,11 @@ func runArguments(args []string) error {
 			return errors.New("unknown command")
 		}
 	}
+	// The module set decides what the server builds, so it is read first.
+	set, err := modules.Parse(configured.Config.Modules.Off)
+	if err != nil {
+		return fmt.Errorf("instance modules: %w", err)
+	}
 	// Serve never migrates: a rollout runs forgetmenote migrate first.
 	database, err := requireDatabase(context.Background(), configured.Config.Server.Database)
 	if err != nil {
@@ -207,7 +213,7 @@ func runArguments(args []string) error {
 		database.Close()
 		return err
 	}
-	runtime, err := runtimeapp.Open(runtimeapp.Options{Data: *data, Origin: strings.TrimSuffix(*public, "/"), Token: strings.TrimSpace(string(raw)), BrowseExcluded: browseExcluded, Database: database, Blobs: blobs})
+	runtime, err := runtimeapp.Open(runtimeapp.Options{Data: *data, Origin: strings.TrimSuffix(*public, "/"), Token: strings.TrimSpace(string(raw)), BrowseExcluded: browseExcluded, Database: database, Blobs: blobs, Modules: set})
 	if err != nil {
 		database.Close()
 		if closer, ok := blobs.(io.Closer); ok {

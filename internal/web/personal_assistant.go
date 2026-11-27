@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/personal"
+	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -112,10 +114,24 @@ func (s *Server) personalAssistantTools(server *mcp.Server) {
 		if _, token := credentialFrom(ctx); token {
 			return catalog.AssistantSettings{}, workspace.ErrForbidden
 		}
-		for _, watch := range in.Watches {
-			op, ok := s.dataConnections.ConfiguredOperation(watch.Connection, watch.Operation)
-			if !ok || !op.ReadOnly || !s.dataAllowed(ctx, watch.Connection, watch.Operation) {
-				return catalog.AssistantSettings{}, workspace.ErrForbidden
+		if !s.modules.Enabled("data-connections") {
+			// Watches read data connections. With the module off they stay
+			// as saved, unchecked, for when it runs again.
+			current, err := s.catalog.Assistant(subject(ctx))
+			if err != nil {
+				return catalog.AssistantSettings{}, err
+			}
+			if !slices.EqualFunc(in.Watches, current.Watches, func(a, b catalog.AssistantWatch) bool {
+				return a.Connection == b.Connection && a.Operation == b.Operation && bytes.Equal(a.Arguments, b.Arguments)
+			}) {
+				return catalog.AssistantSettings{}, webcore.Invalid("data connections are turned off on this instance, so data watches can't change")
+			}
+		} else {
+			for _, watch := range in.Watches {
+				op, ok := s.dataConnections.ConfiguredOperation(watch.Connection, watch.Operation)
+				if !ok || !op.ReadOnly || !s.dataAllowed(ctx, watch.Connection, watch.Operation) {
+					return catalog.AssistantSettings{}, workspace.ErrForbidden
+				}
 			}
 		}
 		settings, err := s.catalog.SaveAssistant(subject(ctx), in)

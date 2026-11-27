@@ -195,15 +195,18 @@ type noteInput struct {
 }
 type noteOutput = webcore.NoteOutput
 
-// New serves one instance. db is its Postgres control plane, which the caller owns
-// and closes after Close. Its blobs stay in its data directory.
+// New serves one instance that runs every module. db is its Postgres control
+// plane, which the caller owns and closes after Close. Its blobs stay in its
+// data directory.
 func New(projects *catalog.Catalog, db *pg.DB, data, origin, token string) (*Server, error) {
-	return NewWithBlobs(projects, db, nil, data, origin, token)
+	return NewWithBlobs(projects, db, nil, modules.Set{}, data, origin, token)
 }
 
 // NewWithBlobs serves an instance whose blobs are in blobs, which the caller
-// owns, or in the data directory when blobs is nil.
-func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, origin, token string) (*Server, error) {
+// owns, or in the data directory when blobs is nil. It runs the modules in
+// set for its whole life: an off module's routes, tools and workers are never
+// added, so the set cannot change once the server is built.
+func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set modules.Set, data, origin, token string) (*Server, error) {
 	if err := validateBrowserAssets(assets); err != nil {
 		return nil, err
 	}
@@ -227,6 +230,7 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	}
 	s := &Server{outgoing: &outgoing.Mode{}, rpcStreams: make(chan struct{}, 128), sourceWork: make(chan struct{}, capacity.SourceRequests.Limit()), rpcWork: make(chan struct{}, capacity.WriteRequests.Limit()), rpcReadWork: make(chan struct{}, capacity.ReadRequests.Limit()), rpcDecodeWork: make(chan struct{}, capacity.DecodeRequests.Limit()), catalog: projects, data: data, origin: strings.TrimSuffix(origin, "/"), token: token, page: page, mux: http.NewServeMux(), routes: webcore.NewNotebookRoutes(), renderer: webcore.NewRenderer()}
 	s.browserAssets = manifest
+	s.modules = set
 	s.backupDownloads, s.backupBytes = make(chan struct{}, liveExports), maxExportBytes
 	complete := false
 	defer func() {
@@ -313,7 +317,6 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initDataOperations(); err != nil {
 		return nil, err
 	}
-	s.judgmentRoutes()
 	if err = s.initQuicknotes(); err != nil {
 		return nil, err
 	}
@@ -397,7 +400,6 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initSourceJobs(); err != nil {
 		return nil, err
 	}
-	s.sourceHTTP.Register(s.handleProject)
 	s.knowledgeRoutes()
 	s.wikiRoutes()
 	s.trashRoutes()
@@ -406,6 +408,8 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	s.authorityRoutes()
 	s.purge.Register(s.handleProject)
 	s.instanceAdministrationRoutes()
+	// After every hub is open, since a module's routes bind its hub.
+	s.moduleRoutes()
 
 	s.mux.Handle("/mcp", s.mcpHandler())
 	complete = true

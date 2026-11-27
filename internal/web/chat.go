@@ -42,7 +42,7 @@ func (s *Server) chatConfigurationHooks() chat.ConfigurationHooks {
 			s.quicknotes.ConfigureJudgments(current, localOnly)
 		}
 		return s.refreshChatEmbeddingPolicy()
-	}}
+	}, WithoutJudgments: !s.modules.Enabled("judgments")}
 	if s.judgments != nil {
 		hooks.Guard = s.judgments.OrganizationGuard
 	}

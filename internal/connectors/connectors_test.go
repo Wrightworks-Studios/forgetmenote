@@ -13,6 +13,23 @@ import (
 
 const argsSchema = `{"type":"object","properties":{"term":{"type":"string"}},"required":["term"],"additionalProperties":false}`
 
+// An instance without data connections, or with the module off, has no
+// manager. What its callers ask of one answers "not available" instead of
+// panicking: a stored learning automation may still name a connection.
+func TestAMissingManagerAnswersNotAvailable(t *testing.T) {
+	var m *Manager
+	if m.LearningInputSafe("warehouse", "select 1") {
+		t.Fatal("input is safe to capture without a connection")
+	}
+	if _, ok := m.Info("warehouse"); ok {
+		t.Fatal("a connection exists without a manager")
+	}
+	if list := m.List(); len(list) != 0 {
+		t.Fatal(list)
+	}
+	m.Close()
+}
+
 func TestConfiguredOperationPinMatchesDiscoveredContract(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"answer":"found"}`))
