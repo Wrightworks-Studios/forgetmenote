@@ -45,7 +45,9 @@ func (s *Server) Start(ctx context.Context) error {
 		s.backups.manager.Start()
 	}
 	if !s.outgoing.Paused() {
-		s.judgments.StartScheduler(ctx)
+		if s.modules.Enabled("judgments") {
+			s.judgments.StartScheduler(ctx)
+		}
 		s.automationrun.Start(ctx)
 	}
 	if s.chat != nil {

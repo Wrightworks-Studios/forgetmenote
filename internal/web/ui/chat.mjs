@@ -4,7 +4,7 @@ import {icon} from './icons.mjs';
 import {reconcileNodes} from './keyed-list.mjs';
 import {createTranscriptView} from './chat-transcript.mjs';
 import {createRunView} from './chat-runs.mjs';
-import {requestSequence,poll} from './state.mjs';
+import {requestSequence,poll,moduleOn} from './state.mjs';
 // Chat owns its private transcript and composer; app.mjs owns all editor drafts.
 import {activeStates,validCorpus,applyChatEvent,chatCitation} from './chat-model.mjs';
 import {createComposerDrafts} from './chat-composer.mjs';
@@ -90,7 +90,7 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
   const body = element('div',undefined,{id:'chat-body'});
   const settingsBody = element('div',undefined,{class:'chat-settings-body'});
   settingsBody.append(choices,corpusFields,scopes,controls);
-  if(openJudgmentSettings)settingsBody.append(button('Evidence checks',()=>{settings.close();openJudgmentSettings();},{class:'quiet'}));
+  if(openJudgmentSettings && moduleOn(getUser(),'judgments'))settingsBody.append(button('Evidence checks',()=>{settings.close();openJudgmentSettings();},{class:'quiet'}));
   settings.append(settingsBody);
   body.append(toolbar,message,setup,error,transcript,runPanel);
   panel.append(header,body,form,settings);
@@ -232,7 +232,7 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
     if (target.kind === 'document' && openDocument) return button(label,() => Promise.resolve(openDocument(target.ref)).catch(showError),{class:'quiet chat-citation',title:target.ref.project+' · '+target.ref.revision});
     const row = element('span',undefined,{class:'chat-source-citation'});
     row.append(element('a',label,{href:target.url,target:'_blank',rel:'noopener noreferrer'}));
-    if (target.kind==='source' && canEdit() && openSource) row.append(button('Archive source',() => openSource(target.url),{class:'quiet'}));
+    if (target.kind==='source' && canEdit() && openSource && moduleOn(getUser(),'sources')) row.append(button('Archive source',() => openSource(target.url),{class:'quiet'}));
     return row;
   }
   function installAnswer(node, html, turn) {

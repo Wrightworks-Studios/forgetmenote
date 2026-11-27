@@ -10,6 +10,9 @@ import (
 type ConfigurationHooks struct {
 	Guard     func() func()
 	Installed func(previous, current *decision.Service, localOnly bool) error
+	// WithoutJudgments installs no judge: the instance turns the judgments
+	// module off, so a decision configuration is neither read nor used.
+	WithoutJudgments bool
 }
 
 func (r *Runtime) Configure(data, chatPath, decisionPath string, hooks ConfigurationHooks) error {
@@ -22,7 +25,7 @@ func (r *Runtime) Configure(data, chatPath, decisionPath string, hooks Configura
 			return fmt.Errorf("CHAT_CONFIG_FILE: %w", err)
 		}
 	}
-	if decisionPath != "" {
+	if decisionPath != "" && !hooks.WithoutJudgments {
 		judge, err = decision.LoadConfig(decisionPath)
 		if err != nil {
 			return fmt.Errorf("DECISION_CONFIG_FILE: %w", err)
@@ -49,6 +52,9 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 			}
 			judgeConfig = cfg.Judgments
 		}
+	}
+	if hooks.WithoutJudgments {
+		judgeConfig = nil
 	}
 	if err := judgeConfig.Validate(localOnly); err != nil {
 		return err

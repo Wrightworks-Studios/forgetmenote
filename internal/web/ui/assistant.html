@@ -13,7 +13,7 @@
 <label><input id="assistant-notifications" type="checkbox">Send private Slack reminders</label>
 <label><input id="assistant-mailbox-drafts" type="checkbox">Save proposed email replies as Gmail drafts</label>
 <label>Exclude notebooks<select id="assistant-exclusions" multiple aria-label="Excluded notebooks"></select></label>
-<details id="assistant-watch-section"><summary>Data watches</summary><p class="small">Each watch runs one read-only operation on a data connection you can use whenever your assistant checks for new items, and your assistant looks at what changed.</p><div id="assistant-watches"></div></details>
+<details id="assistant-watch-section"{{if not .DataConnections}} hidden{{end}}><summary>Data watches</summary><p class="small">Each watch runs one read-only operation on a data connection you can use whenever your assistant checks for new items, and your assistant looks at what changed.</p><div id="assistant-watches"></div></details>
 <div class="actions"><button type="submit" class="primary">Save preferences</button><a id="assistant-notebook" class="button quiet" hidden>Open assistant notebook</a></div>
 </fieldset></form></section>
 <section id="memory-setup"><h2>Memory</h2><p class="small">Agents you connect, such as Claude Code over MCP, and {{$brand.Name}} in direct messages linked to your account keep memory for you in private notebooks. Memory is on unless you turn it off; then agents save only what you ask them to remember, and direct messages leave it alone. To link Slack, send <code>link</code> to {{$brand.Name}} in a Slack direct message.</p>

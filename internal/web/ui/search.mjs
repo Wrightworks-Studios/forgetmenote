@@ -44,6 +44,7 @@ export function initSearch({
   api,post,getContext,retrievalSettings,notice,
   onOpen,onClose,onVisibilityChange,onStateChange,renderCollections,
   openNote,openCitation,openTrash,openSource,setupFileActions,canEdit,canCreate,addSource,
+  sourcesOn=()=>true,
 }) {
   let searchOpen=false,searchCollection='',searchScroll=0;const requests=requestSequence();
   let searchController;
@@ -203,7 +204,7 @@ export function initSearch({
           $("search-scope").onchange();
         };
         resultHost.append(previous);
-      } else if (!filtered && canEdit()) {
+      } else if (!filtered && canEdit() && sourcesOn()) {
         const source = document.createElement("button");
         source.id = "empty-source";
         source.className = "quiet";

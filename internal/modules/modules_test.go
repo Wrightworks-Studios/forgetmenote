@@ -79,9 +79,10 @@ func TestTheDependencyCheckRefusesEachBrokenRequirementAndNamesBothModules(t *te
 }
 
 // Until a module's wiring lands, a valid list that names it is refused at
-// startup instead of running a module that was meant to be off.
+// startup instead of running a module that was meant to be off. The refusal
+// names only the modules that cannot be turned off yet.
 func TestTurningAModuleOffIsNotSupportedYet(t *testing.T) {
-	_, err := Parse([]string{"personal", "messaging", "tasks"})
+	_, err := Parse([]string{"sources", "personal", "messaging", "tasks"})
 	if err == nil || !strings.Contains(err.Error(), "not supported yet") {
 		t.Fatal(err)
 	}
@@ -89,6 +90,34 @@ func TestTurningAModuleOffIsNotSupportedYet(t *testing.T) {
 		if !strings.Contains(err.Error(), name) {
 			t.Fatalf("the refusal does not name %s: %v", name, err)
 		}
+	}
+	if strings.Contains(err.Error(), `"sources"`) {
+		t.Fatalf("the refusal names a module that can be turned off: %v", err)
+	}
+}
+
+// The wired modules nothing requires can each be turned off, alone or
+// together.
+func TestTheModulesNothingRequiresCanBeTurnedOff(t *testing.T) {
+	optional := []string{"judgments", "data-connections", "sources"}
+	for _, name := range optional {
+		set, err := Parse([]string{name})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, module := range All() {
+			if set.Enabled(module.Name) == (module.Name == name) {
+				t.Fatalf("with %s off, %s is %v", name, module.Name, set.Enabled(module.Name))
+			}
+		}
+	}
+	all, err := Parse(optional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	one, _ := Parse([]string{"sources"})
+	if !all.Equal(all) || all.Equal(one) || one.Equal(Set{}) || !(Set{}).Equal(Set{off: map[string]bool{}}) {
+		t.Fatal("Equal compares the modules a set runs")
 	}
 }
 

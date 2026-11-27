@@ -71,6 +71,71 @@ func expireJob(t *testing.T, db *pg.DB, id string) {
 	}
 }
 
+// An instance that runs no source work retires, at startup, every source job
+// whose gateway is gone, however young, and removes its files at once: nothing
+// there could resume it before its limit. A job another live gateway holds is
+// left to that gateway.
+func TestRetiringJobsLeavesOnlyThoseOfLiveGateways(t *testing.T) {
+	authorize := func(ctx context.Context, _ JobScope) error { return ctx.Err() }
+	scope := JobScope{Subject: "user", Notebook: "notes", Generation: 1}
+	db, store := pgtest.Org(t), dataStore(t, t.TempDir())
+	live, _ := pgtest.Gateway(t, db)
+	running, err := OpenJobs(live, store, t.TempDir(), authorize)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer running.Close()
+	kept, err := running.Submit(t.Context(), scope, JobInput{Filename: "kept.txt"}, []byte("Kept"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gone, leave := pgtest.Gateway(t, db)
+	stopped, err := OpenJobs(gone, store, t.TempDir(), authorize)
+	if err != nil {
+		t.Fatal(err)
+	}
+	young, err := stopped.Submit(t.Context(), scope, JobInput{Filename: "young.txt"}, []byte("Young"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopped.Close()
+	leave()
+	held := func(id string) (keys []string) {
+		for _, key := range storedKeys(t, store) {
+			if strings.HasPrefix(key, jobsDir+"/"+id+"/") {
+				keys = append(keys, key)
+			}
+		}
+		return keys
+	}
+	if len(held(young.ID)) == 0 || len(held(kept.ID)) == 0 {
+		t.Fatal("the jobs were not stored")
+	}
+	data := t.TempDir()
+	scratch := filepath.Join(data, "cache", jobsDir, "leftover")
+	if err := os.MkdirAll(scratch, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := RetireJobs(db, store, data); err != nil {
+		t.Fatal(err)
+	}
+	rows := func(id string) (count int) {
+		if err := db.Pool.QueryRow(t.Context(), `SELECT count(*) FROM source_jobs WHERE org = $1 AND id = $2`, db.Org, id).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		return count
+	}
+	if rows(young.ID) != 0 || len(held(young.ID)) != 0 {
+		t.Fatalf("the gone gateway's young job stays: %d rows, files %q", rows(young.ID), held(young.ID))
+	}
+	if rows(kept.ID) != 1 || len(held(kept.ID)) == 0 {
+		t.Fatalf("the live gateway's job was retired: %d rows, files %q", rows(kept.ID), held(kept.ID))
+	}
+	if _, err := os.Stat(scratch); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("conversion scratch stays: %v", err)
+	}
+}
+
 // A job's original and result are objects at the paths the file-based release
 // kept them at, which another gateway with a disk of its own reads, and which
 // expiry removes. In the data directory they are that release's files.

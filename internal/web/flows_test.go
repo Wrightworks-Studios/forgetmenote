@@ -53,7 +53,7 @@ func gatewayWith(t *testing.T, app *Server, blobs blob.Store) *Server {
 	t.Helper()
 	db, leave := pgtest.Gateway(t, app.db)
 	t.Cleanup(leave)
-	other, err := NewWithBlobs(app.catalog, db, blobs, t.TempDir(), app.origin, app.token)
+	other, err := NewWithBlobs(app.catalog, db, blobs, app.modules, t.TempDir(), app.origin, app.token)
 	if err != nil {
 		t.Fatal(err)
 	}

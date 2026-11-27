@@ -2,6 +2,7 @@ import {timeElement} from './time.mjs';
 import {confirmAction,feedback} from './feedback.mjs';
 import {$,element as node,button as control,downloadBlob,busy,isBusy} from './dom.mjs';
 import {initIntegrations} from './integrations.mjs';
+import {moduleOn} from './state.mjs';
 const roles={read:'Reader',comment:'Commenter',edit:'Editor',owner:'Owner'};
 const label=user=>user.displayName||user.id;
 
@@ -13,7 +14,8 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
  let directory,org,status,groupRevision=0,selectedPerson='',selectedService='',personVersion=0,sharingVersion=0,activityCount=50,pageActive=()=>false;
  const call=(action,body={})=>post('/api/organization/action/'+action,body);
  const report=error=>feedback($('admin-status'),error.message);
- const integrations=initIntegrations({post,report});
+ const dataConnections=()=>moduleOn(getUser(),'data-connections');
+ const integrations=initIntegrations({post,report,dataConnections});
  // A control saved by its action stays disabled until its form changes again (`unchanged`).
  // A control whose action is still running ignores the event and keeps its state.
  const act=(fn,getActive=()=>pageActive)=>async event=>{
@@ -95,7 +97,10 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
   logoGeneration++;pendingLogo=undefined;$('instance-logo').value='';$('instance-logo-preview').src=status.branding.icon;
   $('instance-status').append(node('dt','Authentication'),node('dd',status.authentication));
   const services=[['chat','AI conversations'],['decisions','AI checks'],['embeddings','Semantic search'],['dataConnections','Data connections'],['personalConnections','Personal connections'],['slack','Slack'],['repositorySources','Repository sources'],['managedBackups','Managed backups'],['automations','Automation definitions'],['automationPython','Automation runtime'],['trustedProxy','Trusted proxy'],['oidc','Identity provider'],['githubIdentity','GitHub account linking']];
-  for(const [key,name] of services)$('instance-status').append(node('dt',name),node('dd',status.instance[key]?'Configured':'Not configured'));
+  // A service of a module the instance turns off says so, configured or not.
+  const serviceModules={chat:'chat',decisions:'judgments',dataConnections:'data-connections',personalConnections:'personal',slack:'messaging',repositorySources:'repositories',managedBackups:'managed-backups',automations:'automations',automationPython:'automations'};
+  const off=new Set((status.modules||[]).filter(module=>!module.enabled).map(module=>module.name));
+  for(const [key,name] of services)$('instance-status').append(node('dt',name),node('dd',off.has(serviceModules[key])?'Turned off':status.instance[key]?'Configured':'Not configured'));
   $('instance-status').append(node('dt','Browser interface'),node('dd',status.instance.headless?'Disabled':'Enabled'));
   $('instance-status').append(node('dt','Outgoing actions'),node('dd',status.instance.outgoingPaused?'Paused':'Enabled'));
   const titles=enabled=>(status.modules||[]).filter(module=>module.enabled===enabled).map(module=>module.title).join('; ')||'None';
@@ -139,7 +144,7 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
    const name=field(form,'Name',node('input'));name.required=true;name.maxLength=100;
    const projects=field(form,'Notebooks',select(directory.projects.filter(p=>data.account.access[p.id]?.role&&!p.protectedInbox).map(p=>[p.id,p.name])));projects.multiple=true;projects.required=true;projects.size=3;
    const scope=field(form,'Permission',select([['notes:read','Read'],['notes:write','Read and write']],'notes:read'));
-   const available=await post('/integrations/actions/list_data_connections',{});if(id!==selectedService||!active())return;
+   const available=dataConnections()?await post('/integrations/actions/list_data_connections',{}):[];if(id!==selectedService||!active())return;
    let dataScope,connections;
    if(available.length){
     dataScope=field(form,'Data access',select([['','None'],['data:read','Read'],['data:write','Read and write']]));

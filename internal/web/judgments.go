@@ -32,8 +32,8 @@ func (s *Server) initJudgments() error {
 	return nil
 }
 
-func (s *Server) judgmentRoutes() {
-	s.judgments.Register(s.handleProject, s.mux.HandleFunc)
+func (s *Server) judgmentRoutes(r routeRegistrar) {
+	s.judgments.Register(r.project, r.global)
 }
 
 func (s *Server) judgmentsConfigured() (*decision.Service, bool) {

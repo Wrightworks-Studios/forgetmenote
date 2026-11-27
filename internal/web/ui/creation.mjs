@@ -157,6 +157,7 @@ export function initCreation({api, getProject, getFolder, getCollection = () => 
       event.preventDefault();
       if (sourceBusy || noteBusy()) return;
       const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
+      if (tabs[next].hidden) return;
       select(next ? 'source' : 'note'); tabs[next].focus();
     };
   });

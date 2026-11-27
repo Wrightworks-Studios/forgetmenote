@@ -714,7 +714,11 @@ func (m *Manager) Close() {
 
 // Learning is opt-in private retention. Never capture a reflection of this
 // connection's injected credential, even when it occurs in an ordinary argument.
+// Without data connections nothing is safe to capture.
 func (m *Manager) LearningInputSafe(id, raw string) bool {
+	if m == nil {
+		return false
+	}
 	m.mu.Lock()
 	r, ok := m.connections[id]
 	m.mu.Unlock()

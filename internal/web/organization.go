@@ -71,6 +71,14 @@ func (s *Server) organizationTools(server *mcp.Server) {
 		err := s.catalog.ProvisionWorkNotebook(subject(ctx), in.User, in.ID, in.Name)
 		return actionResult{err == nil}, err
 	})
+	addManagementTool(s, server, "bind_external_identity", "Bind an external issuer/subject to an existing account as instance administrator. Never use an email match as proof of identity.", false, func(ctx context.Context, in struct {
+		Issuer  string `json:"issuer"`
+		Subject string `json:"subject"`
+		User    string `json:"user"`
+	}) (actionResult, error) {
+		err := s.catalog.BindExternalIdentity(subject(ctx), in.Issuer, in.Subject, in.User)
+		return actionResult{err == nil}, err
+	})
 	s.messagingTools(server)
 	s.instanceAITools(server)
 	addManagementTool(s, server, "organization_status", "Inspect this instance's groups, invitations and administrative activity. Admin only; no secrets.", true, func(ctx context.Context, in struct{}) (map[string]any, error) {

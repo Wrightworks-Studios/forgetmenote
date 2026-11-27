@@ -98,7 +98,7 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	jsonResponse(w, map[string]any{"id": subject(r.Context()), "displayName": name, "username": s.catalog.LocalUsername(subject(r.Context())), "admin": s.catalog.IsAdmin(subject(r.Context())), "canCreateProjects": s.catalog.CanCreateProjects(subject(r.Context())), "sso": s.proxy != nil, "passwordAvailable": s.localPasswords(), "setupAvailable": s.setupAvailable(r)})
+	jsonResponse(w, map[string]any{"id": subject(r.Context()), "displayName": name, "username": s.catalog.LocalUsername(subject(r.Context())), "admin": s.catalog.IsAdmin(subject(r.Context())), "canCreateProjects": s.catalog.CanCreateProjects(subject(r.Context())), "sso": s.proxy != nil, "passwordAvailable": s.localPasswords(), "setupAvailable": s.setupAvailable(r), "modulesOff": s.modulesOff()})
 }
 func (s *Server) projects(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, s.catalog.List(subject(r.Context())))
