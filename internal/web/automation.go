@@ -112,7 +112,34 @@ func (s *Server) checkAutomationAuth(ctx context.Context) error {
 type automationFenceKey = automation.FenceKey
 type automationFence = automation.Fence
 
+// automationModules names the modules a run needs besides automations: the
+// module whose work it does, and chat, whose engine runs every model call.
+func automationModules(spec automation.Spec) []string {
+	var out []string
+	switch {
+	case spec.Kind == "personal":
+		out = append(out, "personal")
+	case spec.Kind == "assistant", spec.Native != nil && spec.Native.Task == "email-pairing":
+		out = append(out, "messaging")
+	case spec.Native != nil && spec.Native.Task == "task-reminder":
+		out = append(out, "tasks")
+	}
+	if spec.UsesAI() {
+		out = append(out, "chat")
+	}
+	return out
+}
+
+// automationPolicy decides whether a run may be scheduled, claimed and go on
+// running. A run that needs a module the instance turns off is neither
+// scheduled nor claimed: one queued while the module ran stays queued, and a
+// running one stops at its next check.
 func (s *Server) automationPolicy(spec automation.Spec) error {
+	for _, module := range automationModules(spec) {
+		if err := s.modules.Check(module); err != nil {
+			return err
+		}
+	}
 	if spec.Kind == "personal" {
 		if err := s.checkPersonalSpec(spec); err != nil {
 			return err

@@ -20,6 +20,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"forgetmenote/internal/automation"
 	"forgetmenote/internal/backups"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
@@ -114,6 +115,28 @@ func listedTools(t *testing.T, session *mcp.ClientSession) map[string]bool {
 	return names
 }
 
+// offWith is the smallest modules.off that turns the module off: the module
+// and every module that requires it, directly or through another, in the
+// registry's order.
+func offWith(name string) []string {
+	off := map[string]bool{name: true}
+	for changed := true; changed; {
+		changed = false
+		for _, module := range modules.All() {
+			if !off[module.Name] && slices.ContainsFunc(module.Requires, func(required string) bool { return off[required] }) {
+				off[module.Name], changed = true, true
+			}
+		}
+	}
+	var out []string
+	for _, module := range modules.All() {
+		if off[module.Name] {
+			out = append(out, module.Name)
+		}
+	}
+	return out
+}
+
 // startedModuleServer is fixture for an instance that runs every module but
 // off. It is given every module's settings, as an operator would, and then
 // started as the runtime starts it.
@@ -140,7 +163,8 @@ func startedModuleServer(t *testing.T, off ...string) *Server {
 func heldModuleDuties(t *testing.T, app *Server, names []string) []string {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
-	for held := heldDuties(t, app); !held["chat-recovery"]; held = heldDuties(t, app) {
+	// Quick notes' routing is a core duty every started instance takes.
+	for held := heldDuties(t, app); !held["quicknotes-routing"]; held = heldDuties(t, app) {
 		if time.Now().After(deadline) {
 			t.Fatalf("the instance took no duties: %v", held)
 		}
@@ -227,7 +251,59 @@ func notebookOwner(t *testing.T, app *Server, user, project, kind string) {
 	}
 }
 
+// localCookie signs in a local user and returns their session cookie.
+func localCookie(t *testing.T, app *Server, user string) *http.Cookie {
+	t.Helper()
+	login := oidcRequest(app, "POST", "/auth/password/login", url.Values{"username": {user}, "password": {"test-password-long"}}.Encode())
+	if login.Code != http.StatusSeeOther {
+		t.Fatalf("login: %d %s", login.Code, login.Body)
+	}
+	return login.Result().Cookies()[0]
+}
+
 var offModuleChecks = map[string]moduleChecks{
+	"personal": {
+		running: func(app *Server) bool { return app.personal != nil },
+		cleanup: func(t *testing.T, app *Server) {
+			// A person set up their assistant while the module ran. With it
+			// off, no personal run is scheduled or claimed. They can still
+			// pause the assistant and withdraw its AI processing consent,
+			// and nothing else about it changes.
+			admin := recoverySession(t, app)
+			alice := addLocal(t, app, admin, "personal-alice")
+			cookie := localCookie(t, app, "personal-alice")
+			if _, err := app.catalog.SetAssistantPolicy(catalog.Bootstrap, catalog.AssistantPolicy{Enabled: true}); err != nil {
+				t.Fatal(err)
+			}
+			settings, err := app.catalog.SaveAssistant(alice, catalog.AssistantSettings{Enabled: true, ExternalProcessing: true, TimeZone: "UTC", Features: []string{"operations"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if specs := app.personalSpecs(); len(specs) != 0 {
+				t.Fatalf("personal runs are scheduled: %+v", specs)
+			}
+			if err := app.automationPolicy(automation.Spec{Kind: "personal", Actor: alice, Project: settings.Project}); err == nil || !strings.Contains(err.Error(), "modules.off") {
+				t.Fatalf("a queued personal run may be claimed: %v", err)
+			}
+			save := func(settings catalog.AssistantSettings) *httptest.ResponseRecorder {
+				body, _ := json.Marshal(settings)
+				return localRequest(app, "/api/assistant/action/save_assistant_settings", string(body), cookie)
+			}
+			changed := settings
+			changed.QuietStart, changed.QuietEnd = "22:00", "07:00"
+			if w := save(changed); w.Code != 400 || !strings.Contains(w.Body.String(), "personal assistants are turned off") {
+				t.Fatalf("the assistant's settings changed with the module off: %d %s", w.Code, w.Body)
+			}
+			paused := settings
+			paused.Enabled, paused.ExternalProcessing = false, false
+			if w := save(paused); w.Code != 200 {
+				t.Fatalf("pausing the assistant: %d %s", w.Code, w.Body)
+			}
+			if stored, err := app.catalog.Assistant(alice); err != nil || stored.Enabled || stored.ExternalProcessing || stored.QuietStart != "" {
+				t.Fatalf("saved settings: %+v %v", stored, err)
+			}
+		},
+	},
 	"repositories": {
 		duties: []string{"repository-refresh"},
 		configure: func(t *testing.T, app *Server) {
@@ -435,9 +511,9 @@ func TestEveryModuleThatCanBeTurnedOffIsWired(t *testing.T) {
 		}
 	}
 	for _, module := range modules.All() {
-		_, err := modules.Parse([]string{module.Name})
+		_, err := modules.Parse(offWith(module.Name))
 		if (err == nil) != wired[module.Name] {
-			t.Errorf("%s: wired=%v, but turning it off alone gives %v", module.Name, wired[module.Name], err)
+			t.Errorf("%s: wired=%v, but turning it off with %v gives %v", module.Name, wired[module.Name], offWith(module.Name), err)
 		}
 	}
 }
@@ -462,7 +538,8 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 				t.Fatal("the module declares neither tools nor routes")
 			}
 			for _, name := range actions {
-				if _, ok := full.actions[name]; !ok || !fullListed[name] {
+				// Actions only the account page calls are never listed over MCP.
+				if _, ok := full.actions[name]; !ok || fullListed[name] == accountUIActions[name] {
 					t.Errorf("with every module on, %s is missing: registered=%v listed=%v", name, ok, fullListed[name])
 				}
 			}
@@ -486,7 +563,19 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 				t.Error("with every module on, its hub is not open")
 			}
 
-			app := startedModuleServer(t, module.name)
+			// Turning the module off turns off the modules that require it
+			// too; only what those declare may go with it.
+			off := offWith(module.name)
+			app := startedModuleServer(t, off...)
+			removable := map[string]bool{}
+			for _, other := range wiredModules {
+				if slices.Contains(off, other.name) {
+					names, _ := declaredModule(t, full, other)
+					for _, name := range names {
+						removable[name] = true
+					}
+				}
+			}
 			if checks.installed != nil && checks.installed(app) {
 				t.Error("the off module's settings were installed")
 			}
@@ -512,8 +601,8 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 				}
 			}
 			for name := range full.actions {
-				if _, ok := app.actions[name]; !ok && !slices.Contains(actions, name) {
-					t.Errorf("turning %s off removed %s, which another module or the core adds", module.name, name)
+				if _, ok := app.actions[name]; !ok && !removable[name] {
+					t.Errorf("turning %v off removed %s, which another module or the core adds", off, name)
 				}
 			}
 			for _, route := range routes {
@@ -540,7 +629,7 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 			r := httptest.NewRequest("GET", app.origin+"/api/me", nil)
 			r.Header.Set("Authorization", "Bearer "+testToken)
 			app.ServeHTTP(w, r)
-			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &me) != nil || !slices.Equal(me.ModulesOff, []string{module.name}) {
+			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &me) != nil || !slices.Equal(me.ModulesOff, off) {
 				t.Errorf("/api/me: HTTP %d %s", w.Code, w.Body)
 			}
 			if checks.cleanup != nil {

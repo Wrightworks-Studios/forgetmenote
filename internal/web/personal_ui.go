@@ -189,7 +189,7 @@ func (s *Server) personalChatContext(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !s.catalog.AssistantPolicy().Enabled || !settings.Enabled || !settings.ExternalProcessing {
+	if !s.catalog.AssistantPolicy().Enabled || !settings.Enabled || !settings.ExternalProcessing || !s.modules.Enabled("personal") {
 		return "", nil
 	}
 	if !s.clientProjectAllowed(ctx, settings.Project) {

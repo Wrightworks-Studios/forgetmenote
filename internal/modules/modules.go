@@ -40,7 +40,7 @@ var all = []Module{
 	{Name: "repositories", Title: "Repository notebooks", wired: true},
 	{Name: "tasks", Title: "Task queues", Requires: []string{"automations"}},
 	{Name: "messaging", Title: "Slack messaging", Requires: []string{"automations", "tasks", "memory", "chat"}, Integrations: []string{"slack"}},
-	{Name: "personal", Title: "Personal assistants", Requires: []string{"automations", "messaging"}},
+	{Name: "personal", Title: "Personal assistants", Requires: []string{"automations", "messaging"}, wired: true},
 	{Name: "memory", Title: "Agent memory"},
 	{Name: "managed-backups", Title: "Managed backups", wired: true},
 }

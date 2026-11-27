@@ -10,8 +10,14 @@ import (
 )
 
 // initPersonal starts the personal assistant worker with personalHooks. It
-// runs after automations and messaging, which the worker uses directly.
+// runs after automations and messaging, which the worker uses directly. An
+// instance that turns personal assistants off has no worker: no personal run
+// is scheduled or claimed (automationPolicy), and what assistants stored stays
+// in their notebooks and run state.
 func (s *Server) initPersonal() error {
+	if !s.modules.Enabled("personal") {
+		return nil
+	}
 	var err error
 	s.personal, err = personal.New(s.catalog, s.automations, s.messaging, s.personalHooks())
 	return err

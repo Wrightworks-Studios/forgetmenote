@@ -38,6 +38,7 @@ var wiredModules = []wiredModule{
 	{name: "sources", tools: []func(*Server, *mcp.Server){(*Server).sourceTools}, routes: []func(*Server, routeRegistrar){(*Server).sourceRoutes}},
 	{name: "repositories", tools: []func(*Server, *mcp.Server){(*Server).repositoryTools}, routes: []func(*Server, routeRegistrar){(*Server).repositoryRoutes}},
 	{name: "managed-backups", tools: []func(*Server, *mcp.Server){(*Server).backupTools}, routes: []func(*Server, routeRegistrar){(*Server).backupRoutes}},
+	{name: "personal", tools: []func(*Server, *mcp.Server){(*Server).personalAssistantTools, (*Server).personalProfileTools, (*Server).personalConnectionTools, (*Server).personalUITools, (*Server).personalRecoveryTools}},
 }
 
 // gitHubConnections reports whether the instance runs the GitHub App

@@ -28,12 +28,9 @@ func (s *Server) mcpHandler() http.Handler {
 	s.wikiTools(server)
 	s.credentialTools(server)
 	s.organizationTools(server)
-	s.personalAssistantTools(server)
+	s.accountAssistantTools(server)
 	s.agentMemoryTools(server)
 	s.taskTools(server)
-	s.personalConnectionTools(server)
-	s.personalUITools(server)
-	s.personalRecoveryTools(server)
 	if s.gitHubConnections() {
 		s.connectionTools(server)
 	}
