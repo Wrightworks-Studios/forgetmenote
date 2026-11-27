@@ -24,7 +24,7 @@ code out of the binary, see [optional integrations](integrations.md).
 | `automations` | [Automations](automations.md): scheduled and event jobs, [repository packages](automation-packages.md), script runs | |
 | `judgments` | [Judgments](judgments.md): source ranking, citation checks, notebook reviews and organization | |
 | `data-connections` | Database, HTTP, MCP, [email, Sheets and Calendar](google-integrations.md) connections and their calls | |
-| `sources` | [Archived sources](sources.md): PDFs, office files, email, recordings, OCR | |
+| `sources` | [Archived sources](sources.md): originals of PDFs, office files, email, images and recordings, with text the server extracts or a connected agent supplies | |
 | `repositories` | [Repository-connected notebooks](repository-notebooks.md) and their map | |
 | `tasks` | [Task queues](tasks.md), `/task` and `/tasks`, reminders | `automations` |
 | `messaging` | The Slack app and message delivery | `automations`, `tasks`, `memory`, `chat` |
