@@ -44,7 +44,7 @@ export function initSearch({
   api,post,getContext,retrievalSettings,notice,
   onOpen,onClose,onVisibilityChange,onStateChange,renderCollections,
   openNote,openCitation,openTrash,openSource,setupFileActions,canEdit,canCreate,addSource,
-  sourcesOn=()=>true,repositoriesOn=()=>true,
+  sourcesOn=()=>true,repositoriesOn=()=>true,judgmentsOn=()=>true,
 }) {
   let searchOpen=false,searchCollection='',searchScroll=0;const requests=requestSequence();
   let searchController;
@@ -124,7 +124,7 @@ export function initSearch({
     const scope = $("search-scope").checked ? "history" : "current";
     const includeTrash = $("include-trash").checked;
     renderSearchOptions();
-    const ranking = rerank && searching && mode !== "text" && scope === "current";
+    const ranking = rerank && judgmentsOn() && searching && mode !== "text" && scope === "current";
     $("search-status").textContent = ranking ? "Ranking with judgments…" : searching ? "Searching…" : "";
     const tag = $("tag-filter").value, statusFilter = $("status-filter").value, path = $("folder-filter").value;
     const filteredQuery = new URLSearchParams({q:query, tag, status:statusFilter, path,...contentSelection});

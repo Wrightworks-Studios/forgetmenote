@@ -3,7 +3,7 @@ import {initAutomations} from './automations.mjs';
 
 // dataConnections and automationsOn report whether the instance runs those
 // modules; with one off its part is neither listed nor requested.
-export function initIntegrations({post,report,dataConnections=()=>true,automationsOn=()=>true}){
+export function initIntegrations({post,report,dataConnections=()=>true,automationsOn=()=>true,moduleOn=()=>true}){
  let directory,groups,connectionList=[],version=0,pageActive=()=>false;
  const call=(name,input={})=>post('/integrations/actions/'+name,input);
  const manage=(name,input={})=>post('/api/organization/action/'+name,input);
@@ -37,7 +37,7 @@ export function initIntegrations({post,report,dataConnections=()=>true,automatio
   const save=node('button','Save access','primary');save.type='submit';form.append(save);form.onsubmit=e=>{e.preventDefault();return busy(form,async()=>{const {key,id}=selected();if(!id)return;const updated={...grant,users:{...grant.users},groups:{...grant.groups}};updated[key][id]=controls.filter(c=>c.checked).map(c=>c.value);await manage('set_data_connection_access',updated);await connection(info,box);},{controls:save,report});};box.append(form);
   for(const op of discovery.operations||[]){const details=node('details');details.append(node('summary',op.name),node('p',op.description),node('pre',JSON.stringify(op.inputSchema,null,2)));box.append(details);}
  }
- const automations=initAutomations({manage,report,people:()=>directory,connections:()=>connectionList,operations:id=>call('list_data_operations',{connection:id})});
+ const automations=initAutomations({manage,report,people:()=>directory,connections:()=>connectionList,operations:id=>call('list_data_operations',{connection:id}),moduleOn});
  async function load(people,orgGroups,active){pageActive=active;version++;const list=dataConnections()?await call('list_data_connections'):[];if(!active())return;directory=people;groups=orgGroups;connectionList=list;const box=document.getElementById('integration-connections'),details=node('div');box.replaceChildren();for(const info of list)box.append(button(info.label+' · '+(info.kind==='email'?'Email · '+(info.provider==='gmail'?'Gmail':info.provider):info.kind),()=>connection(info,details)));if(!list.length)box.append(node('p',dataConnections()?'No data connections configured.':'Data connections are turned off on this instance.'));box.append(details);document.getElementById('automation-jobs').hidden=!automationsOn();if(automationsOn())await automations.load(active);}
  return {load};
 }

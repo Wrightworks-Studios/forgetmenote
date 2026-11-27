@@ -34,7 +34,7 @@ function rfc3339(local) {
   return (local.length===16?local+':00':local)+(offset?`${offset<0?'-':'+'}${pad(Math.floor(abs/60))}:${pad(abs%60)}`:'Z');
 }
 
-export function initAutomations({manage, report, people, connections=()=>[], operations=()=>Promise.resolve([])}) {
+export function initAutomations({manage, report, people, connections=()=>[], operations=()=>Promise.resolve([]), moduleOn=()=>true}) {
   const root = document.getElementById('integration-jobs');
   let pageActive=()=>false;
   const views=requestSequence();
@@ -132,6 +132,10 @@ export function initAutomations({manage, report, people, connections=()=>[], ope
     field('actor','Service account','text',[['','Select an account'],...people().users.filter(u=>u.kind==='service'&&!u.disabled).map(u=>[u.id,u.displayName||u.id])]).required=true;
     field('project','Notebook','text',[['','Choose a notebook'],...notebookChoices(people().projects)]).required=true;
     field('nativeTask','Maintenance task','text',nativeTasks.map(v=>[v,v.replaceAll('-',' ')]));
+    // What needs a module the instance turns off is not offered, which is
+    // what the server refuses to save, unless this automation already has it.
+    for(const [key,needs,saved] of [['kind',{task:'chat',learning:'chat'},job?.spec.kind],['nativeTask',{'email-pairing':'messaging','task-reminder':'tasks'},job?.spec.native?.task]])
+      for(const option of inputs[key].options)if(needs[option.value]&&!moduleOn(needs[option.value])&&option.value!==saved)option.hidden=option.disabled=true;
     field('triggerMode','Trigger','text',[['manual','Manual'],['interval','Interval'],['calendar','Calendar'],['once','Once'],['usage','MCP usage'],['event','Source event']]);
     field('intervalSeconds','Interval (seconds)','number');
     field('timezone','Timezone','text',timeZones().map(zone=>[zone,zone])); field('hours','Hours (0–23, comma separated)').inputMode='numeric'; field('minutes','Minutes (0–59, comma separated)').inputMode='numeric';
@@ -147,7 +151,7 @@ export function initAutomations({manage, report, people, connections=()=>[], ope
     const checks = node('div'); checks.className='automation-checks';
     for (const [key,label] of [['enabled','Enabled'],['externalProcessing','Allow configured AI processing'],['repairEnabled','Automatically diagnose and repair checks'],['followPrimaryBranch','Adopt compatible primary-branch package changes without review'],['sandbox','Sandbox package code: no instance files or network (requires Linux Landlock; unchecked runs as server code)']]) {const wrap=node('label');labels[key]=wrap;inputs[key]=node('input');inputs[key].type='checkbox';wrap.append(inputs[key],document.createTextNode(label));checks.append(wrap);}
     // Calls, checks, conditions, Drive, package bindings and source events.
-    const sections=automationSections({manage,operations,connections,notebooks:()=>notebookChoices(people().projects)});let shown=null;
+    const sections=automationSections({manage,operations,connections,notebooks:()=>notebookChoices(people().projects),moduleOn});let shown=null;
     const advanced=node('details');advanced.open=importing;advanced.append(node('summary','JSON definition'));
     const json=node('textarea');json.rows=18;json.spellcheck=false;json.setAttribute('aria-label','Automation JSON');advanced.append(json);
     const status=node('p');status.setAttribute('role','status');
@@ -156,7 +160,7 @@ export function initAutomations({manage, report, people, connections=()=>[], ope
       for(const key of ['timezone','hours','minutes','weekdays']) labels[key].hidden=mode!=='calendar';
       labels.once.hidden=mode!=='once'; labels.intervalSeconds.hidden=mode!=='interval'; labels.nativeTask.hidden=draft.kind!=='native';
       labels.output.hidden=!!draft.repair||!['native','checks','digest','task'].includes(draft.kind)||(draft.kind==='native'&&(draft.native?.task.endsWith('-health')||clientTasks.includes(draft.native?.task))); labels.recipe.hidden=draft.kind!=='recipe'&&!draft.repair;
-      labels.repairEnabled.hidden=draft.kind!=='checks'; labels.repairCooldownSeconds.hidden=!draft.repair; labels.followPrimaryBranch.hidden=!draft.script; labels.sandbox.hidden=!draft.script;
+      labels.repairEnabled.hidden=draft.kind!=='checks'||!moduleOn('chat')&&!job?.spec.repair; labels.aiConnection.hidden=!moduleOn('chat')&&!job?.spec.aiConnection; labels.repairCooldownSeconds.hidden=!draft.repair; labels.followPrimaryBranch.hidden=!draft.script; labels.sandbox.hidden=!draft.script;
       labels.instruction.hidden=!usesAI(draft); labels.maxTokens.hidden=!usesAI(draft);
       inputs.triggerMode.disabled=readOnly||jsonDirty||draft.kind==='learning';
       inputs.triggerMode.querySelector('option[value="usage"]').disabled=draft.kind!=='learning';

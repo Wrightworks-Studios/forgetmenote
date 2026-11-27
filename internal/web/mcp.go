@@ -33,6 +33,7 @@ func (s *Server) mcpHandler() http.Handler {
 		s.connectionTools(server)
 	}
 	s.effectResolutionTools(server)
+	s.recipeTools(server)
 	s.authorityTools(server)
 	s.collaborationTools(server)
 	s.trashTools(server)

@@ -15,7 +15,7 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
  const call=(action,body={})=>post('/api/organization/action/'+action,body);
  const report=error=>feedback($('admin-status'),error.message);
  const dataConnections=()=>moduleOn(getUser(),'data-connections');
- const integrations=initIntegrations({post,report,dataConnections,automationsOn:()=>moduleOn(getUser(),'automations')});
+ const integrations=initIntegrations({post,report,dataConnections,automationsOn:()=>moduleOn(getUser(),'automations'),moduleOn:name=>moduleOn(getUser(),name)});
  // A control saved by its action stays disabled until its form changes again (`unchanged`).
  // A control whose action is still running ignores the event and keeps its state.
  const act=(fn,getActive=()=>pageActive)=>async event=>{

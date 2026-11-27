@@ -94,7 +94,12 @@ func (s *Server) personalAssistantTools(server *mcp.Server) {
 // hold agent memory's Memory setting, task queues' reply reminders, data
 // watches and message links. A part whose module is off stays as saved.
 func (s *Server) accountAssistantTools(server *mcp.Server) {
-	addAction(s, server, &mcp.Tool{Name: "assistant_status", Description: "Read your personal assistant's settings and whether this instance offers it. `enabled` and `available` cover only the personal assistant, which monitors mail, Slack and calendars; they do not turn memory on or off. `memory` reports agent memory: `on` follows the Memory setting, and an empty `notebook` means nothing has been remembered yet. Use recall_memory and remember for memory. Never selects another user.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true}}, func(ctx context.Context, in struct{}) (map[string]any, error) {
+	status := "Read your personal assistant's settings and whether this instance offers it. `enabled` and `available` cover only the personal assistant, which monitors mail, Slack and calendars; they do not turn memory on or off."
+	// The memory tools are named only while the module that adds them runs.
+	if s.modules.Enabled("memory") {
+		status += " `memory` reports agent memory: `on` follows the Memory setting, and an empty `notebook` means nothing has been remembered yet. Use recall_memory and remember for memory."
+	}
+	addAction(s, server, &mcp.Tool{Name: "assistant_status", Description: status + " Never selects another user.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true}}, func(ctx context.Context, in struct{}) (map[string]any, error) {
 		settings, err := s.catalog.Assistant(subject(ctx))
 		if err != nil {
 			return nil, err

@@ -1009,7 +1009,7 @@ const search=initSearch({api,post,retrievalSettings,notice,renderCollections,ope
   onVisibilityChange:syncMobileNavigation,
   openCitation:(...args)=>knowledge.openCitation(...args),openTrash:id=>trash.open(id),
   openSource:(...args)=>repositories.file(...args),addSource:()=>sourceBrowser.open(),sourcesOn,
-  repositoriesOn:()=>moduleOn(user,'repositories'),
+  repositoriesOn:()=>moduleOn(user,'repositories'),judgmentsOn:()=>moduleOn(user,'judgments'),
 });
 function publishSearchRoute(snapshot,push=false){
  const query=searchToURL(new URLSearchParams(location.search),snapshot);

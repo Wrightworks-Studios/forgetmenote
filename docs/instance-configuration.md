@@ -70,71 +70,13 @@ modules that depend on them:
 An unknown name fails before the application opens, and so does a module left
 on while one it needs is off; that error names both modules. Every module can
 be turned off, and with all of them off the instance runs its notebooks alone.
-An instance that turns a module off:
-
-- offers none of its tools: they are absent from MCP and `/api/v1/actions`,
-  and its routes answer 404. That includes the endpoints that authenticate
-  their own callers: with `repositories` off, the GitHub webhook, with
-  `managed-backups` off, the backup worker protocol, and with `messaging`
-  off, the Slack event, interaction and command endpoints. The GitHub App
-  connection flow the two share runs while either does;
-- runs none of its workers and takes none of its leases. With `sources` off,
-  nothing could resume a source job, so startup retires the jobs left from
-  when the module ran and removes their files at once, however young, rather
-  than keep uploads for the rest of their 24 hours. A job another gateway that
-  still runs the module holds is left to it. With `automations` off no run is
-  scheduled or claimed; with `tasks`, `messaging` or `personal` off, neither
-  is a run that does that module's work, or with `chat` off one that calls a
-  model. A run queued while the module ran stays queued until it is on again;
-- reads none of its settings: with `judgments` off, `ai.decisions` and chat's
-  judgment settings are ignored, with `data-connections` off,
-  `integrations.data`, with `repositories` off, `integrations.repository`,
-  with `managed-backups` off, `integrations.backups`, with `automations` off,
-  `integrations.automations` and `integrations.python`, with `messaging` off,
-  `integrations.slack`, and with `personal` off, `integrations.personal`.
-  Their credentials and worker secrets stay where the operator put them,
-  unread. Chat's AI connections are read with `chat` off too, since
-  judgments, archived sources and semantic search use them;
-- keeps its data. Migrations still run, its records and files stay, account
-  deletion and purge still reach them, and turning the module on again finds
-  them as they were. Archived sources stay readable notes with their originals;
-  they are neither updated nor verified while `sources` is off. Repository
-  notebooks stay listed, but their files cannot be read or refreshed while
-  `repositories` is off, and connected backups receive nothing while
-  `managed-backups` is off. Disabling a person still pauses the repository
-  sources they connected, so re-enabling them never restarts one, and their
-  offboarding report still lists their repository and backup connections. A
-  purge still redacts chat transcripts while `chat` is off, and a person can
-  still remove a Slack link while `messaging` is off.
-
-A person's own settings for an off module stay as they saved them. They can
-still turn off what is theirs: pause their assistant or withdraw its AI
-processing consent while `personal` is off, and turn off memory or reply
-reminders while `memory` or `tasks` is off. Turning any of these on, or
-changing anything else about the assistant, is refused until the module is on
-again.
-
-What other features ask of an off module answers that it is not available:
-chat installs no judge and search offers no judgment ranking, and a person's
-saved data watches are skipped and kept, so their assistant goes on without
-them and they cannot be changed until data connections are on again. With
-`memory` off, connected agents are told nothing about memory, with
-`messaging` off, task queues work without reminders or notices, and with
-`personal` off, no account can be connected and reply reminders list no
-waiting replies. A notebook
-authority handoff needs its repository source and, to GitHub, its managed
-backup, so it cannot start while either module is off, and a gateway does not
-start while a handoff is pending and a module it needs is off. The browser
-leaves out the module's controls, and Administration's AI settings and
-instance status say it is off.
+[Feature modules](modules.md) describes what each module covers and what
+turning it off removes and keeps.
 
 The setting is read once at startup, before recovery; changing it means
 restarting every gateway, and a configuration reload with a different set is
 refused. It has no legacy environment variable. The startup log and
-Administration's instance status list each module and whether it is on. Each
-gateway records the modules it turns off; while live gateways disagree, each
-logs a warning and Administration's instance status lists every gateway with
-its set.
+Administration's instance status list each module and whether it is on.
 
 Configured providers do not enable AI processing or grant notebook access.
 Instance policy, private Inbox consent, connection grants and notebook roles
