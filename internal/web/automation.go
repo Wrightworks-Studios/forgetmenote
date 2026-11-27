@@ -27,6 +27,9 @@ func (s *Server) initAutomations() error {
 	return nil
 }
 func (s *Server) ConfigureAutomations(file string) error {
+	if !s.modules.Enabled("automations") {
+		return nil
+	}
 	if err := s.privateRuntimeFile(file); err != nil {
 		return err
 	}

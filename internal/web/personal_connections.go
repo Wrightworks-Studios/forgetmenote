@@ -19,6 +19,9 @@ import (
 )
 
 func (s *Server) ConfigurePersonalConnections(file string) error {
+	if !s.modules.Enabled("personal") {
+		return nil
+	}
 	if err := s.privateRuntimeFile(file); err != nil {
 		return err
 	}
@@ -34,6 +37,11 @@ func (s *Server) ConfigurePersonalConnectionsConfig(config connectors.PersonalCo
 		return err
 	}
 	defer unlock()
+	// With personal assistants off integrations.personal is left unread: no
+	// account can be connected, and reply reminders list no waiting replies.
+	if !s.modules.Enabled("personal") {
+		return nil
+	}
 
 	if s.personalConnections != nil {
 		return errors.New("personal connections are configured only at startup")

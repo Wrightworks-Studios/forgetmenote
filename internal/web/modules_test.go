@@ -425,7 +425,20 @@ var offModuleChecks = map[string]moduleChecks{
 		},
 	},
 	"personal": {
-		running: func(app *Server) bool { return app.personal != nil },
+		configure: func(t *testing.T, app *Server) {
+			dir := t.TempDir()
+			key, secret := filepath.Join(dir, "key"), filepath.Join(dir, "secret")
+			for path, body := range map[string][]byte{key: []byte(strings.Repeat("k", 32)), secret: []byte("synthetic-client-secret")} {
+				if err := os.WriteFile(path, body, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := app.ConfigurePersonalConnectionsConfig(connectors.PersonalConfig{Version: 1, KeyFile: key, Google: &connectors.OAuthApplication{ClientID: "synthetic", SecretFile: secret}}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		installed: func(app *Server) bool { return app.personalConnections != nil },
+		running:   func(app *Server) bool { return app.personal != nil },
 		cleanup: func(t *testing.T, app *Server) {
 			// A person set up their assistant while the module ran. With it
 			// off, no personal run is scheduled or claimed. They can still
