@@ -179,6 +179,83 @@ func (s *Slack) Members(ctx context.Context) ([]Member, error) {
 	return nil, errors.New("Slack member list exceeds 100 pages")
 }
 
+// directoryPages bounds the channel list at 5,000 channels.
+const directoryPages = 25
+
+// Directory lists the workspace's channels and people with the scopes the app
+// already holds: conversations.list for unarchived public channels
+// (channels:read) and the private ones the app is in (groups:read), and
+// users.list for active human members who are not guests (users:read). A list
+// Slack refuses or that fails is left out with its reason, and the other still
+// comes back. Each is in name order.
+func (s *Slack) Directory(ctx context.Context) Directory {
+	d := Directory{Channels: []DirectoryEntry{}, Users: []DirectoryEntry{}, Unlisted: map[string]string{}}
+	channels, err := s.channels(ctx)
+	if err != nil {
+		d.Unlisted["channels"] = directoryReason(err, "the channels:read and groups:read scopes")
+	} else {
+		d.Channels = channels
+	}
+	members, err := s.Members(ctx)
+	if err != nil {
+		d.Unlisted["users"] = directoryReason(err, "the users:read scope")
+	}
+	for _, m := range members {
+		d.Users = append(d.Users, DirectoryEntry{ID: m.User, Name: m.Name})
+	}
+	for _, list := range [][]DirectoryEntry{d.Channels, d.Users} {
+		slices.SortFunc(list, func(a, b DirectoryEntry) int {
+			return cmp.Or(cmp.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)), cmp.Compare(a.ID, b.ID))
+		})
+	}
+	if len(d.Unlisted) == 0 {
+		d.Unlisted = nil
+	}
+	return d
+}
+
+func (s *Slack) channels(ctx context.Context) ([]DirectoryEntry, error) {
+	out := []DirectoryEntry{}
+	cursor := ""
+	for range directoryPages {
+		var response struct {
+			Channels []struct {
+				ID       string `json:"id"`
+				Name     string `json:"name"`
+				Archived bool   `json:"is_archived"`
+			} `json:"channels"`
+			Metadata struct {
+				Next string `json:"next_cursor"`
+			} `json:"response_metadata"`
+		}
+		query := url.Values{"types": {"public_channel,private_channel"}, "exclude_archived": {"true"}, "limit": {"200"}}
+		if cursor != "" {
+			query.Set("cursor", cursor)
+		}
+		if err := s.api(ctx, "conversations.list", query, &response); err != nil {
+			return nil, err
+		}
+		for _, c := range response.Channels {
+			if ValidID(c.ID) && !c.Archived {
+				out = append(out, DirectoryEntry{ID: c.ID, Name: c.Name})
+			}
+		}
+		if cursor = response.Metadata.Next; cursor == "" {
+			return out, nil
+		}
+	}
+	return nil, errors.New("the workspace has more than 5,000 channels to list")
+}
+
+// directoryReason says why a list was left out, naming the scopes it needs
+// when Slack refused it for a missing one.
+func directoryReason(err error, scopes string) string {
+	if slackRefused(err, "missing_scope") {
+		return "the Slack app needs " + scopes + " to list these"
+	}
+	return err.Error()
+}
+
 // ChannelMembers lists a channel's members. A private channel is visible only
 // once the app has been added to it.
 func (s *Slack) ChannelMembers(ctx context.Context, channel string) ([]string, error) {
