@@ -1,6 +1,8 @@
 """GitHub workflows keep the promises SECURITY.md and docs/verification.md make."""
 from pathlib import Path
 import re
+import subprocess
+import tempfile
 import unittest
 
 import yaml
@@ -45,7 +47,7 @@ class CheckWorkflowTests(unittest.TestCase):
         self.assertNotIn('if', value['jobs']['vulnerabilities'])
         # Pushes and the schedule run the scan alone; PR and manual tiers keep their events.
         self.assertEqual(value['jobs']['fast']['if'], "github.event_name == 'pull_request' || github.event_name == 'merge_group'")
-        self.assertEqual(value['jobs']['full']['if'], "github.event_name == 'workflow_dispatch'")
+        self.assertEqual(value['jobs']['full']['if'], "github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group'")
         self.assertEqual(set(value['jobs']), {'vulnerabilities', 'fast', 'full'})
 
     def test_the_merge_queue_runs_the_fast_tier_against_its_base(self):
@@ -62,6 +64,38 @@ class CheckWorkflowTests(unittest.TestCase):
         self.assertEqual(fetch['with']['fetch-depth'], 0)
         # Only pull request runs give way to a newer push; queue entries finish.
         self.assertEqual(value['concurrency']['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}")
+
+    def test_queue_entries_decide_the_full_gate_inside_the_required_job(self):
+        # next can require full: a pull request run skips it, and GitHub reports a
+        # skipped job as Success. The same holds for a job whose `needs` failed, so
+        # the decision is a step of full itself, where an error fails the check.
+        value, _ = workflow('check.yml')
+        job = value['jobs']['full']
+        self.assertNotIn('needs', job)
+        self.assertEqual(job['permissions'], {'contents': 'read', 'pull-requests': 'read'})
+        steps = job['steps']
+        self.assertTrue(steps[0]['uses'].startswith('actions/checkout@'))
+        self.assertIs(steps[0]['with']['persist-credentials'], False)
+        decide = steps[1]
+        self.assertEqual(decide['id'], 'gate')
+        self.assertEqual(decide['run'], '.github/scripts/full-gate-needed.sh')
+        self.assertEqual(decide['env'], {'GH_TOKEN': '${{ github.token }}'})
+        self.assertNotIn('if', decide)
+        self.assertNotIn('continue-on-error', decide)
+        # An entry without the label succeeds at once; every later step runs only
+        # for the gate, and still stops at the first failure.
+        upload = next(step for step in steps if step.get('if') == 'failure()')
+        for step in steps[2:]:
+            if step is not upload:
+                with self.subTest(step=step.get('uses') or step.get('run')):
+                    self.assertEqual(step.get('if'), "steps.gate.outputs.run == 'true'")
+                    self.assertNotIn('continue-on-error', step)
+        # The queue drops an entry whose checks report nothing within 90 minutes. A
+        # stuck gate fails first, with time left to pick up a runner and upload its logs.
+        gate = next(step for step in steps if 'release_image.py' in step.get('run', ''))
+        self.assertLessEqual(gate['timeout-minutes'], 65)
+        self.assertLess(gate['timeout-minutes'], job['timeout-minutes'])
+        self.assertLessEqual(job['timeout-minutes'], 80)
 
     def test_every_action_is_pinned_to_a_commit(self):
         for path in sorted((ROOT / '.github/workflows').glob('*.yml')):
@@ -93,6 +127,77 @@ class CheckWorkflowTests(unittest.TestCase):
     def test_failed_full_check_uploads_its_logs_reports_and_traces(self):
         value, _ = workflow('check.yml')
         assert_failed_gate_uploads_its_evidence(self, value['jobs']['full']['steps'])
+
+
+class FullGateDecisionTests(unittest.TestCase):
+    """full-gate-needed.sh: whether a full job runs the gate or succeeds at once."""
+
+    SCRIPT = ROOT / '.github/scripts/full-gate-needed.sh'
+    QUEUE_REF = 'refs/heads/gh-readonly-queue/next/pr-63-' + '1802893ecaaf4e433c682c65976add8f9114bcd7'
+
+    def decide(self, event, ref=QUEUE_REF, labels='', gh_fails=False):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            gh = directory / 'gh'
+            gh.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >>"$FAKE_GH_CALLS"\n'
+                          '[ -z "$FAKE_GH_FAILS" ] || exit 1\nprintf \'%s\' "$FAKE_GH_LABELS"\n')
+            gh.chmod(0o755)
+            output = directory / 'output'
+            calls = directory / 'calls'
+            output.touch()
+            calls.touch()
+            result = subprocess.run([str(self.SCRIPT)], capture_output=True, text=True, env={
+                'PATH': f'{directory}:/usr/bin:/bin',
+                'GITHUB_EVENT_NAME': event,
+                'GITHUB_REF': ref,
+                'GITHUB_REPOSITORY': 'example/forgetmenote',
+                'GITHUB_OUTPUT': str(output),
+                'GH_TOKEN': 'test-token',
+                'FAKE_GH_CALLS': str(calls),
+                'FAKE_GH_LABELS': labels,
+                'FAKE_GH_FAILS': '1' if gh_fails else '',
+            })
+            return result, output.read_text(), calls.read_text().splitlines()
+
+    def test_a_manual_run_always_runs_the_gate(self):
+        result, output, calls = self.decide('workflow_dispatch', ref='refs/heads/feature', gh_fails=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(output, 'run=true\n')
+        self.assertEqual(calls, [])
+
+    def test_a_queue_entry_runs_the_gate_when_its_own_pull_request_has_the_label(self):
+        result, output, calls = self.decide('merge_group', labels='documentation\nfull-gate\n')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(output, 'run=true\n')
+        # The entry's ref names its own pull request; the label is read when the entry runs.
+        self.assertEqual(calls, ["api repos/example/forgetmenote/pulls/63 --jq .labels[].name"])
+
+    def test_a_queue_entry_without_the_label_succeeds_at_once(self):
+        for labels in ('', 'documentation\n', 'full-gate-later\nnot-full-gate\n', 'Full-Gate\n'):
+            with self.subTest(labels=labels):
+                result, output, _ = self.decide('merge_group', labels=labels)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(output, 'run=false\n')
+
+    def test_a_queue_entry_fails_when_its_pull_request_cannot_be_read(self):
+        result, output, _ = self.decide('merge_group', labels='full-gate\n', gh_fails=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(output, '')
+
+    def test_an_unrecognised_ref_or_event_fails_instead_of_passing(self):
+        sha = '1802893ecaaf4e433c682c65976add8f9114bcd7'
+        for event, ref in (
+                ('merge_group', 'refs/heads/next'),
+                ('merge_group', f'refs/heads/gh-readonly-queue/next/pr--{sha}'),
+                ('merge_group', f'refs/heads/gh-readonly-queue/next/pr-63-{sha}\nrefs/heads/next'),
+                ('pull_request', self.QUEUE_REF),
+                ('push', 'refs/heads/next'),
+                ('', self.QUEUE_REF)):
+            with self.subTest(event=event, ref=ref):
+                result, output, calls = self.decide(event, ref=ref, labels='full-gate\n')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(output, '')
+                self.assertEqual(calls, [])
 
 
 class ScorecardWorkflowTests(unittest.TestCase):
