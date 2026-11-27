@@ -1197,12 +1197,18 @@ func contractSources(sc *contractScenario) {
 	sc.fails("admin", "refreshing a source with a stale revision conflicts", "archive_source", contractArgs("path", path, "revision", strings.Repeat("2", 40), "filename", "harbour-log.txt", "data", base64.StdEncoding.EncodeToString([]byte(text+"Later entry.\n"))))
 	sc.fails("reader", "a reader cannot archive sources", "archive_source", contractArgs("filename", "reader.txt", "data", base64.StdEncoding.EncodeToString([]byte("Reader source.\n"))))
 	sc.fails("admin", "verify a note that is not a source", "verify_source", contractArgs("path", "index.md"))
-	blank := sc.ok("admin", "archive a page without text", "archive_source", contractArgs("filename", "notice.html", "title", "Harbour notice", "data", base64.StdEncoding.EncodeToString([]byte("<p></p>"))))
-	waiting := sc.ok("reader", "a reader lists the sources awaiting text", "list_sources_awaiting_text", contractArgs())
+	// The page waiting for an agent's text is the scratch notebook's only
+	// source. Two sources in one notebook would list in the order of their
+	// random IDs, and later scenarios list the contract notebook's sources.
+	scratch := func(pairs ...any) map[string]any {
+		return contractArgs(append([]any{"project", "contract-scratch"}, pairs...)...)
+	}
+	blank := sc.ok("admin", "archive a page without text", "archive_source", scratch("filename", "notice.html", "title", "Harbour notice", "data", base64.StdEncoding.EncodeToString([]byte("<p></p>"))))
+	waiting := sc.ok("admin", "list the sources awaiting text", "list_sources_awaiting_text", scratch())
 	agentText := map[string]any{"unit": "page", "sections": []map[string]any{{"number": 1, "title": "Notice", "text": "No whaling within the harbour."}}}
-	sc.ok("admin", "give the page an agent's text", "archive_source", contractArgs("path", blank.str("path"), "revision", waiting.str("revision"), "filename", "notice.html", "data", base64.StdEncoding.EncodeToString([]byte("<p></p>")), "extractor", "Contract agent; contract-model", "text", agentText))
-	sc.ok("admin", "no source awaits text", "list_sources_awaiting_text", contractArgs())
-	sc.fails("admin", "agent text needs the original", "archive_source", contractArgs("filename", "notice.png", "extractor", "Contract agent; contract-model", "text", agentText))
+	sc.ok("admin", "give the page an agent's text", "archive_source", scratch("path", blank.str("path"), "revision", waiting.str("revision"), "filename", "notice.html", "data", base64.StdEncoding.EncodeToString([]byte("<p></p>")), "extractor", "Contract agent; contract-model", "text", agentText))
+	sc.ok("admin", "no source awaits text", "list_sources_awaiting_text", scratch())
+	sc.fails("admin", "agent text needs the original", "archive_source", scratch("filename", "notice.png", "extractor", "Contract agent; contract-model", "text", agentText))
 }
 
 func contractTrash(sc *contractScenario) {
