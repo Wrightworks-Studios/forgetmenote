@@ -983,16 +983,46 @@ func (s *Service) HistoryAction(ctx context.Context, in HistoryInput) ([]History
 	return s.taskHistory(ctx, caller, in.ID)
 }
 
+// Settings are the task queue settings with the reminder jobs that serve
+// them. Enabling task queues creates no reminder job, so nobody is reminded
+// of their tasks until an administrator adds one; Warnings says so. Like
+// Project and Workspace, Reminders and Warnings are reported and a save
+// ignores them, so settings read with task_queues can be changed and sent
+// back.
+type Settings struct {
+	catalog.TaskQueues
+	Reminders []string `json:"reminders,omitempty" jsonschema:"Reported: IDs of the enabled task-reminder automations for the client; ignored on save"`
+	Warnings  []string `json:"warnings,omitempty" jsonschema:"Reported: setup that keeps task queues from working in full; ignored on save"`
+}
+
+func (s *Service) settings(settings catalog.TaskQueues) Settings {
+	out := Settings{TaskQueues: settings}
+	if settings.Client == "" {
+		return out
+	}
+	for _, spec := range s.taskReminderSpecs(settings.Client) {
+		out.Reminders = append(out.Reminders, spec.ID)
+	}
+	if len(out.Reminders) == 0 && settings.Project != "" && !settings.Disabled {
+		out.Warnings = append(out.Warnings, "No enabled task-reminder automation names the client "+settings.Client+", so nobody gets weekday task reminders. Add one that runs as the client's members actor every 15 minutes.")
+	}
+	return out
+}
+
 // SettingsAction reads the task queue settings, for an administrator.
-func (s *Service) SettingsAction(ctx context.Context, in struct{}) (catalog.TaskQueues, error) {
+func (s *Service) SettingsAction(ctx context.Context, in struct{}) (Settings, error) {
 	if !s.catalog.IsAdmin(auth.Subject(ctx)) {
-		return catalog.TaskQueues{}, workspace.ErrForbidden
+		return Settings{}, workspace.ErrForbidden
 	}
 	settings, _, _ := s.catalog.TaskQueues()
-	return settings, nil
+	return s.settings(settings), nil
 }
 
 // SetSettingsAction enables or changes task queues, for an administrator.
-func (s *Service) SetSettingsAction(ctx context.Context, in catalog.TaskQueues) (catalog.TaskQueues, error) {
-	return s.catalog.SetTaskQueues(auth.Subject(ctx), in)
+func (s *Service) SetSettingsAction(ctx context.Context, in Settings) (Settings, error) {
+	settings, err := s.catalog.SetTaskQueues(auth.Subject(ctx), in.TaskQueues)
+	if err != nil {
+		return Settings{}, err
+	}
+	return s.settings(settings), nil
 }

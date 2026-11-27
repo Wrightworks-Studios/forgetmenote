@@ -47,15 +47,21 @@ test('task queues are turned on and changed from Administration with the same se
     await accounts.selectOption(group.id);
     await panel.getByLabel('Away statuses (one per line)', {exact: true}).fill('OOO\nParental leave\n');
     await expect(panel.getByLabel('Pause every task action', {exact: true})).toHaveCount(0);
+    await expect(panel.locator('.settings-warning')).toHaveCount(0);
     await panel.getByRole('button', {name: 'Turn on task queues', exact: true}).click();
     await expect(panel.getByRole('status')).toHaveText('Task queues are on.');
+    // Until a task-reminder automation exists, nobody is reminded, and the page says so.
+    const noReminders =
+      "No enabled task-reminder automation names the client slack, so nobody gets weekday task reminders. Add one that runs as the client's members actor every 15 minutes.";
+    await expect(panel.locator('.settings-warning')).toHaveText([noReminders]);
     expect(await settings()).toEqual({
       project: 'task-queues',
       client: 'slack',
       workspace: 'T123',
       group: 'planners',
       awayStatuses: ['ooo', 'parental leave'],
-      revision: 1
+      revision: 1,
+      warnings: [noReminders]
     });
 
     // Settings saved through the API come back unchanged from an unchanged form.
