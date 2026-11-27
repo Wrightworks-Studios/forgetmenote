@@ -103,7 +103,7 @@ FEATURES = {
     'decisions': (['internal/decision/', 'internal/judgments/', 'internal/web/judgments*.go', 'internal/web/ui/judgments.mjs'],
                   ['judgments', 'judgments-integration']),
     'sources': (['internal/sources/', 'internal/web/sources*.go', 'internal/web/ui/sources.mjs'],
-                ['editor-creation', 'editor-notebooks', 'notebook-documents']),
+                ['editor-creation', 'editor-notebooks', 'notebook-documents', 'source-chat-text']),
     'repositories': (['internal/reposource/', 'internal/web/repository*.go', 'internal/web/ui/repositories.mjs'],
                      ['notebook-documents', 'authority', 'containers']),
     # The connector web adapters (data_connections.go, personal_connections.go) enforce

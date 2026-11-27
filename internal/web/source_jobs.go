@@ -113,6 +113,7 @@ func (s *Server) initSourceJobs() error {
 
 func (s *Server) sourceRoutes(r routeRegistrar) {
 	s.sourceHTTP.Register(r.project)
+	r.project("POST /api/sources/chat-text", "edit", s.sourceChatTextHTTP)
 }
 
 type sourceJobOutput = sourcehttp.JobOutput
