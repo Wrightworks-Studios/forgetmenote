@@ -36,7 +36,6 @@ type personalContext struct {
 
 func (s *Server) personalAssistantRoutes() {
 	s.mux.HandleFunc("GET /account/assistant", s.assistantPage)
-	s.messageLinkRoutes()
 	s.mux.HandleFunc("POST /api/assistant/action/{action}", func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("action")
 		if !assistantActions[name] {
@@ -146,7 +145,7 @@ func (s *Server) accountAssistantTools(server *mcp.Server) {
 		}
 		// Reply reminders ride the morning task reminder, which reaches people
 		// through their queue, so turning them on gives the person one.
-		if err == nil && settings.ReplyReminders {
+		if err == nil && settings.ReplyReminders && s.modules.Enabled("tasks") {
 			_, err = s.catalog.TaskPersonForAccount(subject(ctx), true)
 		}
 		return settings, err
@@ -192,17 +191,18 @@ func (s *Server) personalProfileTools(server *mcp.Server) {
 
 // offModuleSettings refuses a change to the part of a person's assistant
 // settings that belongs to a module the instance turns off. That part stays as
-// saved, unread, for when the module runs again; but a person can always pause
-// their personal assistant and withdraw its AI processing consent.
+// saved, unread, for when the module runs again; but a person can always turn
+// off what is theirs: pause their personal assistant, withdraw its AI
+// processing consent, and turn off memory and reply reminders.
 func (s *Server) offModuleSettings(in, current catalog.AssistantSettings) error {
 	if !s.modules.Enabled("data-connections") && !sameWatches(in.Watches, current.Watches) {
 		return webcore.Invalid("data connections are turned off on this instance, so data watches can't change")
 	}
-	if !s.modules.Enabled("memory") && in.MaintainMemory != current.MaintainMemory {
-		return webcore.Invalid("agent memory is turned off on this instance, so the Memory setting can't change")
+	if !s.modules.Enabled("memory") && in.MaintainMemory && !current.MaintainMemory {
+		return webcore.Invalid("agent memory is turned off on this instance, so the Memory setting can't be turned on")
 	}
-	if !s.modules.Enabled("tasks") && in.ReplyReminders != current.ReplyReminders {
-		return webcore.Invalid("task queues are turned off on this instance, so reply reminders can't change")
+	if !s.modules.Enabled("tasks") && in.ReplyReminders && !current.ReplyReminders {
+		return webcore.Invalid("task queues are turned off on this instance, so reply reminders can't be turned on")
 	}
 	if !s.modules.Enabled("personal") {
 		changed, saved := personalAssistantPart(in), personalAssistantPart(current)

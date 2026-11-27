@@ -262,6 +262,95 @@ func localCookie(t *testing.T, app *Server, user string) *http.Cookie {
 }
 
 var offModuleChecks = map[string]moduleChecks{
+	"tasks": {
+		running: func(app *Server) bool { return app.tasks != nil },
+		cleanup: func(t *testing.T, app *Server) {
+			// A task reminder queued while the module ran is neither
+			// scheduled nor claimed, and nobody can turn reply reminders on.
+			reminder := automation.Spec{Kind: "native", Native: &automation.NativeTask{Task: "task-reminder"}}
+			if err := app.automationPolicy(reminder); err == nil || !strings.Contains(err.Error(), "modules.off") {
+				t.Fatalf("a task reminder may run: %v", err)
+			}
+			admin := recoverySession(t, app)
+			alice := addLocal(t, app, admin, "tasks-alice")
+			settings, err := app.catalog.Assistant(alice)
+			if err != nil {
+				t.Fatal(err)
+			}
+			settings.ReplyReminders = true
+			body, _ := json.Marshal(settings)
+			if w := localRequest(app, "/api/assistant/action/save_assistant_settings", string(body), localCookie(t, app, "tasks-alice")); w.Code != 400 || !strings.Contains(w.Body.String(), "task queues are turned off") {
+				t.Fatalf("reply reminders turned on with the module off: %d %s", w.Code, w.Body)
+			}
+		},
+	},
+	"memory": {
+		cleanup: func(t *testing.T, app *Server) {
+			// A person kept memory on while the module ran. With it off,
+			// their agents are told nothing about memory, and they can turn
+			// the Memory setting off but not on again.
+			admin := recoverySession(t, app)
+			alice := addLocal(t, app, admin, "memory-alice")
+			cookie := localCookie(t, app, "memory-alice")
+			settings, err := app.catalog.SaveAssistant(alice, catalog.AssistantSettings{TimeZone: "UTC", MaintainMemory: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			origin := app.origin
+			client := actionClient(t, app, alice, moduleScopes)
+			app.origin = origin
+			// The account's own guidance; the plugin's shared text is static.
+			if instructions := client.InitializeResult().Instructions; strings.Contains(instructions, "Memory is on for this account") {
+				t.Fatal("the MCP instructions tell the account's agents to use memory")
+			}
+			w := apiCall(app, "POST", "/api/v1/actions/capabilities", `{}`, testToken)
+			if w.Code != 200 || strings.Contains(w.Body.String(), "recall_memory") {
+				t.Fatalf("capabilities: %d %s", w.Code, w.Body)
+			}
+			save := func(settings catalog.AssistantSettings) *httptest.ResponseRecorder {
+				body, _ := json.Marshal(settings)
+				return localRequest(app, "/api/assistant/action/save_assistant_settings", string(body), cookie)
+			}
+			off := settings
+			off.MaintainMemory = false
+			if w := save(off); w.Code != 200 {
+				t.Fatalf("turning memory off: %d %s", w.Code, w.Body)
+			}
+			on, err := app.catalog.Assistant(alice)
+			if err != nil {
+				t.Fatal(err)
+			}
+			on.MaintainMemory = true
+			if w := save(on); w.Code != 400 || !strings.Contains(w.Body.String(), "agent memory is turned off") {
+				t.Fatalf("memory turned on with the module off: %d %s", w.Code, w.Body)
+			}
+		},
+	},
+	"messaging": {
+		configure:    configureSlackFixture,
+		installed:    func(app *Server) bool { return app.slack != nil },
+		running:      func(app *Server) bool { return app.messaging != nil },
+		integrations: []string{"POST /integrations/slack/events", "POST /integrations/slack/interactions", "POST /integrations/slack/commands"},
+		cleanup: func(t *testing.T, app *Server) {
+			// A person linked a Slack account while the module ran. With it
+			// off nothing uses the link, and they can still remove it.
+			admin := recoverySession(t, app)
+			alice := addLocal(t, app, admin, "messaging-alice")
+			if err := app.catalog.LinkMessageUser(alice, "slack", "T123", "U999"); err != nil {
+				t.Fatal(err)
+			}
+			form := url.Values{"client": {"slack"}, "workspace": {"T123"}, "user": {"U999"}}
+			r := httptest.NewRequest("POST", app.origin+"/account/link/remove", strings.NewReader(form.Encode()))
+			r.Header.Set("Origin", app.origin)
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			r.AddCookie(localCookie(t, app, "messaging-alice"))
+			w := httptest.NewRecorder()
+			app.ServeHTTP(w, r)
+			if w.Code != http.StatusSeeOther || app.catalog.MessageLink("slack", "T123", "U999") != "" {
+				t.Fatalf("removing the link: %d %s", w.Code, w.Body)
+			}
+		},
+	},
 	"personal": {
 		running: func(app *Server) bool { return app.personal != nil },
 		cleanup: func(t *testing.T, app *Server) {

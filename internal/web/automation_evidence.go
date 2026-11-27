@@ -24,6 +24,9 @@ func (s *Server) checkAutomationEvidence(ctx context.Context, r *automation.Run,
 		}
 	}
 	if upstream && r.Spec.Kind == "assistant" && r.Spec.Delivery != nil {
+		if err := s.modules.Check("messaging"); err != nil {
+			return err
+		}
 		if err := s.messaging.VerifyMessageMember(ctx, *r.Spec.Delivery); err != nil {
 			return err
 		}

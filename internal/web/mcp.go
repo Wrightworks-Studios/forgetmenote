@@ -29,8 +29,6 @@ func (s *Server) mcpHandler() http.Handler {
 	s.credentialTools(server)
 	s.organizationTools(server)
 	s.accountAssistantTools(server)
-	s.agentMemoryTools(server)
-	s.taskTools(server)
 	if s.gitHubConnections() {
 		s.connectionTools(server)
 	}

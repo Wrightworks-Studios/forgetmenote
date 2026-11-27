@@ -38,10 +38,10 @@ var all = []Module{
 	{Name: "data-connections", Title: "Data connections", Integrations: []string{"postgres", "redshift"}, wired: true},
 	{Name: "sources", Title: "Archived sources", Integrations: []string{"ocr", "iwork", "outlook"}, wired: true},
 	{Name: "repositories", Title: "Repository notebooks", wired: true},
-	{Name: "tasks", Title: "Task queues", Requires: []string{"automations"}},
-	{Name: "messaging", Title: "Slack messaging", Requires: []string{"automations", "tasks", "memory", "chat"}, Integrations: []string{"slack"}},
+	{Name: "tasks", Title: "Task queues", Requires: []string{"automations"}, wired: true},
+	{Name: "messaging", Title: "Slack messaging", Requires: []string{"automations", "tasks", "memory", "chat"}, Integrations: []string{"slack"}, wired: true},
 	{Name: "personal", Title: "Personal assistants", Requires: []string{"automations", "messaging"}, wired: true},
-	{Name: "memory", Title: "Agent memory"},
+	{Name: "memory", Title: "Agent memory", wired: true},
 	{Name: "managed-backups", Title: "Managed backups", wired: true},
 }
 

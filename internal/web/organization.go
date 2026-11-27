@@ -80,7 +80,6 @@ func (s *Server) organizationTools(server *mcp.Server) {
 		err := s.catalog.BindExternalIdentity(subject(ctx), in.Issuer, in.Subject, in.User)
 		return actionResult{err == nil}, err
 	})
-	s.messagingTools(server)
 	s.instanceAITools(server)
 	addManagementTool(s, server, "organization_status", "Inspect this instance's groups, invitations and administrative activity. Admin only; no secrets.", true, func(ctx context.Context, in struct{}) (map[string]any, error) {
 		org, err := s.catalog.Organization(subject(ctx))

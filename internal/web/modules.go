@@ -38,6 +38,9 @@ var wiredModules = []wiredModule{
 	{name: "sources", tools: []func(*Server, *mcp.Server){(*Server).sourceTools}, routes: []func(*Server, routeRegistrar){(*Server).sourceRoutes}},
 	{name: "repositories", tools: []func(*Server, *mcp.Server){(*Server).repositoryTools}, routes: []func(*Server, routeRegistrar){(*Server).repositoryRoutes}},
 	{name: "managed-backups", tools: []func(*Server, *mcp.Server){(*Server).backupTools}, routes: []func(*Server, routeRegistrar){(*Server).backupRoutes}},
+	{name: "tasks", tools: []func(*Server, *mcp.Server){(*Server).taskTools}},
+	{name: "memory", tools: []func(*Server, *mcp.Server){(*Server).agentMemoryTools}},
+	{name: "messaging", tools: []func(*Server, *mcp.Server){(*Server).messagingTools}, routes: []func(*Server, routeRegistrar){(*Server).messageLinkRoutes}},
 	{name: "personal", tools: []func(*Server, *mcp.Server){(*Server).personalAssistantTools, (*Server).personalProfileTools, (*Server).personalConnectionTools, (*Server).personalUITools, (*Server).personalRecoveryTools}},
 }
 

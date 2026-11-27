@@ -32,7 +32,13 @@ type slackService struct {
 	outgoing *outgoing.Mode
 }
 
+// ConfigureSlack and ConfigureSlackConfig install the Slack app. On an
+// instance that turns messaging off they install nothing, and the file and
+// the app's token and signing secret stay unread.
 func (s *Server) ConfigureSlack(file string) error {
+	if !s.modules.Enabled("messaging") {
+		return nil
+	}
 	if err := s.privateRuntimeFile(file); err != nil {
 		return err
 	}
@@ -43,6 +49,9 @@ func (s *Server) ConfigureSlack(file string) error {
 	return s.ConfigureSlackConfig(cfg)
 }
 func (s *Server) ConfigureSlackConfig(cfg messaging.SlackConfig) error {
+	if !s.modules.Enabled("messaging") {
+		return nil
+	}
 	if err := integrations.Check("slack"); err != nil {
 		return err
 	}
