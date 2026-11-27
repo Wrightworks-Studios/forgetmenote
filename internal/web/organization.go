@@ -18,7 +18,7 @@ import (
 var organizationActions = map[string]bool{
 	"set_assistant_responsibilities": true, "assistant_policy": true, "set_assistant_policy": true,
 	"provision_work_notebook": true,
-	"chat_clients":            true, "set_chat_clients": true,
+	"chat_clients":            true, "set_chat_clients": true, "chat_client_directory": true,
 	"ai_settings": true, "set_ai_settings": true,
 	"discover_automation_packages": true, "install_automation_package": true, "prepare_automation_package": true, "save_automation": true, "delete_automation": true, "validate_automation": true, "test_automation": true, "automation_run": true, "automation_status": true, "run_automation": true, "cancel_automation": true,
 	"data_connection_access": true, "set_data_connection_access": true, "bind_external_identity": true,

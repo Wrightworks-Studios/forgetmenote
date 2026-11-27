@@ -68,7 +68,7 @@ func TestRegisteredActionsHaveExplicitChatClassification(t *testing.T) {
 		}
 	}
 	// Broad MCP reads must not become a chat corpus bypass through discovery.
-	for _, name := range []string{"get_indexing_passages", "list_trash", "read_attachment", "export_project_backup", "read_source_original", "verify_source", "list_attachments", "ai_settings", "set_ai_settings", "chat_clients", "set_chat_clients", "provision_work_notebook"} {
+	for _, name := range []string{"get_indexing_passages", "list_trash", "read_attachment", "export_project_backup", "read_source_original", "verify_source", "list_attachments", "ai_settings", "set_ai_settings", "chat_clients", "set_chat_clients", "chat_client_directory", "provision_work_notebook"} {
 		if _, exposed := app.actionTool(name); exposed {
 			t.Errorf("unscoped action exposed: %s", name)
 		}

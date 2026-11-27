@@ -518,6 +518,11 @@ policy changes cannot override it or revive a removed/disabled client. Credentia
 and workspace identity remain operator-managed runtime configuration. JSON editing
 is available alongside the form; the same admin-only `chat_clients` and
 `set_chat_clients` actions work through API/CLI/MCP, with a revision check on saves.
+The form offers the Slack app's channels and people by name from the admin-only
+`chat_client_directory` action: unarchived public channels, private channels the
+app is in, and active members who are not guests, by ID and name only. Without a
+listing scope, or when Slack refuses or the list is too long, the form takes typed
+IDs for that list and says why.
 Adoption uses catalog format 7: rollback to an older binary requires a compatible
 instance backup. No configuration or token contents are written to notebooks.
 
@@ -541,6 +546,7 @@ and subscriptions for the features used:
 | Verify workspace membership | `users:read` | None additional |
 | Pair members with accounts by email | `users:read`, `users:read.email` | `team_join`, `user_change` to pair changes right away |
 | Give a channel, user group or everyone a [task](../../docs/tasks.md) | `users:read`, `channels:read`, `groups:read`, `usergroups:read` | None additional |
+| Choose channels and people by name in Administration | `channels:read`, `groups:read`, `users:read` | None additional |
 | Working indicator on DMs/private replies | `reactions:write` | None additional |
 | Native working status inside threads | `assistant:write` | None additional |
 
