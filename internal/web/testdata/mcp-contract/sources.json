@@ -480,7 +480,7 @@
     "arguments": {
       "data": "PHA+PC9wPg==",
       "filename": "notice.html",
-      "project": "contract",
+      "project": "contract-scratch",
       "title": "Harbour notice"
     },
     "result": {
@@ -514,11 +514,11 @@
     }
   },
   {
-    "step": "a reader lists the sources awaiting text",
+    "step": "list the sources awaiting text",
     "tool": "list_sources_awaiting_text",
-    "as": "reader",
+    "as": "admin",
     "arguments": {
-      "project": "contract"
+      "project": "contract-scratch"
     },
     "result": {
       "revision": "REV3",
@@ -545,7 +545,7 @@
       "extractor": "Contract agent; contract-model",
       "filename": "notice.html",
       "path": "sources/ID3.md",
-      "project": "contract",
+      "project": "contract-scratch",
       "revision": "REV3",
       "text": {
         "sections": [
@@ -593,7 +593,7 @@
     "tool": "list_sources_awaiting_text",
     "as": "admin",
     "arguments": {
-      "project": "contract"
+      "project": "contract-scratch"
     },
     "result": {
       "revision": "REV4",
@@ -607,7 +607,7 @@
     "arguments": {
       "extractor": "Contract agent; contract-model",
       "filename": "notice.png",
-      "project": "contract",
+      "project": "contract-scratch",
       "text": {
         "sections": [
           {
