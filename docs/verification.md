@@ -272,10 +272,14 @@ baseline means all race tests, including the entire web package.
 GitHub Check uses this tier for pull requests. Its manual full
 runs execute `release_image.py --verify-only --mode full` on a standard runner,
 with npm downloads, Playwright browsers and image layers (`FMN_IMAGE_CACHE=gha`)
-in the Actions cache. The gate prints only the last 16,000 characters of a failed
-check's log, so a failed full run uploads the candidate's check logs
-(`REVISION/*.log`), browser reports, `verification.json` and `browser-*-results/`
-traces and screenshots as its `gate-failure-ATTEMPT` artifact, kept for seven days.
+in the Actions cache. A failed `go test -json` check prints each test that failed
+or never finished (as at a `-timeout` panic) with its own output, then the output of
+failed builds and packages outside their tests, such as build errors and panics or
+races after the tests. Any other failed check prints the last 16,000 characters of
+its log. The full logs stay on the runner, so a failed full run uploads the
+candidate's check logs (`REVISION/*.log`), browser reports, `verification.json` and
+`browser-*-results/` traces and screenshots as its `gate-failure-ATTEMPT` artifact,
+kept for seven days.
 Anyone signed in to GitHub can read a public repository's artifacts. These hold only
 synthetic test data, and `release_image.py` keeps the Actions runtime variables
 (`ACTIONS_*`, with the cache token) from every command but the image build, because a
