@@ -338,8 +338,8 @@ class PathClassTests(unittest.TestCase):
         for pattern in verification_plan_module.IMAGE_EXCLUDED:
             self.assertIn(pattern, ignored)
 
-    def test_publication_ignores_exactly_the_documents(self):
-        workflow = (ROOT / '.github/workflows/publish.yml').read_text()
+    def test_deployment_notification_ignores_exactly_the_documents(self):
+        workflow = (ROOT / '.github/workflows/notify-deployments.yml').read_text()
         block = re.search(r'^    paths-ignore:\n((?:      - .*\n|      #.*\n)+)', workflow, re.M)
         ignored = re.findall(r"^      - '([^']+)'$", block[1], re.M)
         self.assertEqual(sorted(ignored), sorted(verification_plan_module.DOCUMENTS))
