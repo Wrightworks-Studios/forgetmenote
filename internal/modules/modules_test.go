@@ -99,7 +99,7 @@ func TestTurningAModuleOffIsNotSupportedYet(t *testing.T) {
 // The wired modules nothing requires can each be turned off, alone or
 // together.
 func TestTheModulesNothingRequiresCanBeTurnedOff(t *testing.T) {
-	optional := []string{"judgments", "data-connections", "sources"}
+	optional := []string{"judgments", "data-connections", "sources", "repositories", "managed-backups"}
 	for _, name := range optional {
 		set, err := Parse([]string{name})
 		if err != nil {

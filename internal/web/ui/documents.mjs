@@ -11,7 +11,7 @@ export function documentURL(ref) {return navigationURL({...ref,collection:'notes
 // retention remain with the application's existing editor/navigation owner,
 // whose navigation requests (`beginNavigation`/`ownsNavigation`) a file or
 // folder opens under.
-export function initDocuments({api,post,getContext,notice,openNote,chooseNotebook,currentNotebook,beginNavigation,ownsNavigation,navigationSignal,retainForNavigation,clearDisplayedNote,updateRoute,state,setCollection,updateCreationControls,layout}) {
+export function initDocuments({api,post,getContext,notice,openNote,chooseNotebook,currentNotebook,beginNavigation,ownsNavigation,navigationSignal,retainForNavigation,clearDisplayedNote,updateRoute,state,setCollection,updateCreationControls,layout,repositoriesOn=()=>true}) {
  let generation=0,disposeCode,displayed,selection,outlineGeneration=0,downloadTimer,waiting=false,listedRevision='',listedFolder='';
  const href=ref=>documentURL(ref);
  function hide(){generation++;downloadTimer?.stop();waiting=false;disposeCode?.();disposeCode=null;displayed=null;$('source-browser').hidden=true;$('source-document').hidden=true;document.body.classList.remove('source-active');}
@@ -85,6 +85,7 @@ export function initDocuments({api,post,getContext,notice,openNote,chooseNoteboo
   };
  }
  async function check(refresh=false,readError=null){
+  if(!repositoriesOn())return;
   const selected=getContext().project?.id,version=generation;downloadTimer?.stop();
   const current=()=>version===generation&&selected===getContext().project?.id;
   try{
@@ -146,8 +147,11 @@ export function initDocuments({api,post,getContext,notice,openNote,chooseNoteboo
    $('browse-root').querySelector('span').textContent=data.notebookLayout?'Notes':'Files';
   }
   $('path').textContent=project.name;state('Read-only repository');browse(data,path,getContext().collection);
-  if(error)$('source-browser-status').textContent=error.message+' Check connection status in Notebook settings.';
-  check(false,error);
+  // With the repositories module off, the notebook's files stay stored but
+  // nothing reads or refreshes them.
+  $('source-check').hidden=!repositoriesOn();
+  if(!repositoriesOn())$('source-browser-status').textContent='The repositories module is turned off on this instance, so this notebook\'s files are not available.';
+  else{if(error)$('source-browser-status').textContent=error.message+' Check connection status in Notebook settings.';check(false,error);}
   updateRoute({origin:'repository',folder:path});updateCreationControls();if(closeSidebar)layout.closeOnPhone(sidebarRequest);return request;
  }
  return {open:openDocument,openFolder,hide,get current(){return displayed;},projectChanged(){hide();outlineGeneration++;$('notebook-outline').open=false;$('outline-query').value='';$('outline-entries').replaceChildren();}};

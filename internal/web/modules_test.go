@@ -1,8 +1,12 @@
 package web
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,11 +20,14 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"forgetmenote/internal/backups"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/decision"
+	"forgetmenote/internal/githubapp"
 	"forgetmenote/internal/modules"
 	"forgetmenote/internal/pg/pgtest"
+	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/workspace"
 )
 
@@ -162,12 +169,132 @@ type moduleChecks struct {
 	installed func(app *Server) bool
 	// running reports whether the module's hub and its workers are open.
 	running func(app *Server) bool
+	// integrations are the module's endpoints that authenticate their own
+	// callers, such as webhooks, as "METHOD path": served while the module
+	// runs, and 404 while it is off.
+	integrations []string
 	// cleanup proves that a purge, account deletion or access removal still
 	// reaches the module's stored data while it is off.
 	cleanup func(t *testing.T, app *Server)
 }
 
+// gitHubAppFiles writes a synthetic GitHub App's private key, client secret
+// and webhook secret, as an operator would, and returns their paths.
+func gitHubAppFiles(t *testing.T) (key, client, webhook string) {
+	t.Helper()
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	key, client, webhook = filepath.Join(dir, "key"), filepath.Join(dir, "client"), filepath.Join(dir, "webhook")
+	for path, body := range map[string][]byte{key: pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(private)}), client: []byte("synthetic-client"), webhook: []byte(strings.Repeat("h", 32))} {
+		if err := os.WriteFile(path, body, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return key, client, webhook
+}
+
+// offboardingConnections are the integration connections an Admin's
+// offboarding report lists for a person.
+func offboardingConnections(t *testing.T, app *Server, user string) []map[string]any {
+	t.Helper()
+	w := apiCall(app, "POST", "/api/v1/actions/offboarding_status", `{"user":"`+user+`"}`, testToken)
+	var out struct {
+		Connections []map[string]any `json:"connections"`
+	}
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil {
+		t.Fatalf("offboarding_status: HTTP %d %s", w.Code, w.Body)
+	}
+	return out.Connections
+}
+
+// notebookOwner adds a person who owns the notebook, of the given kind, and
+// creates the notebook unless it exists.
+func notebookOwner(t *testing.T, app *Server, user, project, kind string) {
+	t.Helper()
+	if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: user}); err != nil {
+		t.Fatal(err)
+	}
+	if project != "default" {
+		if err := app.catalog.CreateKind(catalog.Bootstrap, project, project, kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := app.catalog.Member(catalog.Bootstrap, project, user, "owner"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 var offModuleChecks = map[string]moduleChecks{
+	"repositories": {
+		duties: []string{"repository-refresh"},
+		configure: func(t *testing.T, app *Server) {
+			key, client, webhook := gitHubAppFiles(t)
+			if err := app.ConfigureRepositorySourcesConfig(reposource.Config{AppID: "123", Slug: "sources", ClientID: "sources", PrivateKeyFile: key, ClientSecretFile: client, WebhookSecretFile: webhook}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		installed:    func(app *Server) bool { return app.repositories != nil || app.repositoryConnections != nil },
+		integrations: []string{"POST /repository/github/webhook"},
+		cleanup: func(t *testing.T, app *Server) {
+			// A source connected while the module ran fetches as a person
+			// who is then disabled with the module off. The source is paused
+			// all the same, so re-enabling them never restarts it, and their
+			// offboarding report lists it.
+			notebookOwner(t, app, "repo-alice", "code", "repository")
+			state := reposource.State{ID: "fixture", Project: "code", Actor: "repo-alice", Installation: 7, Repository: reposource.Repository{ID: 42, FullName: "example/source", DefaultBranch: "main", Private: true}, Connected: true, Generation: 1, Downloaded: "synthetic"}
+			data, _ := json.Marshal(map[string]any{"version": 1, "active": "fixture", "sources": map[string]reposource.State{"fixture": state}})
+			if _, err := app.db.WriteDocument(t.Context(), app.db.Pool, "repository-sources", "code", 0, data); err != nil {
+				t.Fatal(err)
+			}
+			if w := apiCall(app, "POST", "/api/v1/actions/set_user_access", `{"id":"repo-alice","disabled":true}`, testToken); w.Code != 200 {
+				t.Fatalf("disable: HTTP %d %s", w.Code, w.Body)
+			}
+			_, raw, err := app.db.ReadDocument(t.Context(), app.db.Pool, "repository-sources", "code", 0)
+			var stored struct {
+				Sources map[string]reposource.State `json:"sources"`
+			}
+			if err != nil || json.Unmarshal(raw, &stored) != nil || !stored.Sources["fixture"].Paused {
+				t.Fatalf("the disabled person's source is not paused: %s %v", raw, err)
+			}
+			connections := offboardingConnections(t, app, "repo-alice")
+			if len(connections) != 1 || connections[0]["project"] != "code" || connections[0]["kind"] != "repository" || connections[0]["paused"] != true {
+				t.Fatalf("offboarding lists %v", connections)
+			}
+		},
+	},
+	"managed-backups": {
+		duties: []string{"backup-expiry"},
+		configure: func(t *testing.T, app *Server) {
+			key, client, webhook := gitHubAppFiles(t)
+			worker := filepath.Join(t.TempDir(), "worker")
+			if err := os.WriteFile(worker, []byte(strings.Repeat("w", 32)), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := app.ConfigureBackupsConfig(backups.AppConfig{App: githubapp.Config{AppID: "2", Slug: "backups", ClientID: "backups", PrivateKeyFile: key, ClientSecretFile: client, WebhookSecretFile: webhook}, Workers: map[string]backups.WorkerConfig{"fixture": {Owner: "local", TokenFile: worker}}}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		installed:    func(app *Server) bool { return app.backups != nil },
+		integrations: []string{"POST /internal/backups/v1/lease"},
+		cleanup: func(t *testing.T, app *Server) {
+			// A backup connected while the module ran stays listed in the
+			// offboarding report of the person who connected it, so that
+			// removing their access does not overlook it.
+			notebookOwner(t, app, "backup-alice", "default", "notes")
+			binding := backups.Binding{Project: "default", Actor: "backup-alice", Owner: "local", Epoch: app.catalog.Epoch("backup-alice"), Installation: 7, Repository: githubapp.Repository{ID: 43, FullName: "example/backup", DefaultBranch: "main"}, Branch: "main", Generation: 1, Connected: true, Enabled: true}
+			data, _ := json.Marshal(map[string]any{"version": 1, "bindings": map[string]backups.Binding{"default": binding}})
+			if _, err := app.db.WriteDocument(t.Context(), app.db.Pool, "backups", "bindings", 0, data); err != nil {
+				t.Fatal(err)
+			}
+			connections := offboardingConnections(t, app, "backup-alice")
+			if len(connections) != 1 || connections[0]["project"] != "default" || connections[0]["kind"] != "backup" || connections[0]["paused"] != false {
+				t.Fatalf("offboarding lists %v", connections)
+			}
+		},
+	},
 	"sources": {
 		running: func(app *Server) bool { return app.sourceJobs != nil && app.sourceHTTP != nil },
 		cleanup: func(t *testing.T, app *Server) {
@@ -353,6 +480,13 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 					t.Errorf("with every module on, %s is not routed", route.pattern)
 				}
 			}
+			for _, endpoint := range checks.integrations {
+				w := httptest.NewRecorder()
+				full.ServeHTTP(w, moduleRoute{pattern: endpoint}.request(full))
+				if w.Code == 404 {
+					t.Errorf("with every module on, %s answers 404: %s", endpoint, w.Body)
+				}
+			}
 
 			if checks.installed != nil && !checks.installed(full) {
 				t.Error("with every module on, its settings are not installed")
@@ -396,6 +530,13 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 				app.ServeHTTP(w, route.request(app))
 				if w.Code != 404 || route.registered(app) {
 					t.Errorf("%s: HTTP %d %s", route.pattern, w.Code, w.Body)
+				}
+			}
+			for _, endpoint := range checks.integrations {
+				w := httptest.NewRecorder()
+				app.ServeHTTP(w, moduleRoute{pattern: endpoint}.request(app))
+				if w.Code != 404 {
+					t.Errorf("%s: HTTP %d %s", endpoint, w.Code, w.Body)
 				}
 			}
 			if held := heldModuleDuties(t, app, checks.duties); len(held) > 0 {
@@ -473,5 +614,34 @@ func TestSavedWatchesStayWithDataConnectionsOff(t *testing.T) {
 	stored, err := app.catalog.Assistant(alice)
 	if err != nil || stored.QuietStart != "22:00" || len(stored.Watches) != 1 || stored.Watches[0].Operation != "read" {
 		t.Fatalf("saved settings: %+v %v", stored, err)
+	}
+}
+
+// Repositories and managed backups share the GitHub App connection flow. It
+// runs while either module does, answering that the other is not available,
+// and is absent with both off.
+func TestGitHubConnectionsRunWithRepositoriesOrManagedBackups(t *testing.T) {
+	for _, tc := range []struct {
+		off     []string
+		purpose string
+	}{{[]string{"repositories"}, "source"}, {[]string{"managed-backups"}, "backup"}, {[]string{"repositories", "managed-backups"}, ""}} {
+		t.Run(strings.Join(tc.off, "+"), func(t *testing.T) {
+			app := startedModuleServer(t, tc.off...)
+			present := tc.purpose != ""
+			for _, name := range []string{"begin_github_connection", "github_connection_status", "finish_github_connection"} {
+				if _, ok := app.actions[name]; ok != present {
+					t.Errorf("%s registered=%v", name, ok)
+				}
+			}
+			if route := (moduleRoute{pattern: "GET /connections/start"}); route.registered(app) != present {
+				t.Errorf("/connections/start routed=%v", !present)
+			}
+			if present {
+				w := apiCall(app, "POST", "/api/v1/actions/begin_github_connection", `{"project":"default","purpose":"`+tc.purpose+`"}`, testToken)
+				if w.Code != 503 {
+					t.Errorf("a %s connection with its module off: HTTP %d %s", tc.purpose, w.Code, w.Body)
+				}
+			}
+		})
 	}
 }
