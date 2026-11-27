@@ -326,7 +326,7 @@ func TestMCPActionParityInventory(t *testing.T) {
 		"POST /api/writing/outline": "document_outline", "POST /api/writing/terms": "find_term_mentions",
 		"POST /api/projects/repository/connect": "interactive repository setup", "GET /api/projects/repository/choices": "interactive repository setup", "POST /api/projects/repository/finish": "interactive repository setup",
 		"POST /api/sources/jobs": "prepare_source", "GET /api/sources/jobs/{job}": "source_job", "POST /api/sources/jobs/{job}/cancel": "cancel_source_job", "POST /api/sources/jobs/{job}/resume": "resume_source_job",
-		"GET /api/people": "find_workspace_people", "GET /api/sources/formats": "source_formats", "POST /api/sources/preview": "archive_source", "POST /api/sources/import": "archive_source", "GET /api/sources/verify": "verify_source",
+		"GET /api/people": "find_workspace_people", "GET /api/sources/formats": "source_formats", "POST /api/sources/preview": "archive_source", "POST /api/sources/import": "archive_source", "GET /api/sources/verify": "verify_source", "GET /api/sources/awaiting-text": "list_sources_awaiting_text",
 		// Private account consent and capture/review orchestration are explicit
 		// browser interactions. Their note operations still use the shared
 		// workspace methods; an MCP client cannot silently enable remote use.
