@@ -1,7 +1,14 @@
 import {test, expect} from '@playwright/test';
 import {startApp} from './app-fixture.mjs';
 import {attachmentMarkdown} from '../../internal/web/ui/media.mjs';
-import {caretAtLineEnd, countLiveUpdates, editorText, expectEditorText, expectVisual} from './editor-text.mjs';
+import {
+  caretAtLineEnd,
+  countLiveUpdates,
+  documentEnd,
+  editorText,
+  expectEditorText,
+  expectVisual
+} from './editor-text.mjs';
 
 let app, cookies;
 test.beforeAll(async ({browser}) => {
@@ -47,7 +54,7 @@ test('both editors insert notebook links with a heading and navigate after renam
   await expect(page.locator('#notebook-link-insert')).toBeVisible();
   await page.locator('#format-source').click();
   await page.locator('#editor').focus();
-  await page.locator('#editor').press('ControlOrMeta+End');
+  await page.locator('#editor').press(documentEnd);
   await page.locator('#notebook-link-insert').click();
   const picker = page.locator('#notebook-link-dialog');
   await picker.getByRole('combobox', {name: 'Notebook', exact: true}).selectOption('second');
