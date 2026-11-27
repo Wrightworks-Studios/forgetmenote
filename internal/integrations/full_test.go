@@ -1,4 +1,4 @@
-//go:build !fmn_omit_postgres && !fmn_omit_redshift && !fmn_omit_outlook && !fmn_omit_iwork && !fmn_omit_ocr && !fmn_omit_slack
+//go:build !fmn_omit_postgres && !fmn_omit_redshift && !fmn_omit_outlook && !fmn_omit_slack
 
 package integrations
 

@@ -30,7 +30,7 @@ var all = []Module{
 	{Name: "automations", Title: "Automations"},
 	{Name: "judgments", Title: "Judgments"},
 	{Name: "data-connections", Title: "Data connections", Integrations: []string{"postgres", "redshift"}},
-	{Name: "sources", Title: "Archived sources", Integrations: []string{"ocr", "iwork", "outlook"}},
+	{Name: "sources", Title: "Archived sources", Integrations: []string{"outlook"}},
 	{Name: "repositories", Title: "Repository notebooks"},
 	{Name: "tasks", Title: "Task queues", Requires: []string{"automations"}},
 	{Name: "messaging", Title: "Slack messaging", Requires: []string{"automations", "tasks", "memory", "chat"}, Integrations: []string{"slack"}},

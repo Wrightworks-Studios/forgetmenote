@@ -98,32 +98,20 @@ func TestModelCapacitiesAreNotClampedByGlobalDefaults(t *testing.T) {
 	}
 }
 
-func TestSourceConfigurationRequiresExplicitCapableConnection(t *testing.T) {
-	for _, mode := range []string{"valid", "unknown", "no-model", "no-images", "wrong-format", "unlisted-model", "invalid-transcription"} {
-		t.Run(mode, func(t *testing.T) {
-			connection := providerTestConnection("http://localhost:1234/v1", "responses")
-			connection.Capabilities.Images = true
-			source := &SourceConfig{Connection: "test", Model: "test-model", TranscriptionModel: "configured-transcriber"}
-			switch mode {
-			case "unknown":
-				source.Connection = "unknown"
-			case "no-model":
-				source.Model = ""
-				source.TranscriptionModel = ""
-			case "no-images":
-				connection.Capabilities.Images = false
-			case "wrong-format":
-				connection.Format = "chat-completions"
-			case "unlisted-model":
-				source.Model = "unknown"
-			case "invalid-transcription":
-				source.TranscriptionModel = "bad\nmodel"
-			}
-			config := Config{Connections: []Connection{connection}, Sources: source}
-			err := config.Validate()
-			if (err == nil) != (mode == "valid") {
-				t.Fatalf("source configuration %s: %v", mode, err)
-			}
-		})
+// Hosted source processing is gone. A chat configuration written for an
+// earlier release may still carry its sources block, which loads unchecked and
+// configures nothing, so an upgraded instance starts.
+func TestRetiredSourceConfigurationStillLoads(t *testing.T) {
+	connection := providerTestConnection("http://localhost:1234/v1", "responses")
+	raw, err := json.Marshal(map[string]any{"connections": []Connection{connection}, "sources": map[string]any{"connection": "unknown", "model": "retired-model", "transcriptionModel": "bad\nmodel"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "chat.json")
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadConfig(path); err != nil {
+		t.Fatal(err)
 	}
 }

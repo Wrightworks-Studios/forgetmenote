@@ -194,7 +194,7 @@ The runner reserves the step ID `complete` for the final result.
 | `decision.evaluate` | Existing decision request: `state` plus named `questions` with typed judgments and criteria. Returns named `answers` through the existing decision service, concurrency and usage ledger. |
 | `web.fetch` | Public `url`, optional `image: true`; returns extracted `text`, `title`, provenance `record`, or inline `image` and final `url`. Uses existing source restrictions. No JavaScript/browser execution. |
 | `web.search` | `query`, `limit`, optional `diagnostics`; configured research provider and search budgets. With Cloudflare, `diagnostics: true` returns `{results,diagnostics}` with HTTP status, sanitized request ID and returned/accepted URL counts; the default remains the link list. An explicitly selected Cloudflare moderation connection uses Ceramic and returns URLs only, without retaining raw search output, snippets, titles or rankings. OpenAI research uses one bounded Responses web-search call on an operator-selected connection, records usage and returns source candidates for separate fetching. Paid or interrupted searches are never automatically retried. No implicit provider or key. |
-| `documents.extract` | `name`, base64 `data`; returns extracted `text`, `title`, `record` directly through the existing extraction/OCR owner. No temporary notebook notes. |
+| `documents.extract` | `name`, base64 `data`; returns extracted `text`, `title`, `record` directly through the existing source extraction owner, which stores image, media and Apple formats as originals only (`record.extraction` is `original-only`). No temporary notebook notes. |
 | `run.complete` (runner-owned) | Persists the return `result` only when no external outcome is unresolved. |
 
 Clef Noul answers carry `noul` (0–1) without a confidence field. Score answers carry the probability-weighted level index (0 through `len(criteria)-1`), full level probabilities, the original legend and native confidence. `batches` reports actual provider requests when capacity requires splitting; sibling membership can affect scores, so retain the executed request when evaluating changes. These native types are not converted into policy verdicts by the host.
@@ -492,7 +492,7 @@ unchanged. Subprocesses inherit the sandbox.
   interpreter's installation (`sys.base_prefix`) and the extractor system paths:
   `/usr`, `/lib`, `/lib64`, `/bin`, `/sbin`, `/etc`, `/var/cache/fontconfig`,
   `/dev/urandom`, CPU topology (`/sys/devices/system/cpu`, `/proc/cpuinfo`) and the
-  forgetmenote binary's directory. Tools such as `tesseract` under `/usr/bin` work.
+  forgetmenote binary's directory. Tools such as `pdftotext` under `/usr/bin` work.
 - **Writable:** only the run's private scratch directory (its working directory,
   `HOME` and `TMPDIR`, removed after the run) and `/dev/null`. The prepared version
   stays unwritable even if the package changes its permissions.
@@ -560,7 +560,7 @@ definition.
 
 ## Dependency preparation
 
-Prefer the standard library and the supplied small host client. Reuse host OCR,
+Prefer the standard library and the supplied small host client. Reuse host source extraction,
 AI, decision, research, connectors and notebook operations. Standard-library
 packages do not create a virtual environment or load the host's site-packages.
 

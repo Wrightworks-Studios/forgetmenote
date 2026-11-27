@@ -22,10 +22,9 @@ import (
 // below it so a parser spinning in a loop is stopped even if it ignores signals.
 const extractorTimeout = 60 * time.Second
 
-// Poppler, Tesseract (one thread), FFmpeg and libetonyek fit comfortably in this
-// envelope for the source budgets: one 4096-pixel page, 30-second audio chunks,
-// 64 MiB originals. The process limit counts every task of the server's user ID
-// on the host, so it is a fork-bomb guard rather than a tight budget.
+// Poppler's pdftotext fits comfortably in this envelope for 64 MiB originals.
+// The process limit counts every task of the server's user ID on the host, so
+// it is a fork-bomb guard rather than a tight budget.
 var extractorLimits = sandbox.Policy{Memory: 1 << 30, CPU: 50, Processes: 4096, FileSize: 64 << 20}
 
 // Local extractors receive no application credentials. Each runs through the
@@ -49,12 +48,7 @@ func localCommand(ctx context.Context, dir, name string, args ...string) *exec.C
 	cmd.Dir = dir
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "TMPDIR=" + scratch,
 		"FMN_LIMIT_SOURCE_BYTES=" + strconv.Itoa(workspace.MaxSourceBytes()),
-		"OMP_NUM_THREADS=1", "OMP_THREAD_LIMIT=1", "PYTHONDONTWRITEBYTECODE=1"}
-	for _, key := range []string{"TESSDATA_PREFIX"} {
-		if value := os.Getenv(key); value != "" {
-			cmd.Env = append(cmd.Env, key+"="+value)
-		}
-	}
+		"PYTHONDONTWRITEBYTECODE=1"}
 	cmd.Stderr = &sandboxNotice{}
 	return cmd
 }

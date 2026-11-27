@@ -74,17 +74,73 @@ func TestPDFNativeFailurePreservesOriginal(t *testing.T) {
 	}
 }
 
-func TestPDFCheckpointReuseAvoidsRepeatedOCR(t *testing.T) {
+func TestPDFCheckpointReuseAvoidsRepeatedExtraction(t *testing.T) {
 	dir := t.TempDir()
 	bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Native</word></line></block></flow></page></doc></body></html>`
-	for name, body := range map[string]string{"pdftotext": "cat <<'XML'\n" + bbox + "\nXML\n", "pdfimages": "printf '1 0 image\\n'\n", "pdftoppm": "exit 9\n"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+body), 0700); err != nil {
-			t.Fatal(err)
-		}
+	if err := os.WriteFile(filepath.Join(dir, "pdftotext"), []byte("#!/bin/sh\ncat <<'XML'\n"+bbox+"\nXML\n"), 0700); err != nil {
+		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	got, err := PrepareWithOptions(t.Context(), "resume.pdf", "", []byte("%PDF-fixture"), Options{completedPages: []PDFPage{{Number: 1, Text: "Completed amber scan"}}})
 	if err != nil || got.Record.Extraction != "extracted" || !strings.Contains(got.Text, "Completed amber scan") || strings.Contains(got.Text, "Native") {
 		t.Fatalf("checkpoint reran extraction: %+v %v", got, err)
+	}
+}
+
+// The server reads a PDF's text layer and nothing else: no page is rendered,
+// inventoried or recognized. A page without a text layer may be a scan, so
+// the source waits for a connected agent's text: partly when other pages have
+// text, wholly when none has.
+func TestPDFPagesWithoutTextLayerAwaitAnAgent(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	// Were a page rendered or recognized, these words would appear.
+	for _, tool := range []string{"pdfimages", "pdftoppm", "tesseract"} {
+		if err := os.WriteFile(filepath.Join(dir, tool), []byte("#!/bin/sh\nprintf '1 0 image\\n2 0 image\\n3 0 image\\nRecognized words\\n'\n"), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page := func(words ...string) string {
+		var line strings.Builder
+		for i, word := range words {
+			x := strconv.Itoa(10 + 30*i)
+			line.WriteString(`<word xMin="` + x + `" yMin="10" xMax="` + x + `" yMax="20">` + word + `</word>`)
+		}
+		return `<page width="612" height="792"><flow><block><line>` + line.String() + `</line></block></flow></page>`
+	}
+	for name, test := range map[string]struct {
+		pages      []string
+		extraction string
+		awaiting   bool
+		warning    string
+	}{
+		"every page has text": {[]string{page("Amber", "evidence"), page("Cobalt", "findings")}, "extracted", false, ""},
+		"a page without text": {[]string{page("Amber", "evidence"), page(), page("Cobalt")}, "partial", true, "Page 2 has no text layer"},
+		"no page has text":    {[]string{page(), page()}, "no-text", true, "No page has a text layer"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			bbox := `<html><body><doc>` + strings.Join(test.pages, "") + `</doc></body></html>`
+			if err := os.WriteFile(filepath.Join(dir, "pdftotext"), []byte("#!/bin/sh\ncat <<'XML'\n"+bbox+"\nXML\n"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			raw := []byte("%PDF-fixture " + name)
+			got, err := Prepare(t.Context(), "scan.pdf", "", raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			record := got.Record
+			if record.Extraction != test.extraction || AwaitingText(record) != test.awaiting || string(got.Original) != string(raw) {
+				t.Fatalf("record: %+v", record)
+			}
+			if strings.Contains(got.Text, "Recognized") || strings.Contains(record.Extractor, "Tesseract") || !strings.Contains(record.Extractor, "Poppler") {
+				t.Fatalf("a page was recognized: %+v\n%s", record, got.Text)
+			}
+			if !strings.Contains(got.Text, "## Page 1\n\n") || len(test.pages) > 2 && !strings.Contains(got.Text, "## Page 3\n\nCobalt") {
+				t.Fatalf("physical pages lost: %s", got.Text)
+			}
+			if test.awaiting && (!strings.Contains(record.Warning, test.warning) || !strings.Contains(record.Warning, "connected agent")) {
+				t.Fatalf("warning: %s", record.Warning)
+			}
+		})
 	}
 }

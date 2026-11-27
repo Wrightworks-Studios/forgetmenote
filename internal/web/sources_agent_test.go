@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/workspace"
 	"forgetmenote/plugins"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -173,7 +172,6 @@ func TestArchiveSourceRefusesInvalidAgentText(t *testing.T) {
 		"an extractor without text":   {map[string]any{"filename": "a.txt", "data": original, "extractor": "Agent"}, "extractor"},
 		"text without the original":   {map[string]any{"filename": "a.pdf", "url": "https://example.com/a.pdf", "extractor": "Agent", "text": valid}, "original"},
 		"text and nothing else":       {map[string]any{"extractor": "Agent", "text": valid}, "original"},
-		"hosted processing with text": {map[string]any{"filename": "a.png", "data": original, "extractor": "Agent", "text": valid, "externalOCR": true}, "hosted processing"},
 		"an unsupported format":       {map[string]any{"filename": "a.exe", "data": original, "extractor": "Agent", "text": valid}, "unsupported"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -343,12 +341,8 @@ func TestSourceFormatsSayWhoExtracts(t *testing.T) {
 				t.Errorf("%s: agent extracts %q", ext, format.AgentExtracts)
 			}
 		}
-		required := []string{".pdf", ".docx", ".xlsx", ".epub", ".eml", ".csv", ".html", ".txt", ".wav", ".mp4"}
-		// A build without local OCR leaves images out of the catalog.
-		if integrations.Included("ocr") {
-			required = append(required, ".png")
-		}
-		for _, ext := range required {
+		// Agent formats need no integration, so every build lists them.
+		for _, ext := range []string{".pdf", ".docx", ".xlsx", ".epub", ".eml", ".csv", ".html", ".txt", ".png", ".wav", ".mp4", ".pages", ".key"} {
 			if !seen[ext] {
 				t.Errorf("%s is not listed", ext)
 			}

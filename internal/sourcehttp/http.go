@@ -1,6 +1,6 @@
 // Package sourcehttp owns source import HTTP requests and previews.
-// Durable jobs remain in sources; notebook authority and hosted-processing
-// consent remain in the instance's shared access and policy checks.
+// Durable jobs remain in sources; notebook authority remains in the
+// instance's shared access checks.
 package sourcehttp
 
 import (
@@ -15,18 +15,16 @@ import (
 	"forgetmenote/internal/workspace"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
-// Hooks bind the existing authorization, credential-restricted job scope and
-// instance processing policy. They are required; an omitted guard cannot enable
-// a second processing path. The signer retains its concrete instance owner.
+// Hooks bind the existing authorization and credential-restricted job scope.
+// They are required; an omitted guard cannot enable a second path. The signer
+// retains its concrete instance owner.
 type Hooks struct {
-	Scope           func(context.Context, string) sources.JobScope
-	Access          func(context.Context, string, string) (*workspace.Store, error)
-	ValidateOptions func(context.Context, string, sources.JobInput) error
-	Sign            func(string) string
+	Scope  func(context.Context, string) sources.JobScope
+	Access func(context.Context, string, string) (*workspace.Store, error)
+	Sign   func(string) string
 }
 type HTTP struct {
 	jobs     *sources.Jobs
@@ -36,8 +34,8 @@ type HTTP struct {
 }
 
 func New(jobs *sources.Jobs, renderer *webcore.Renderer, work chan struct{}, hooks Hooks) (*HTTP, error) {
-	if jobs == nil || renderer == nil || cap(work) == 0 || hooks.Scope == nil || hooks.Access == nil || hooks.ValidateOptions == nil || hooks.Sign == nil {
-		return nil, errors.New("source HTTP requires shared jobs, rendering, authority and processing policy")
+	if jobs == nil || renderer == nil || cap(work) == 0 || hooks.Scope == nil || hooks.Access == nil || hooks.Sign == nil {
+		return nil, errors.New("source HTTP requires shared jobs, rendering and authority")
 	}
 	return &HTTP{jobs: jobs, renderer: renderer, hooks: hooks, work: work}, nil
 }
@@ -62,19 +60,14 @@ func (h *HTTP) Admit() (func(), error) {
 }
 
 type Input struct {
-	ExternalOCR    bool    `json:"externalOCR,omitempty" jsonschema:"Explicitly upload selected PDF/image pages to the configured hosted OCR model. Never selected automatically."`
-	Transcribe     bool    `json:"transcribe,omitempty" jsonschema:"Explicitly upload audio segments to the configured hosted transcription model (five minutes maximum)."`
-	FirstPage      int     `json:"firstPage,omitempty" jsonschema:"First physical page/image selected for hosted processing. At most eight per request."`
-	LastPage       int     `json:"lastPage,omitempty"`
-	DescribeImages bool    `json:"describeImages,omitempty" jsonschema:"Opt in to explicitly authorized hosted image descriptions for supported formats; see source_formats. Descriptions are labeled and may be inaccurate."`
-	Folder         *string `json:"folder,omitempty" jsonschema:"Destination folder for a new source note. Omit for sources; empty string selects project root. Do not pass with path when refreshing."`
-	Project        string  `json:"project"`
-	URL            string  `json:"url,omitempty" jsonschema:"Public source URL. With data, records provenance only; without data, fetches the URL."`
-	Filename       string  `json:"filename,omitempty"`
-	Data           string  `json:"data,omitempty" jsonschema:"Base64 supported source original (see source_formats), bounded by operator FMN_LIMIT_SOURCE_BYTES when decoded. Omit to fetch URL."`
-	Title          string  `json:"title,omitempty"`
-	Path           string  `json:"path,omitempty" jsonschema:"Existing archived source note to refresh; omit for a new source."`
-	Revision       string  `json:"revision,omitempty" jsonschema:"Required current note revision when refreshing an existing source."`
+	Folder   *string `json:"folder,omitempty" jsonschema:"Destination folder for a new source note. Omit for sources; empty string selects project root. Do not pass with path when refreshing."`
+	Project  string  `json:"project"`
+	URL      string  `json:"url,omitempty" jsonschema:"Public source URL. With data, records provenance only; without data, fetches the URL."`
+	Filename string  `json:"filename,omitempty"`
+	Data     string  `json:"data,omitempty" jsonschema:"Base64 supported source original (see source_formats), bounded by operator FMN_LIMIT_SOURCE_BYTES when decoded. Omit to fetch URL."`
+	Title    string  `json:"title,omitempty"`
+	Path     string  `json:"path,omitempty" jsonschema:"Existing archived source note to refresh; omit for a new source."`
+	Revision string  `json:"revision,omitempty" jsonschema:"Required current note revision when refreshing an existing source."`
 	// An agent's own extraction replaces the server's. Only the synchronous
 	// archive and preview take it; durable jobs exist for server extraction.
 	Text      *sources.SuppliedText `json:"text,omitempty" jsonschema:"Your own extraction of the original in data, for a format source_formats marks extractedBy agent (or a PDF with scanned pages). The server stores it instead of extracting, labelled client-supplied and unverified. Requires data and extractor."`
@@ -92,11 +85,8 @@ type FormatView struct {
 	workspace.SourceFormat
 	// ExtractedBy is "server" or "agent": whether a connected agent should
 	// read the original itself and upload its text with it.
-	ExtractedBy        string `json:"extractedBy"`
-	AgentExtracts      string `json:"agentExtracts,omitempty"`
-	ExternalOCR        bool   `json:"externalOCR"`
-	HostedDescriptions bool   `json:"hostedDescriptions"`
-	Transcription      bool   `json:"transcription"`
+	ExtractedBy   string `json:"extractedBy"`
+	AgentExtracts string `json:"agentExtracts,omitempty"`
 }
 
 type JobOutput struct {
@@ -196,7 +186,7 @@ func (h *HTTP) Import(w http.ResponseWriter, r *http.Request) {
 	webcore.JSON(w, h.renderer.Output(doc))
 }
 func (h *HTTP) FormatsHTTP(w http.ResponseWriter, r *http.Request) {
-	webcore.JSON(w, h.Formats(r.Context(), webcore.NotebookID(r.Context())))
+	webcore.JSON(w, Formats())
 }
 
 func (h *HTTP) Verify(w http.ResponseWriter, r *http.Request) {
@@ -208,16 +198,11 @@ func (h *HTTP) Verify(w http.ResponseWriter, r *http.Request) {
 	webcore.JSON(w, result)
 }
 
-func (h *HTTP) Formats(ctx context.Context, project string) []FormatView {
-	can := func(options sources.Options) bool {
-		err := h.hooks.ValidateOptions(ctx, project, sources.JobInput{Options: options})
-		return err == nil
-	}
-	ocr, describe, transcribe := can(sources.Options{ExternalOCR: true}), can(sources.Options{DescribeImages: true}), can(sources.Options{Transcribe: true})
+func Formats() []FormatView {
 	var out []FormatView
 	for _, format := range sources.Formats() {
 		by, agentPart := sources.ExtractedBy(format)
-		out = append(out, FormatView{SourceFormat: format, ExtractedBy: by, AgentExtracts: agentPart, ExternalOCR: ocr && format.DescribeImages && format.Extensions[0] != ".pptx", HostedDescriptions: describe && format.DescribeImages, Transcription: transcribe && (strings.HasPrefix(format.MIME, "audio/") || strings.HasPrefix(format.MIME, "video/"))})
+		out = append(out, FormatView{SourceFormat: format, ExtractedBy: by, AgentExtracts: agentPart})
 	}
 	return out
 }
@@ -245,8 +230,9 @@ type AwaitingText struct {
 
 const awaitingLimit = 200
 
-// Awaiting lists the notebook's archived sources whose extraction failed or
-// found no text, at one revision.
+// Awaiting lists the notebook's archived sources that wait for an agent's
+// text, at one revision: originals stored without reading, and extractions
+// that failed, were partial or found no text.
 func Awaiting(ctx context.Context, store *workspace.Store) (AwaitingText, error) {
 	revision, entries, err := store.ArchivedSources(ctx)
 	if err != nil {
@@ -284,12 +270,7 @@ func (h *HTTP) Submit(ctx context.Context, project string, in Input) (sources.Jo
 	if err != nil {
 		return sources.JobStatus{}, err
 	}
-	input := sources.JobInput{Filename: in.Filename, URL: in.URL, Path: in.Path, Folder: in.Folder, Options: sources.Options{DescribeImages: in.DescribeImages, ExternalOCR: in.ExternalOCR, Transcribe: in.Transcribe, FirstPage: in.FirstPage, LastPage: in.LastPage}}
-	if in.DescribeImages || in.ExternalOCR || in.Transcribe {
-		if err := h.hooks.ValidateOptions(ctx, project, input); err != nil {
-			return sources.JobStatus{}, err
-		}
-	}
+	input := sources.JobInput{Filename: in.Filename, URL: in.URL, Path: in.Path, Folder: in.Folder}
 	return h.jobs.Submit(ctx, h.hooks.Scope(ctx, project), input, data)
 }
 func (h *HTTP) Prepare(ctx context.Context, project string, in Input) (workspace.SourceCapture, error) {
@@ -313,9 +294,6 @@ func (h *HTTP) Prepare(ctx context.Context, project string, in Input) (workspace
 func (h *HTTP) prepareSupplied(ctx context.Context, project string, in Input) (workspace.SourceCapture, error) {
 	if in.Text == nil {
 		return workspace.SourceCapture{}, webcore.Error{Status: 400, Code: "invalid_request", Message: "extractor labels supplied text; send text with it, or neither"}
-	}
-	if in.DescribeImages || in.ExternalOCR || in.Transcribe || in.FirstPage != 0 || in.LastPage != 0 {
-		return workspace.SourceCapture{}, webcore.Error{Status: 400, Code: "invalid_request", Message: "supplied text replaces server extraction; omit hosted processing options"}
 	}
 	if len(in.Filename) > 1024 || len(in.Path) > 512 {
 		return workspace.SourceCapture{}, webcore.Error{Status: 400, Code: "invalid_request", Message: "source filename or path exceeds its budget"}

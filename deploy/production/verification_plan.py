@@ -13,7 +13,7 @@ import subprocess
 # only IMAGE_SOURCES and .dockerignore removes IMAGE_EXCLUDED from them; operator
 # tests check both files, and notify-deployments.yml's paths-ignore, against these.
 IMAGE_SOURCES = ('go.mod', 'go.sum', 'package.json', 'package-lock.json', 'frontend/', 'cmd/', 'internal/', 'plugins/',
-                 'deploy/debian.sources', 'deploy/iwork/convert.cpp', 'deploy/git-backup/watcher.py')
+                 'deploy/debian.sources', 'deploy/git-backup/watcher.py')
 IMAGE_EXCLUDED = ('**/*_test.go', '**/*.test.mjs', '**/testdata')
 # In GitHub's path filter syntax: documents nothing builds or embeds.
 DOCUMENTS = ('docs/**', '*.md', 'deploy/production/**/*.md')
@@ -21,7 +21,7 @@ DOCUMENTS = ('docs/**', '*.md', 'deploy/production/**/*.md')
 OPERATOR = ('.github/', 'deploy/production/')
 # Tests, fixtures, harnesses, smoke scripts and deployment templates outside the image.
 TESTS = ('scripts/', 'deploy/standalone/', 'deploy/integrations/', 'deploy/git-backup/',
-         'deploy/iwork/README.md', 'deploy/requirements.txt', 'playwright.config.mjs', 'Makefile',
+         'deploy/requirements.txt', 'playwright.config.mjs', 'Makefile',
          'compose.yaml', '.env.example', '.ignore', '.gitignore', '.gitattributes', '.prettierignore')
 # Go test tools are main packages, which nothing can import.
 GO_TOOLS = ('scripts/mcp-smoke/',)
@@ -148,10 +148,8 @@ CRITICAL_WEB = (
 # Globs in internal/web; the operator tests require each to select a current case.
 FEATURE_WEB_TESTS = {
     'appearance': ['asset*_test.go','branding*_test.go'],
-    # Hosted image and source processing runs through the chat provider configuration.
     'chat': ['chat_test.go','chat_runner_test.go','chat_security_review_test.go',
-             'chat_context_controls_test.go','chat_research*_test.go','automation_*_test.go',
-             'source_hosted_test.go'],
+             'chat_context_controls_test.go','chat_research*_test.go','automation_*_test.go'],
     'decisions': ['judgments*_test.go','review*_test.go','organizer*_test.go'],
     'sources': ['source*_test.go','import*_test.go','notebooks_test.go'],
     'repositories': ['repository*_test.go','source*_test.go','authority*_test.go'],
@@ -188,7 +186,7 @@ SLOW_CONTAINERS = {
 # Smoke scripts are operator inputs, but changing one reruns its feature's scenario.
 SMOKE_FEATURES = {'scripts/source_smoke.py': 'sources', 'scripts/jev_smoke.py': 'decisions'}
 # The image itself and its dependencies reach every scenario.
-IMAGE_INPUTS = r'^(Dockerfile|\.dockerignore|go\.(mod|sum)|package(-lock)?\.json)$|^cmd/|^deploy/(debian\.sources$|iwork/|git-backup/)'
+IMAGE_INPUTS = r'^(Dockerfile|\.dockerignore|go\.(mod|sum)|package(-lock)?\.json)$|^cmd/|^deploy/(debian\.sources$|git-backup/)'
 
 
 def escalated_containers(paths):

@@ -8,13 +8,10 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"forgetmenote/internal/workspace"
 )
 
 func TestDelimitedImportBeyondLegacyRowLimit(t *testing.T) {
@@ -196,18 +193,6 @@ func TestTextOverTheLimitIsARejection(t *testing.T) {
 	}
 }
 
-func TestOptionTheFormatLacksIsARejection(t *testing.T) {
-	if _, err := PrepareWithOptions(t.Context(), "notes.txt", "", []byte("Amber"), Options{DescribeImages: true, hosted: &Hosted{}}); !errors.Is(err, ErrRejected) {
-		t.Fatalf("image descriptions: %v", err)
-	}
-	for _, options := range []Options{{Transcribe: true}, {ExternalOCR: true}, {DescribeImages: true}} {
-		capture := workspace.SourceCapture{Record: workspace.SourceRecord{MIME: "text/plain"}}
-		if err := (&Hosted{}).Process(t.Context(), &capture, options); !errors.Is(err, ErrRejected) {
-			t.Fatalf("%+v: %v", options, err)
-		}
-	}
-}
-
 // A refused URL is the caller's; a fetch that failed says nothing about it.
 func TestFailedFetchIsNotARejection(t *testing.T) {
 	if _, _, _, err := Fetch(t.Context(), "http://localhost/"); !errors.Is(err, ErrRejected) {
@@ -218,107 +203,6 @@ func TestFailedFetchIsNotARejection(t *testing.T) {
 	if _, _, _, err := Fetch(ctx, "http://forgetmenote-test.invalid/"); err == nil || errors.Is(err, ErrRejected) {
 		t.Fatalf("unresolved host: %v", err)
 	}
-}
-
-func TestHostedSelectionIsARejection(t *testing.T) {
-	raw, err := os.ReadFile("testdata/reference.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	image := func() *workspace.SourceCapture {
-		return &workspace.SourceCapture{Original: raw, Record: workspace.SourceRecord{MIME: "image/png"}}
-	}
-	for name, options := range map[string]Options{
-		"page beyond the document": {ExternalOCR: true, FirstPage: 2, LastPage: 2},
-		"two kinds of processing":  {ExternalOCR: true, DescribeImages: true},
-	} {
-		if err := (&Hosted{}).Process(t.Context(), image(), options); !errors.Is(err, ErrRejected) {
-			t.Fatalf("%s: %v", name, err)
-		}
-	}
-	small := &Hosted{config: HostedConfig{Model: "synthetic", ContextTokens: 1}}
-	if err := small.Process(t.Context(), image(), Options{ExternalOCR: true}); !errors.Is(err, ErrRejected) {
-		t.Fatalf("context budget: %v", err)
-	}
-	// Selected frames skip local decoding, so hosted processing meets them first.
-	_, err = PrepareWithOptions(t.Context(), "photo.png", "", []byte("not an image"), Options{ExternalOCR: true, FirstPage: 1, LastPage: 1, hosted: &Hosted{}})
-	if !errors.Is(err, ErrRejected) {
-		t.Fatalf("undecodable selected frame: %v", err)
-	}
-}
-
-// Hosted processing has no shared cancellation check to rely on.
-func TestCanceledHostedDecodingIsNotARejection(t *testing.T) {
-	raw, err := os.ReadFile("testdata/reference.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	process := func(ctx context.Context) error {
-		capture := workspace.SourceCapture{Original: raw, Record: workspace.SourceRecord{MIME: "image/png"}}
-		return (&Hosted{}).Process(ctx, &capture, Options{ExternalOCR: true})
-	}
-	whole := &lateCancel{Context: context.Background()}
-	process(whole)
-	for after := 1; after < whole.checks; after++ {
-		if err := process(&lateCancel{Context: context.Background(), after: after}); errors.Is(err, ErrRejected) {
-			t.Fatalf("canceled after %d of %d checks: %v", after, whole.checks, err)
-		}
-	}
-}
-
-func convert(t *testing.T, name string) error {
-	t.Helper()
-	raw, err := os.ReadFile("testdata/" + name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = Prepare(t.Context(), filepath.Base(name), "", raw)
-	return err
-}
-
-// fakeTool puts only a shell script of this name on the path.
-func fakeTool(t *testing.T, name, script string) {
-	t.Helper()
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script+"\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir)
-}
-
-func TestConverterRefusalIsARejection(t *testing.T) {
-	fakeTool(t, "forgetmenote-iwork", "exit 1")
-	if err := convert(t, "iwork/modern.pages"); !errors.Is(err, ErrRejected) {
-		t.Fatalf("iWork: %v", err)
-	}
-	fakeTool(t, "ffprobe", "exit 1")
-	if err := convert(t, "announcement.wav"); !errors.Is(err, ErrRejected) {
-		t.Fatalf("media: %v", err)
-	}
-}
-
-// A tool that did not get to judge the document says nothing about it.
-func TestConverterFailureIsNotARejection(t *testing.T) {
-	notRejected := func(name string) {
-		t.Helper()
-		if formatIncluded(workspace.SourceFormatForName(name)) != nil {
-			return
-		}
-		if err := convert(t, name); err == nil || errors.Is(err, ErrRejected) {
-			t.Fatalf("%s: %v", name, err)
-		}
-	}
-	t.Setenv("PATH", t.TempDir())
-	for _, name := range []string{"iwork/modern.pages", "reference.png", "announcement.wav"} {
-		notRejected(name)
-	}
-	fakeTool(t, "forgetmenote-iwork", "exit 2")
-	notRejected("iwork/modern.pages")
-	fakeTool(t, "ffprobe", "kill -KILL $$")
-	notRejected("announcement.wav")
-	// OCR reads a frame this server wrote, not the upload.
-	fakeTool(t, "tesseract", "exit 1")
-	notRejected("reference.png")
 }
 
 func TestHTMLWorkBudget(t *testing.T) {
