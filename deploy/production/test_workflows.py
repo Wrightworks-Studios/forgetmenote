@@ -17,7 +17,7 @@ def workflow(name):
 
 
 def assert_failed_gate_uploads_its_evidence(test, steps):
-    """The gate prints only the end of a failed log; GitHub discards the rest with the runner."""
+    """The gate prints only a summary of a failed log; GitHub discards the rest with the runner."""
     gate = next(index for index, step in enumerate(steps) if 'release_image.py' in step.get('run', ''))
     uploads = [step for step in steps if step.get('if') == 'failure()']
     test.assertEqual(len(uploads), 1)
