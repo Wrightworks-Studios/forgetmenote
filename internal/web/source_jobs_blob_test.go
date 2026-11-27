@@ -5,9 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"image"
-	"image/color"
-	"image/png"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -21,11 +18,10 @@ import (
 )
 
 // A source job submitted on one gateway is read on another, which resumes it
-// from its stored checkpoints after the first is gone, saves it and expires
-// it. The gateways share only the database and blob storage: neither disk
-// holds the job's files.
+// from its stored original after the first is gone, saves it and expires it.
+// The gateways share only the database and blob storage: neither disk holds
+// the job's files.
 func TestSourceJobMovesBetweenGatewaysThroughBlobStorage(t *testing.T) {
-	requireLocalOCR(t) // the job waits in a page's OCR render
 	stores := map[string]func(t *testing.T) blob.Store{
 		"directory": func(t *testing.T) blob.Store {
 			store, err := blob.OpenDir(t.TempDir())
@@ -41,11 +37,9 @@ func TestSourceJobMovesBetweenGatewaysThroughBlobStorage(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			app, _ := fixture(t)
 			tools := t.TempDir()
-			bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber checkpoint</word></line></block></flow></page><page width="612" height="792"/></doc></body></html>`
-			for name, body := range map[string]string{"pdftotext": "cat <<'XML'\n" + bbox + "\nXML\n", "pdfimages": "printf '2 0 image\\n'\n", "pdftoppm": "touch started\nexec /bin/sleep 30\n"} {
-				if err := os.WriteFile(filepath.Join(tools, name), []byte("#!/bin/sh\n"+body), 0700); err != nil {
-					t.Fatal(err)
-				}
+			// The first gateway's conversion runs until it stops.
+			if err := os.WriteFile(filepath.Join(tools, "pdftotext"), []byte("#!/bin/sh\nexec /bin/sleep 30\n"), 0700); err != nil {
+				t.Fatal(err)
 			}
 			t.Setenv("PATH", tools+string(os.PathListSeparator)+os.Getenv("PATH"))
 
@@ -91,30 +85,14 @@ func TestSourceJobMovesBetweenGatewaysThroughBlobStorage(t *testing.T) {
 					}
 				}
 			}
-			poll(func() bool { return out.Job.Pages == 1 })
+			poll(func() bool { return out.Job.State == "running" })
 
 			// The first gateway stops mid-conversion, and the second resumes
-			// from its first page while a new extraction would differ.
+			// from the stored original.
 			first.Close()
 			leave()
-			if err := os.WriteFile(filepath.Join(tools, "pdftotext"), []byte("#!/bin/sh\ncat <<'XML'\n"+strings.ReplaceAll(bbox, "Amber checkpoint", "Discarded new extraction")+"\nXML\n"), 0700); err != nil {
-				t.Fatal(err)
-			}
-			white := image.NewRGBA(image.Rect(0, 0, 32, 32))
-			for y := 0; y < 32; y++ {
-				for x := 0; x < 32; x++ {
-					white.Set(x, y, color.White)
-				}
-			}
-			f, err := os.Create(filepath.Join(tools, "white.png"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err = png.Encode(f, white); err != nil {
-				t.Fatal(err)
-			}
-			f.Close()
-			if err := os.WriteFile(filepath.Join(tools, "pdftoppm"), []byte("#!/bin/sh\nfor last; do :; done\ncp '"+filepath.Join(tools, "white.png")+"' \"$last.png\"\n"), 0700); err != nil {
+			bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber resumed</word></line></block></flow></page></doc></body></html>`
+			if err := os.WriteFile(filepath.Join(tools, "pdftotext"), []byte("#!/bin/sh\ncat <<'XML'\n"+bbox+"\nXML\n"), 0700); err != nil {
 				t.Fatal(err)
 			}
 			if resumed := call(second, "POST", "/api/sources/jobs/"+id+"/resume", "{}", testToken); resumed.Code != 200 {
@@ -122,12 +100,12 @@ func TestSourceJobMovesBetweenGatewaysThroughBlobStorage(t *testing.T) {
 			}
 			out.Prepared = nil
 			poll(func() bool { return out.Prepared != nil })
-			if !strings.Contains(out.Prepared.Preview, "Amber checkpoint") || strings.Contains(out.Prepared.Preview, "Discarded new") {
-				t.Fatalf("the stored checkpoint was repeated or lost: %s", out.Prepared.Preview)
+			if !strings.Contains(out.Prepared.Preview, "Amber resumed") {
+				t.Fatalf("the resumed conversion was lost: %s", out.Prepared.Preview)
 			}
 			body, _ := json.Marshal(map[string]any{"job": id, "title": "Resumed scan"})
 			saved := call(second, "POST", "/api/sources/import", string(body), testToken)
-			if saved.Code != 200 || !strings.Contains(saved.Body.String(), "Amber checkpoint") {
+			if saved.Code != 200 || !strings.Contains(saved.Body.String(), "Amber resumed") {
 				t.Fatalf("saving the resumed job: %d %s", saved.Code, saved.Body.String())
 			}
 

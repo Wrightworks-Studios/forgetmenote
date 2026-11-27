@@ -117,7 +117,7 @@ jobs:
       # on the host; smoke-source repeats them with the image's pinned versions.
       - if: steps.gate.outputs.run == 'true'
         run: |
-          .github/scripts/apt-install.sh openssl inotify-tools postgresql ffmpeg poppler-utils tesseract-ocr
+          .github/scripts/apt-install.sh openssl inotify-tools postgresql poppler-utils
           ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1 >> "$GITHUB_PATH"
       - if: steps.gate.outputs.run == 'true'
         run: make setup-deps setup-browser

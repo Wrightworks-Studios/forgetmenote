@@ -52,9 +52,8 @@ test('an instance that turns modules off leaves out their entry points and says 
   expect(rows['Managed backups']).toBe('Turned off');
 
   await page.locator('#admin-dialog [data-settings-category=ai]').click();
-  await expect(page.locator('#instance-ai-sourceOCR-hint')).toHaveText(
-    'The sources module is turned off on this instance.'
-  );
+  // Sources have no AI features: connected agents extract what the server does not.
+  await expect(page.locator('#instance-ai-sourceOCR')).toHaveCount(0);
   await expect(page.locator('#instance-ai-rerank-hint')).toHaveText(
     'The judgments module is turned off on this instance.'
   );

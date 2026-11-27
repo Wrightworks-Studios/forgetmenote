@@ -107,14 +107,7 @@ func (s *Server) initSourceJobs() error {
 		return err
 	}
 	s.sourceJobs = jobs
-	jobs.SetHosted(s.hostedSource)
-	s.sourceHTTP, err = sourcehttp.New(jobs, s.renderer, s.sourceWork, sourcehttp.Hooks{
-		Scope: s.sourceScope, Access: s.toolStore, Sign: s.sign,
-		ValidateOptions: func(ctx context.Context, project string, input sources.JobInput) error {
-			_, _, err := s.sourceProcessingPolicy(ctx, project, input, nil)
-			return err
-		},
-	})
+	s.sourceHTTP, err = sourcehttp.New(jobs, s.renderer, s.sourceWork, sourcehttp.Hooks{Scope: s.sourceScope, Access: s.toolStore, Sign: s.sign})
 	return err
 }
 

@@ -4,15 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"image"
-	"image/color"
-	"image/png"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -319,49 +317,47 @@ func TestSourceJobUploadBlobStorageRefusesLeavesNothing(t *testing.T) {
 	}
 }
 
-// pdfTools installs extractor stubs for a two-page scan whose second page
-// renders until the conversion is canceled, and returns a function that
-// changes them: the first page's text changes, and the second renders.
+// pdfTools installs a pdftotext stub for a two-page PDF, and returns a
+// function that changes the first page's text.
 func pdfTools(t *testing.T) (finish func()) {
 	t.Helper()
 	dir := t.TempDir()
-	bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber checkpoint</word></line></block></flow></page><page width="612" height="792"/></doc></body></html>`
-	for name, body := range map[string]string{"pdftotext": "cat <<'XML'\n" + bbox + "\nXML\n", "pdfimages": "printf '2 0 image\\n'\n", "pdftoppm": "touch started\nexec /bin/sleep 30\n"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+body), 0700); err != nil {
+	bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber checkpoint</word></line></block></flow></page><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Cobalt</word></line></block></flow></page></doc></body></html>`
+	write := func(bbox string) {
+		if err := os.WriteFile(filepath.Join(dir, "pdftotext"), []byte("#!/bin/sh\ncat <<'XML'\n"+bbox+"\nXML\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 	}
+	write(bbox)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	return func() {
-		if err := os.WriteFile(filepath.Join(dir, "pdftotext"), []byte("#!/bin/sh\ncat <<'XML'\n"+strings.ReplaceAll(bbox, "Amber checkpoint", "Discarded new extraction")+"\nXML\n"), 0700); err != nil {
-			t.Fatal(err)
+	return func() { write(strings.ReplaceAll(bbox, "Amber checkpoint", "Discarded new extraction")) }
+}
+
+// pauseAtSecondPage is an authorization check that holds a run as it starts a
+// PDF's second page, once the first page's checkpoint is stored, until the run
+// is canceled. reached is closed when it holds.
+func pauseAtSecondPage(store blob.Store) (authorize func(context.Context, JobScope) error, reached <-chan struct{}) {
+	held := make(chan struct{})
+	var once sync.Once
+	return func(ctx context.Context, _ JobScope) error {
+		keys, err := store.List(context.Background(), jobsDir+"/")
+		if err != nil {
+			return err
 		}
-		white := image.NewRGBA(image.Rect(0, 0, 32, 32))
-		for y := 0; y < 32; y++ {
-			for x := 0; x < 32; x++ {
-				white.Set(x, y, color.White)
+		for _, key := range keys {
+			if strings.HasSuffix(key, "/"+pageFile(1)) {
+				once.Do(func() { close(held) })
+				<-ctx.Done()
+				return ctx.Err()
 			}
 		}
-		f, err := os.Create(filepath.Join(dir, "white.png"))
-		if err == nil {
-			err = png.Encode(f, white)
-		}
-		if err == nil {
-			err = f.Close()
-		}
-		if err == nil {
-			err = os.WriteFile(filepath.Join(dir, "pdftoppm"), []byte("#!/bin/sh\nfor last; do :; done\ncp '"+filepath.Join(dir, "white.png")+"' \"$last.png\"\n"), 0700)
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+		return ctx.Err()
+	}, held
 }
 
 // A gateway that is gone leaves a running job whose checkpoints another
 // gateway, with a disk of its own, resumes from and then expires.
 func TestAnotherGatewayResumesAJobFromItsStoredCheckpoints(t *testing.T) {
-	requireOCR(t)
 	for name, open := range blobStores {
 		t.Run(name, func(t *testing.T) {
 			finish := pdfTools(t)
@@ -370,7 +366,8 @@ func TestAnotherGatewayResumesAJobFromItsStoredCheckpoints(t *testing.T) {
 			db, store := pgtest.Org(t), open(t)
 			gone, leave := pgtest.Gateway(t, db)
 			goneData, data := t.TempDir(), t.TempDir()
-			first, err := OpenJobs(gone, store, goneData, authorize)
+			pause, reached := pauseAtSecondPage(store)
+			first, err := OpenJobs(gone, store, goneData, pause)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -384,17 +381,13 @@ func TestAnotherGatewayResumesAJobFromItsStoredCheckpoints(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer second.Close()
-			for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(5 * time.Millisecond) {
-				status, err := second.Status(t.Context(), scope, job.ID)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if status.Pages == 1 && len(scratchFiles(t, scratchGlob(goneData, "started"))) > 0 {
-					break
-				}
-				if time.Now().After(deadline) {
-					t.Fatalf("the first gateway did not checkpoint its first page: %+v", status)
-				}
+			select {
+			case <-reached:
+			case <-time.After(10 * time.Second):
+				t.Fatal("the first gateway did not checkpoint its first page")
+			}
+			if status, err := second.Status(t.Context(), scope, job.ID); err != nil || status.State != "running" || status.Pages != 1 {
+				t.Fatalf("the first gateway's job: %+v %v", status, err)
 			}
 			leave()
 			second.mu.Lock()
