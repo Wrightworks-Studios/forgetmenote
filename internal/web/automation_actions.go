@@ -302,9 +302,6 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 	if spec.Output != "" || spec.Repair != nil && spec.Recipe != "" || spec.Kind == "recipe" || spec.Kind == "learning" || spec.Kind == "drive-sync" || spec.Native != nil && spec.Native.Task == "profile-compaction" {
 		role = "edit"
 	}
-	if spec.Native != nil && spec.Native.Task == "repository-refresh" {
-		role = "owner"
-	}
 	if spec.Native != nil && spec.Native.Task == "email-pairing" {
 		if _, _, err := s.emailPairing(spec); err != nil {
 			return err
