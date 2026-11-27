@@ -1189,6 +1189,8 @@ function updateIdentity() {
   const name = user.displayName || user.username || (user.id === "@local-admin" ? "Recovery administrator" : "Account");
   $("identity").textContent = name + ' · ' + role;
   $("account-name").textContent = name;
+  // The assistant page holds the personal assistant and agent memory.
+  document.querySelector('#account-actions a[href="/account/assistant"]').hidden = !moduleOn(user,'personal') && !moduleOn(user,'memory');
   $("account-initial").textContent = [...name.trim()][0]?.toLocaleUpperCase() || "A";
 }
 function renderProjects() {

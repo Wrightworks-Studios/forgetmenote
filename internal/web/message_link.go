@@ -127,8 +127,8 @@ func (s *Server) messageLinkReply(r *automation.Run, c messaging.Client, d messa
 	return "To let me use and keep your " + name + " memory in these messages, [sign in and confirm](" + target + ") within 15 minutes. Don't share the link: whoever confirms it links their memory to you here.", nil
 }
 
-func (s *Server) messageLinkRoutes() {
-	s.mux.HandleFunc("GET /account/link", func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) messageLinkRoutes(register routeRegistrar) {
+	register.global("GET /account/link", func(w http.ResponseWriter, r *http.Request) {
 		if err := s.accountUIRequest(r.Context()); err != nil {
 			fail(w, err)
 			return
@@ -155,7 +155,7 @@ func (s *Server) messageLinkRoutes() {
 		w.WriteHeader(status)
 		w.Write(page.Bytes())
 	})
-	s.mux.HandleFunc("POST /account/link", func(w http.ResponseWriter, r *http.Request) {
+	register.global("POST /account/link", func(w http.ResponseWriter, r *http.Request) {
 		if err := s.accountUIRequest(r.Context()); err != nil {
 			fail(w, err)
 			return
@@ -177,6 +177,12 @@ func (s *Server) messageLinkRoutes() {
 		s.notifyMessageLink(r.Context(), d, user)
 		http.Redirect(w, r, "/account/assistant", http.StatusSeeOther)
 	})
+}
+
+// messageUnlinkRoute removes a person's own message link. It stays with every
+// module set: with messaging off nothing uses a link, but a person can still
+// withdraw one before messaging runs again.
+func (s *Server) messageUnlinkRoute() {
 	s.mux.HandleFunc("POST /account/link/remove", func(w http.ResponseWriter, r *http.Request) {
 		if err := s.accountUIRequest(r.Context()); err != nil {
 			fail(w, err)

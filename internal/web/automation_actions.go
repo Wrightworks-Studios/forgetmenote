@@ -295,6 +295,10 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 	if err := spec.ValidateConfigured(); err != nil {
 		return err
 	}
+	// Nothing would run an automation that needs a module that is off.
+	if err := s.automationModulesOn(spec); err != nil {
+		return err
+	}
 	if !s.catalog.IsService(spec.Actor) {
 		return errors.New("select an active service account")
 	}

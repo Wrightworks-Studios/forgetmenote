@@ -285,6 +285,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set mo
 	if s.leave, err = db.KeepPresence(); err != nil {
 		return nil, err
 	}
+	if err = s.recordGatewayModules(); err != nil {
+		return nil, err
+	}
 	s.oauth, err = auth.OpenState(db)
 	if err != nil {
 		return nil, err
@@ -329,6 +332,7 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set mo
 	s.notebookLinkRoutes()
 	s.dataConnectionRoutes()
 	s.personalAssistantRoutes()
+	s.messageUnlinkRoute()
 	s.personalConnectionRoutes()
 	s.mux.HandleFunc("GET /readyz", s.ready)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
@@ -409,7 +413,6 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set mo
 	s.knowledgeRoutes()
 	s.wikiRoutes()
 	s.trashRoutes()
-	s.chatRoutes()
 	if s.gitHubConnections() {
 		s.connectionRoutes()
 	}
@@ -573,7 +576,7 @@ func (s *Server) serveHeadless(w http.ResponseWriter, r *http.Request, target re
 // unknown path.
 func (s *Server) serveIntegration(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch {
-	case path == "/integrations/slack/events" || path == "/integrations/slack/interactions" || path == "/integrations/slack/commands":
+	case (path == "/integrations/slack/events" || path == "/integrations/slack/interactions" || path == "/integrations/slack/commands") && s.modules.Enabled("messaging"):
 		s.slackApp(w, r, path)
 	case strings.HasPrefix(path, "/internal/backups/v1/") && s.modules.Enabled("managed-backups"):
 		s.backupWorkerHTTP(w, r)

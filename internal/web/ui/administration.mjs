@@ -232,8 +232,10 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     try {
     await reloadProjects();if(!page.active())return;
     if (!getUser().admin) { closeSettingsPage($('admin-dialog')); return; }
-    connectionsCategory.hidden=!moduleOn(getUser(),'data-connections');
-    if(connectionsCategory.hidden && connectionsCategory.getAttribute('aria-pressed')==='true')document.querySelector('#admin-dialog [data-settings-category=people]').click();
+    for(const [category,module] of [[connectionsCategory,'data-connections'],[chatCategory,'messaging'],[taskCategory,'tasks']]){
+      category.hidden=!moduleOn(getUser(),module);
+      if(category.hidden && category.getAttribute('aria-pressed')==='true')document.querySelector('#admin-dialog [data-settings-category=people]').click();
+    }
     const data=await api('/api/admin');if(!page.active())return;directory=data;
     await organization.load(directory,page.active);if(!page.active())return;
     if(aiCategory.getAttribute('aria-pressed')==='true')await ai.open();

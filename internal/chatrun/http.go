@@ -16,9 +16,9 @@ import (
 
 // Register adds the chat routes. Each conversation route goes through
 // register, which admits only a reader of its notebook; the connections a
-// person may choose are listed on mux, outside any notebook.
-func (s *Service) Register(mux *http.ServeMux, register func(pattern, role string, handler http.HandlerFunc)) {
-	mux.HandleFunc("GET /api/chat/connections", s.chatConnections)
+// person may choose are listed through global, outside any notebook.
+func (s *Service) Register(register func(pattern, role string, handler http.HandlerFunc), global func(pattern string, handler func(http.ResponseWriter, *http.Request))) {
+	global("GET /api/chat/connections", s.chatConnections)
 	register("GET /api/chat", "read", s.chatList)
 	register("POST /api/chat", "read", s.chatCreate)
 	register("POST /api/chat/{chat}/turns", "read", s.chatTurn)

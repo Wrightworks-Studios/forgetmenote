@@ -15,7 +15,7 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
  const call=(action,body={})=>post('/api/organization/action/'+action,body);
  const report=error=>feedback($('admin-status'),error.message);
  const dataConnections=()=>moduleOn(getUser(),'data-connections');
- const integrations=initIntegrations({post,report,dataConnections});
+ const integrations=initIntegrations({post,report,dataConnections,automationsOn:()=>moduleOn(getUser(),'automations')});
  // A control saved by its action stays disabled until its form changes again (`unchanged`).
  // A control whose action is still running ignores the event and keeps its state.
  const act=(fn,getActive=()=>pageActive)=>async event=>{
@@ -105,6 +105,8 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
   $('instance-status').append(node('dt','Outgoing actions'),node('dd',status.instance.outgoingPaused?'Paused':'Enabled'));
   const titles=enabled=>(status.modules||[]).filter(module=>module.enabled===enabled).map(module=>module.title).join('; ')||'None';
   $('instance-status').append(node('dt','Modules on'),node('dd',titles(true)),node('dt','Modules off'),node('dd',titles(false)));
+  // Gateways that read different modules.off settings, each with what it turns off.
+  if((status.gateways||[]).some(gateway=>!gateway.same))$('instance-status').append(node('dt','Gateways disagree'),node('dd',status.gateways.map(gateway=>`${gateway.gateway.slice(0,8)}${gateway.this?' (this one)':''}: off ${gateway.off.join(', ')||'none'}`).join('; ')));
   if(status.omittedIntegrations?.length)$('instance-status').append(node('dt','Left out of this build'),node('dd',status.omittedIntegrations.map(integration=>integration.title).join('; ')));
   activity();
   await integrations.load(directory,org.groups,active);
