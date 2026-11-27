@@ -679,37 +679,73 @@ func (s *Service) scriptExtractDocument(e *scriptExecution, in scriptRequest) (a
 	return map[string]any{"text": capture.Text, "title": capture.Title, "record": capture.Record}, nil
 }
 
-func (s *Service) scriptSearch(e *scriptExecution, in scriptRequest) (any, error) {
-	ctx, r := e.ctx, e.run
-	var v struct {
-		Query       string `json:"query"`
-		Limit       int    `json:"limit"`
-		Diagnostics bool   `json:"diagnostics"`
-	}
+// scriptSearchPlan is a search admitted before any provider contact.
+type scriptSearchPlan struct {
+	Query       string `json:"query"`
+	Limit       int    `json:"limit"`
+	Diagnostics bool   `json:"diagnostics"`
+	snapshot    chat.Configuration
+	cloudflare  *chat.Provider
+}
+
+// scriptSearchAdmission refuses a search no provider would see: research off
+// or unconfigured, the result, search or token budget spent, or instance AI
+// writing off for a paid research model. scriptStep runs it before it records
+// the search as a paid step, as structured research checks its policy first,
+// so a refusal leaves no unknown outcome to reconcile. The search runs it again
+// once recorded; both count the search being admitted against the budget.
+func (s *Service) scriptSearchAdmission(e *scriptExecution, in scriptRequest) (scriptSearchPlan, error) {
+	r := e.run
+	var v scriptSearchPlan
 	if err := json.Unmarshal(in.Arguments, &v); err != nil {
-		return nil, err
+		return v, err
 	}
-	snapshot := s.hooks.Chat().Snapshot()
-	cfg, research, search := snapshot.Config, snapshot.Research, snapshot.SearchResearch
+	v.snapshot = s.hooks.Chat().Snapshot()
+	cfg, research := v.snapshot.Config, v.snapshot.Research
 	if cfg == nil || cfg.LocalOnly || cfg.Research == nil || !cfg.Research.Enabled || research == nil {
-		return nil, errors.New("public research is not configured")
+		return v, errors.New("public research is not configured")
 	}
 	if v.Limit < 1 || v.Limit > cfg.Research.MaxFetches {
-		return nil, errors.New("search result count exceeds configured research budget")
+		return v, errors.New("search result count exceeds configured research budget")
 	}
-	if scriptResearchCalls(r) > cfg.Research.MaxSearches {
-		return nil, errors.New("configured research search budget exhausted")
+	calls := scriptResearchCalls(r)
+	if r.Script.Steps[in.Step] == nil {
+		calls++
+	}
+	if calls > cfg.Research.MaxSearches {
+		return v, errors.New("configured research search budget exhausted")
 	}
 	selected, selectedErr := cfg.Resolve(r.Spec.AIConnection, r.Spec.Model)
 	if r.Spec.AIConnection != "" && selectedErr == nil && selected.Cloudflare != nil {
 		_, _, provider, err := s.Provider(r.Spec)
-		if err != nil {
-			return nil, err
+		v.cloudflare = provider
+		return v, err
+	}
+	if r.Spec.AIConnection != "" && selectedErr != nil {
+		return v, selectedErr
+	}
+	if err := TokenBudget(r, research.SearchReservation(v.Query)); err != nil {
+		return v, err
+	}
+	if _, paid := research.ModelConnection(); paid {
+		if err := s.hooks.AIWriting(); err != nil {
+			return v, err
 		}
+	}
+	return v, nil
+}
+
+func (s *Service) scriptSearch(e *scriptExecution, in scriptRequest) (any, error) {
+	ctx, r := e.ctx, e.run
+	v, err := s.scriptSearchAdmission(e, in)
+	if err != nil {
+		return nil, err
+	}
+	if v.cloudflare != nil {
 		if err := s.hooks.CheckEvidence(ctx, r, true); err != nil {
 			return nil, err
 		}
-		found, diagnostics, err := provider.CloudflareSearchDiagnostics(ctx, v.Query, v.Limit)
+		found, diagnostics, err := v.cloudflare.CloudflareSearchDiagnostics(ctx, v.Query, v.Limit)
 		if err != nil {
 			return nil, err
 		}
@@ -721,26 +757,16 @@ func (s *Service) scriptSearch(e *scriptExecution, in scriptRequest) (any, error
 		}
 		return found, nil
 	}
-	if r.Spec.AIConnection != "" && selectedErr != nil {
-		return nil, selectedErr
-	}
-	reservation := research.SearchReservation(v.Query)
-	if r.Spec.MaxTokens > 0 && r.InputTokens+r.OutputTokens+reservation > r.Spec.MaxTokens {
-		return nil, errors.New("automation token budget reached")
-	}
+	research := v.snapshot.Research
 	if connection, paid := research.ModelConnection(); paid {
-		if err := s.hooks.AIWriting(); err != nil {
-			return nil, err
-		}
 		var release func()
-		var err error
-		ctx, release, err = s.ReserveModel(ctx, cfg, connection)
+		ctx, release, err = s.ReserveModel(ctx, v.snapshot.Config, connection)
 		if err != nil {
 			return nil, err
 		}
 		defer release()
 	}
-	found, usage, err := search(ctx, research, v.Query, v.Limit)
+	found, usage, err := v.snapshot.SearchResearch(ctx, research, v.Query, v.Limit)
 	r.InputTokens += int(usage.InputTokens)
 	r.OutputTokens += int(usage.OutputTokens)
 	return found, err
