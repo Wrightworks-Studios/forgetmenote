@@ -295,7 +295,9 @@ func (s *Server) dataConnectionTools(server *mcp.Server) {
 func (s *Server) dataConnectionRoutes() {
 	s.mux.HandleFunc("POST /integrations/actions/{action}", func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("action")
-		if !strings.HasPrefix(name, "list_data_") && name != "call_data_operation" && name != "data_connection_access" && name != "set_data_connection_access" && name != "bind_external_identity" {
+		// Task queue settings are here, not among the organization actions,
+		// because those are closed to API tokens and MCP clients set them too.
+		if !strings.HasPrefix(name, "list_data_") && name != "call_data_operation" && name != "data_connection_access" && name != "set_data_connection_access" && name != "bind_external_identity" && name != "task_queues" && name != "set_task_queues" {
 			http.NotFound(w, r)
 			return
 		}
