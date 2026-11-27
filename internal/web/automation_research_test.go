@@ -49,7 +49,7 @@ func TestScriptStructuredResearchUsesImageAndRequiredSearch(t *testing.T) {
 	}
 	e.run.Spec.AIConnection = "local"
 	e.run.DryRun = true
-	e.run.Script.Contract, _ = app.scriptContract(e.run.Spec)
+	e.run.Script.Contract, _ = app.automationrun.ScriptContract(e.run.Spec)
 	args := map[string]any{"prompt": "Extract visible identity and search for matching original sources. Return JSON.", "schema": map[string]any{"type": "object", "properties": map[string]any{"identity": map[string]string{"type": "string"}}, "required": []string{"identity"}, "additionalProperties": false}, "images": []string{"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII="}, "research": map[string]int{"maxSearches": 1}}
 	got, err := hostStep(t, app, e, "discover", "ai.structured", args)
 	if err != nil {
@@ -133,7 +133,7 @@ func TestScriptStructuredResearchRejectsUnpaidBoundaryViolations(t *testing.T) {
 			case "schema":
 				args["schema"] = map[string]string{"$ref": "#/missing"}
 			}
-			e.run.Script.Contract, _ = app.scriptContract(e.run.Spec)
+			e.run.Script.Contract, _ = app.automationrun.ScriptContract(e.run.Spec)
 			wantCalls := 0
 			if mode == "invalid-result" {
 				wantCalls = 1

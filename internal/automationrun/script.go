@@ -1,58 +1,38 @@
-package web
+package automationrun
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+	"time"
+
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/workspace"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
-	"time"
 )
 
 type scriptExecution struct {
 	ctx  context.Context
 	run  *automation.Run
 	save func() error
-	info packageInfo
+	info PackageInfo
 }
 
-// Installed Python runs have an explicit host boundary. Ambient chat scope is
-// retained for notebook freshness checks; it does not turn catalog reads into AI tools.
-type scriptHostContextKey struct{}
 type scriptRequest struct {
 	Step      string          `json:"step"`
 	Operation string          `json:"operation"`
 	Arguments json.RawMessage `json:"arguments"`
 }
 
-func (s *Server) ConfigureAutomationPython(executable string) error {
-	unlock, err := s.startupConfiguration()
-	if err != nil {
-		return err
-	}
-	defer unlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	runtime, err := automation.OpenPython(ctx, filepath.Join(s.data, "automations", "python"), executable, os.Getenv("AUTOMATION_PYTHON_WHEELHOUSE"))
-	if err != nil {
-		return err
-	}
-	s.python = runtime
-	return nil
-}
-func (s *Server) scriptContract(spec automation.Spec) (string, error) {
+func (s *Service) scriptContract(spec automation.Spec) (string, error) {
 	parts := []string{automation.Hash(spec)}
 	for _, id := range spec.Connections {
-		h, ok := s.dataConnections.Contract(id)
+		h, ok := s.hooks.DataConnections().Contract(id)
 		if !ok {
 			return "", errors.New("script connector unavailable")
 		}
@@ -60,19 +40,20 @@ func (s *Server) scriptContract(spec automation.Spec) (string, error) {
 	}
 	return automation.Hash(parts), nil
 }
-func (s *Server) runScript(ctx context.Context, r *automation.Run, save func() error) error {
-	if s.python == nil {
+
+func (s *Service) runScript(ctx context.Context, r *automation.Run, save func() error) error {
+	if s.hooks.Python() == nil {
 		return errors.New("configure AUTOMATION_PYTHON to run administrator-installed packages")
 	}
-	ctx = context.WithValue(ctx, scriptHostContextKey{}, true)
-	info, files, err := s.scriptPackage(ctx, r.Spec, false)
+	ctx = automation.WithScriptHost(ctx)
+	info, files, err := s.ScriptPackage(ctx, r.Spec, false)
 	if err != nil {
 		return err
 	}
 	// The definition's environment records its installation. This process runs
 	// its own preparation of the same approved files for its Python.
 	prepareCtx, stopPreparing := context.WithTimeout(ctx, time.Duration(r.Spec.TimeoutSeconds)*time.Second)
-	environment, err := s.python.Ensure(prepareCtx, files, info.Digest)
+	environment, err := s.hooks.Python().Ensure(prepareCtx, files, info.Digest)
 	stopPreparing()
 	if err != nil {
 		return err
@@ -98,7 +79,7 @@ func (s *Server) runScript(ctx context.Context, r *automation.Run, save func() e
 		return errors.New("interrupted paid call or write has an unknown outcome; reconcile retained steps before another run")
 	}
 	if cp.Complete {
-		return s.automationrun.Notify(ctx, r, save)
+		return s.Notify(ctx, r, save)
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(r.Spec.TimeoutSeconds)*time.Second)
 	defer cancel()
@@ -107,7 +88,7 @@ func (s *Server) runScript(ctx context.Context, r *automation.Run, save func() e
 		return err
 	}
 	var hostError error
-	err = s.python.Run(ctx, cp.Environment, cp.Digest, r.Spec.Script.Sandboxed(), func(raw []byte) (any, error) {
+	err = s.hooks.Python().Run(ctx, cp.Environment, cp.Digest, r.Spec.Script.Sandboxed(), func(raw []byte) (any, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -130,28 +111,29 @@ func (s *Server) runScript(ctx context.Context, r *automation.Run, save func() e
 	if !cp.Complete {
 		return errors.New("script exited without a durable completion record")
 	}
-	return s.automationrun.Notify(ctx, r, save)
+	return s.Notify(ctx, r, save)
 }
-func (s *Server) scriptAuthority(e *scriptExecution) error {
-	if err := s.checkAutomationEvidence(e.ctx, e.run, true); err != nil {
+
+func (s *Service) scriptAuthority(e *scriptExecution) error {
+	if err := s.hooks.CheckEvidence(e.ctx, e.run, true); err != nil {
 		return err
 	}
 	if err := s.checkScriptSources(e); err != nil {
 		return err
 	}
 	cfg := e.run.Spec.Script
-	if s.python == nil {
+	if s.hooks.Python() == nil {
 		return errors.New("Python automation runtime unavailable")
 	}
-	if err := s.python.Ready(e.run.Script.Environment, cfg.Digest); err != nil {
+	if err := s.hooks.Python().Ready(e.run.Script.Environment, cfg.Digest); err != nil {
 		return err
 	}
-	if _, err := s.clientAccess(e.ctx, e.run.Spec.Actor, cfg.SourceProject, "read"); err != nil {
+	if _, err := s.hooks.ClientAccess(e.ctx, e.run.Spec.Actor, cfg.SourceProject, "read"); err != nil {
 		return err
 	}
 	// This rereads the retained package through the source owner, including current
 	// exclusions and installation authority, before releasing data or making calls.
-	info, _, err := s.scriptPackage(e.ctx, e.run.Spec, false)
+	info, _, err := s.ScriptPackage(e.ctx, e.run.Spec, false)
 	if err != nil {
 		return err
 	}
@@ -163,7 +145,7 @@ func (s *Server) scriptAuthority(e *scriptExecution) error {
 			if !e.info.Manifest.RequestsOperation(alias, op) {
 				continue
 			}
-			if !s.dataAllowed(e.ctx, id, op) {
+			if !s.hooks.DataAllowed(e.ctx, id, op) {
 				return workspace.ErrForbidden
 			}
 		}
@@ -177,7 +159,8 @@ func (s *Server) scriptAuthority(e *scriptExecution) error {
 	}
 	return nil
 }
-func (s *Server) scriptStep(e *scriptExecution, in scriptRequest) (any, error) {
+
+func (s *Service) scriptStep(e *scriptExecution, in scriptRequest) (any, error) {
 	r := e.run
 	if err := s.scriptAuthority(e); err != nil {
 		return nil, err

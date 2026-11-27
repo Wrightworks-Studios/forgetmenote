@@ -67,7 +67,7 @@ func TestScriptMoondreamCorrectsJSONOnceAndRetainsUsage(t *testing.T) {
 				}
 				e.run.Spec.AIConnection = "local"
 				var contractErr error
-				e.run.Script.Contract, contractErr = app.scriptContract(e.run.Spec)
+				e.run.Script.Contract, contractErr = app.automationrun.ScriptContract(e.run.Spec)
 				if contractErr != nil {
 					t.Fatal(contractErr)
 				}

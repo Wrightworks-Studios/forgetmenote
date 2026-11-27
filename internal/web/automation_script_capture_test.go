@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ import (
 func TestScriptRenderedFetchRequiresVisionGrant(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host): return {}", []string{"web.fetch"}, nil, nil)
 	raw, _ := json.Marshal(map[string]any{"url": "https://example.org", "render": true})
-	if err := app.scriptCallAuthority(e, scriptRequest{Operation: "web.fetch", Arguments: raw}); err == nil {
+	if err := app.automationrun.ScriptCallAuthority(e.host(), automationrun.ScriptRequest{Operation: "web.fetch", Arguments: raw}); err == nil {
 		t.Fatal("rendered website evidence accepted without ai.images grant")
 	}
 }
@@ -25,17 +26,17 @@ func TestScriptRenderedFetchPreservesExternalConsentAndFetchBudget(t *testing.T)
 	args := map[string]any{"url": "https://example.org", "render": true}
 	e.run.Spec.ExternalProcessing = false
 	raw, _ := json.Marshal(args)
-	if err := app.scriptCallAuthority(e, scriptRequest{Operation: "web.fetch", Arguments: raw}); err == nil {
+	if err := app.automationrun.ScriptCallAuthority(e.host(), automationrun.ScriptRequest{Operation: "web.fetch", Arguments: raw}); err == nil {
 		t.Fatal("render accepted without external consent")
 	}
 	e.run.Spec.ExternalProcessing = true
-	if _, err := app.scriptOperation(e, scriptRequest{Operation: "web.fetch", Arguments: raw}, time.Now()); err == nil || !strings.Contains(err.Error(), "not configured") {
+	if _, err := app.automationrun.ScriptOperation(e.host(), automationrun.ScriptRequest{Operation: "web.fetch", Arguments: raw}, time.Now()); err == nil || !strings.Contains(err.Error(), "not configured") {
 		t.Fatalf("missing configuration silently fell back: %v", err)
 	}
 	for i := 0; i < 6; i++ {
 		e.run.Script.Steps[fmt.Sprintf("fetch-%d", i)] = &automation.ScriptStep{Operation: "web.fetch", Input: raw}
 	}
-	if _, err := app.scriptOperation(e, scriptRequest{Operation: "web.fetch", Arguments: raw}, time.Now()); err == nil || !strings.Contains(err.Error(), "fetch budget exhausted") {
+	if _, err := app.automationrun.ScriptOperation(e.host(), automationrun.ScriptRequest{Operation: "web.fetch", Arguments: raw}, time.Now()); err == nil || !strings.Contains(err.Error(), "fetch budget exhausted") {
 		t.Fatalf("render bypassed fetch budget: %v", err)
 	}
 }
@@ -60,10 +61,10 @@ func TestScriptRenderedFetchInterruptedPurchaseIsNotRepeated(t *testing.T) {
 func TestScriptRenderedFetchDefinitiveFailureContinuesWithoutRepurchase(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host): return {}", []string{"web.fetch", "ai.images"}, nil, nil)
 	calls := 0
-	app.scriptWebsiteCapture = func(context.Context, string) (chat.WebsiteEvidence, error) {
+	app.automationrun.SetScriptWebsiteCapture(func(context.Context, string) (chat.WebsiteEvidence, error) {
 		calls++
 		return chat.WebsiteEvidence{}, errors.Join(chat.ErrWebsiteCaptureSettled, errors.New("synthetic returned HTTP 403"))
-	}
+	})
 	args := map[string]any{"url": "https://example.org", "render": true}
 	if _, err := hostStep(t, app, e, "capture", "web.fetch", args); err == nil {
 		t.Fatal("capture failure hidden")

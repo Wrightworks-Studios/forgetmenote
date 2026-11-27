@@ -33,7 +33,6 @@ import (
 	"forgetmenote/internal/branding"
 	"forgetmenote/internal/capacity"
 	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
 	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/connectors"
@@ -66,26 +65,22 @@ import (
 var assets embed.FS
 
 type Server struct {
-	browserAssets   browserManifest
-	customIcons     appIconCache
-	lifecycleMu     sync.Mutex
-	started, closed bool
-	closeOnce       sync.Once
-	// Same credential-free source boundary as document capture; replaceable by
-	// local HTTP fixtures without weakening production DNS/redirect checks.
-	scriptImageFetch     func(context.Context, string) ([]byte, string, string, error)
-	scriptWebsiteCapture func(context.Context, string) (chat.WebsiteEvidence, error)
-	personalConnections  *connectors.PersonalConnections
-	dataConnections      *connectors.Manager
-	dataOperations       *dataops.Service
-	automations          *automationService
-	python               *automation.Python
-	slack                *slackService
-	messaging            *messaginghttp.Service
-	personal             *personal.Service
-	chatrun              *chatrun.Service
-	automationrun        *automationrun.Service
-	tasks                *taskqueue.Service
+	browserAssets       browserManifest
+	customIcons         appIconCache
+	lifecycleMu         sync.Mutex
+	started, closed     bool
+	closeOnce           sync.Once
+	personalConnections *connectors.PersonalConnections
+	dataConnections     *connectors.Manager
+	dataOperations      *dataops.Service
+	automations         *automationService
+	python              *automation.Python
+	slack               *slackService
+	messaging           *messaginghttp.Service
+	personal            *personal.Service
+	chatrun             *chatrun.Service
+	automationrun       *automationrun.Service
+	tasks               *taskqueue.Service
 	// messageClients are the configured messaging transports, by client ID.
 	messageClients map[string]messaging.Transport
 	headless       bool

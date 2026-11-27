@@ -104,3 +104,37 @@ func (s *Server) checkAutomationEvidence(ctx context.Context, r *automation.Run,
 	}
 	return nil
 }
+
+func (s *Server) checkLearningEvidence(ctx context.Context, r *automation.Run) error {
+	if r.Learning == nil || !time.Now().Before(r.Learning.Expires) {
+		return errors.New("learning evidence expired or unavailable")
+	}
+	for _, e := range r.Learning.Events {
+		if time.Since(e.At) > time.Duration(r.Spec.Learning.RetentionHours)*time.Hour {
+			return errors.New("learning evidence expired")
+		}
+		if err := s.learningEventAllowed(ctx, r, e); err != nil {
+			return err
+		}
+	}
+	if len(r.Learning.Sources) > 0 {
+		store, err := s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "read")
+		if err != nil {
+			return err
+		}
+		snapshot, err := chatrun.ScopedSnapshot(ctx, store, "")
+		if err != nil {
+			return err
+		}
+		eligible := map[string]bool{}
+		for _, file := range snapshot.Files {
+			eligible[file.Path] = true
+		}
+		for _, source := range r.Learning.Sources {
+			if !eligible[source] {
+				return chat.ErrOutsideCorpus
+			}
+		}
+	}
+	return nil
+}

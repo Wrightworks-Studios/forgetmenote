@@ -1,4 +1,4 @@
-package web
+package automationrun
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -16,11 +17,59 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
-	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/workspace"
 )
+
+// These fingerprints are retrieval hints only. They never rewrite executable
+// SQL or establish that two requests have equivalent business semantics.
+var learningSQLTokens = regexp.MustCompile(`(?s)'(?:''|[^'])*'|"(?:""|[^"])*"|--[^\n]*|/\*.*?\*/|\b[0-9]+(?:\.[0-9]+)?\b|\$[0-9]+|[A-Za-z_][A-Za-z_0-9]*|\S`)
+
+// LearningSecret matches text that looks like a credential. Neither an
+// observed call nor a learned profile that matches it is kept.
+var LearningSecret = regexp.MustCompile(`(?i)(password|passwd|authorization|bearer\s|api.?key|access.?token|secret|-----BEGIN|github_pat_|gh[pousr]_|sk-[a-z0-9]{12})`)
+
+// LearningShape is the shape of an observed call's arguments under key: each
+// value's type, and SQL with its literals and comments removed.
+func LearningShape(value any, key string) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := map[string]any{}
+		for k, x := range v {
+			out[k] = LearningShape(x, k)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, x := range v {
+			out[i] = LearningShape(x, key)
+		}
+		return out
+	case string:
+		if key != "sql" {
+			return "string"
+		}
+		parts := learningSQLTokens.FindAllString(v, -1)
+		for i, p := range parts {
+			switch {
+			case strings.HasPrefix(p, "--"), strings.HasPrefix(p, "/*"):
+				parts[i] = ""
+			case strings.HasPrefix(p, "'"), p[0] >= '0' && p[0] <= '9':
+				parts[i] = "?"
+			case !strings.HasPrefix(p, `"`):
+				parts[i] = strings.ToLower(p)
+			}
+		}
+		return strings.Join(strings.Fields(strings.Join(parts, " ")), " ")
+	case nil:
+		return "null"
+	case bool:
+		return "boolean"
+	default:
+		return "number"
+	}
+}
 
 type learnedShape struct {
 	Connection      string         `json:"connection"`
@@ -30,9 +79,11 @@ type learnedShape struct {
 	Template        map[string]any `json:"arguments"`
 	ObservedThrough time.Time      `json:"observedThrough"`
 }
+
 type learnedProfile struct {
 	Shapes map[string]learnedShape `json:"shapes"`
 }
+
 type learningCandidate struct {
 	Content   string                    `json:"content"`
 	Templates map[string]map[string]any `json:"templates"`
@@ -51,7 +102,8 @@ Templates must keep the original connection and operation and are replayed again
 Describe a reusable query shape, not individual customers, observed parameter values, result rows, or a claimed proof of business correctness. Omit the private activity log and its IDs.
 If no useful safe improvement is supported, return empty content and templates.`
 
-func learningGroup(e automation.LearningEvent) string {
+// LearningGroup groups observed calls by connection, operation and shape.
+func LearningGroup(e automation.LearningEvent) string {
 	return automation.Hash([]string{e.Call.Connection, e.Call.Operation, e.Shape})
 }
 
@@ -59,6 +111,7 @@ func sameLearningTask(a, b automation.LearningEvent) bool {
 	intent := strings.Join(strings.Fields(strings.ToLower(a.Intent)), " ")
 	return intent != "" && intent == strings.Join(strings.Fields(strings.ToLower(b.Intent)), " ") && a.Call.Connection == b.Call.Connection && a.Call.Operation == b.Call.Operation
 }
+
 func profileLearningRecord(content []byte) learnedProfile {
 	record := learnedProfile{Shapes: map[string]learnedShape{}}
 	i := strings.LastIndex(string(content), learningMarker)
@@ -71,41 +124,8 @@ func profileLearningRecord(content []byte) learnedProfile {
 	}
 	return record
 }
-func (s *Server) checkLearningEvidence(ctx context.Context, r *automation.Run) error {
-	if r.Learning == nil || !time.Now().Before(r.Learning.Expires) {
-		return errors.New("learning evidence expired or unavailable")
-	}
-	for _, e := range r.Learning.Events {
-		if time.Since(e.At) > time.Duration(r.Spec.Learning.RetentionHours)*time.Hour {
-			return errors.New("learning evidence expired")
-		}
-		if err := s.learningEventAllowed(ctx, r, e); err != nil {
-			return err
-		}
-	}
-	if len(r.Learning.Sources) > 0 {
-		store, err := s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "read")
-		if err != nil {
-			return err
-		}
-		snapshot, err := chatrun.ScopedSnapshot(ctx, store, "")
-		if err != nil {
-			return err
-		}
-		eligible := map[string]bool{}
-		for _, file := range snapshot.Files {
-			eligible[file.Path] = true
-		}
-		for _, source := range r.Learning.Sources {
-			if !eligible[source] {
-				return chat.ErrOutsideCorpus
-			}
-		}
-	}
-	return nil
-}
 
-func (s *Server) learningProfiles(ctx context.Context, r *automation.Run, store *workspace.Store) (map[string]workspace.Document, error) {
+func (s *Service) learningProfiles(ctx context.Context, r *automation.Run, store *workspace.Store) (map[string]workspace.Document, error) {
 	snapshot, err := chatrun.ScopedSnapshot(ctx, store, "")
 	if err != nil {
 		return nil, err
@@ -128,7 +148,7 @@ func (s *Server) learningProfiles(ctx context.Context, r *automation.Run, store 
 // progress in the batch and saves it before the next phase reads it, so a
 // restart resumes where the batch stopped.
 type learningJob struct {
-	s     *Server
+	s     *Service
 	r     *automation.Run
 	b     *automation.LearningBatch
 	save  func() error
@@ -148,7 +168,7 @@ type learningPlan struct {
 	targets []learningTarget
 }
 
-func (s *Server) runLearning(ctx context.Context, r *automation.Run, save func() error) error {
+func (s *Service) runLearning(ctx context.Context, r *automation.Run, save func() error) error {
 	if r.Learning == nil {
 		return errors.New("learning jobs require observed usage")
 	}
@@ -162,10 +182,10 @@ func (s *Server) runLearning(ctx context.Context, r *automation.Run, save func()
 	if err := j.prepare(ctx); err != nil {
 		return err
 	}
-	if err := s.checkAutomationEvidence(ctx, r, true); err != nil {
+	if err := s.hooks.CheckEvidence(ctx, r, true); err != nil {
 		return err
 	}
-	store, err := s.clientAccess(ctx, r.Spec.Actor, r.Spec.Project, "edit")
+	store, err := s.hooks.ClientAccess(ctx, r.Spec.Actor, r.Spec.Project, "edit")
 	if err != nil {
 		return err
 	}
@@ -210,7 +230,7 @@ func (j *learningJob) prepare(ctx context.Context) error {
 		if e.At.After(through) {
 			through = e.At
 		}
-		key := learningGroup(e)
+		key := LearningGroup(e)
 		if !slices.Contains(b.Fresh, key) {
 			b.Fresh = append(b.Fresh, key)
 		}
@@ -218,14 +238,14 @@ func (j *learningJob) prepare(ctx context.Context) error {
 	events := b.Events
 	var err error
 	if !j.r.DryRun {
-		events, err = j.s.automations.Queue.LearningEvidence(j.r.Spec, through, time.Now())
+		events, err = j.s.runtime.Queue.LearningEvidence(j.r.Spec, through, time.Now())
 	}
 	if err != nil {
 		return err
 	}
 	b.Events = nil
 	for _, e := range events {
-		if j.s.learningEventAllowed(ctx, j.r, e) == nil {
+		if j.s.hooks.CheckLearningEvent(ctx, j.r, e) == nil {
 			b.Events = append(b.Events, e)
 			if expiry := e.At.Add(time.Duration(j.r.Spec.Learning.RetentionHours) * time.Hour); expiry.Before(b.Expires) {
 				b.Expires = expiry // copying evidence must not extend its retention
@@ -242,7 +262,7 @@ func (j *learningJob) finish(ctx context.Context) error {
 	if r.Publication == nil {
 		return nil
 	}
-	if err := j.s.automationrun.Publish(ctx, r); err != nil {
+	if err := j.s.Publish(ctx, r); err != nil {
 		return err
 	}
 	for _, key := range r.Publication.LearningShapes {
@@ -268,7 +288,7 @@ func (j *learningJob) plan(ctx context.Context) (learningPlan, error) {
 	b := j.b
 	active := map[string][]automation.LearningEvent{}
 	for _, e := range b.Events {
-		key := learningGroup(e)
+		key := LearningGroup(e)
 		if slices.Contains(b.Fresh, key) && !b.Processed[key] {
 			active[key] = append(active[key], e)
 		}
@@ -344,7 +364,7 @@ func learningUnchanged(events []automation.LearningEvent, known learnedShape) bo
 func relatedLearningGroups(b *automation.LearningBatch, active map[string][]automation.LearningEvent) map[string][]automation.LearningEvent {
 	groups := map[string][]automation.LearningEvent{}
 	for _, event := range b.Events {
-		key := learningGroup(event)
+		key := LearningGroup(event)
 		if b.Processed[key] {
 			continue
 		}
@@ -408,7 +428,7 @@ func (j *learningJob) learn(ctx context.Context, target learningTarget, groups m
 	if err != nil {
 		return err
 	}
-	pin := automationrun.PinPublication(target.path, old)
+	pin := PinPublication(target.path, old)
 	key := automation.Hash([]any{target.path, keys})[:16]
 	raw, err := j.candidate(ctx, key, target, groups, old, pin.Hash)
 	if err != nil {
@@ -487,16 +507,16 @@ func (j *learningJob) candidate(ctx context.Context, key string, target learning
 	if err = j.save(); err != nil {
 		return nil, err
 	}
-	answer, err := j.s.automationrun.Answer(ctx, r, string(prompt), false)
+	answer, err := j.s.Answer(ctx, r, string(prompt), false)
 	if err != nil {
 		return nil, err
 	}
 	raw := []byte(answer)
-	if len(raw) > 128<<10 || learningSecret.Match(raw) {
+	if len(raw) > 128<<10 || LearningSecret.Match(raw) {
 		raw = nil
 	}
 	for _, connection := range r.Spec.Connections {
-		if !j.s.dataConnections.LearningInputSafe(connection, string(raw)) {
+		if !j.s.hooks.DataConnections().LearningInputSafe(connection, string(raw)) {
 			raw = nil
 		}
 	}
@@ -510,14 +530,14 @@ func (j *learningJob) candidate(ctx context.Context, key string, target learning
 
 // learningPrompt asks for a profile from up to four examples per shape, the
 // exact operation schemas, and related calls from the same conversations.
-func (s *Server) learningPrompt(r *automation.Run, keys []string, groups map[string][]automation.LearningEvent, old workspace.Document) ([]byte, error) {
+func (s *Service) learningPrompt(r *automation.Run, keys []string, groups map[string][]automation.LearningEvent, old workspace.Document) ([]byte, error) {
 	stateGroups := map[string]any{}
 	operationSchemas := map[string]map[string]json.RawMessage{}
 	included := map[string]bool{}
 	for _, shape := range keys {
 		examples := learningExamples(groups[shape])
 		call := examples[0].Call
-		op, ok := s.dataConnections.ConfiguredOperation(call.Connection, call.Operation)
+		op, ok := s.hooks.DataConnections().ConfiguredOperation(call.Connection, call.Operation)
 		if !ok {
 			return nil, errors.New("observed data operation is no longer configured")
 		}
@@ -553,7 +573,7 @@ func (s *Server) learningPrompt(r *automation.Run, keys []string, groups map[str
 // replayLearningTemplates replays each shape's template against its original
 // calls and adds the validated shapes to record. Any failure, including a
 // missing template, invalidates the candidate.
-func (s *Server) replayLearningTemplates(ctx context.Context, r *automation.Run, candidate learningCandidate, keys []string, groups map[string][]automation.LearningEvent, record learnedProfile) (learnedProfile, bool) {
+func (s *Service) replayLearningTemplates(ctx context.Context, r *automation.Run, candidate learningCandidate, keys []string, groups map[string][]automation.LearningEvent, record learnedProfile) (learnedProfile, bool) {
 	for _, shape := range keys {
 		template, ok := candidate.Templates[shape]
 		if !ok {
@@ -579,11 +599,11 @@ func (s *Server) replayLearningTemplates(ctx context.Context, r *automation.Run,
 // keepsRecipeChecks runs the operator's recipe checks for target against
 // content. Usage-derived comparisons supplement any existing operator-owned
 // contract; they cannot silently replace its stronger expected answers.
-func (s *Server) keepsRecipeChecks(ctx context.Context, r *automation.Run, target, content string) bool {
-	for _, spec := range s.automations.Definitions.Specs() {
+func (s *Service) keepsRecipeChecks(ctx context.Context, r *automation.Run, target, content string) bool {
+	for _, spec := range s.runtime.Definitions.Specs() {
 		if spec.Kind == "recipe" && spec.Project == r.Spec.Project && spec.Recipe == target {
 			check := automation.Run{Spec: spec}
-			err := s.automationrun.CheckRecipe(ctx, &check, content)
+			err := s.CheckRecipe(ctx, &check, content)
 			r.Receipts = append(r.Receipts, check.Receipts...)
 			if err != nil {
 				return false
@@ -614,6 +634,7 @@ func learningExamples(events []automation.LearningEvent) []automation.LearningEv
 	}
 	return out
 }
+
 func sameLearningConversation(e automation.LearningEvent, events []automation.LearningEvent) bool {
 	for _, other := range events {
 		if e.Conversation == other.Conversation {
@@ -622,6 +643,7 @@ func sameLearningConversation(e automation.LearningEvent, events []automation.Le
 	}
 	return false
 }
+
 func decodeLearningCandidate(raw []byte, out *learningCandidate) error {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
@@ -645,6 +667,7 @@ func learningLiteralValues(args map[string]any) []any {
 	}
 	return out
 }
+
 func fillLearningTemplate(value any, source any) (any, error) {
 	switch v := value.(type) {
 	case map[string]any:
@@ -678,10 +701,11 @@ func fillLearningTemplate(value any, source any) (any, error) {
 	}
 	return value, nil
 }
-func (s *Server) validateLearningTemplate(ctx context.Context, r *automation.Run, events []automation.LearningEvent, template map[string]any) (int64, error) {
+
+func (s *Service) validateLearningTemplate(ctx context.Context, r *automation.Run, events []automation.LearningEvent, template map[string]any) (int64, error) {
 	var latency int64
 	for _, event := range events {
-		if err := s.checkAutomationEvidence(ctx, r, true); err != nil {
+		if err := s.hooks.CheckEvidence(ctx, r, true); err != nil {
 			return 0, err
 		}
 		args, err := fillLearningTemplate(template, map[string]any{"arguments": event.Call.Arguments, "literals": learningLiteralValues(event.Call.Arguments)})
@@ -690,7 +714,7 @@ func (s *Server) validateLearningTemplate(ctx context.Context, r *automation.Run
 		}
 		candidate := event.Call
 		candidate.Arguments = args.(map[string]any)
-		baseline, err := s.automationrun.Call(ctx, r, event.Call)
+		baseline, err := s.Call(ctx, r, event.Call)
 		if err != nil {
 			return 0, err
 		}
@@ -703,11 +727,11 @@ func (s *Server) validateLearningTemplate(ctx context.Context, r *automation.Run
 			latency = max(latency, baseline.Receipt.DurationMS)
 			continue
 		}
-		result, err := s.automationrun.Call(ctx, r, candidate)
+		result, err := s.Call(ctx, r, candidate)
 		if err != nil {
 			return 0, err
 		}
-		control, err := s.automationrun.Call(ctx, r, event.Call)
+		control, err := s.Call(ctx, r, event.Call)
 		if err != nil {
 			return 0, err
 		}
@@ -721,6 +745,7 @@ func (s *Server) validateLearningTemplate(ctx context.Context, r *automation.Run
 	}
 	return latency, nil
 }
+
 func learningContent(old []byte, c learningCandidate, record learnedProfile) (string, error) {
 	header := "---\ntags: [recipe]\n---\n"
 	if old != nil {
