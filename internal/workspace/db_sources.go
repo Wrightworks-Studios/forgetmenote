@@ -62,13 +62,6 @@ func (n *dbNotebook) ImportSource(ctx context.Context, capture SourceCapture, ta
 	if !SourceURL(capture.Record.URL) || !SourceURL(capture.Record.FinalURL) {
 		return Document{}, invalidInput("invalid source URL")
 	}
-	if title == "" {
-		title = capture.Title
-	}
-	title = strings.TrimSpace(title)
-	if title == "" || len(title) > 300 || strings.ContainsAny(title, "\r\n\x00") || !utf8.ValidString(title) {
-		return Document{}, invalidInput("provide a title of 1–300 bytes")
-	}
 	format := SourceFormatForMIME(capture.Record.MIME)
 	if format.MIME == "" {
 		return Document{}, invalidInput("unsupported source format")
@@ -121,6 +114,13 @@ func (n *dbNotebook) ImportSource(ctx context.Context, capture SourceCapture, ta
 			return Document{}, e
 		}
 		id = record.ID
+		// A refresh keeps the note's name unless the caller gives another, as
+		// the browser's form does; an agent attaching text keeps it too.
+		if title == "" {
+			if metadata, err := ParseMetadata(old.Content); err == nil {
+				title = metadata.Title
+			}
+		}
 	} else {
 		if expected != "" {
 			return Document{}, ErrConflict
@@ -170,6 +170,13 @@ func (n *dbNotebook) ImportSource(ctx context.Context, capture SourceCapture, ta
 		} else if !errors.Is(e, os.ErrNotExist) {
 			return Document{}, e
 		}
+	}
+	if title == "" {
+		title = capture.Title
+	}
+	title = strings.TrimSpace(title)
+	if title == "" || len(title) > 300 || strings.ContainsAny(title, "\r\n\x00") || !utf8.ValidString(title) {
+		return Document{}, invalidInput("provide a title of 1–300 bytes")
 	}
 	if _, err = n.resolve(target, true); err != nil {
 		return Document{}, err

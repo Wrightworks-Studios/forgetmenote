@@ -130,7 +130,7 @@ type sourceJobInput struct {
 }
 
 func (s *Server) sourceJobTools(server *mcp.Server) {
-	addProjectTool(s, server, "prepare_source", "Queue a source upload or public URL for bounded extraction. Returns a durable job ID; inspect source_job, then import_source_job. Local extraction does not upload to an AI provider.", "edit", func(ctx context.Context, _ *workspace.Store, in sourceInput) (sourceJobOutput, error) {
+	addProjectTool(s, server, "prepare_source", "Queue a source upload or public URL for bounded server extraction. Returns a durable job ID; inspect source_job, then import_source_job. Local extraction does not upload to an AI provider. To upload your own extraction, use archive_source; jobs refuse text.", "edit", func(ctx context.Context, _ *workspace.Store, in sourceInput) (sourceJobOutput, error) {
 		job, err := s.sourceHTTP.Submit(ctx, in.Project, sourcehttp.Input(in))
 		return sourceJobOutput{Job: job}, err
 	})

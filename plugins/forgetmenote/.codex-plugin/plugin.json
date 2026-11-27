@@ -1,6 +1,6 @@
 {
   "name": "forgetmenote",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Read, discuss, and edit Git-backed notes across authorized projects.",
   "author": {"name": "ForgetMeNote contributors"},
   "skills": "./skills/",

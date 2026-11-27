@@ -150,19 +150,29 @@ func TestRuntimeStartsARetryWhenItsDelayEnds(t *testing.T) {
 	if err = r.Queue.write(&run); err != nil {
 		t.Fatal(err)
 	}
+	// Until the delay ends the claimer's scans find nothing to claim and are
+	// told to look again exactly when it ends; from then on the run is ready.
+	// Asked at those two instants, so a busy host cannot move them.
+	accept := []func(Spec) bool{func(Spec) bool { return true }}
+	ready, next, err := r.Queue.waiting(accept, retryAt.Add(-time.Microsecond))
+	if err != nil || ready[0] || !next.Equal(retryAt) {
+		t.Fatalf("before its delay ended the retry was ready %v, to be looked at again at %s, not %s: %v", ready, next, retryAt, err)
+	}
+	if ready, _, err = r.Queue.waiting(accept, retryAt); err != nil || !ready[0] {
+		t.Fatalf("once its delay ended the retry was not ready: %v", err)
+	}
 	started := make(chan time.Time, 1)
 	r.Start(t.Context(), idleHooks(func(context.Context, *Run, func() error) error {
 		started <- time.Now()
 		return nil
 	}))
 	t.Cleanup(r.Close)
+	// The runtime then starts it on that timer, not before the delay ends and
+	// not at the fallback scan, five seconds after its first.
 	select {
 	case at := <-started:
 		if at.Before(retryAt) {
 			t.Fatal("a retry started before its delay ended")
-		}
-		if at.Sub(retryAt) > time.Second {
-			t.Fatalf("a retry started %s after its delay ended", at.Sub(retryAt))
 		}
 	case <-time.After(claimFallback):
 		t.Fatal("a retry waited for the claimer's fallback scan")
