@@ -146,6 +146,7 @@ var policies = map[string]Policy{
 	"read_live_note":                    {Chat: true, Read: true, Replay: true},
 	"read_note":                         {Chat: true, Read: true, Replay: true},
 	"read_project_changes":              {Chat: true, Read: true, Replay: true},
+	"list_sources_awaiting_text":        {Read: true, Replay: true}, // Excluded from embedded chat, which cannot read originals.
 	"read_source_original":              {Read: true, Replay: true}, // Deliberately excluded from embedded chat.
 	"resolve_comment":                   {Chat: true, Edit: true},
 	"restore_note":                      {Chat: true, Control: true},

@@ -179,6 +179,33 @@
         },
         "path": "sources/ID3.md",
         "title": "Harbour log"
+      },
+      {
+        "editable": false,
+        "excerpt": "Original file Extracted content Page 1 — Notice No whaling within the harbour.",
+        "metadata": {
+          "kind": "archived-source",
+          "source": {
+            "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+            "extraction": "client-supplied",
+            "extractor": "Contract agent; contract-model",
+            "finalURL": "",
+            "id": "ID5",
+            "importedBy": "ID4",
+            "method": "uploaded",
+            "mime": "text/html",
+            "original": "assets/sources/ID5/HASH3.html",
+            "sha256": "HASH3",
+            "textSHA256": "HASH4",
+            "url": "",
+            "warning": "Text supplied by the uploading client and not verified by the server against the original. Check quotations and figures against the original."
+          },
+          "status": "unreviewed",
+          "tags": [],
+          "title": "Harbour notice"
+        },
+        "path": "sources/ID5.md",
+        "title": "Harbour notice"
       }
     ]
   },
@@ -196,7 +223,7 @@
         "editable": false,
         "excerpt": "Ishmael walked to the harbour. The harbour The whale appeared at dawn. Nobody on the quay believed him.",
         "metadata": {
-          "id": "ID5",
+          "id": "ID6",
           "kind": "",
           "status": "draft",
           "tags": [
@@ -252,6 +279,33 @@
         },
         "path": "sources/ID3.md",
         "title": "Harbour log"
+      },
+      {
+        "editable": false,
+        "excerpt": "Original file Extracted content Page 1 — Notice No whaling within the harbour.",
+        "metadata": {
+          "kind": "archived-source",
+          "source": {
+            "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+            "extraction": "client-supplied",
+            "extractor": "Contract agent; contract-model",
+            "finalURL": "",
+            "id": "ID5",
+            "importedBy": "ID4",
+            "method": "uploaded",
+            "mime": "text/html",
+            "original": "assets/sources/ID5/HASH3.html",
+            "sha256": "HASH3",
+            "textSHA256": "HASH4",
+            "url": "",
+            "warning": "Text supplied by the uploading client and not verified by the server against the original. Check quotations and figures against the original."
+          },
+          "status": "unreviewed",
+          "tags": [],
+          "title": "Harbour notice"
+        },
+        "path": "sources/ID5.md",
+        "title": "Harbour notice"
       }
     ]
   },
@@ -325,6 +379,11 @@
         "path": "sources/ID3.md",
         "project": "contract",
         "title": "Harbour log"
+      },
+      {
+        "path": "sources/ID5.md",
+        "project": "contract",
+        "title": "Harbour notice"
       }
     ]
   },
@@ -379,7 +438,7 @@
     "tool": "restore_trash",
     "as": "admin",
     "arguments": {
-      "id": "ID6",
+      "id": "ID7",
       "project": "contract",
       "revision": "REV3"
     },
@@ -393,7 +452,7 @@
       "project": "contract"
     },
     "result": {
-      "confirmation": "HASH3",
+      "confirmation": "HASH5",
       "entries": [
         {
           "deletedAt": "<TIME>",
@@ -434,7 +493,7 @@
     "tool": "empty_trash",
     "as": "admin",
     "arguments": {
-      "confirmation": "HASH3",
+      "confirmation": "HASH5",
       "project": "contract",
       "revision": "REV3"
     },
@@ -460,7 +519,7 @@
       "project": "contract"
     },
     "result": {
-      "confirmation": "HASH4",
+      "confirmation": "HASH6",
       "entries": [],
       "revision": "REV4"
     }

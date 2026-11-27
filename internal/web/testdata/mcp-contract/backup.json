@@ -229,8 +229,34 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Archive source: Harbour log",
+        "message": "Archive source: Harbour notice",
         "revision": "REV4",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Archive source: Harbour notice",
+        "revision": "REV5",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Archive source: Harbour log",
+        "revision": "REV6",
         "source": "mcp",
         "userId": "ID1"
       },
@@ -243,7 +269,7 @@
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
         "message": "Add an epilogue and link it",
-        "revision": "REV5",
+        "revision": "REV7",
         "source": "mcp",
         "userId": "ID2"
       },
@@ -256,7 +282,7 @@
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
         "message": "Count the readings",
-        "revision": "REV6",
+        "revision": "REV8",
         "source": "mcp",
         "userId": "ID1"
       },
@@ -268,7 +294,7 @@
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
         "message": "Checkpoint live edits to manuscript/chapter-1.md",
-        "revision": "REV7",
+        "revision": "REV9",
         "source": "collaboration"
       },
       {
@@ -280,32 +306,6 @@
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
         "message": "Update AGENTS.md",
-        "revision": "REV8",
-        "source": "mcp",
-        "userId": "ID1"
-      },
-      {
-        "authorDisplayName": "Recovery administrator",
-        "authorEmail": "ID1@users.gitnotes.invalid",
-        "authorName": "User USER1",
-        "authoredAt": "<TIME>",
-        "client": "contract-client",
-        "committerEmail": "forgetmenote@localhost",
-        "committerName": "ForgetMeNote",
-        "message": "Update AGENTS.md",
-        "revision": "REV9",
-        "source": "mcp",
-        "userId": "ID1"
-      },
-      {
-        "authorDisplayName": "Recovery administrator",
-        "authorEmail": "ID1@users.gitnotes.invalid",
-        "authorName": "User USER1",
-        "authoredAt": "<TIME>",
-        "client": "contract-client",
-        "committerEmail": "forgetmenote@localhost",
-        "committerName": "ForgetMeNote",
-        "message": "Update manuscript/chapter-1.md",
         "revision": "REV10",
         "source": "mcp",
         "userId": "ID1"
@@ -318,7 +318,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update assets/cover.png",
+        "message": "Update AGENTS.md",
         "revision": "REV11",
         "source": "mcp",
         "userId": "ID1"
@@ -331,7 +331,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update assets/cover.png",
+        "message": "Update manuscript/chapter-1.md",
         "revision": "REV12",
         "source": "mcp",
         "userId": "ID1"
@@ -344,7 +344,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update comments/HASH3.json",
+        "message": "Update assets/cover.png",
         "revision": "REV13",
         "source": "mcp",
         "userId": "ID1"
@@ -357,7 +357,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update comments/HASH3.json",
+        "message": "Update assets/cover.png",
         "revision": "REV14",
         "source": "mcp",
         "userId": "ID1"
@@ -402,9 +402,9 @@
         "userId": "ID1"
       },
       {
-        "authorDisplayName": "Former contributor",
-        "authorEmail": "ID2@users.gitnotes.invalid",
-        "authorName": "User USER2",
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
         "authoredAt": "<TIME>",
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
@@ -412,7 +412,7 @@
         "message": "Update comments/HASH3.json",
         "revision": "REV18",
         "source": "mcp",
-        "userId": "ID2"
+        "userId": "ID1"
       },
       {
         "authorDisplayName": "Recovery administrator",
@@ -428,17 +428,17 @@
         "userId": "ID1"
       },
       {
-        "authorDisplayName": "Recovery administrator",
-        "authorEmail": "ID1@users.gitnotes.invalid",
-        "authorName": "User USER1",
+        "authorDisplayName": "Former contributor",
+        "authorEmail": "ID2@users.gitnotes.invalid",
+        "authorName": "User USER2",
         "authoredAt": "<TIME>",
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update .gitnotes-locks.json",
+        "message": "Update comments/HASH3.json",
         "revision": "REV20",
         "source": "mcp",
-        "userId": "ID1"
+        "userId": "ID2"
       },
       {
         "authorDisplayName": "Recovery administrator",
@@ -448,7 +448,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update .gitnotes-locks.json",
+        "message": "Update comments/HASH3.json",
         "revision": "REV21",
         "source": "mcp",
         "userId": "ID1"
@@ -474,7 +474,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Move \"manuscript/chapter-two.md\" to \"manuscript/chapter-2.md\"",
+        "message": "Update .gitnotes-locks.json",
         "revision": "REV23",
         "source": "mcp",
         "userId": "ID1"
@@ -487,7 +487,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Move \"manuscript/chapter-2.md\" to \"manuscript/chapter-two.md\"",
+        "message": "Update .gitnotes-locks.json",
         "revision": "REV24",
         "source": "mcp",
         "userId": "ID1"
@@ -500,7 +500,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update .gitnotes-locks.json",
+        "message": "Move \"manuscript/chapter-two.md\" to \"manuscript/chapter-2.md\"",
         "revision": "REV25",
         "source": "mcp",
         "userId": "ID1"
@@ -513,7 +513,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Duplicate \"reference\" to \"reference-copy\"",
+        "message": "Move \"manuscript/chapter-2.md\" to \"manuscript/chapter-two.md\"",
         "revision": "REV26",
         "source": "mcp",
         "userId": "ID1"
@@ -526,7 +526,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Duplicate \"manuscript/chapter-1.md\" to \"manuscript/chapter-1-copy.md\"",
+        "message": "Update .gitnotes-locks.json",
         "revision": "REV27",
         "source": "mcp",
         "userId": "ID1"
@@ -539,7 +539,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Move \"research\" to \"reference\"",
+        "message": "Duplicate \"reference\" to \"reference-copy\"",
         "revision": "REV28",
         "source": "mcp",
         "userId": "ID1"
@@ -552,7 +552,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Move \"research/whales.md\" to \"research/sperm-whales.md\"",
+        "message": "Duplicate \"manuscript/chapter-1.md\" to \"manuscript/chapter-1-copy.md\"",
         "revision": "REV29",
         "source": "mcp",
         "userId": "ID1"
@@ -565,7 +565,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update index.md",
+        "message": "Move \"research\" to \"reference\"",
         "revision": "REV30",
         "source": "mcp",
         "userId": "ID1"
@@ -578,7 +578,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update manuscript/chapter-2.md",
+        "message": "Move \"research/whales.md\" to \"research/sperm-whales.md\"",
         "revision": "REV31",
         "source": "mcp",
         "userId": "ID1"
@@ -591,7 +591,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update manuscript/chapter-2.md",
+        "message": "Update index.md",
         "revision": "REV32",
         "source": "mcp",
         "userId": "ID1"
@@ -617,7 +617,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update index.md",
+        "message": "Update manuscript/chapter-2.md",
         "revision": "REV34",
         "source": "mcp",
         "userId": "ID1"
@@ -630,7 +630,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update research/whales.md",
+        "message": "Update manuscript/chapter-2.md",
         "revision": "REV35",
         "source": "mcp",
         "userId": "ID1"
@@ -643,7 +643,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update manuscript/chapter-2.md",
+        "message": "Update index.md",
         "revision": "REV36",
         "source": "mcp",
         "userId": "ID1"
@@ -656,7 +656,7 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update manuscript/chapter-1.md",
+        "message": "Update research/whales.md",
         "revision": "REV37",
         "source": "mcp",
         "userId": "ID1"
@@ -669,8 +669,34 @@
         "client": "contract-client",
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
-        "message": "Update index.md",
+        "message": "Update manuscript/chapter-2.md",
         "revision": "REV38",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update manuscript/chapter-1.md",
+        "revision": "REV39",
+        "source": "mcp",
+        "userId": "ID1"
+      },
+      {
+        "authorDisplayName": "Recovery administrator",
+        "authorEmail": "ID1@users.gitnotes.invalid",
+        "authorName": "User USER1",
+        "authoredAt": "<TIME>",
+        "client": "contract-client",
+        "committerEmail": "forgetmenote@localhost",
+        "committerName": "ForgetMeNote",
+        "message": "Update index.md",
+        "revision": "REV40",
         "source": "mcp",
         "userId": "ID1"
       },
@@ -682,7 +708,7 @@
         "committerEmail": "forgetmenote@localhost",
         "committerName": "ForgetMeNote",
         "message": "Initialize notes notebook",
-        "revision": "REV39"
+        "revision": "REV41"
       }
     ]
   },
@@ -711,7 +737,7 @@
       "path": "manuscript/chapter-1.md",
       "revision": "REV1",
       "title": "Chapter one",
-      "version": "REV7"
+      "version": "REV9"
     }
   },
   {
@@ -727,7 +753,7 @@
         {
           "anchor": {
             "quote": "The whale appeared at dawn.",
-            "revision": "REV20"
+            "revision": "REV22"
           },
           "author": "@local-admin",
           "created": "<TIME>",
@@ -751,7 +777,7 @@
                 "explanation": "Mentions the whale's return.",
                 "hash": "HASH4",
                 "path": "manuscript/chapter-2.md",
-                "revision": "REV15"
+                "revision": "REV17"
               }
             ],
             "key": "dawn-check",
@@ -760,7 +786,7 @@
             "path": "manuscript/chapter-1.md",
             "requestHash": "HASH5",
             "sourcePath": "manuscript/chapter-1.md",
-            "sourceRevision": "REV15",
+            "sourceRevision": "REV17",
             "stale": false,
             "title": "Timing of the sighting"
           },
@@ -805,6 +831,10 @@
       {
         "editable": true,
         "path": "assets/sources/ID5/bab4afde21f4567e98a5143b4ce854f2b1c5b5ece01d64dd070cb83d8cd169cb.txt"
+      },
+      {
+        "editable": true,
+        "path": "assets/sources/ID6/HASH7.html"
       }
     ]
   },
@@ -939,6 +969,33 @@
         },
         "path": "sources/ID5.md",
         "title": "Harbour log"
+      },
+      {
+        "editable": false,
+        "excerpt": "Original file Extracted content Page 1 — Notice No whaling within the harbour.",
+        "metadata": {
+          "kind": "archived-source",
+          "source": {
+            "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+            "extraction": "client-supplied",
+            "extractor": "Contract agent; contract-model",
+            "finalURL": "",
+            "id": "ID6",
+            "importedBy": "ID1",
+            "method": "uploaded",
+            "mime": "text/html",
+            "original": "assets/sources/ID6/HASH7.html",
+            "sha256": "HASH7",
+            "textSHA256": "HASH8",
+            "url": "",
+            "warning": "Text supplied by the uploading client and not verified by the server against the original. Check quotations and figures against the original."
+          },
+          "status": "unreviewed",
+          "tags": [],
+          "title": "Harbour notice"
+        },
+        "path": "sources/ID6.md",
+        "title": "Harbour notice"
       }
     ]
   }

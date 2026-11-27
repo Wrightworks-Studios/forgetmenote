@@ -283,6 +283,10 @@
           "description": "Explicitly upload selected PDF/image pages to the configured hosted OCR model. Never selected automatically.",
           "type": "boolean"
         },
+        "extractor": {
+          "description": "With text: the agent and model that extracted it, such as 'Example Agent 2; example-model-5'. One line of at most 200 characters.",
+          "type": "string"
+        },
         "filename": {
           "type": "string"
         },
@@ -310,6 +314,57 @@
         "revision": {
           "description": "Required current note revision when refreshing an existing source.",
           "type": "string"
+        },
+        "text": {
+          "additionalProperties": {
+            "not": {}
+          },
+          "description": "Your own extraction of the original in data, for a format source_formats marks extractedBy agent (or a PDF with scanned pages). The server stores it instead of extracting, labelled client-supplied and unverified. Requires data and extractor.",
+          "properties": {
+            "sections": {
+              "description": "Every section in order, numbered from 1 with none skipped; a section without text keeps its number with empty text.",
+              "items": {
+                "additionalProperties": {
+                  "not": {}
+                },
+                "properties": {
+                  "number": {
+                    "description": "The section's physical number, from 1.",
+                    "type": "integer"
+                  },
+                  "text": {
+                    "description": "The section's text as read from the original. It is stored literally: Markdown, links and HTML show as typed.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Optional one-line title of at most 200 characters, such as a slide title or a segment's time range.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "number",
+                  "text"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "null",
+                "array"
+              ]
+            },
+            "unit": {
+              "description": "What the sections number: page (a PDF page or an image frame), slide, sheet, segment (a stretch of a recording) or section.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "unit",
+            "sections"
+          ],
+          "type": [
+            "null",
+            "object"
+          ]
         },
         "title": {
           "type": "string"
@@ -4406,6 +4461,84 @@
         "null",
         "array"
       ]
+    },
+    "readOnly": true
+  },
+  {
+    "coverage": "called",
+    "inputSchema": {
+      "additionalProperties": {
+        "not": {}
+      },
+      "properties": {
+        "project": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "type": "object"
+    },
+    "name": "list_sources_awaiting_text",
+    "outputSchema": {
+      "properties": {
+        "more": {
+          "type": "boolean"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "properties": {
+              "extraction": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "mime": {
+                "type": "string"
+              },
+              "original": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "warning": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "title",
+              "format",
+              "mime",
+              "extraction",
+              "original",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        }
+      },
+      "required": [
+        "revision",
+        "sources"
+      ],
+      "type": "object"
     },
     "readOnly": true
   },
@@ -9691,6 +9824,9 @@
         "formats": {
           "items": {
             "properties": {
+              "agentExtracts": {
+                "type": "string"
+              },
               "describeImages": {
                 "type": "boolean"
               },
@@ -9708,6 +9844,9 @@
               },
               "externalOCR": {
                 "type": "boolean"
+              },
+              "extractedBy": {
+                "type": "string"
               },
               "hostedDescriptions": {
                 "type": "boolean"
@@ -9731,6 +9870,7 @@
               "mime",
               "description",
               "maxBytes",
+              "extractedBy",
               "externalOCR",
               "hostedDescriptions",
               "transcription"
