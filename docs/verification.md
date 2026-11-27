@@ -252,7 +252,9 @@ and runs the fixture, frontend and operator tests. Bundle sources (`frontend/`, 
 importers; this tier still runs the frontend tests and builds the binary. Routine
 releases share this selection (`verification_plan.py` serves both tiers), and
 `frontend/` or package manifest changes still make a release run the full gate.
-Every selected package runs its complete suite; no test depends on `-short`.
+Every selected package runs its complete suite; no test depends on `-short`. The
+packages `TYPICAL_SECONDS` in `fast_check.py` lists start first, longest first, so
+`internal/workspace` does not run alone at the end.
 
 With a verified baseline, the web package runs the existing critical authentication,
 permission, conflict, MCP/API, sanitizer, live-edit and connector-revocation checks

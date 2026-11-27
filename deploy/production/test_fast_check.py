@@ -9,6 +9,26 @@ from verification import go_package_inputs
 from verification_plan import CRITICAL_WEB, affected_go_packages
 
 
+class FastOrderTest(unittest.TestCase):
+    def test_longest_typical_packages_start_first(self):
+        # In package order internal/workspace started last and ran alone for the
+        # last five minutes of an all-package run.
+        packages = ['forgetmenote/cmd/forgetmenote', 'forgetmenote/internal/automation', 'forgetmenote/internal/chat',
+                    'forgetmenote/internal/notestore', 'forgetmenote/internal/workspace']
+        planned = fast_check.commands(Path.cwd(), {'packages': packages})
+        self.assertEqual([command[-1] for command in planned], [
+            'forgetmenote/internal/workspace', 'forgetmenote/internal/chat', 'forgetmenote/internal/automation',
+            'forgetmenote/cmd/forgetmenote', 'forgetmenote/internal/notestore'])
+
+    def test_every_typical_time_names_a_current_package(self):
+        # A renamed package would silently lose its place at the front.
+        root = Path(__file__).resolve().parents[2]
+        for package in fast_check.TYPICAL_SECONDS:
+            with self.subTest(package):
+                self.assertTrue(package.startswith('forgetmenote/'), package)
+                self.assertTrue(list((root / package.removeprefix('forgetmenote/')).glob('*.go')), package)
+
+
 @unittest.skipUnless(shutil.which('go'), 'Go toolchain required')
 class FastPlanTest(unittest.TestCase):
     def setUp(self):
