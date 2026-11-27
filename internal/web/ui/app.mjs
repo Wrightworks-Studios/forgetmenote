@@ -994,7 +994,7 @@ const settings = initSettings({api, post, notice, remember});
 const retrievalSettings=initRetrievalSettings({api,post,getProject:appState.notebook,getUser:appState.account,onChange:()=>{search.cancel();if(project)search.refresh($("search").value).catch(error=>notice(error.message))}});
 const documents=initDocuments({api,post,getContext,notice,openNote,currentNotebook,beginNavigation,retainForNavigation,clearDisplayedNote,updateRoute,state,updateCreationControls,layout,
  chooseNotebook:id=>chooseProject(projects.find(p=>p.id===id)),ownsNavigation:request=>request===openID,navigationSignal:()=>navigationRequests.signal(),
- setCollection:value=>{appState.update({collection:value});renderCollections();}});
+ setCollection:value=>{appState.update({collection:value});renderCollections();},repositoriesOn:()=>moduleOn(user,'repositories')});
 const writing=initWriting({editor:noteEditor,api,post,notice,openDocument:documents.open,getProject:appState.notebook,
  getDocument:()=>current?{project:project.id,path:current.path,revision:current.revision,origin:'notes',local:true,content:noteEditor.value,editable:current.editable,editing}:documents.current?{project:project.id,path:documents.current.path,revision:documents.current.revision,sourceID:documents.current.source,origin:'repository',local:false,content:documents.current.content,partial:documents.current.more||(documents.current.startLine||1)>1}:null,
  canFix:()=>!!current?.editable&&editing&&!saving&&!composing,
@@ -1009,6 +1009,7 @@ const search=initSearch({api,post,retrievalSettings,notice,renderCollections,ope
   onVisibilityChange:syncMobileNavigation,
   openCitation:(...args)=>knowledge.openCitation(...args),openTrash:id=>trash.open(id),
   openSource:(...args)=>repositories.file(...args),addSource:()=>sourceBrowser.open(),sourcesOn,
+  repositoriesOn:()=>moduleOn(user,'repositories'),
 });
 function publishSearchRoute(snapshot,push=false){
  const query=searchToURL(new URLSearchParams(location.search),snapshot);

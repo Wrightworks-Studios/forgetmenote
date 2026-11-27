@@ -36,6 +36,16 @@ var wiredModules = []wiredModule{
 	{name: "judgments", routes: []func(*Server, routeRegistrar){(*Server).judgmentRoutes}},
 	{name: "data-connections", tools: []func(*Server, *mcp.Server){(*Server).dataConnectionTools}},
 	{name: "sources", tools: []func(*Server, *mcp.Server){(*Server).sourceTools}, routes: []func(*Server, routeRegistrar){(*Server).sourceRoutes}},
+	{name: "repositories", tools: []func(*Server, *mcp.Server){(*Server).repositoryTools}, routes: []func(*Server, routeRegistrar){(*Server).repositoryRoutes}},
+	{name: "managed-backups", tools: []func(*Server, *mcp.Server){(*Server).backupTools}, routes: []func(*Server, routeRegistrar){(*Server).backupRoutes}},
+}
+
+// gitHubConnections reports whether the instance runs the GitHub App
+// connection flow that repository sources and managed backups share
+// (connections.go). It runs while either module does; a connection for the
+// other answers that it is not available.
+func (s *Server) gitHubConnections() bool {
+	return s.modules.Enabled("repositories") || s.modules.Enabled("managed-backups")
 }
 
 func (s *Server) moduleTools(server *mcp.Server) {

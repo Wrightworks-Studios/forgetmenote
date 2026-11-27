@@ -59,6 +59,9 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     sharing.hidden=!manages(selected) || (!!selected.protectedInbox || !!selected.assistantOwner);
     openWikiSettings(selected,manages(selected));
     if(sharing.hidden && sharing.getAttribute('aria-pressed')==='true')document.querySelector('#settings-dialog [data-settings-category=search]').click();
+    const sources=document.querySelector('#settings-dialog [data-settings-category=sources]');
+    sources.hidden=!moduleOn(getUser(),'repositories');
+    if(sources.hidden && sources.getAttribute('aria-pressed')==='true')document.querySelector('#settings-dialog [data-settings-category=search]').click();
     $('project-members').hidden = true;
     $('member-list').replaceChildren();
     organization.clearSharing();
@@ -120,7 +123,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     await openRetrievalSettings();
     if (getProject()?.id !== selected.id || !page.active()) return;
     page.show();
-    await openRepositorySettings();
+    if(!sources.hidden)await openRepositorySettings();
     if(getProject()?.id===selected.id)await openBackupSettings();
   }
   $('settings-open').onclick = () => openProject().catch(error => notice(error.message));
@@ -292,6 +295,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
   function createWorkspace(importBundle = false) {
     if (!getUser()?.canCreateProjects) return;
     closeSettingsPage($('admin-dialog'));
+    $('notebook-repository-mode').hidden=!moduleOn(getUser(),'repositories');
     notebookMode(importBundle);
     openDialog($('workspace-create-dialog'));
     $('project-name').focus();
