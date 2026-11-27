@@ -12,7 +12,6 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
-	"forgetmenote/internal/reposource"
 )
 
 func TestAutomationIndependentCheckSuiteRejectsChangedResult(t *testing.T) {
@@ -79,16 +78,6 @@ func TestAutomationNativeHealthRunsWithoutModel(t *testing.T) {
 	run := automation.Run{ID: automation.Hash("health"), DryRun: true, Spec: automation.Spec{ID: "health", Kind: "native", Actor: catalog.Bootstrap, Project: "default", Native: &automation.NativeTask{Task: "notebook-health"}}}
 	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || !strings.Contains(run.Result, "revision") {
 		t.Fatal(err, run.Result)
-	}
-}
-
-// Without repository sources a refresh automation fails as the unavailable
-// service, as a browser request for repository sources does.
-func TestAutomationRepositoryRefreshWithoutSourcesIsUnavailable(t *testing.T) {
-	app, _ := fixture(t)
-	run := automation.Run{ID: automation.Hash("refresh"), DryRun: true, Spec: automation.Spec{ID: "refresh", Kind: "native", Actor: catalog.Bootstrap, Project: "default", Native: &automation.NativeTask{Task: "repository-refresh"}}}
-	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); !errors.Is(err, reposource.ErrUnavailable) {
-		t.Fatal(err)
 	}
 }
 

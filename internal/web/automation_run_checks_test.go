@@ -1,7 +1,6 @@
 package web
 
 import (
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,49 +11,7 @@ import (
 
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/workspace"
 )
-
-// A repository refresh needs the notebook's owner. A run whose actor may only
-// edit the notebook, as a service account at most may, leaves the notebook's
-// repository source as it was; the same run by an owner refreshes it.
-func TestAutomationRepositoryRefreshNeedsAnOwner(t *testing.T) {
-	app, _ := fixture(t)
-	configureSearchSource(t, app)
-	if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "alice"}); err != nil {
-		t.Fatal(err)
-	}
-	bot, err := app.catalog.CreateService(catalog.Bootstrap, "Repository refresher", "alice")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for user, role := range map[string]string{bot.ID: "edit", "alice": "owner"} {
-		if err = app.catalog.Member(catalog.Bootstrap, "default", user, role); err != nil {
-			t.Fatal(err)
-		}
-	}
-	before, err := app.repositories.Status("default")
-	if err != nil {
-		t.Fatal(err)
-	}
-	refresh := func(actor string) error {
-		run := automation.Run{ID: automation.Hash(actor), Spec: automation.Spec{ID: "refresh", Kind: "native", Actor: actor, Project: "default", Native: &automation.NativeTask{Task: "repository-refresh"}}}
-		return app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
-	}
-	if err = refresh(bot.ID); !errors.Is(err, workspace.ErrForbidden) {
-		t.Fatal("an editor's refresh was not refused", err)
-	}
-	after, err := app.repositories.Status("default")
-	if err != nil || !after.LastRefresh.Equal(before.LastRefresh) || after.Downloaded != before.Downloaded || after.Failures != before.Failures || after.Error != before.Error {
-		t.Fatalf("an editor's run refreshed the repository: %v %+v", err, after)
-	}
-	if err = refresh("alice"); err != nil {
-		t.Fatal("fixture: an owner's refresh failed", err)
-	}
-	if after, err = app.repositories.Status("default"); err != nil || !after.LastRefresh.After(before.LastRefresh) {
-		t.Fatalf("fixture: an owner's run did not refresh the repository: %v %+v", err, after)
-	}
-}
 
 // The scheduler neither queues nor claims a job the instance AI policy
 // refuses. With instance AI writing off, an AI job that comes due gets no run

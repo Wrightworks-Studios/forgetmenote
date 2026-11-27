@@ -26,7 +26,7 @@ supply shell commands, scripts, dynamic endpoints or credentials.
    checks configured providers, connections, operations and Slack destinations.
 3. Use `Test`, inspect its retained result and receipts, then enable the job.
    A test performs real reads and may buy model calls. It suppresses note writes,
-   repository refresh, Drive checkpoints, Slack delivery and script submissions.
+   Drive checkpoints, Slack delivery and script submissions.
    Learning/event tests require a retained evidence run; they do not invent input.
 4. Use Details for failures, results, evidence receipts, token use and delivery
    state. Pause stops future work and cancels superseded queued/active work.
@@ -57,7 +57,7 @@ gateway stops the run within a second.
 
 | Kind | Behavior |
 | --- | --- |
-| `native` | Storage/notebook/job/profile health, scoped activity summary, exact profile duplicate cleanup, existing repository refresh, chat member pairing by email, or task reminders |
+| `native` | Storage/notebook/job/profile health, scoped activity summary, exact profile duplicate cleanup, chat member pairing by email, or task reminders. Repository notebooks refresh on their own, not through an automation |
 | `checks` | Runs every independent assertion/reference, retains all failures, and optionally diagnoses/repairs approved SQL examples |
 | `recipe` | Checks named SQL examples in a Markdown recipe; optionally repairs with AI, independently rechecks, then commits |
 | `digest` | Runs fixed read-only calls and saves their results; an explicit AI connection can summarize them |
