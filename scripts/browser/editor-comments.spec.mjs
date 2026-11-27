@@ -5,7 +5,14 @@
 import {test, expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {startApp} from './app-fixture.mjs';
-import {caretAtLineEnd, countLiveUpdates, editorText, expectEditorText, revealLine} from './editor-text.mjs';
+import {
+  caretAtLineEnd,
+  countLiveUpdates,
+  documentEnd,
+  editorText,
+  expectEditorText,
+  revealLine
+} from './editor-text.mjs';
 
 // Chapters 1–3 of F1 (see editor-manuscript.spec.mjs).
 const manuscript = readFileSync(new URL('./fixtures/f1-slice.md', import.meta.url), 'utf8');
@@ -218,7 +225,7 @@ test('the context panel follows the editor while editing and renders no preview'
   await page.locator('#note-context-toggle').click();
   const contents = page.locator('#note-context-contents');
   await expect(contents.locator('a')).toHaveText(titles);
-  await page.locator('#editor').press('ControlOrMeta+End');
+  await page.locator('#editor').press(documentEnd);
   // Each pause is longer than the preview's delay.
   for (const word of [' one', ' two', ' three']) {
     await page.keyboard.type(word);
@@ -260,7 +267,7 @@ test('Context opens Contents for headings typed while editing', async ({page}) =
     content = '# Log\n\nThe tide turned at noon.\n',
     previews = countPreviews(page);
   await open(page, path, content, 'source');
-  await page.locator('#editor').press('ControlOrMeta+End');
+  await page.locator('#editor').press(documentEnd);
   await page.keyboard.type('\n## Morning\n\nGulls.\n\n## Evening');
   await expectEditorText(page, content + '\n## Morning\n\nGulls.\n\n## Evening');
   await page.locator('#note-context-toggle').click();
@@ -314,7 +321,7 @@ test('a failed render drops the passage Show passage was waiting for', async ({p
     };
   });
   await open(page, path, null);
-  await page.locator('#editor').press('ControlOrMeta+End');
+  await page.locator('#editor').press(documentEnd);
   await page.keyboard.type(' typed');
   await expectEditorText(page, manuscript + ' typed');
   await page.route('**/api/preview', route => route.abort());
@@ -334,7 +341,7 @@ test('a failed render drops the passage Show passage was waiting for', async ({p
     await desk.goto(app.origin + '/?project=default&note=' + encodeURIComponent(path));
     await expect(desk.locator('#document')).toHaveAttribute('data-live', 'connected');
     await desk.locator('#mode').click();
-    await desk.locator('#editor').press('ControlOrMeta+End');
+    await desk.locator('#editor').press(documentEnd);
     await desk.keyboard.type(' remote');
     await expect(page.locator('#preview')).toContainText('typed remote');
   } finally {
@@ -464,7 +471,7 @@ test('a passage at the end of a novel-size note is highlighted on a slow CPU', a
   await page.evaluate(() => (window.longTasks = []));
   await page.locator('#mode').click();
   await expect(page.locator('#editor')).toBeVisible({timeout: 60000});
-  await page.locator('#editor').press('ControlOrMeta+End');
+  await page.locator('#editor').press(documentEnd);
   await expect.poll(() => highlighted(page), {timeout: 90000}).toMatch(/^very \*?last\*? line$/);
   const {tasks, placing} = await page.evaluate(() => ({tasks: window.longTasks, placing: window.placing}));
   await cdp.send('Emulation.setCPUThrottlingRate', {rate: 1});
