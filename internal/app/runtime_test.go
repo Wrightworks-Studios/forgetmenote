@@ -267,18 +267,18 @@ func TestRestartKeepsTheNotebooksGitExports(t *testing.T) {
 	testGit(t, export, "fsck", "--strict")
 }
 
-// An instance that turns off a module whose wiring has not landed refuses to
-// open; with an empty or absent modules section it opens and serves as
-// before, runs every module, and keeps that set until it restarts.
+// An instance whose modules.off leaves on a module that requires one it turns
+// off refuses to open; with an empty or absent modules section it opens and
+// serves as before, runs every module, and keeps that set until it restarts.
 func TestRuntimeRefusesModulesOffAndOpensWithoutThem(t *testing.T) {
 	runtime, err := Open(options(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = runtime.Server.ConfigureInstance(instanceconfig.Resolved{Config: instanceconfig.Config{Version: 1, Modules: instanceconfig.Modules{Off: []string{"personal", "messaging", "tasks"}}}})
+	err = runtime.Server.ConfigureInstance(instanceconfig.Resolved{Config: instanceconfig.Config{Version: 1, Modules: instanceconfig.Modules{Off: []string{"automations"}}}})
 	runtime.Close()
-	if err == nil || !strings.Contains(err.Error(), "instance modules") || !strings.Contains(err.Error(), "not supported yet") {
-		t.Fatalf("an instance with modules off opened: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "instance modules") || !strings.Contains(err.Error(), `requires "automations"`) {
+		t.Fatalf("an instance with a broken modules.off opened: %v", err)
 	}
 	for _, off := range [][]string{nil, {}} {
 		runtime, err := Open(options(t))

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -23,6 +24,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/backups"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/githubapp"
@@ -262,6 +264,77 @@ func localCookie(t *testing.T, app *Server, user string) *http.Cookie {
 }
 
 var offModuleChecks = map[string]moduleChecks{
+	"automations": {
+		duties: []string{"automation-scheduler"},
+		configure: func(t *testing.T, app *Server) {
+			if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "automation-steward"}); err != nil {
+				t.Fatal(err)
+			}
+			bot, err := app.catalog.CreateService(catalog.Bootstrap, "Storage check", "automation-steward")
+			if err != nil {
+				t.Fatal(err)
+			}
+			spec := automation.Spec{ID: "storage-check", Kind: "native", Actor: bot.ID, Project: "default", Native: &automation.NativeTask{Task: "storage-health"}, Disabled: true}
+			if err := app.ConfigureAutomationsConfig(automation.Config{Version: 2, Jobs: []automation.Spec{spec}}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		installed: func(app *Server) bool {
+			_, ok := app.automations.Definitions.Get("storage-check")
+			return ok
+		},
+		cleanup: func(t *testing.T, app *Server) {
+			// A run queued while the module ran stays queued: no worker
+			// claims it, and the policy every claim checks refuses it.
+			spec := automation.Spec{ID: "queued-check", Kind: "native", Actor: "automation-steward", Project: "default", Native: &automation.NativeTask{Task: "storage-health"}}
+			queued, err := app.automations.Queue.Enqueue(spec, "queued-while-on")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := app.automationPolicy(spec); err == nil || !strings.Contains(err.Error(), "modules.off") {
+				t.Fatalf("a queued run may be claimed: %v", err)
+			}
+			time.Sleep(time.Second)
+			if run, err := app.automations.Queue.Get(queued.ID); err != nil || run.State != "queued" {
+				t.Fatalf("the queued run: %+v %v", run, err)
+			}
+		},
+	},
+	"chat": {
+		duties: []string{"chat-recovery"},
+		cleanup: func(t *testing.T, app *Server) {
+			// A conversation kept while chat ran quotes a key the notebook
+			// held. With chat off, a purge of the key still redacts it.
+			store, err := app.catalog.Access(catalog.Bootstrap, "default", "edit")
+			if err != nil {
+				t.Fatal(err)
+			}
+			secret := webPurgeSecret()
+			savePurgeNote(t, store, "notes/keys.md", "# Keys\n\nThe key is "+secret+".\n", "")
+			conversation, err := app.chat.Store.Create("admin", "default", chat.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = app.chat.Store.Update("admin", "default", conversation.ID, func(c *chat.Conversation) error {
+				c.AddEvent("run-1", "tool", map[string]any{"result": "notes/keys.md: The key is " + secret})
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := preparePurgeHTTP(t, app, workspace.PurgeScope{Kind: workspace.PurgeText, Text: secret})
+			if code, receipt, body := executePurgeHTTP(app, plan, "Leaked key"); code != 200 || receipt.Derived.Chats != 1 {
+				t.Fatalf("execute: HTTP %d %s", code, body)
+			}
+			read, err := app.chat.Store.Read("admin", "default", conversation.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if raw, _ := json.Marshal(read); strings.Contains(string(raw), secret) {
+				t.Fatalf("the transcript after the purge: %s", raw)
+			}
+		},
+	},
 	"tasks": {
 		running: func(app *Server) bool { return app.tasks != nil },
 		cleanup: func(t *testing.T, app *Server) {
@@ -525,13 +598,14 @@ var offModuleChecks = map[string]moduleChecks{
 		cleanup: func(t *testing.T, app *Server) {
 			// A grant made while the module ran is to a group that is then
 			// deleted with the module off.
-			if _, err := app.catalog.SetGroup(catalog.Bootstrap, catalog.Group{ID: "analysts", Name: "Analysts"}); err != nil {
+			group, err := app.catalog.SetGroup(catalog.Bootstrap, catalog.Group{ID: "analysts", Name: "Analysts"})
+			if err != nil {
 				t.Fatal(err)
 			}
 			if _, err := app.catalog.SetConnectionAccess(catalog.Bootstrap, catalog.ConnectionGrant{Connection: "metrics", Groups: map[string][]string{"analysts": {"read"}}}); err != nil {
 				t.Fatal(err)
 			}
-			r := httptest.NewRequest("POST", app.origin+"/api/v1/actions/delete_group", strings.NewReader(`{"id":"analysts","revision":1}`))
+			r := httptest.NewRequest("POST", app.origin+"/api/v1/actions/delete_group", strings.NewReader(fmt.Sprintf(`{"id":"analysts","revision":%d}`, group.Revision)))
 			r.Header.Set("Authorization", "Bearer "+testToken)
 			r.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
@@ -586,8 +660,8 @@ var offModuleChecks = map[string]moduleChecks{
 	},
 }
 
-// Every module that can be turned off has its wiring and its checks here, and
-// no module that cannot be turned off claims wiring.
+// Every module has its wiring and its checks here, once, and nothing else
+// claims wiring.
 func TestEveryModuleThatCanBeTurnedOffIsWired(t *testing.T) {
 	wired := map[string]bool{}
 	for _, module := range wiredModules {
@@ -600,10 +674,54 @@ func TestEveryModuleThatCanBeTurnedOffIsWired(t *testing.T) {
 		}
 	}
 	for _, module := range modules.All() {
-		_, err := modules.Parse(offWith(module.Name))
-		if (err == nil) != wired[module.Name] {
-			t.Errorf("%s: wired=%v, but turning it off with %v gives %v", module.Name, wired[module.Name], offWith(module.Name), err)
+		if !wired[module.Name] {
+			t.Errorf("%s has no wiring", module.Name)
 		}
+		delete(wired, module.Name)
+	}
+	if len(wired) > 0 {
+		t.Errorf("wiring for modules the registry does not list: %v", wired)
+	}
+}
+
+// An instance can run as the core alone, with every module off at once. It
+// starts, takes none of the modules' duties, offers exactly the actions no
+// module adds, and still saves and reads notes.
+func TestACoreInstanceRunsWithEveryModuleOff(t *testing.T) {
+	var every, duties []string
+	module := map[string]bool{}
+	full := startedModuleServer(t)
+	// The GitHub App connection flow runs while repositories or managed
+	// backups do.
+	shared := wiredModule{name: "github-connections", tools: []func(*Server, *mcp.Server){(*Server).connectionTools}}
+	for _, wired := range wiredModules {
+		every = append(every, wired.name)
+		duties = append(duties, offModuleChecks[wired.name].duties...)
+	}
+	for _, wired := range append(slices.Clone(wiredModules), shared) {
+		actions, _ := declaredModule(t, full, wired)
+		for _, name := range actions {
+			module[name] = true
+		}
+	}
+	core := startedModuleServer(t, every...)
+	if held := heldModuleDuties(t, core, duties); len(held) > 0 {
+		t.Errorf("the core took %v", held)
+	}
+	for name := range full.actions {
+		if _, ok := core.actions[name]; ok == module[name] {
+			t.Errorf("%s: in the core %v, added by a module %v", name, ok, module[name])
+		}
+	}
+	if len(core.actions) == 0 || len(core.actions) >= len(full.actions) {
+		t.Fatalf("the core offers %d of %d actions", len(core.actions), len(full.actions))
+	}
+	w := apiCall(core, "POST", "/api/v1/actions/save_note", `{"project":"default","path":"notes/core.md","content":"# Core\n\nStill here.\n","revision":""}`, testToken)
+	if w.Code != 200 {
+		t.Fatalf("save_note: HTTP %d %s", w.Code, w.Body)
+	}
+	if w = apiCall(core, "POST", "/api/v1/actions/read_note", `{"project":"default","path":"notes/core.md"}`, testToken); w.Code != 200 || !strings.Contains(w.Body.String(), "Still here.") {
+		t.Fatalf("read_note: HTTP %d %s", w.Code, w.Body)
 	}
 }
 

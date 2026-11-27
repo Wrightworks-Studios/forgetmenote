@@ -197,7 +197,6 @@ func TestModulesSectionIsCheckedBeforeTheInstanceOpens(t *testing.T) {
 		{`{"version":1,"modules":{"off":"chat"}}`, "invalid JSON"},
 		{`{"version":1,"modules":{"off":["jev"]}}`, `"jev", which is not a module`},
 		{`{"version":1,"modules":{"off":["automations"]}}`, `module "tasks" requires "automations"`},
-		{`{"version":1,"modules":{"off":["personal","messaging","tasks"]}}`, "not supported yet"},
 	} {
 		if err := os.WriteFile(path, []byte(refused.raw), 0600); err != nil {
 			t.Fatal(err)

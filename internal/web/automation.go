@@ -36,12 +36,19 @@ func (s *Server) ConfigureAutomations(file string) error {
 	}
 	return s.ConfigureAutomationsConfig(cfg)
 }
+
+// ConfigureAutomationsConfig installs the instance's file-defined jobs. With
+// automations off they are left unread, and the definitions stored while the
+// module ran stay as they were.
 func (s *Server) ConfigureAutomationsConfig(c automation.Config) error {
 	unlock, err := s.startupConfiguration()
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	if !s.modules.Enabled("automations") {
+		return nil
+	}
 
 	if e := c.Validate(); e != nil {
 		return e
@@ -112,11 +119,11 @@ func (s *Server) checkAutomationAuth(ctx context.Context) error {
 type automationFenceKey = automation.FenceKey
 type automationFence = automation.Fence
 
-// automationModules names the modules a run needs besides automations: the
-// module whose work it does, messaging for a Slack trigger or delivery, and
-// chat, whose engine runs every model call.
+// automationModules names the modules a run needs: automations, the module
+// whose work it does, messaging for a Slack trigger or delivery, and chat,
+// whose engine runs every model call.
 func automationModules(spec automation.Spec) []string {
-	var out []string
+	out := []string{"automations"}
 	switch {
 	case spec.Kind == "personal":
 		out = append(out, "personal")
@@ -173,12 +180,17 @@ func (s *Server) instanceAIWriting() error {
 }
 func (s *Server) logAutomationError(stage string, err error) { s.automations.Report(stage, err) }
 
+// ConfigureAutomationPython prepares the runtime that script automations run
+// in. With automations off nothing runs a script, so it is not prepared.
 func (s *Server) ConfigureAutomationPython(executable string) error {
 	unlock, err := s.startupConfiguration()
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	if !s.modules.Enabled("automations") {
+		return nil
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

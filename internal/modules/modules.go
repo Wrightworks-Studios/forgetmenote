@@ -4,14 +4,12 @@
 // Every module is on unless instance.json's modules.off names it. The list is
 // fixed in code, like internal/integrations: nothing registers at runtime, and
 // the release image runs every module. A module that is off is absent on every
-// transport while its stored data stays. Each module's wiring lands
-// separately, and until it has, modules.off refuses to name it.
+// transport while its stored data stays.
 package modules
 
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -25,24 +23,20 @@ type Module struct {
 	// Integrations names the internal/integrations entries that belong to
 	// this module, so that they report as off with it.
 	Integrations []string `json:"integrations,omitempty"`
-	// wired is set once nothing of the module runs while it is off: its
-	// hubs, routes, tools and workers skip themselves. Until then modules.off
-	// refuses the module rather than leave it running.
-	wired bool
 }
 
 var all = []Module{
 	{Name: "chat", Title: "Notebook chat"},
 	{Name: "automations", Title: "Automations"},
-	{Name: "judgments", Title: "Judgments", wired: true},
-	{Name: "data-connections", Title: "Data connections", Integrations: []string{"postgres", "redshift"}, wired: true},
-	{Name: "sources", Title: "Archived sources", Integrations: []string{"ocr", "iwork", "outlook"}, wired: true},
-	{Name: "repositories", Title: "Repository notebooks", wired: true},
-	{Name: "tasks", Title: "Task queues", Requires: []string{"automations"}, wired: true},
-	{Name: "messaging", Title: "Slack messaging", Requires: []string{"automations", "tasks", "memory", "chat"}, Integrations: []string{"slack"}, wired: true},
-	{Name: "personal", Title: "Personal assistants", Requires: []string{"automations", "messaging"}, wired: true},
-	{Name: "memory", Title: "Agent memory", wired: true},
-	{Name: "managed-backups", Title: "Managed backups", wired: true},
+	{Name: "judgments", Title: "Judgments"},
+	{Name: "data-connections", Title: "Data connections", Integrations: []string{"postgres", "redshift"}},
+	{Name: "sources", Title: "Archived sources", Integrations: []string{"ocr", "iwork", "outlook"}},
+	{Name: "repositories", Title: "Repository notebooks"},
+	{Name: "tasks", Title: "Task queues", Requires: []string{"automations"}},
+	{Name: "messaging", Title: "Slack messaging", Requires: []string{"automations", "tasks", "memory", "chat"}, Integrations: []string{"slack"}},
+	{Name: "personal", Title: "Personal assistants", Requires: []string{"automations", "messaging"}},
+	{Name: "memory", Title: "Agent memory"},
+	{Name: "managed-backups", Title: "Managed backups"},
 }
 
 // All returns every module in the registry's order.
@@ -61,8 +55,7 @@ func find(name string) (Module, bool) {
 type Set struct{ off map[string]bool }
 
 // Parse checks a modules.off list. It refuses an unknown name, then a module
-// left on while one it requires is off, naming both, and only then a module
-// whose wiring has not landed yet.
+// left on while one it requires is off, naming both.
 func Parse(off []string) (Set, error) {
 	set := Set{off: map[string]bool{}}
 	for _, name := range off {
@@ -84,19 +77,6 @@ func Parse(off []string) (Set, error) {
 	}
 	if len(broken) > 0 {
 		return Set{}, errors.Join(broken...)
-	}
-	var unwired []Module
-	for _, module := range all {
-		if set.off[module.Name] && !module.wired {
-			unwired = append(unwired, module)
-		}
-	}
-	if len(unwired) > 0 {
-		quoted := []string{}
-		for _, name := range names(unwired) {
-			quoted = append(quoted, strconv.Quote(name))
-		}
-		return Set{}, fmt.Errorf("modules.off names %s: turning these modules off is not supported yet; remove them from modules.off", strings.Join(quoted, ", "))
 	}
 	return set, nil
 }

@@ -32,8 +32,7 @@ func (s *Server) mcpHandler() http.Handler {
 	if s.gitHubConnections() {
 		s.connectionTools(server)
 	}
-	s.automationEffectTools(server)
-	s.automationTools(server)
+	s.effectResolutionTools(server)
 	s.authorityTools(server)
 	s.collaborationTools(server)
 	s.trashTools(server)

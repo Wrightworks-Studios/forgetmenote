@@ -413,7 +413,6 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set mo
 	s.knowledgeRoutes()
 	s.wikiRoutes()
 	s.trashRoutes()
-	s.chatRoutes()
 	if s.gitHubConnections() {
 		s.connectionRoutes()
 	}

@@ -29,15 +29,16 @@ type routeRegistrar struct {
 	global  func(pattern string, handler func(http.ResponseWriter, *http.Request))
 }
 
-// wiredModules lists every module that can be turned off. A module whose
-// wiring has not landed yet is not here, and internal/modules refuses to turn
-// it off.
+// wiredModules lists every module in internal/modules with the tool groups
+// and routes it adds. The core adds everything else.
 var wiredModules = []wiredModule{
 	{name: "judgments", routes: []func(*Server, routeRegistrar){(*Server).judgmentRoutes}},
 	{name: "data-connections", tools: []func(*Server, *mcp.Server){(*Server).dataConnectionTools}},
 	{name: "sources", tools: []func(*Server, *mcp.Server){(*Server).sourceTools}, routes: []func(*Server, routeRegistrar){(*Server).sourceRoutes}},
 	{name: "repositories", tools: []func(*Server, *mcp.Server){(*Server).repositoryTools}, routes: []func(*Server, routeRegistrar){(*Server).repositoryRoutes}},
 	{name: "managed-backups", tools: []func(*Server, *mcp.Server){(*Server).backupTools}, routes: []func(*Server, routeRegistrar){(*Server).backupRoutes}},
+	{name: "chat", routes: []func(*Server, routeRegistrar){(*Server).chatRoutes}},
+	{name: "automations", tools: []func(*Server, *mcp.Server){(*Server).automationTools, (*Server).automationEffectTools}},
 	{name: "tasks", tools: []func(*Server, *mcp.Server){(*Server).taskTools}},
 	{name: "memory", tools: []func(*Server, *mcp.Server){(*Server).agentMemoryTools}},
 	{name: "messaging", tools: []func(*Server, *mcp.Server){(*Server).messagingTools}, routes: []func(*Server, routeRegistrar){(*Server).messageLinkRoutes}},

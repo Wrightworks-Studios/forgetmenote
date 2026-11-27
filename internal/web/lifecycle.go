@@ -48,9 +48,13 @@ func (s *Server) Start(ctx context.Context) error {
 		if s.modules.Enabled("judgments") {
 			s.judgments.StartScheduler(ctx)
 		}
-		s.automationrun.Start(ctx)
+		if s.modules.Enabled("automations") {
+			s.automationrun.Start(ctx)
+		}
 	}
-	if s.chat != nil {
+	// With chat off no conversation runs here, so no gateway's runs are
+	// recovered from this one; they stay as stored until chat is back on.
+	if s.chat != nil && s.modules.Enabled("chat") {
 		s.chat.StartRecovery()
 	}
 	s.purge.FinishStopped(ctx)
