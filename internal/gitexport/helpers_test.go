@@ -198,17 +198,26 @@ func sortedFields(s string) []string {
 }
 
 // objectFiles lists the loose object files of a repository by relative path.
+// Background maintenance may prune a loose object or its fan-out directory
+// while the walk runs; what vanished is not there. The objects directory
+// itself must exist.
 func objectFiles(t *testing.T, repo string) map[string][]byte {
 	t.Helper()
 	out := map[string][]byte{}
 	objects := filepath.Join(repo, "objects")
 	err := filepath.WalkDir(objects, func(p string, d os.DirEntry, err error) error {
+		if errors.Is(err, os.ErrNotExist) && p != objects {
+			return nil
+		}
 		if err != nil || d.IsDir() {
 			return err
 		}
 		rel, _ := filepath.Rel(objects, p)
 		if len(rel) == 41 && rel[2] == '/' {
 			raw, err := os.ReadFile(p)
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
 			out[filepath.ToSlash(rel)] = raw
 			return err
 		}
