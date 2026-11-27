@@ -17,6 +17,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {startApp} from './app-fixture.mjs';
+import {documentEnd} from './editor-text.mjs';
 
 const output = process.env.FMN_BROWSER_BUDGETS;
 test.skip(!output, 'Set FMN_BROWSER_BUDGETS to a results file to measure the browser budgets');
@@ -331,7 +332,7 @@ test('typing with the context panel open', async ({browser}) => {
   await open(page, 'visual');
   await page.locator('#note-context-toggle').click();
   await expect(page.locator('#note-context-contents a')).toHaveCount(136);
-  await page.locator('#editor').press('ControlOrMeta+End');
+  await page.locator('#editor').press(documentEnd);
   await delay(1500);
   const t0 = await page.evaluate(() => performance.now());
   for (let i = 1; i <= 5; i++) {

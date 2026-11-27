@@ -3,8 +3,8 @@
 import {test, expect} from '@playwright/test';
 import {startApp} from './app-fixture.mjs';
 import {expectEditorText} from './editor-text.mjs';
+export {documentEnd} from './editor-text.mjs';
 export let app, dir, origin;
-export const documentEnd = process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End';
 export async function stored(page, key) {
   return page.evaluate(key => {
     const [, kind, scope] = /^gitnotes:(draft|live|reconcile):(.*)$/.exec(key),

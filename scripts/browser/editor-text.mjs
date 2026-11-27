@@ -6,6 +6,11 @@
 // the text only on lines without markup.
 import {expect} from '@playwright/test';
 
+// The key that moves the caret to the end of the note. On macOS the editor
+// binds Cmd+ArrowDown, as Mac text fields do, and Cmd+End does nothing, so
+// ControlOrMeta+End would leave the caret where it was.
+export const documentEnd = process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End';
+
 export const editorText = page => page.evaluate(() => document.getElementById('editing').markdown);
 
 export async function expectEditorText(page, expected, options) {
