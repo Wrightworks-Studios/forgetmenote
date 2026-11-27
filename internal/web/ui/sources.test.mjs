@@ -132,3 +132,39 @@ test('durable source preview saves by job ID without resending or re-extracting 
   assert.equal(sent[1].input.data,undefined);assert.equal(sent[1].input.prepared,undefined);assert.equal(remembered.size,0);
  } finally {Object.assign(globalThis,previous);}
 });
+
+test('an upload stored without text is read by the chat, or the dialog says why it waits', async()=>{
+ const {initSources,awaitsChat}=await import('./sources.mjs');
+ const elements=new Map();
+ const element=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:false,disabled:false,checked:false,files:[],textContent:'',replaceChildren(){},querySelectorAll(){return [];},addEventListener(){},dataset:{},classList:{toggle(){}},setAttribute(name,value){this[name]=value;},showModal(){this.open=true;}});return elements.get(id);};
+ const previous={document:globalThis.document,Option:globalThis.Option,FileReader:globalThis.FileReader,localStorage:globalThis.localStorage};
+ globalThis.document={getElementById:element};globalThis.Option=class{};
+ globalThis.FileReader=class {readAsDataURL(){this.result='data:image/png;base64,iVBORw==';this.onload();}};
+ globalThis.localStorage={getItem:()=>null,setItem(){},removeItem(){}};
+ const id='a'.repeat(32),read='b'.repeat(40);
+ const stored={path:'sources/notice.md',revision,metadata:{title:'Notice',source:{method:'uploaded',extraction:'original-only'}}};
+ let sent=[],chat={note:{path:'sources/notice.md',revision:read,metadata:{title:'Notice',source:{method:'uploaded',extraction:'client-supplied'}}}},refreshed=0;
+ try {
+  const sources=initSources({api:async path=>path.endsWith('/notes')?[]:path.endsWith('/formats')?[{extensions:['.png'],maxBytes:64*1024*1024}]:{job:{id,state:'ready',pages:0},prepared:{capture:{title:'Notice',record:{warning:'Stored as the original'}},html:''}},post:async(path,input)=>{sent.push({path,input});return path.endsWith('/jobs')?{job:{id,state:'queued',pages:0}}:path.endsWith('/import')?stored:chat;},getProject:()=>({id:'test'}),getNote:()=>null,canEdit:()=>true,dirty:()=>false,refresh:async()=>{refreshed++;}});
+  const archive=async()=>{sent=[];await sources.open();element('archive-file').files=[{name:'notice.png',size:5}];await element('archive-form').onsubmit({preventDefault(){}});await element('archive-save').onclick();};
+  await archive();
+  assert.deepEqual(sent.map(call=>call.path),['/p/test/api/sources/jobs','/p/test/api/sources/import','/p/test/api/sources/chat-text']);
+  assert.deepEqual(sent[2].input,{path:'sources/notice.md',revision},'the chat reads the stored revision');
+  assert.match(element('archive-result').textContent,new RegExp(`fmn-rev=${read}`),'the citation pins the revision with the text');
+  assert.match(element('archive-chat-status').textContent,/^The chat read this upload/);
+  assert.equal(element('archive-chat-status').hidden,false);
+  assert.equal(element('archive-copy').disabled,false);assert.equal(refreshed,2);
+  // When the chat does not read it, the uploader is told why.
+  chat={waiting:'The chat reads PNG and JPEG images only. A connected agent can add its text (list_sources_awaiting_text).'};
+  await archive();
+  assert.equal(element('archive-chat-status').textContent,'Stored without text. '+chat.waiting);
+  assert.match(element('archive-result').textContent,new RegExp(`fmn-rev=${revision}`));
+  chat=Promise.reject(new Error('Forbidden'));chat.catch(()=>{});
+  await archive();
+  assert.equal(element('archive-chat-status').textContent,'Stored without text. The chat did not read it: Forbidden');
+  // A source the server read, or one it fetched, goes to no chat.
+  assert.equal(awaitsChat({metadata:{source:{method:'uploaded',extraction:'extracted'}}}),false);
+  assert.equal(awaitsChat({metadata:{source:{method:'fetched',extraction:'original-only'}}}),false);
+  assert.equal(awaitsChat({metadata:{source:{method:'uploaded',extraction:'partial'}}}),true);
+ } finally {Object.assign(globalThis,previous);}
+});

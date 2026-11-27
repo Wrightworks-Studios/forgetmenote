@@ -11,6 +11,12 @@ export function sourceCitation(note, anchor = '') {
   const path = note.path.split('/').map(encodeURIComponent).join('/');
   return `[${label}](/${path}?fmn-rev=${note.revision}${anchor ? '#' + encodeURIComponent(anchor) : ''})`;
 }
+// awaitsChat says whether the in-app chat should read an archived upload:
+// the server stored it without usable text, for an agent to supply.
+export function awaitsChat(note) {
+  const record = note?.metadata?.source;
+  return record?.method === 'uploaded' && ['original-only', 'no-text', 'failed', 'partial'].includes(record.extraction);
+}
 export function originalURL(project, record, revision) {
   const path = record?.original;
   if (!path?.startsWith('assets/') || path.split('/').some(part => !part || part.startsWith('.')) || /[\\\x00-\x1f?#%]/.test(path) || !/\.(pdf|html|htm|txt|docx|epub|xlsx|csv|tsv|png|jpg|jpeg|tiff|tif|webp|bmp|pptx|eml|msg|odt|ods|odp|pages|key|wav|mp3|m4a|aac|ogg|flac|mp4|mov|avi)$/.test(path) || !/^[a-f0-9]{40}$/.test(revision)) return null;
@@ -58,6 +64,7 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
     const selectedFolder = getFolder();
     loading = true;
     $('archive-title').value = note?.metadata?.title || ''; $('archive-saved').hidden = true; $('archive-inputs').hidden = false;
+    $('archive-chat-status').hidden = true; $('archive-chat-status').textContent = '';
     mode(); if (!dialog.open) openDialog(dialog);
     const g = generation;
     try {
@@ -159,9 +166,28 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
       imported = doc; prepared = null; forget(); jobID = ''; $('archive-job-status').textContent = ''; $('archive-cancel').hidden = true; $('archive-resume').hidden = true; $('archive-inputs').hidden = true; $('archive-preview').hidden = true; $('archive-save').hidden = true;
       $('archive-saved').hidden = false; $('archive-insert').disabled = !getNote()?.editable || !!target;
       $('archive-result').textContent = sourceCitation(doc); await refresh();
+      if (awaitsChat(doc)) await readWithChat(g, doc);
     } catch (e) { if (g === generation) error(e.message); }
     finally { busy = false; enabled(); }
   };
+  // The server has the instance's chat model read an upload it stored
+  // without text, or says why the chat does not, and the note waits for a
+  // connected agent.
+  async function readWithChat(g, doc) {
+    const status = $('archive-chat-status'), insertable = !$('archive-insert').disabled;
+    status.hidden = false; status.textContent = 'The chat is reading this upload…';
+    for (const id of ['archive-insert', 'archive-copy', 'archive-view']) $(id).disabled = true;
+    try {
+      const result = await post(notebookPath(scope)+`/api/sources/chat-text`, {path: doc.path, revision: doc.revision});
+      if (g !== generation) return;
+      if (result.note) {
+        imported = result.note; $('archive-result').textContent = sourceCitation(result.note);
+        status.textContent = 'The chat read this upload and stored its text with the source. Check quotations and figures against the original.';
+        await refresh();
+      } else status.textContent = `Stored without text. ${result.waiting}`;
+    } catch (e) { if (g === generation) status.textContent = `Stored without text. The chat did not read it: ${e.message}`; }
+    finally { $('archive-insert').disabled = !insertable; $('archive-copy').disabled = false; $('archive-view').disabled = false; }
+  }
   $('archive-view').onclick = async () => { if (imported) { const doc = imported; dialog.close(); await openNote(doc.path); } };
   $('archive-copy').onclick = async () => { try { await navigator.clipboard.writeText(sourceCitation(imported)); $('archive-copy').textContent = 'Copied'; } catch { error('Copy the citation shown below.'); } };
   $('archive-insert').onclick = () => { if(imported && scope === getProject()?.id && getNote()?.editable) { const text = sourceCitation(imported); dialog.close(); insertCitation(text); } };

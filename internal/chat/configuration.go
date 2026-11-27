@@ -94,22 +94,22 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 	if cfg != nil && len(cfg.RetiredSources) > 0 {
 		slog.Warn("chat configuration: sources configured hosted source processing, which was removed; the block is ignored and can be deleted")
 	}
-	if judgeConfig != nil && judgeConfig.Enabled {
-		if ledger == nil {
-			ledger, err = decision.OpenLedger(r.db)
-			if err != nil {
-				return err
-			}
-			openedLedger = true
+	// Judgments journal their paid calls, and so does the chat's reading of
+	// an uploaded image, which needs a connection that reads images.
+	if ledger == nil && (judgeConfig != nil && judgeConfig.Enabled || readsImages(cfg)) {
+		ledger, err = decision.OpenLedger(r.db)
+		if err != nil {
+			return err
 		}
-		if judgeConfig != nil && judgeConfig.Enabled {
-			judge, err = decision.New(*judgeConfig, ledger, localOnly)
-			if err != nil {
-				if openedLedger {
-					ledger.Close()
-				}
-				return err
+		openedLedger = true
+	}
+	if judgeConfig != nil && judgeConfig.Enabled {
+		judge, err = decision.New(*judgeConfig, ledger, localOnly)
+		if err != nil {
+			if openedLedger {
+				ledger.Close()
 			}
+			return err
 		}
 	}
 	if hooks.Guard != nil {
@@ -148,4 +148,16 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 		return hooks.Installed(oldJudge, judge, localOnly)
 	}
 	return nil
+}
+
+func readsImages(cfg *Config) bool {
+	if cfg == nil {
+		return false
+	}
+	for _, connection := range cfg.Connections {
+		if connection.Capabilities.Images {
+			return true
+		}
+	}
+	return false
 }

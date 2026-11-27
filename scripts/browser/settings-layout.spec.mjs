@@ -202,4 +202,7 @@ for (const width of [1280, 390])
     await expect(embeddings).toHaveAccessibleDescription('Requires a configured embeddings provider.');
     await expect(page.locator('#instance-ai-writing')).toBeEnabled();
     await expect(page.locator('#instance-ai-writing')).toHaveAccessibleDescription('');
+    const uploads = page.locator('#instance-ai-uploadReading');
+    await expect(uploads).toBeDisabled();
+    await expect(uploads).toHaveAccessibleDescription('Requires a chat connection that reads images.');
   });

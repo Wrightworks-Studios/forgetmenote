@@ -1,9 +1,9 @@
 import {$,busy} from './dom.mjs';
 import {feedback} from './feedback.mjs';
 import {moduleOn} from './state.mjs';
-const features = ['embeddings','mapClassification','rerank','citations','reviews','writing'];
+const features = ['embeddings','mapClassification','rerank','citations','reviews','writing','uploadReading'];
 // The feature module an AI feature needs; with it off the feature says so.
-const needs = {mapClassification:'judgments',rerank:'judgments',citations:'judgments',reviews:'judgments'};
+const needs = {mapClassification:'judgments',rerank:'judgments',citations:'judgments',reviews:'judgments',uploadReading:'sources'};
 
 // A disabled feature says why next to its label.
 function hint(input,text) {
@@ -23,9 +23,9 @@ export function initAISettings({post,getUser,getActive}) {
   for(const feature of features) {
    const input=$('instance-ai-'+feature);input.checked=!!config[feature];
    const off=!!needs[feature]&&!moduleOn(getUser(),needs[feature]);
-   const unavailable=off||(feature==='embeddings'?!providers.embeddings:feature==='writing'?false:!providers.decisions||providers.localOnly);
+   const unavailable=off||(feature==='embeddings'?!providers.embeddings:feature==='writing'?false:feature==='uploadReading'?!providers.images:!providers.decisions||providers.localOnly);
    input.disabled=unavailable&&!input.checked;
-   hint(input,off?`The ${needs[feature]} module is turned off on this instance.`:input.disabled?feature==='embeddings'?'Requires a configured embeddings provider.':providers.localOnly&&providers.decisions?'Unavailable while AI is limited to local processing.':'Requires a configured decision provider.':'');
+   hint(input,off?`The ${needs[feature]} module is turned off on this instance.`:!input.disabled?'':feature==='embeddings'?'Requires a configured embeddings provider.':feature==='uploadReading'?'Requires a chat connection that reads images.':providers.localOnly&&providers.decisions?'Unavailable while AI is limited to local processing.':'Requires a configured decision provider.');
   }
   $('instance-ai-model').value=config.model||'';$('instance-ai-dimensions').value=config.dimensions||1536;
   $('instance-ai-rebuild').checked=false;
