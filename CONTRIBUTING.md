@@ -96,6 +96,26 @@ Browser tests in `scripts/browser/` use pinned Prettier, one statement per line.
 After editing them, run `npx --no-install prettier --write scripts/browser`;
 `make format-browser` checks them and is part of `make check-fast`.
 
+## Contributor License Agreement
+
+Before your first pull request can merge, you agree to the
+[Contributor License Agreement](CLA.md). You keep the copyright in your work and
+grant Wrightworks Studios a licence to use and relicense it. A check on each pull
+request lists the authors and committers who still need to agree, in a comment.
+To agree, comment on the pull request with exactly:
+
+> I have read the ForgetMeNote Contributor License Agreement and I agree to it.
+
+You agree once, and it covers your later pull requests. If your employer owns
+your work, it signs the [corporate agreement](CLA-corporate.md) for the people it
+names instead. Commit with an email address linked to your GitHub account, such
+as your GitHub noreply address, so the check can tell who wrote each commit.
+
+Maintainers record a signed corporate agreement in `signatures.json` on the
+`cla-signatures` branch; the format is at the top of
+[.github/scripts/cla.py](.github/scripts/cla.py). A new comment on an open pull
+request rechecks it.
+
 ## Pull requests
 
 - Branch from `next` and open the pull request against `next`, the default
@@ -124,3 +144,4 @@ authentication and ownership; read it before changing those boundaries. The
 ## Licence
 
 ForgetMeNote is licensed under the [Functional Source License 1.1, ALv2 Future License](LICENSE.md).
+Contributions are accepted under the [Contributor License Agreement](CLA.md).

@@ -53,6 +53,7 @@ test-python-host:
 	$(PYTHON) -m unittest discover -s deploy/standalone
 	$(PYTHON) -m unittest discover -s deploy/production
 	$(PYTHON) -m unittest discover -s scripts -p test_github_app_manifest.py
+	$(PYTHON) -m unittest discover -s .github/scripts -p test_cla.py
 
 test-python: test-python-host
 	$(BACKUP_TEST_COMMAND)
