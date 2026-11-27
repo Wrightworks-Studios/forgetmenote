@@ -9,12 +9,14 @@
     "result": {
       "formats": [
         {
+          "agentExtracts": "scanned or image-only pages: when a PDF has them, upload your own text of the whole document",
           "describeImages": true,
           "description": "Local Poppler text and English Tesseract OCR with physical page anchors. Tables, equations and reading order need verification; hosted OCR is explicit.",
           "extensions": [
             ".pdf"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/pdf",
@@ -28,6 +30,7 @@
             ".htm"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "text/html",
@@ -40,6 +43,7 @@
             ".txt"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "text/plain",
@@ -52,6 +56,7 @@
             ".docx"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -64,6 +69,7 @@
             ".epub"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/epub+zip",
@@ -76,6 +82,7 @@
             ".xlsx"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -88,6 +95,7 @@
             ".csv"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "text/csv",
@@ -100,6 +108,7 @@
             ".tsv"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "text/tab-separated-values",
@@ -113,6 +122,7 @@
             ".png"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/png",
@@ -127,6 +137,7 @@
             ".jpeg"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/jpeg",
@@ -141,6 +152,7 @@
             ".tif"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/tiff",
@@ -154,6 +166,7 @@
             ".webp"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/webp",
@@ -167,6 +180,7 @@
             ".bmp"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/bmp",
@@ -180,6 +194,7 @@
             ".pptx"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -192,6 +207,7 @@
             ".eml"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "message/rfc822",
@@ -204,6 +220,7 @@
             ".msg"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.ms-outlook",
@@ -216,6 +233,7 @@
             ".odt"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.text",
@@ -228,6 +246,7 @@
             ".ods"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.spreadsheet",
@@ -240,6 +259,7 @@
             ".odp"
           ],
           "externalOCR": false,
+          "extractedBy": "server",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.presentation",
@@ -252,6 +272,7 @@
             ".pages"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.apple.pages",
@@ -264,6 +285,7 @@
             ".key"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.apple.keynote",
@@ -276,6 +298,7 @@
             ".wav"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/wav",
@@ -288,6 +311,7 @@
             ".mp3"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/mpeg",
@@ -300,6 +324,7 @@
             ".m4a"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/mp4",
@@ -312,6 +337,7 @@
             ".aac"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/aac",
@@ -324,6 +350,7 @@
             ".ogg"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/ogg",
@@ -336,6 +363,7 @@
             ".flac"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/flac",
@@ -348,6 +376,7 @@
             ".mp4"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "video/mp4",
@@ -360,6 +389,7 @@
             ".mov"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "video/quicktime",
@@ -372,6 +402,7 @@
             ".avi"
           ],
           "externalOCR": false,
+          "extractedBy": "agent",
           "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "video/x-msvideo",
@@ -538,5 +569,153 @@
       "project": "contract"
     },
     "error": "note is not an archived source"
+  },
+  {
+    "step": "archive a page without text",
+    "tool": "archive_source",
+    "as": "admin",
+    "arguments": {
+      "data": "PHA+PC9wPg==",
+      "filename": "notice.html",
+      "project": "contract-scratch",
+      "title": "Harbour notice"
+    },
+    "result": {
+      "content": "---\ntitle: \"Harbour notice\"\nkind: archived-source\nstatus: unreviewed\nsource_id: \"ID3\"\nsource_url: \"\"\nsource_final_url: \"\"\nsource_captured_at: \"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"\nsource_imported_by: \"ID2\"\nsource_method: \"uploaded\"\nsource_original: \"assets/sources/ID3/HASH1.html\"\nsource_sha256: \"HASH1\"\nsource_mime: \"text/html\"\nsource_extractor: \"ForgetMeNote Webpage text v1\"\nsource_extraction: \"no-text\"\nsource_warning: \"No readable text found. Single-page HTML capture; scripts, linked assets, and interactive content are not captured. Completeness has not been verified.\"\nsource_text_sha256: \"HASH2\"\n---\n\n# Harbour notice\n\n[Original file](/assets/sources/ID3/HASH1.html)\n\n## Extracted content\n\n\n",
+      "html": "<h1 id=\"h-harbour-notice\">Harbour notice</h1>\n<p><a href=\"/assets/sources/ID3/HASH1.html\" rel=\"nofollow\">Original file</a></p>\n<h2 id=\"h-extracted-content\">Extracted content</h2>\n",
+      "metadata": {
+        "kind": "archived-source",
+        "source": {
+          "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+          "extraction": "no-text",
+          "extractor": "ForgetMeNote Webpage text v1",
+          "finalURL": "",
+          "id": "ID3",
+          "importedBy": "ID2",
+          "method": "uploaded",
+          "mime": "text/html",
+          "original": "assets/sources/ID3/HASH1.html",
+          "sha256": "HASH1",
+          "textSHA256": "HASH2",
+          "url": "",
+          "warning": "No readable text found. Single-page HTML capture; scripts, linked assets, and interactive content are not captured. Completeness has not been verified."
+        },
+        "status": "unreviewed",
+        "tags": [],
+        "title": "Harbour notice"
+      },
+      "path": "sources/ID3.md",
+      "revision": "REV3",
+      "title": "Harbour notice",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "list the sources awaiting text",
+    "tool": "list_sources_awaiting_text",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-scratch"
+    },
+    "result": {
+      "revision": "REV3",
+      "sources": [
+        {
+          "extraction": "no-text",
+          "format": "Webpage",
+          "mime": "text/html",
+          "original": "assets/sources/ID3/HASH1.html",
+          "path": "sources/ID3.md",
+          "revision": "REV3",
+          "title": "Harbour notice",
+          "warning": "No readable text found. Single-page HTML capture; scripts, linked assets, and interactive content are not captured. Completeness has not been verified."
+        }
+      ]
+    }
+  },
+  {
+    "step": "give the page an agent's text",
+    "tool": "archive_source",
+    "as": "admin",
+    "arguments": {
+      "data": "PHA+PC9wPg==",
+      "extractor": "Contract agent; contract-model",
+      "filename": "notice.html",
+      "path": "sources/ID3.md",
+      "project": "contract-scratch",
+      "revision": "REV3",
+      "text": {
+        "sections": [
+          {
+            "number": 1,
+            "text": "No whaling within the harbour.",
+            "title": "Notice"
+          }
+        ],
+        "unit": "page"
+      }
+    },
+    "result": {
+      "content": "---\ntitle: \"Harbour notice\"\nkind: archived-source\nstatus: unreviewed\nsource_id: \"ID3\"\nsource_url: \"\"\nsource_final_url: \"\"\nsource_captured_at: \"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"\nsource_imported_by: \"ID2\"\nsource_method: \"uploaded\"\nsource_original: \"assets/sources/ID3/HASH1.html\"\nsource_sha256: \"HASH1\"\nsource_mime: \"text/html\"\nsource_extractor: \"Contract agent; contract-model\"\nsource_extraction: \"client-supplied\"\nsource_warning: \"Text supplied by the uploading client and not verified by the server against the original. Check quotations and figures against the original.\"\nsource_text_sha256: \"HASH3\"\n---\n\n# Harbour notice\n\n[Original file](/assets/sources/ID3/HASH1.html)\n\n## Extracted content\n\n## Page 1 — Notice\n\nNo whaling within the harbour.\n\n",
+      "html": "<h1 id=\"h-harbour-notice\">Harbour notice</h1>\n<p><a href=\"/assets/sources/ID3/HASH1.html\" rel=\"nofollow\">Original file</a></p>\n<h2 id=\"h-extracted-content\">Extracted content</h2>\n<h2 id=\"h-page-1--notice\">Page 1 — Notice</h2>\n<p>No whaling within the harbour.</p>\n",
+      "metadata": {
+        "kind": "archived-source",
+        "source": {
+          "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+          "extraction": "client-supplied",
+          "extractor": "Contract agent; contract-model",
+          "finalURL": "",
+          "id": "ID3",
+          "importedBy": "ID2",
+          "method": "uploaded",
+          "mime": "text/html",
+          "original": "assets/sources/ID3/HASH1.html",
+          "sha256": "HASH1",
+          "textSHA256": "HASH3",
+          "url": "",
+          "warning": "Text supplied by the uploading client and not verified by the server against the original. Check quotations and figures against the original."
+        },
+        "status": "unreviewed",
+        "tags": [],
+        "title": "Harbour notice"
+      },
+      "path": "sources/ID3.md",
+      "revision": "REV4",
+      "title": "Harbour notice",
+      "version": "REV4"
+    }
+  },
+  {
+    "step": "no source awaits text",
+    "tool": "list_sources_awaiting_text",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-scratch"
+    },
+    "result": {
+      "revision": "REV4",
+      "sources": []
+    }
+  },
+  {
+    "step": "agent text needs the original",
+    "tool": "archive_source",
+    "as": "admin",
+    "arguments": {
+      "extractor": "Contract agent; contract-model",
+      "filename": "notice.png",
+      "project": "contract-scratch",
+      "text": {
+        "sections": [
+          {
+            "number": 1,
+            "text": "No whaling within the harbour.",
+            "title": "Notice"
+          }
+        ],
+        "unit": "page"
+      }
+    },
+    "error": "text needs the original it was extracted from: send the file as data"
   }
 ]

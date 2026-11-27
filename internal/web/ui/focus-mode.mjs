@@ -59,6 +59,12 @@ export function initFocusMode({layout,closePanels,isEditing,focusEditor,openSear
   // returning takes the screen again once that exit ends.
   let wasFullscreen=false,leaving=false,returning=false;
   fullButton.hidden=!document.fullscreenEnabled;
+  // A page on its way out loses the screen to the browser, which asks about
+  // unsaved text and then shows the next page; the reader has not left focus
+  // mode, so the next page keeps it. Input afterwards means the reader stayed.
+  let unloading=false;
+  addEventListener('beforeunload',()=>{unloading=true;});
+  for(const type of ['keydown','pointerdown','pageshow'])addEventListener(type,()=>{unloading=false;},true);
   function enterFullscreen(){
     if(!document.fullscreenEnabled)return;
     if(leaving){returning=true;return;}
@@ -78,7 +84,7 @@ export function initFocusMode({layout,closePanels,isEditing,focusEditor,openSear
     const full=fullscreen();
     // Leaving full screen through the browser (Esc, menu, window control) ends
     // focus mode too; an exit the page asked for already did what it meant.
-    if(wasFullscreen && !full && !leaving && active())set(false);
+    if(wasFullscreen && !full && !leaving && !unloading && active())set(false);
     // Turned off before the screen was taken.
     if(full && !enabled)exitFullscreen();
     if(!full){
