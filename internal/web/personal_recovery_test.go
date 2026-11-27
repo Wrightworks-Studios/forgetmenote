@@ -57,7 +57,7 @@ func TestPersonalInterruptedMemoryRecoveryIsOwnerAndRevisionBound(t *testing.T) 
 	run := chat.Run{PersonalConsent: app.personalConsentStamp("alice")}
 	settings.Enabled = false
 	app.catalog.SaveAssistant("alice", settings)
-	if err = app.validateChatSources(ctx, run, false); !errors.Is(err, workspace.ErrForbidden) {
+	if err = app.chatrun.ValidateSources(ctx, run, false); !errors.Is(err, workspace.ErrForbidden) {
 		t.Fatal("paused consent did not fence retained chat evidence", err)
 	}
 }
@@ -159,7 +159,7 @@ func TestPersonalInterruptedMemoryDoesNotStopMonitoring(t *testing.T) {
 	if _, err = app.automations.Queue.SaveJobState(personal.MemorySpec(spec), "", raw, false); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
 		t.Fatal("memory recovery blocked monitoring", err)
 	}
 	stored, err := app.automations.Queue.JobState(personal.MemorySpec(spec))

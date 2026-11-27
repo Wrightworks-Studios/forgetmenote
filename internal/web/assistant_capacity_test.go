@@ -12,6 +12,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 )
@@ -100,7 +101,7 @@ func TestAssistantDiscoversRecipesOnDemand(t *testing.T) {
 	transport := &fixtureChatTransport{}
 	app.messageClients["slack"] = transport
 	r := automation.Run{ID: automation.Hash("recipe-index"), Spec: automation.Spec{ID: "recipe-index", Kind: "assistant", Actor: "alice", Project: "default", ReadProjects: b.ReadProjects, Connections: b.Connections, AIConnection: "local", Model: "synthetic", Instruction: "How was revenue this week?", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "recipe-thread", User: "U123"}}}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 3 || len(transport.replies) != 1 || len(r.Citations) != 1 || r.Citations[0].Path != "learned-revenue.md" {
@@ -110,7 +111,7 @@ func TestAssistantDiscoversRecipesOnDemand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err = app.automationSourceContext(ctx, &r)
+	ctx, err = app.automationrun.SourceContext(ctx, &r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,9 +122,9 @@ func TestAssistantDiscoversRecipesOnDemand(t *testing.T) {
 
 func TestModelContextPreservesWholeReadThatFits(t *testing.T) {
 	content := strings.Repeat("useful evidence ", 1500) + "END_OF_ORIGINAL"
-	raw, _ := json.Marshal(chatSourceContext{Kind: "note_read", Sources: []chat.Citation{{ID: "source", Path: "note.md", Text: content}}})
+	raw, _ := json.Marshal(chatrun.SourceContext{Kind: "note_read", Sources: []chat.Citation{{ID: "source", Path: "note.md", Text: content}}})
 	req := chat.Request{MaxOutputTokens: 2048, Messages: []chat.Message{{Role: "user", Content: "Read the whole note"}, {Role: "assistant", ToolCalls: []chat.ToolCall{{ID: "read", Name: "read_note", Arguments: json.RawMessage(`{}`)}}}, {Role: "tool", ToolCallID: "read", Content: string(raw)}}}
-	fitted, _, err := fitChatRequest(chat.Run{}, req, 100000)
+	fitted, _, err := chatrun.FitRequest(chat.Run{}, req, 100000)
 	if err != nil || !strings.Contains(fitted.Messages[2].Content, "END_OF_ORIGINAL") {
 		t.Fatalf("original that fits was clipped: %v", err)
 	}
@@ -131,9 +132,9 @@ func TestModelContextPreservesWholeReadThatFits(t *testing.T) {
 
 func TestModelDocumentReadKeepsHealthAndRangeMetadata(t *testing.T) {
 	content := strings.Repeat("original Markdown ", 1000) + "END_OF_ORIGINAL"
-	doc := documentOutput{documentRef: documentRef{Project: "default", Origin: "notes", Path: "recipe.md", Revision: "revision"}, Content: content, HTML: "<p>Rendered duplicate</p>", Hash: "hash", Citation: "/?note=recipe.md", Health: &recipeCheckHealth{State: "waiting_upstream"}, StartLine: 20, EndLine: 40, Lines: 80, Cursor: "next", More: true}
+	doc := documentOutput{DocumentRef: documentRef{Project: "default", Origin: "notes", Path: "recipe.md", Revision: "revision"}, Content: content, HTML: "<p>Rendered duplicate</p>", Hash: "hash", Citation: "/?note=recipe.md", Health: &recipeCheckHealth{State: "waiting_upstream"}, StartLine: 20, EndLine: 40, Lines: 80, Cursor: "next", More: true}
 	raw, _ := json.Marshal(doc)
-	result := chatToolResultContext("read_document", raw, []chat.Citation{{Path: doc.Path, Text: "short excerpt"}})
+	result := chatrun.ToolResultContext("read_document", raw, []chat.Citation{{Path: doc.Path, Text: "short excerpt"}})
 	var got documentOutput
 	if err := json.Unmarshal([]byte(result), &got); err != nil {
 		t.Fatal(err)
@@ -156,11 +157,11 @@ func TestChatAttachmentsUseConfiguredResourceBudget(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		input = append(input, chat.Attachment{Kind: "private", Path: fmt.Sprintf("draft%d.md", i), Content: strings.Repeat("x", 20000)})
 	}
-	if got, err := app.chatAttachments(t.Context(), store, input); err != nil || len(got) != 5 {
+	if got, err := app.chatrun.Attachments(t.Context(), store, input); err != nil || len(got) != 5 {
 		t.Fatalf("valid attachments rejected: %v", err)
 	}
 	t.Setenv("FMN_LIMIT_SOURCE_TEXT_BYTES", "1024")
-	if _, err := app.chatAttachments(t.Context(), store, input); err == nil || !strings.Contains(err.Error(), "FMN_LIMIT_SOURCE_TEXT_BYTES") {
+	if _, err := app.chatrun.Attachments(t.Context(), store, input); err == nil || !strings.Contains(err.Error(), "FMN_LIMIT_SOURCE_TEXT_BYTES") {
 		t.Fatalf("attachment capacity was not enforced: %v", err)
 	}
 }
@@ -168,7 +169,7 @@ func TestChatAttachmentsUseConfiguredResourceBudget(t *testing.T) {
 func TestDataContextOverflowKeepsReceiptAndOriginal(t *testing.T) {
 	raw, _ := json.Marshal(dataResult{Result: connectors.Result{Receipt: connectors.Receipt{ID: "original-receipt", Complete: true}, Data: strings.Repeat("data ", 10000)}})
 	req := chat.Request{MaxOutputTokens: 100, Messages: []chat.Message{{Role: "user", Content: "Analyze the result"}, {Role: "assistant", ToolCalls: []chat.ToolCall{{ID: "read", Name: "call_data_operation", Arguments: json.RawMessage(`{}`)}}}, {Role: "tool", ToolCallID: "read", Content: string(raw)}}}
-	fitted, _, err := fitChatRequest(chat.Run{}, req, 4000)
+	fitted, _, err := chatrun.FitRequest(chat.Run{}, req, 4000)
 	if err != nil || len(fitted.Messages) != 3 || fitted.Messages[2].ToolCallID != "read" {
 		t.Fatalf("tool pairing lost: %v", err)
 	}
@@ -232,7 +233,7 @@ func TestAssistantUsesAvailableContextForLargeToolResults(t *testing.T) {
 			transport := &fixtureChatTransport{}
 			app.messageClients["slack"] = transport
 			run := automation.Run{ID: automation.Hash(count), Spec: automation.Spec{ID: "large-answer", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", Connections: []string{"fixture"}, ExternalProcessing: true, Instruction: "Read the data.", Delivery: &automation.Delivery{Channel: "C123", Thread: "thread", User: "U123"}}}
-			if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+			if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 				t.Fatal(err)
 			}
 			if calls != 2 || results != count || len(run.Receipts) != count || len(transport.replies) != 1 {
@@ -244,7 +245,7 @@ func TestAssistantUsesAvailableContextForLargeToolResults(t *testing.T) {
 
 func TestChatKeepsOriginalDataUntilContextFitting(t *testing.T) {
 	raw, _ := json.Marshal(dataResult{Result: connectors.Result{Data: map[string]string{"value": strings.Repeat("x", 15000) + "LAST_RESULT_VALUE"}}})
-	result := chatToolResultContext("call_data_operation", raw, nil)
+	result := chatrun.ToolResultContext("call_data_operation", raw, nil)
 	if !strings.Contains(result, "LAST_RESULT_VALUE") || !json.Valid([]byte(result)) {
 		t.Fatal("valid tool data discarded before model context fitting")
 	}
@@ -289,7 +290,7 @@ func TestAutomationReadsOriginalMarkdownWithoutRenderedDuplicate(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{Spec: spec}
-	answer, err := app.automationAnswer(ctx, &run, "Read the definition.", true)
+	answer, err := app.automationrun.Answer(ctx, &run, "Read the definition.", true)
 	if err != nil || answer != "Definition read." || calls != 2 || len(run.Citations) != 1 || run.Citations[0].Path != "definition.md" {
 		t.Fatal("read-backed answer lost its source dependency", answer, err, calls, run.Citations)
 	}

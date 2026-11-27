@@ -354,7 +354,12 @@ const BLINK = 530;
 
 // Starts a record of when the caret is shown and hidden (the computed
 // visibility of its cursor layer, read at each change of the layer's
-// attributes) and of the time of the last key, on the page's clock.
+// attributes), of the time of the last key and of each change of the
+// browser's selection, on the page's clock. A loaded machine can take tens of
+// milliseconds to handle a key, and more for a move along a line: the editor
+// leaves that to the browser and takes it at the browser's next
+// selectionchange, a task of its own. The editor's selectionchange listener
+// runs before this one, which was added after it.
 const watchCaret = page =>
   page.evaluate(() => {
     const layer = document.querySelector('#note-editor .cm-cursorLayer'),
@@ -364,8 +369,10 @@ const watchCaret = page =>
     if (!watch.keys) {
       watch.keys = () => (watch.key = performance.now());
       addEventListener('keydown', watch.keys, true);
+      document.addEventListener('selectionchange', () => watch.selections.push(performance.now()));
     }
     watch.key = null;
+    watch.selections = [];
     watch.flips = [{at: performance.now(), shown: shown()}];
     watch.observer = new MutationObserver(() => {
       if (shown() !== watch.flips.at(-1).shown) watch.flips.push({at: performance.now(), shown: shown()});
@@ -374,18 +381,22 @@ const watchCaret = page =>
   });
 // Waits until ms have passed since the last key.
 const sinceKey = (page, ms) => page.waitForFunction(ms => performance.now() - caretWatch.key >= ms, ms, {polling: 50});
-// The record since the last key: whether the caret showed at the key (by
-// 50 ms after it), when it was first hidden after it, the halves of the blink
-// from then on (ms), and the whole record for a failure's message.
+// The record since the last key: when the editor took it (ms after it: the
+// browser's first change of the selection after the key, or the key itself),
+// whether the caret showed at the key (by 50 ms after the editor took it),
+// when it was first hidden after the key, the halves of the blink from then
+// on (ms), and the whole record for a failure's message.
 const caretRecord = page =>
   page.evaluate(() => {
-    const {key, flips} = caretWatch,
+    const {key, selections, flips} = caretWatch,
+      taken = Math.round((selections.find(at => at > key) ?? key) - key),
       after = flips.filter(flip => flip.at > key).map(flip => ({after: Math.round(flip.at - key), shown: flip.shown})),
       atKey = [{after: 0, shown: flips.filter(flip => flip.at <= key).at(-1).shown}, ...after]
-        .filter(flip => flip.after <= 50)
+        .filter(flip => flip.after <= taken + 50)
         .at(-1).shown,
       hidden = after.findIndex(flip => !flip.shown);
     return {
+      taken,
       shownAtKey: atKey,
       firstHidden: hidden < 0 ? null : after[hidden].after,
       halves: hidden < 0 ? [] : after.slice(hidden + 1).map((flip, i) => flip.after - after[hidden + i].after),
@@ -503,7 +514,7 @@ async function expectSteady(page) {
   await page.keyboard.press('x');
   await sinceKey(page, 2400);
   const record = await caretRecord(page);
-  expect.soft(record).toEqual({shownAtKey: true, firstHidden: null, halves: [], flips: []});
+  expect.soft(record).toMatchObject({shownAtKey: true, firstHidden: null, halves: [], flips: []});
   expect.soft(await animations(page)).toEqual([]);
   const seen = await caretVisibility(page, null);
   expect(seen.coverage >= 0.6 && seen.contrast >= 3, JSON.stringify(seen)).toBe(true);

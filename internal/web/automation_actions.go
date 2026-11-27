@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -96,7 +97,7 @@ func runStatus(r automation.Run) automationRunStatus {
 			}
 		}
 		if b.Summary != "" {
-			learning.Summary = textLimit(strings.TrimSpace(b.Summary), 1400)
+			learning.Summary = chatrun.TextLimit(strings.TrimSpace(b.Summary), 1400)
 		}
 		status.Learning = learning
 	}
@@ -261,7 +262,7 @@ func (s *Server) automationTools(server *mcp.Server) {
 		projectArg
 		Query string `json:"query,omitempty"`
 	}) ([]recipeEntry, error) {
-		ctx, err := s.documentChatScope(ctx, in.Project, "notes", "", "", "")
+		ctx, err := s.chatrun.DocumentScope(ctx, in.Project, "notes", "", "", "")
 		if err != nil {
 			return nil, err
 		}
@@ -384,7 +385,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 		}
 	}
 	if spec.UsesAI() {
-		if _, _, _, err := s.automationProvider(spec); err != nil {
+		if _, _, _, err := s.automationrun.Provider(spec); err != nil {
 			return err
 		}
 	}

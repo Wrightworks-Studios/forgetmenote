@@ -51,7 +51,7 @@ func TestMessagingCarriesAttachedDocumentsIntoLaterTurns(t *testing.T) {
 		if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			t.Fatal(err)
 		}
-		if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {
+		if ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || !ran {
 			t.Fatal(ran, err)
 		}
 	}

@@ -64,14 +64,14 @@ func TestEmailPairingBringsMemoryToSlackDirectMessages(t *testing.T) {
 	}
 
 	preview := automation.Run{ID: automation.Hash("preview"), DryRun: true, Spec: spec}
-	if err := app.runAutomation(t.Context(), &preview, func() error { return nil }); err != nil || !strings.Contains(preview.Result, "UNEW") {
+	if err := app.automationrun.RunAutomation(t.Context(), &preview, func() error { return nil }); err != nil || !strings.Contains(preview.Result, "UNEW") {
 		t.Fatalf("test run: %v\n%s", err, preview.Result)
 	}
 	if app.catalog.MessageLink("slack", "T123", "UNEW") != "" {
 		t.Fatal("a test run paired a member")
 	}
 	run := automation.Run{ID: automation.Hash("pair"), Spec: spec}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if links := app.catalog.MessageLinks("alice"); len(links) != 1 || links[0].User != "UNEW" || links[0].Source != "email" {
@@ -130,7 +130,7 @@ func TestSlackMemberEventsRepairOnlyWhenPairingCouldChange(t *testing.T) {
 	}
 	runQueued := func() {
 		t.Helper()
-		if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {
+		if ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || !ran {
 			t.Fatalf("the pairing run did not run: %v %v", ran, err)
 		}
 	}

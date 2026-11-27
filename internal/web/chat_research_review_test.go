@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/sources"
 	"forgetmenote/internal/workspace"
 	"net/http"
@@ -218,11 +219,11 @@ func TestChatResearchSearchReviewCompletesWithoutReusingSnippets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, guidance, err := app.chatInstructions(t.Context(), store, snapshot.Revision)
+	_, guidance, err := app.chatrun.ChatInstructions(t.Context(), store, snapshot.Revision)
 	if err != nil {
 		t.Fatal(err)
 	}
-	valid := chatEvidenceValidator(snapshot, guidance, first.Turns, first.Options.Corpus.ID())
+	valid := chatrun.EvidenceValidator(snapshot, guidance, first.Turns, first.Options.Corpus.ID())
 	for _, turn := range first.Turns {
 		if turn.Role == "assistant" && strings.HasPrefix(turn.Content, "SEARCH_REVIEW_") && valid(turn.Provenance, turn.Citations) {
 			t.Fatal("ordinary history certified mutable search evidence")
@@ -236,7 +237,7 @@ func TestChatReviewExternalProofRemainsBoundedAndSeparated(t *testing.T) {
 		t.Run(change, func(t *testing.T) {
 			f := newReviewDependencyFixture(t)
 			run := f.prepare(t)
-			p := chat.Provenance{ExternalAllowance: reviewExternalAllowance(&run), ExternalSources: []chat.ExternalCapture{base}}
+			p := chat.Provenance{ExternalAllowance: chatrun.ReviewExternalAllowance(&run), ExternalSources: []chat.ExternalCapture{base}}
 			citation := chat.Citation{Kind: "external", URL: base.URL, Hash: base.Hash, CapturedAt: base.CapturedAt}
 			switch change {
 			case "old allowance":
@@ -259,13 +260,13 @@ func TestChatReviewExternalProofRemainsBoundedAndSeparated(t *testing.T) {
 					r.Provenance.ExternalAllowance = p.ExternalAllowance
 					r.Provenance.ExternalSources = p.ExternalSources
 				} else {
-					inheritExternalEvidence(&r.Provenance, p)
+					chatrun.InheritExternalEvidence(&r.Provenance, p)
 				}
 				if change == "unknown tool" {
 					r.Provenance.Complete = false
 				}
 				r.Citations = append(r.Citations, citation)
-				finishChatReviewBatch(r, "UNVERIFIABLE_EXTERNAL_ANALYSIS")
+				chatrun.FinishReviewBatch(r, "UNVERIFIABLE_EXTERNAL_ANALYSIS")
 			})
 			result := f.read(t)
 			if result.Review.Notes[0].State != "unverified" || result.Review.Notes[0].Cursor != 0 {

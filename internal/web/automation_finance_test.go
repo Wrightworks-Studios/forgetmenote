@@ -138,7 +138,7 @@ func TestFinancePackageThroughGoogleHostAndPython(t *testing.T) {
 	// notebook publication nor the mailbox cursor.
 	e.run.Script = nil
 	e.run.DryRun = true
-	if err = app.runAutomation(t.Context(), e.run, e.save); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), e.run, e.save); err != nil {
 		t.Fatal("preview", err)
 	}
 	state, err := app.automations.Queue.JobState(e.run.Spec)
@@ -152,7 +152,7 @@ func TestFinancePackageThroughGoogleHostAndPython(t *testing.T) {
 		e.run.ID = automation.Hash([]any{"finance-live-local", i})
 		e.run.Script = nil
 		e.run.DryRun = false
-		if err = app.runAutomation(t.Context(), e.run, e.save); err != nil {
+		if err = app.automationrun.RunAutomation(t.Context(), e.run, e.save); err != nil {
 			t.Fatalf("scheduled run %d: %v", i, err)
 		}
 	}

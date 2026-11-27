@@ -21,12 +21,12 @@ func (s *Server) initMessaging() error {
 	var err error
 	s.messaging, err = messaginghttp.New(s.catalog, s.automations, s.tasks, s.memory, s.outgoing, messaginghttp.Hooks{
 		AutomationPolicy:        s.automationPolicy,
-		AutomationProvider:      s.automationProvider,
+		AutomationProvider:      s.automationrun.Provider,
 		CheckAutomationEvidence: s.checkAutomationEvidence,
-		AnswerOnce:              s.answerOnce,
+		AnswerOnce:              s.automationrun.AnswerOnce,
 		ChatStore:               func() *chat.Store { return s.chat.Store },
-		ValidateChatSources:     s.validateChatSources,
-		AssistantInstructions:   s.assistantInstructions,
+		ValidateChatSources:     s.chatrun.ValidateSources,
+		AssistantInstructions:   s.chatrun.AssistantInstructions,
 		PersonalMessagePolicy:   s.personalMessagePolicy,
 		LinkedOwner: func(client, workspace, user string) string {
 			if s.personalConnections == nil {

@@ -46,7 +46,7 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	if !s.outgoing.Paused() {
 		s.jev.StartScheduler(ctx)
-		s.startAutomations(ctx)
+		s.automationrun.Start(ctx)
 	}
 	if s.chat != nil {
 		s.chat.StartRecovery()

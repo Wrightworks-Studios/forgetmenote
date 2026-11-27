@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 )
 
@@ -65,23 +66,23 @@ func (s *Server) scriptStructuredResearch(e *scriptExecution, request chat.Struc
 		return nil, errors.New("configured research search budget exhausted")
 	}
 	request.Model, request.ReasoningEffort = r.Spec.Model, r.Spec.ReasoningEffort
-	ctx, model, err := s.automationModelCall(e.ctx, r, func(model automationModel) error {
-		if model.connection.ID != cfg.Research.Connection {
+	ctx, model, err := s.automationrun.ModelCall(e.ctx, r, func(model automationrun.Model) error {
+		if model.Connection.ID != cfg.Research.Connection {
 			return errors.New("structured research must use the automation's configured research connection")
 		}
-		if automation.Hash(model.config) != automation.Hash(cfg) {
+		if automation.Hash(model.Config) != automation.Hash(cfg) {
 			return errors.New("research configuration changed before provider admission")
 		}
 		estimate, err := research.EstimateStructured(request)
 		if err != nil {
 			return err
 		}
-		return automationTokenBudget(r, estimate)
+		return automationrun.TokenBudget(r, estimate)
 	})
 	if err != nil {
 		return nil, err
 	}
-	defer model.release()
+	defer model.Release()
 	if err = s.checkAutomationEvidence(ctx, r, true); err != nil {
 		return nil, err
 	}

@@ -116,7 +116,7 @@ func TestChatRunnerExitSettlesOnlyUnfinishedRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, run := range runs {
-		app.recoverChatRun(chat.RunAuth{User: "alice", Project: "default"}, c.ID, run.ID)
+		app.chatrun.RecoverRun(chat.RunAuth{User: "alice", Project: "default"}, c.ID, run.ID)
 	}
 	saved, err := app.chat.Store.Read("alice", "default", c.ID)
 	if err != nil {

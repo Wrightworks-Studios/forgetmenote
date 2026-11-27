@@ -5,6 +5,7 @@ import {feedback} from './feedback.mjs';
 import {initOrganization} from './organization.mjs';
 import {initAISettings} from './ai-settings.mjs';
 import {initChatClients} from './chat-clients.mjs';
+import {initTaskQueues} from './task-queues.mjs';
 import {contextMenuPosition} from './editor.mjs';
 import {notebookPath} from './request.mjs';
 const roles = {owner:'Owner', edit:'Editor', comment:'Commenter', read:'Reader'};
@@ -27,6 +28,9 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
   const chatClients=initChatClients({post,getUser,getActive:()=>instancePageActive});
   const chatCategory=document.querySelector('#admin-dialog [data-settings-category=chat-clients]');
   chatCategory.addEventListener('click',()=>chatClients.open());
+  const taskQueues=initTaskQueues({post,getUser,getActive:()=>instancePageActive});
+  const taskCategory=document.querySelector('#admin-dialog [data-settings-category=tasks]');
+  taskCategory.addEventListener('click',()=>taskQueues.open());
   const aiCategory=document.querySelector('#admin-dialog [data-settings-category=ai]');
   aiCategory.addEventListener('click',()=>ai.open());
   const manages = project => !!project && (getUser()?.admin || project.role === 'owner');
@@ -227,6 +231,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     await organization.load(directory,page.active);if(!page.active())return;
     if(aiCategory.getAttribute('aria-pressed')==='true')await ai.open();
     if(chatCategory.getAttribute('aria-pressed')==='true')await chatClients.open();
+    if(taskCategory.getAttribute('aria-pressed')==='true')await taskQueues.open();
     if(!page.active())return;
 
     $('managed-workspaces').replaceChildren();

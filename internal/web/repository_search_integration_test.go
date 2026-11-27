@@ -184,7 +184,7 @@ func TestChatSourceCitationKeepsOnlyOriginalBytesWhenTruncated(t *testing.T) {
 	file := reposource.File{Project: "default", Source: state.ID, Revision: state.Downloaded, Path: "health.go", Content: body, URL: "https://github.com/example/source/blob/" + state.Downloaded + "/health.go"}
 	raw, _ := json.Marshal(file)
 	ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-	got, _ := app.chatToolEvidence(ctx, chat.RunAuth{User: catalog.Bootstrap}, "fixture", "repository_source_file", raw)
+	got, _ := app.chatrun.ToolEvidence(ctx, chat.RunAuth{User: catalog.Bootstrap}, "fixture", "repository_source_file", raw)
 	if len(got) != 1 {
 		t.Fatal("citation missing")
 	}

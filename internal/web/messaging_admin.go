@@ -66,7 +66,7 @@ func (s *Server) messagingTools(server *mcp.Server) {
 			}
 			for _, bindings := range bindings {
 				for _, b := range bindings {
-					if _, _, _, err := s.automationProvider(automation.Spec{AIConnection: b.AIConnection, Model: b.Model, ExternalProcessing: b.ExternalProcessing}); err != nil {
+					if _, _, _, err := s.automationrun.Provider(automation.Spec{AIConnection: b.AIConnection, Model: b.Model, ExternalProcessing: b.ExternalProcessing}); err != nil {
 						return nil, err
 					}
 					for _, project := range append([]string{b.Project}, b.ReadProjects...) {

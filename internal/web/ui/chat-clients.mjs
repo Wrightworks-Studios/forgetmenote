@@ -1,16 +1,24 @@
 import {element as node,button as control,busy} from './dom.mjs';
 import {feedback} from './feedback.mjs';
+import {request} from './request.mjs';
+import {checkList,choiceSelect,chooseOption,notebookChoices} from './pickers.mjs';
 
 const button=(text,action)=>control(text,action,{class:'quiet'});
-const list=value=>value.split(',').map(v=>v.trim()).filter(Boolean);
 
 export function initChatClients({post,getUser,getActive}) {
  const root=document.getElementById('chat-clients-panel');let version=0;
  async function open(){
   const active=getActive(),current=++version;root.replaceChildren(node('p','Loading chat clients…'));
   try{
-   const data=await post('/api/organization/action/chat_clients',{});
+   // Slack channel and user IDs stay typed: the server has no listing of them.
+   const [data,directory,available]=await Promise.all([post('/api/organization/action/chat_clients',{}),request('/api/admin'),post('/integrations/actions/list_data_connections',{})]);
    if(current!==version||!getUser()?.admin||!active())return;
+   const accounts=directory.users.filter(u=>!u.disabled&&!u.id.startsWith('@')).map(u=>[u.id,u.displayName||directory.usernames?.[u.id]||u.id,u.kind]);
+   const people=accounts.filter(([,,kind])=>kind!=='service').map(([id,name])=>[id,name]),members=accounts.map(([id,name,kind])=>[id,kind==='service'?name+' (service account)':name]);
+   const notebooks=notebookChoices(directory.projects);
+   // Chat sees only connections that allow AI processing.
+   const connections=available.filter(info=>info.externalProcessing).map(info=>[info.id,info.label&&info.label!==info.id?`${info.label} (${info.id})`:info.id]);
+   const unlisted=value=>available.some(info=>info.id===value)?`${value} (no AI processing)`:`${value} (not listed)`;
    const config=structuredClone(data.config);
    const controls=node('div');controls.className='actions settings-heading';
    controls.append(node('h3','Chat clients'),button('Refresh',open));root.replaceChildren(controls);
@@ -19,6 +27,8 @@ export function initChatClients({post,getUser,getActive}) {
     const client=config.clients[id]||{workspace:'',disabled:true,users:{},channels:{},directMessages:{}};
     const form=node('form');form.className='settings-form chat-client-form';form.append(node('h3',id==='slack'?'Slack':id));
     const status=node('p');status.setAttribute('role','status');
+    function choose(parent,label,select,value){const wrap=node('label',label);wrap.append(select);chooseOption(select,value);parent.append(wrap);return select;}
+    function choices(parent,legend,options,values,missing){const picker=checkList(legend,options,{missing});picker.set(values||[]);parent.append(picker.element);return picker;}
     function field(parent,label,value='',type='text'){
      const wrap=node('label',type==='checkbox'?undefined:label),input=node(type==='textarea'?'textarea':'input');input.setAttribute('aria-label',label);
      if(type==='checkbox'){input.type='checkbox';input.checked=!!value;wrap.className='check-row';wrap.append(input,node('span',label));}
@@ -31,7 +41,7 @@ export function initChatClients({post,getUser,getActive}) {
     const links=node('fieldset');links.append(node('legend','Linked accounts'));form.append(links);
     const accountRows=[];
     function account(external='',user=''){
-     const row=node('div');row.className='form-columns';const externalInput=field(row,'Chat user ID',external);const userInput=field(row,'ForgetMeNote user ID',user);
+     const row=node('div');row.className='form-columns';const externalInput=field(row,'Chat user ID',external);const userInput=choose(row,'ForgetMeNote account',choiceSelect('ForgetMeNote account',people,{placeholder:'Choose an account'}),user);
      const state={row,externalInput,userInput};accountRows.push(state);row.append(button('Remove account',()=>{accountRows.splice(accountRows.indexOf(state),1);row.remove();}));links.append(row);
     }
     for(const [external,user] of Object.entries(client.users||{}))account(external,user);
@@ -40,15 +50,15 @@ export function initChatClients({post,getUser,getActive}) {
     function destination(kind='channels',id='',binding={project:'',externalProcessing:true}){
      const box=node('fieldset');box.className='chat-destination';box.append(node('legend',kind==='channels'?'Channel':'Direct messages'));
      const key=field(box,kind==='channels'?'Channel ID':'DM user ID',id);
-     const project=field(box,'Primary notebook',binding.project||'');
-     const notebooks=field(box,'Additional notebooks', (binding.readProjects||[]).join(', '));
-     const connections=field(box,'Data connections',(binding.connections||[]).join(', '));
-     const actors=field(box,'Allowed members',(binding.actors||[]).join(', '));
+     const project=choose(box,'Primary notebook',choiceSelect('Primary notebook',notebooks,{placeholder:'Choose a notebook'}),binding.project||'');
+     const readProjects=choices(box,'Additional notebooks',notebooks,binding.readProjects);
+     const dataConnections=choices(box,'Data connections',connections,binding.connections,unlisted);
+     const actors=choices(box,'Allowed members',members,binding.actors);
      const shared=field(box,'Shared replies',!!binding.shared,'checkbox');const approved=field(box,'Approve this channel audience for the selected notebooks and data',!!binding.audienceApproved,'checkbox');
      const context=field(box,'Include thread context',!!binding.threadHistory,'checkbox');const attachments=field(box,'Process attached files',!!binding.attachments,'checkbox');
      const consent=field(box,'Allow processing by the configured AI providers',!!binding.externalProcessing,'checkbox');
-     if(kind==='directMessages'){shared.closest('label').hidden=true;approved.closest('label').hidden=true;actors.closest('label').hidden=true;}
-     const state={box,read:()=>({kind,key:key.value.trim(),binding:{...binding,project:project.value.trim(),readProjects:list(notebooks.value),connections:list(connections.value),actors:kind==='channels'?list(actors.value):[],shared:kind==='channels'&&shared.checked,audienceApproved:kind==='channels'&&approved.checked,threadHistory:context.checked,attachments:attachments.checked,externalProcessing:consent.checked}})};
+     if(kind==='directMessages'){shared.closest('label').hidden=true;approved.closest('label').hidden=true;actors.element.hidden=true;}
+     const state={box,read:()=>({kind,key:key.value.trim(),binding:{...binding,project:project.value,readProjects:readProjects.read(),connections:dataConnections.read(),actors:kind==='channels'?actors.read():[],shared:kind==='channels'&&shared.checked,audienceApproved:kind==='channels'&&approved.checked,threadHistory:context.checked,attachments:attachments.checked,externalProcessing:consent.checked}})};
      rows.push(state);box.append(button('Remove destination',()=>{rows.splice(rows.indexOf(state),1);box.remove();}));destinations.append(box);
     }
     for(const kind of ['channels','directMessages'])for(const [key,binding]of Object.entries(client[kind]||{}))destination(kind,key,binding);
@@ -62,7 +72,7 @@ export function initChatClients({post,getUser,getActive}) {
       if(jsonChanged)value=JSON.parse(json.value);
       else{
        value={...client,disabled:!enabled.checked,users:{},channels:{},directMessages:{}};
-       for(const r of accountRows){const external=r.externalInput.value.trim(),user=r.userInput.value.trim();if(!external||!user)throw Error('Enter both account IDs.');if(value.users[external])throw Error('Each chat account can be linked once.');value.users[external]=user;}
+       for(const r of accountRows){const external=r.externalInput.value.trim(),user=r.userInput.value;if(!external||!user)throw Error('Enter the chat user ID and choose an account.');if(value.users[external])throw Error('Each chat account can be linked once.');value.users[external]=user;}
        for(const r of rows){const v=r.read();if(!v.key)throw Error('Enter a destination ID.');if(value[v.kind][v.key])throw Error('Each destination can be configured once.');value[v.kind][v.key]=v.binding;}
       }
       const next={...config,clients:{...config.clients,[id]:value}};

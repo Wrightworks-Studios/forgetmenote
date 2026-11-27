@@ -4,6 +4,7 @@ import (
 	"errors"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"net/http"
 	"net/http/httptest"
 	"runtime"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 func TestChatDeleteRechecksQueuedAuthority(t *testing.T) {
 	for _, retry := range []bool{false, true} {
-		for _, kind := range []string{"notebook-access", "disabled-account", "revoked-session"} {
+		for _, kind := range []string{"notebook-access", "disabled-account", "revoked-session", "signed-out-session"} {
 			label := kind
 			if retry {
 				label += "/retry"
@@ -32,12 +33,10 @@ func TestChatDeleteRechecksQueuedAuthority(t *testing.T) {
 				}
 				request := httptest.NewRequest("DELETE", app.origin+path, nil)
 				request.Header.Set("Origin", app.origin)
-				if kind == "revoked-session" {
-					login := httptest.NewRecorder()
-					if err := app.createSession(login, "alice"); err != nil {
-						t.Fatal(err)
-					}
-					request.AddCookie(login.Result().Cookies()[0])
+				var session *http.Cookie
+				if strings.HasSuffix(kind, "-session") {
+					session = signIn(t, app)
+					request.AddCookie(session)
 				} else {
 					request.RemoteAddr = "127.0.0.1:1234"
 					request.Header.Set("Remote-User", "alice")
@@ -59,7 +58,7 @@ func TestChatDeleteRechecksQueuedAuthority(t *testing.T) {
 					b := make([]byte, 2<<20)
 					n := runtime.Stack(b, true)
 					for _, stack := range strings.Split(string(b[:n]), "\n\n") {
-						if strings.Contains(stack, "(*Runtime).RetainContent") && strings.Contains(stack, "(*Server).chatDelete") {
+						if strings.Contains(stack, "(*Runtime).RetainContent") && strings.Contains(stack, "chatrun.(*Service).chatDelete") {
 							queued = true
 							break
 						}
@@ -79,6 +78,9 @@ func TestChatDeleteRechecksQueuedAuthority(t *testing.T) {
 					err = app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "alice", Disabled: true})
 				case "revoked-session":
 					err = app.catalog.Revoke(catalog.Bootstrap, "alice")
+				case "signed-out-session":
+					// Only this session ends; the account and its access are unchanged.
+					signOut(t, app, session)
 				}
 				if err != nil {
 					t.Fatal(err)

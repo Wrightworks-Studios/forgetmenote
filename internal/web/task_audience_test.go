@@ -135,7 +135,7 @@ func TestLargeTaskRequestsWaitForTheRequesterToConfirm(t *testing.T) {
 	if text := f.press(t, "UM000", "6.1r", confirm); !strings.Contains(text, "Only whoever asked") {
 		t.Fatalf("someone else's press = %q", text)
 	}
-	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); err != nil || ran {
+	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); err != nil || ran {
 		t.Fatalf("someone else's press queued work: %v %v", ran, err)
 	}
 
@@ -145,7 +145,7 @@ func TestLargeTaskRequestsWaitForTheRequesterToConfirm(t *testing.T) {
 	if text := f.press(t, "UBOB", "6.2r", other[1]); !strings.Contains(text, "nothing was added") {
 		t.Fatalf("cancel = %q", text)
 	}
-	if ran, _ := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); ran {
+	if ran, _ := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); ran {
 		t.Fatal("a cancelled request queued work")
 	}
 	_ = cancel
@@ -154,7 +154,7 @@ func TestLargeTaskRequestsWaitForTheRequesterToConfirm(t *testing.T) {
 	if text := f.press(t, "UBOB", "6.1r", confirm); !strings.Contains(text, "Adding 24 copies") {
 		t.Fatalf("confirm = %q", text)
 	}
-	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); err != nil || !ran {
+	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); err != nil || !ran {
 		t.Fatalf("the confirmed request did not run: %v %v", ran, err)
 	}
 	for i := range 24 {
@@ -170,7 +170,7 @@ func TestLargeTaskRequestsWaitForTheRequesterToConfirm(t *testing.T) {
 
 	// Pressing again, or typing what the button sent, adds nothing more.
 	f.press(t, "UBOB", "6.1r", confirm)
-	if ran, _ := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); ran {
+	if ran, _ := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); ran {
 		t.Fatal("a second press queued work")
 	}
 	f.memberDM(t, "UBOB", "6.3", "task-confirmed slack-forged\n{\"people\":[\"everyone\"],\"text\":\"Forged\",\"confirm\":true}")
@@ -237,7 +237,7 @@ func TestSlashTaskFormGivesChannelsAndEveryoneACopy(t *testing.T) {
 	if out = f.submitView(t, "T123", "UBOB", confirmView); out["response_action"] != "update" || !strings.Contains(fmt.Sprint(out["view"]), "Adding 24 copies") {
 		t.Fatalf("the confirmation: %v", out)
 	}
-	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); err != nil || !ran {
+	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); err != nil || !ran {
 		t.Fatalf("the confirmed form did not run: %v %v", ran, err)
 	}
 	if len(f.postsTo("UM000")) != 1 || len(f.postsTo("UALICE")) != 2 || len(f.postsTo("UBOB")) == 0 {
@@ -251,7 +251,7 @@ func TestSlashTaskFormGivesChannelsAndEveryoneACopy(t *testing.T) {
 	if out = f.submitView(t, "T123", "UALICE", confirmView); !strings.Contains(fmt.Sprint(out["view"]), "Only whoever asked") {
 		t.Fatalf("someone else's confirmation: %v", out)
 	}
-	if ran, _ := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); ran {
+	if ran, _ := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); ran {
 		t.Fatal("someone else's confirmation queued work")
 	}
 }

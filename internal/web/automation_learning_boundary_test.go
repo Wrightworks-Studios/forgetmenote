@@ -80,7 +80,7 @@ func TestLearningSuppliesExactOperationArgumentSchema(t *testing.T) {
 	}
 	runs, _ := app.automations.Queue.List()
 	run := runs[0]
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if len(run.Learning.Published) != 1 {
@@ -122,7 +122,7 @@ func TestLearningUsesConfiguredPromptBudget(t *testing.T) {
 			for _, event := range run.Learning.Events {
 				run.Learning.Decisions[learningGroup(event)] = doc.Path
 			}
-			err = app.runAutomation(t.Context(), &run, func() error { return nil })
+			err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 			after, readErr := store.Read(t.Context(), doc.Path, "")
 			if readErr != nil {
 				t.Fatal(readErr)
@@ -194,7 +194,7 @@ func testLearningConsolidation(t *testing.T, repeats int) {
 		t.Fatal(runs, err)
 	}
 	run := runs[0]
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	store, _ := app.catalog.Access("alice", "default", "read")
@@ -245,7 +245,7 @@ func TestLearningRevocationAndSensitiveInputs(t *testing.T) {
 	if err = app.revokeCredential("alice", "alice", credential.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err == nil {
 		t.Fatal("revoked credential still authorized learning")
 	}
 	status, _ := json.Marshal(runStatus(run))
@@ -289,7 +289,7 @@ func TestLearningRechecksProfileVisibilityAfterJev(t *testing.T) {
 	captureLearningExamples(t, app, "count")
 	runs, _ := app.automations.Queue.List()
 	run := runs[0]
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err == nil {
 		t.Fatal("lost source visibility did not stop learning")
 	}
 }
@@ -309,7 +309,7 @@ func TestLearningPreservesConfiguredRecipeContract(t *testing.T) {
 	for _, e := range run.Learning.Events {
 		run.Learning.Decisions[learningGroup(e)] = doc.Path
 	}
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := store.Read(context.Background(), doc.Path, "")
@@ -336,7 +336,7 @@ func TestLearningRechecksOAuthAPICredential(t *testing.T) {
 	if err != nil || len(runs) != 1 {
 		t.Fatal(runs, err)
 	}
-	if err = app.runAutomation(context.Background(), &runs[0], func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &runs[0], func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 }

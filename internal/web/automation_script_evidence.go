@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"time"
 
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/chat"
@@ -110,7 +109,7 @@ func (s *Server) scriptReadDocument(e *scriptExecution, in scriptRequest) (any, 
 		return nil, err
 	}
 	raw, _ := json.Marshal(doc)
-	citations, _ := s.chatToolEvidence(e.ctx, chat.RunAuth{User: e.run.Spec.Actor, Project: e.run.Spec.Project}, in.Step, "read_document", raw)
+	citations, _ := s.chatrun.ToolEvidence(e.ctx, chat.RunAuth{User: e.run.Spec.Actor, Project: e.run.Spec.Project}, in.Step, "read_document", raw)
 	for _, citation := range citations {
 		citation.Text = ""
 		e.run.Citations = append(e.run.Citations, citation)
@@ -131,7 +130,7 @@ func (s *Server) scriptRepositoryNavigation(e *scriptExecution, in scriptRequest
 	if !ok || v.Revision != "" && v.Revision != source.Revision {
 		return nil, workspace.ErrForbidden
 	}
-	if _, err := s.documentChatScope(e.ctx, source.Project, "repository", source.Source, source.Revision, ""); err != nil {
+	if _, err := s.chatrun.DocumentScope(e.ctx, source.Project, "repository", source.Source, source.Revision, ""); err != nil {
 		return nil, err
 	}
 	if in.Operation == "repositories.changes" {
@@ -139,22 +138,4 @@ func (s *Server) scriptRepositoryNavigation(e *scriptExecution, in scriptRequest
 	}
 	v.Revision = source.Revision
 	return s.notebookMap(e.ctx, notebookMapRequest{Project: source.Project, Origin: "repository", Source: source.Source, MapQuery: v.MapQuery})
-}
-
-// Both generic monitors and packages feed the same idempotent incident state.
-// Delivery happens after the result/checkpoint is durable, never inside Python.
-func (s *Server) recordAutomationIncident(r *automation.Run, incident automation.Incident, save func() error) error {
-	decision, err := s.automations.Queue.Incident(r.Spec, r.ID, incident, time.Now(), r.DryRun)
-	if err != nil {
-		return err
-	}
-	r.Alert, r.Result = &decision, incident.Summary
-	if decision.Notify && !r.DryRun {
-		prefix := "Alert"
-		if decision.Recovered {
-			prefix = "Recovered"
-		}
-		r.Answer = prefix + ": " + incident.Summary
-	}
-	return save()
 }

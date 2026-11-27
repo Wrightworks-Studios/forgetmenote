@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/reposource"
@@ -23,22 +24,7 @@ type documentRequest struct {
 	documentRef
 	reposource.LineRange
 }
-type documentOutput struct {
-	documentRef
-	Health    *recipeCheckHealth `json:"health,omitempty"`
-	Content   string             `json:"content"`
-	HTML      string             `json:"html,omitempty"`
-	Citation  string             `json:"citation"`
-	Hash      string             `json:"hash"`
-	Editable  bool               `json:"editable"`
-	StartByte int                `json:"startByte,omitempty"`
-	EndByte   int                `json:"endByte,omitempty"`
-	StartLine int                `json:"startLine,omitempty"`
-	EndLine   int                `json:"endLine,omitempty"`
-	Lines     int                `json:"lines,omitempty"`
-	Cursor    string             `json:"cursor,omitempty"`
-	More      bool               `json:"more,omitempty"`
-}
+type documentOutput = notebooks.DocumentOutput
 type notebookMapRequest struct {
 	Project string `json:"project"`
 	Origin  string `json:"origin,omitempty" jsonschema:"Content origin: notes or repository. Set repository explicitly for source files in a mixed notebook."`
@@ -106,7 +92,7 @@ func (s *Server) readDocument(ctx context.Context, in documentRequest) (document
 	if err != nil {
 		return out, err
 	}
-	ctx, err = s.documentChatScope(ctx, in.Project, in.Origin, in.Source, in.Revision, in.Path)
+	ctx, err = s.chatrun.DocumentScope(ctx, in.Project, in.Origin, in.Source, in.Revision, in.Path)
 	if err != nil {
 		return out, err
 	}
@@ -115,13 +101,13 @@ func (s *Server) readDocument(ctx context.Context, in documentRequest) (document
 		if err != nil {
 			return out, err
 		}
-		doc, err := readChatNote(ctx, store, target.Path, in.Revision)
+		doc, err := chatrun.ReadNote(ctx, store, target.Path, in.Revision)
 		if err != nil {
 			return out, err
 		}
 		in.Path, in.NoteID, in.Revision = target.Path, target.NoteID, doc.Revision
 		citation := url.URL{Path: "/", RawQuery: url.Values{"project": {in.Project}, "note": {in.Path}, "noteId": {in.NoteID}, "revision": {doc.Revision}}.Encode(), Fragment: in.Heading}
-		out = documentOutput{documentRef: in.documentRef, Content: string(doc.Content), HTML: s.render(string(doc.Content)), Citation: target.URL, Hash: workspace.ContentHash(doc.Content)}
+		out = documentOutput{DocumentRef: in.documentRef, Content: string(doc.Content), HTML: s.render(string(doc.Content)), Citation: target.URL, Hash: workspace.ContentHash(doc.Content)}
 		out.Health, err = s.recipeHealth(in.Project, in.Path, out.Hash)
 		if err != nil {
 			return documentOutput{}, err
@@ -162,7 +148,7 @@ func (s *Server) readDocument(ctx context.Context, in documentRequest) (document
 			return out, err
 		}
 		in.Revision = file.Revision
-		out = documentOutput{documentRef: in.documentRef, Content: file.Content, Citation: file.URL, Hash: file.Hash, StartByte: file.StartByte, EndByte: file.EndByte, StartLine: file.StartLine, EndLine: file.EndLine, Lines: file.Lines, Cursor: file.Cursor, More: file.More}
+		out = documentOutput{DocumentRef: in.documentRef, Content: file.Content, Citation: file.URL, Hash: file.Hash, StartByte: file.StartByte, EndByte: file.EndByte, StartLine: file.StartLine, EndLine: file.EndLine, Lines: file.Lines, Cursor: file.Cursor, More: file.More}
 		if strings.HasSuffix(strings.ToLower(in.Path), ".md") {
 			out.HTML = s.render(file.Content)
 		}
@@ -190,7 +176,7 @@ func (s *Server) notebookMap(ctx context.Context, in notebookMapRequest) (notebo
 	if err != nil {
 		return out, err
 	}
-	ctx, err = s.documentChatScope(ctx, in.Project, out.Origin, in.Source, in.Revision, "")
+	ctx, err = s.chatrun.DocumentScope(ctx, in.Project, out.Origin, in.Source, in.Revision, "")
 	if err != nil {
 		return out, err
 	}

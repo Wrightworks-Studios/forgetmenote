@@ -4,11 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/knowledge"
-	"forgetmenote/internal/reposource"
-	"forgetmenote/internal/workspace"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +12,13 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/reposource"
+	"forgetmenote/internal/workspace"
 )
 
 func TestChatDeniedReadPreservesOtherReadsAndNotebookIdentity(t *testing.T) {
@@ -148,14 +150,14 @@ func TestCrossNotebookCitationRevalidatesPinnedContentAfterUnrelatedSave(t *test
 	if _, err = store.Save(t.Context(), "unrelated.md", []byte("# Another saved note"), doc.Revision, catalog.Bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.validateChatSources(ctx, run, false); err != nil {
+	if err = app.chatrun.ValidateSources(ctx, run, false); err != nil {
 		t.Fatal("unchanged pinned citation rejected after unrelated save", err)
 	}
 	status, _ := store.Status(t.Context())
 	if _, err = store.Save(t.Context(), "answer.md", []byte("# Changed"), status.Revision, catalog.Bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.validateChatSources(ctx, run, false); err == nil {
+	if err = app.chatrun.ValidateSources(ctx, run, false); err == nil {
 		t.Fatal("changed source accepted for current-only answer")
 	}
 }
@@ -298,8 +300,8 @@ func TestUniversalDocumentsHonorSelectedNotebookOrigins(t *testing.T) {
 			t.Fatalf("%s expanded chat scope", name)
 		}
 	}
-	var retrieved chatRetrieval
-	if err = app.appendChatSources(ctx, run, knowledge.RetrievalQuery{Text: "Evidence", LocalOnly: true, Limit: 12, TokenBudget: 3000}, &retrieved); err != nil {
+	var retrieved chatrun.Retrieval
+	if err = app.chatrun.AppendSources(ctx, run, knowledge.RetrievalQuery{Text: "Evidence", LocalOnly: true, Limit: 12, TokenBudget: 3000}, &retrieved); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := json.Marshal(retrieved)

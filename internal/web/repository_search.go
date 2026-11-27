@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/search"
@@ -25,7 +26,7 @@ func (s *Server) retrieveScoped(ctx context.Context, in retrievalRequest) (scope
 	var frozen *search.Frozen
 	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		frozen = &search.Frozen{Project: scope.Project, Corpus: scope.Run.Options.Corpus, Bind: func(query knowledge.RetrievalQuery) (knowledge.RetrievalQuery, error) {
-			return bindChatRetrieval(scope.Run, query)
+			return chatrun.BindRetrieval(scope.Run, query)
 		}}
 	}
 	out, err := s.corpusSearch.Retrieve(ctx, in, repositories, frozen)

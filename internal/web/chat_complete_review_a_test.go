@@ -185,7 +185,7 @@ func TestCompleteReviewAKnownMutationLostAfterRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = app.executeChatTool(ctx, auth, c.ID, runID, call, connection)
+	err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, runID, call, connection)
 	if err == nil {
 		t.Fatal("fixture expected post-call revocation to stop model execution")
 	}
@@ -239,7 +239,7 @@ func TestCompleteReviewAKnownMutationLostAfterRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.executeChatTool(ctx, auth, c.ID, runID, call, connection); err != nil {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, runID, call, connection); err != nil {
 		t.Fatal(err)
 	}
 	after, err := store.Status(t.Context())

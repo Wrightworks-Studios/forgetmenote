@@ -101,7 +101,7 @@ func (s *Server) writingOutline(ctx context.Context, in writingOutlineRequest) (
 		in.Limit = 100
 	}
 	end := min(in.After+in.Limit, len(analysis.Sections))
-	out = writingOutlineResult{documentRef: doc.documentRef, Version: analysis.Version, Hash: doc.Hash, Citation: doc.Citation, Stats: analysis.Stats, Sections: analysis.Sections[in.After:end], Total: len(analysis.Sections)}
+	out = writingOutlineResult{documentRef: doc.DocumentRef, Version: analysis.Version, Hash: doc.Hash, Citation: doc.Citation, Stats: analysis.Stats, Sections: analysis.Sections[in.After:end], Total: len(analysis.Sections)}
 	if end < len(analysis.Sections) {
 		out.Next = end
 	}
@@ -134,7 +134,7 @@ func (s *Server) writingTerms(ctx context.Context, in writingTermsRequest) (writ
 	if err != nil {
 		return out, err
 	}
-	ctx, err = s.documentChatScope(ctx, in.Project, in.Origin, in.Source, in.Revision, in.Path)
+	ctx, err = s.chatrun.DocumentScope(ctx, in.Project, in.Origin, in.Source, in.Revision, in.Path)
 	if err != nil {
 		return out, err
 	}
@@ -163,7 +163,7 @@ func (s *Server) writingTerms(ctx context.Context, in writingTermsRequest) (writ
 			return out, e
 		}
 		in.Path, in.NoteID, in.Origin = doc.Path, doc.NoteID, doc.Origin
-		page = documentList{Revision: doc.Revision, Source: doc.Source, Entries: []documentListEntry{{documentRef: doc.documentRef}}}
+		page = documentList{Revision: doc.Revision, Source: doc.Source, Entries: []documentListEntry{{documentRef: doc.DocumentRef}}}
 	} else {
 		page, err = s.listDocuments(ctx, notebookMapRequest{Project: in.Project, Origin: in.Origin, Source: in.Source, MapQuery: knowledge.MapQuery{ContainerSelection: in.ContainerSelection, Scope: &scope, Revision: in.Revision, PathPrefix: in.PathPrefix, Limit: 8, After: cursor.Page}})
 		if err != nil {
@@ -215,7 +215,7 @@ func (s *Server) writingTerms(ctx context.Context, in writingTermsRequest) (writ
 				q.Set("endLine", strconv.Itoa(match.EndLine))
 				citation.RawQuery = q.Encode()
 			}
-			out.Matches = append(out.Matches, writingMention{documentRef: doc.documentRef, TermMention: match, Hash: doc.Hash, Citation: citation.String()})
+			out.Matches = append(out.Matches, writingMention{documentRef: doc.DocumentRef, TermMention: match, Hash: doc.Hash, Citation: citation.String()})
 		}
 		if more {
 			next(i, after+len(matches), cursor.Page)

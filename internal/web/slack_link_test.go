@@ -166,7 +166,7 @@ func (f *slackLinkFixture) dm(t *testing.T, id, text string) string {
 	if err := f.app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
 		t.Fatal(err)
 	}
-	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); err != nil || !ran || len(f.replies) != before+1 {
+	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); err != nil || !ran || len(f.replies) != before+1 {
 		t.Fatalf("the DM %q was not answered once: %v %v %v", text, ran, err, f.replies[before:])
 	}
 	return f.replies[before]

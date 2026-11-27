@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -35,7 +36,7 @@ func TestCorrectnessAskFinalAtToolLimit(t *testing.T) {
 	done := waitChatRun(t, app, c.ID)
 	app.chat.Wait()
 	run := done.Runs[0]
-	if run.State != "completed" || requests.Load() != 2 || run.ToolCount != 1 || len(run.Operations) != 1 || len(pendingToolCalls(run.Messages)) != 0 || done.Turns[len(done.Turns)-1].Content != "Final supported answer" {
+	if run.State != "completed" || requests.Load() != 2 || run.ToolCount != 1 || len(run.Operations) != 1 || len(chatrun.PendingToolCalls(run.Messages)) != 0 || done.Turns[len(done.Turns)-1].Content != "Final supported answer" {
 		t.Fatalf("No final answer at exhausted tool budget: state=%s error=%q requests=%d tools=%d", run.State, run.Error, requests.Load(), run.ToolCount)
 	}
 }
@@ -71,8 +72,8 @@ func TestCorrectnessAskFinalWhenSiblingCallsExceedRemainingTools(t *testing.T) {
 	done := waitChatRun(t, app, c.ID)
 	app.chat.Wait()
 	run := done.Runs[0]
-	if run.State != "completed" || requests.Load() != 3 || run.ToolCount != 2 || len(run.Operations) != 3 || len(pendingToolCalls(run.Messages)) != 0 || done.Turns[len(done.Turns)-1].Content != "Final supported answer" {
-		t.Fatalf("No final answer when sibling batch exceeds remainder: state=%s error=%q requests=%d tools=%d pending=%d", run.State, run.Error, requests.Load(), run.ToolCount, len(pendingToolCalls(run.Messages)))
+	if run.State != "completed" || requests.Load() != 3 || run.ToolCount != 2 || len(run.Operations) != 3 || len(chatrun.PendingToolCalls(run.Messages)) != 0 || done.Turns[len(done.Turns)-1].Content != "Final supported answer" {
+		t.Fatalf("No final answer when sibling batch exceeds remainder: state=%s error=%q requests=%d tools=%d pending=%d", run.State, run.Error, requests.Load(), run.ToolCount, len(chatrun.PendingToolCalls(run.Messages)))
 	}
 	if run.Operations[2].State != "omitted" || !strings.Contains(string(run.Operations[2].Result), `"executed":false`) {
 		t.Fatal("excess sibling was not explicitly recorded as unexecuted")

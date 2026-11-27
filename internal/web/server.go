@@ -9,11 +9,6 @@ import (
 	"embed"
 	"encoding/base64"
 	"errors"
-	"forgetmenote/internal/jev"
-	"forgetmenote/internal/messaginghttp"
-	"forgetmenote/internal/personal"
-	"forgetmenote/internal/quicknotes"
-	"forgetmenote/internal/reposource"
 	"html/template"
 	"io"
 	"mime"
@@ -32,22 +27,30 @@ import (
 	"forgetmenote/internal/attribution"
 	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/backups"
 	"forgetmenote/internal/blob"
 	"forgetmenote/internal/branding"
 	"forgetmenote/internal/capacity"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/decision"
+	"forgetmenote/internal/jev"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/modules"
 	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/outgoing"
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/purgehttp"
+	"forgetmenote/internal/quicknotes"
+	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/search"
 	"forgetmenote/internal/sourcehttp"
 	"forgetmenote/internal/sources"
@@ -80,12 +83,16 @@ type Server struct {
 	slack                *slackService
 	messaging            *messaginghttp.Service
 	personal             *personal.Service
+	chatrun              *chatrun.Service
+	automationrun        *automationrun.Service
 	tasks                *taskqueue.Service
 	// messageClients are the configured messaging transports, by client ID.
 	messageClients map[string]messaging.Transport
 	headless       bool
 	outgoing       *outgoing.Mode
-	authority      *notebooks.Authority
+	// modules is the startup module set; the zero set runs every module.
+	modules   modules.Set
+	authority *notebooks.Authority
 
 	repositoryConnections *repositoryConnections
 
@@ -283,6 +290,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initChat(); err != nil {
 		return nil, err
 	}
+	if err = s.initChatRun(); err != nil {
+		return nil, err
+	}
 	if err = s.initJev(); err != nil {
 		return nil, err
 	}
@@ -291,6 +301,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 		return nil, err
 	}
 	if err = s.initAutomations(); err != nil {
+		return nil, err
+	}
+	if err = s.initAutomationRun(); err != nil {
 		return nil, err
 	}
 	if err = s.initTasks(); err != nil {
@@ -869,7 +882,7 @@ func (s *Server) readNote(ctx context.Context, store *workspace.Store, in readNo
 		return noteOutput{}, webcore.Invalid("notes are Markdown (.md) files; read media as an attachment")
 	}
 	v, err := purgehttp.PinnedRead(ctx, store, in.Path, in.Revision, func(revision string) (workspace.Document, error) {
-		return readChatNote(ctx, store, in.Path, revision)
+		return chatrun.ReadNote(ctx, store, in.Path, revision)
 	})
 	return s.output(v), err
 }

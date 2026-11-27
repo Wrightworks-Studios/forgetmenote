@@ -1,0 +1,186 @@
+name: Publish
+# Verifies each release merged to main, publishes its image to GHCR with signed build
+# provenance and a verification attestation, then starts a deployment repository's
+# Release with the pinned digest (docs/verification.md, "Published images").
+#
+# The gate holds no registry or signing credentials: npm packages and tests run there.
+# The publish job holds them and runs only the release tool, on the image and record
+# the gate handed over. Set two secrets in the deployments environment to deploy:
+# DEPLOY_REPOSITORY (OWNER/NAME) and DEPLOY_DISPATCH_TOKEN, a fine-grained token with
+# only Actions read and write on that repository. The target is a secret so logs mask
+# it. Without both secrets the image is still published.
+on:
+  push:
+    branches: [main]
+    # Documents only. Embedded Markdown (plugins/) still releases.
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'deploy/production/**/*.md'
+permissions:
+  contents: read
+# Releases publish in merge order: a newer one waits and none is cancelled.
+concurrency:
+  group: forgetmenote-publish
+  cancel-in-progress: false
+env:
+  IMAGE: ghcr.io/wrightworks-studios/forgetmenote
+jobs:
+  verify:
+    if: ${{ !github.event.repository.fork }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      verified: ${{ steps.gate.outputs.verified }}
+    steps:
+      # Full history: the gate's baseline is the last main commit that published an image.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # As in Check's full job: image layers in the Actions cache need a docker-container
+      # builder and the cache service token in run steps.
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: crazy-max/ghaction-github-runtime@3cb05d89e1f492524af3d41a1c98c83bc3025124 # v3.1.0
+      - run: |
+          .github/scripts/apt-install.sh openssl inotify-tools postgresql ffmpeg poppler-utils tesseract-ocr
+          ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1 >> "$GITHUB_PATH"
+      - run: make setup-deps setup-browser
+      # A release with no runtime change since the last published image publishes nothing.
+      - id: gate
+        name: Verify against the last published release
+        env:
+          FMN_IMAGE_CACHE: gha
+        run: |
+          set -euo pipefail
+          python deploy/production/release_image.py --verify-only --since-published --image "$IMAGE" --jobs 2
+          record="$HOME/.cache/forgetmenote/releases/$GITHUB_SHA/verification.json"
+          if [ ! -f "$record" ]; then
+            echo "verified=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/record" "$RUNNER_TEMP/image"
+          cp "$record" "$RUNNER_TEMP/record/verification.json"
+          docker save "$(jq -r .image_id "$record")" | pigz -1 > "$RUNNER_TEMP/image/image.tar.gz"
+          echo "verified=true" >> "$GITHUB_OUTPUT"
+      # As in Check's full job: a failed gate's full logs, browser report and traces.
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gate-failure-${{ github.run_attempt }}
+          path: |
+            ~/.cache/forgetmenote/releases/${{ github.sha }}/*.log
+            ~/.cache/forgetmenote/releases/${{ github.sha }}/*.report.json
+            ~/.cache/forgetmenote/releases/${{ github.sha }}/verification.json
+            ~/.cache/forgetmenote/releases/${{ github.sha }}/browser-*-results/
+          retention-days: 7
+      # The complete record is evidence; the published attestation names its SHA-256.
+      - if: steps.gate.outputs.verified == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification
+          path: ${{ runner.temp }}/record/verification.json
+          if-no-files-found: error
+          retention-days: 90
+      - if: steps.gate.outputs.verified == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}/image/image.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  publish:
+    needs: verify
+    if: needs.verify.outputs.verified == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.publish.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # The release tool publishes only from a branch named main.
+      - run: git checkout -B main "$GITHUB_SHA"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verification
+          path: ${{ runner.temp }}/record
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}/image
+      # Pushes the image the record checked, under main-COMMIT, and writes the
+      # verification summary the attestation below publishes.
+      - id: publish
+        name: Publish the verified image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          docker load --input "$RUNNER_TEMP/image/image.tar.gz"
+          python deploy/production/release_image.py --publish-verified "$RUNNER_TEMP/record" --image "$IMAGE"
+          digest=$(jq -r .registry_digest "$RUNNER_TEMP/record/publication.json")
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Published \`$IMAGE@$digest\` from $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          predicate-type: https://github.com/Wrightworks-Studios/forgetmenote/blob/main/docs/verification.md#published-images
+          predicate-path: ${{ runner.temp }}/record/verification-summary.json
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: deployments
+    timeout-minutes: 5
+    env:
+      DIGEST: ${{ needs.publish.outputs.digest }}
+    steps:
+      # GitHub creates a new package as private, and only its settings page makes it
+      # public. A deployment reads the image anonymously, so it waits until then.
+      - name: Check that anyone can pull the image
+        run: |
+          if ! DOCKER_CONFIG="$(mktemp -d)" docker buildx imagetools inspect "$IMAGE@$DIGEST" >/dev/null; then
+            echo "::error::$IMAGE is not public. Make the package public in its settings, then re-run this job."
+            exit 1
+          fi
+      - name: Start the deployment repository's Release
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          TARGET: ${{ secrets.DEPLOY_REPOSITORY }}
+        run: |
+          if [ -z "$TARGET" ] || [ -z "$GH_TOKEN" ]; then
+            echo "No deployment repository is configured."
+            exit 0
+          fi
+          gh workflow run release.yml --repo "$TARGET" --ref main -f revision="$GITHUB_SHA" -f image="$IMAGE@$DIGEST"

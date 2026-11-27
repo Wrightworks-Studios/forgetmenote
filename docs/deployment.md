@@ -10,6 +10,8 @@ The app serves HTTP internally. Your reverse proxy, such as SWAG, terminates HTT
 
 Copy the repository to your server, copy `.env.example` to `.env`, and create `data/`. Set `PUID`/`PGID` to the owner of that directory, then build with Compose. Build arguments create a matching Unix user. Changing those IDs requires a rebuild and matching data ownership. Linux IDs must not conflict with users already present in the base image; the defaults are 1000:1000.
 
+To skip the build, each release also publishes `ghcr.io/wrightworks-studios/forgetmenote`, built with the default IDs and every optional integration, with [signed provenance and a verification attestation](verification.md#published-images). Keep `data/` owned by 1000:1000, set `image: ghcr.io/wrightworks-studios/forgetmenote@sha256:DIGEST` for the `forgetmenote` service in `compose.override.yaml`, then run `docker compose pull forgetmenote` and `docker compose up -d --no-build`.
+
 The default port binding is loopback-only. If SWAG runs in Docker, attach ForgetMeNote to the same dedicated proxy network. For example, save `compose.override.yaml` with your existing network name:
 
 ```yaml

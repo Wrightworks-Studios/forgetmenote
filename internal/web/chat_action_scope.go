@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"forgetmenote/internal/actions"
 	"os"
 	"strings"
 
+	"forgetmenote/internal/actions"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
 )
@@ -148,7 +149,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 		if err == nil {
 			for _, edit := range in.Group.Edits {
 				if edit.Revision != "" {
-					_, err = readChatNote(ctx, store, edit.Path, edit.Revision)
+					_, err = chatrun.ReadNote(ctx, store, edit.Path, edit.Revision)
 					if err != nil {
 						break
 					}
@@ -162,7 +163,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 				if ref.Path != "" {
 					proofScope := *scope
 					proofScope.Origin.Attachments = nil
-					doc, e := readChatNote(chat.WithScope(ctx, &proofScope), store, ref.Path, ref.Revision)
+					doc, e := chatrun.ReadNote(chat.WithScope(ctx, &proofScope), store, ref.Path, ref.Revision)
 					err = e
 					if err != nil {
 						break
@@ -198,7 +199,7 @@ func (s *Server) guardChatAction(ctx context.Context, project, name string, raw 
 	case "restore_note":
 		err = current(in.Path, false)
 		if err == nil {
-			_, err = readChatNote(ctx, store, in.Path, in.SourceRevision)
+			_, err = chatrun.ReadNote(ctx, store, in.Path, in.SourceRevision)
 		}
 	case "trash_notes":
 		for _, path := range in.Paths {
@@ -240,33 +241,4 @@ func validateChatProposal(ctx context.Context, store *workspace.Store, proposal 
 		}
 	}
 	return nil
-}
-
-// This is the model projection of an explicit control, not the private receipt
-// or confirmation preview. In particular Empty Trash never supplies source text,
-// and a move reports how many notes in the Trash it updated or skipped, never
-// which: the Trash is outside every chat corpus.
-func chatControlResult(name string, result json.RawMessage) string {
-	if p := policy(name); !p.Control && !p.Edit && !p.Proposal {
-		return textLimit(string(result), 12000)
-	}
-	var value map[string]json.RawMessage
-	_ = json.Unmarshal(result, &value)
-	out := map[string]any{"action": name, "completed": true}
-	for _, key := range []string{"error", "revision", "count", "removed", "replayed", "id", "status", "trashLinksUpdated", "trashLinksSkipped"} {
-		if raw, ok := value[key]; ok {
-			var scalar any
-			if json.Unmarshal(raw, &scalar) == nil {
-				switch scalar.(type) {
-				case string, float64, bool:
-					out[key] = scalar
-				}
-			}
-		}
-	}
-	if _, ok := out["error"]; ok {
-		out["completed"] = false
-	}
-	raw, _ := json.Marshal(out)
-	return string(raw)
 }

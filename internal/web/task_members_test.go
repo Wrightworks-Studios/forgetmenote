@@ -86,7 +86,7 @@ func TestATaskReminderReadsTheMemberListOnce(t *testing.T) {
 	before := f.memberLists
 	spec := automation.Spec{ID: "task-reminder", Kind: "native", Actor: f.service, Project: "default", TimeoutSeconds: 60, Native: &automation.NativeTask{Task: "task-reminder", Client: "slack"}}
 	run := automation.Run{ID: automation.Hash("tuesday"), Spec: spec}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	posts := f.postsTo("UALICE")

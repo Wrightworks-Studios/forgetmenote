@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/decision"
-	"forgetmenote/internal/pg/pgtest"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +12,13 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/citationchecks"
+	"forgetmenote/internal/decision"
+	"forgetmenote/internal/pg/pgtest"
 )
 
 func configureSyntheticJev(t *testing.T, app *Server, handler http.HandlerFunc) {
@@ -123,12 +126,12 @@ func TestCitationDeletionDoesNotRecreateLateSidecar(t *testing.T) {
 		t.Fatal(w.Code, w.Body)
 	}
 	check.State = "completed"
-	if err := app.saveCitationCheck("alice", "default", c.ID, "run", check); err == nil {
+	if err := app.chatrun.SaveCitationCheck("alice", "default", c.ID, "run", check); err == nil {
 		t.Fatal("retired citation work recreated a deleted private sidecar")
 	}
 }
 
-func waitCitation(t *testing.T, app *Server, path string) jevCitationCheck {
+func waitCitation(t *testing.T, app *Server, path string) citationchecks.Check {
 	t.Helper()
 	parts := strings.Split(path, "/")
 	if len(parts) != 9 || parts[1] != "p" || parts[4] != "chat" || parts[6] != "runs" {
@@ -153,7 +156,7 @@ func waitCitation(t *testing.T, app *Server, path string) jevCitationCheck {
 		if w.Code != 200 {
 			t.Fatalf("read check: %d %s", w.Code, w.Body.String())
 		}
-		var check jevCitationCheck
+		var check citationchecks.Check
 		if err := json.Unmarshal(w.Body.Bytes(), &check); err != nil {
 			t.Fatal(err)
 		}
@@ -163,7 +166,7 @@ func waitCitation(t *testing.T, app *Server, path string) jevCitationCheck {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("GET %s: citation check did not finish within 3s; last HTTP %d: %s", path, status, body)
-	return jevCitationCheck{}
+	return citationchecks.Check{}
 }
 
 func TestJevCitationCheckUsesExplicitConsentAndPrivateSidecar(t *testing.T) {
@@ -197,7 +200,7 @@ func TestJevCitationCheckUsesExplicitConsentAndPrivateSidecar(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if err := app.jev.Records().Read(citationRecordName("alice", c.ID), new(any)); !os.IsNotExist(err) {
+	if err := app.jev.Records().Read(citationchecks.RecordName("alice", c.ID), new(any)); !os.IsNotExist(err) {
 		t.Fatal("deleted chat retained private claim sidecar", err)
 	}
 	records, err := app.chat.JevLedger.Records()
@@ -252,7 +255,7 @@ func TestJevAutomaticCitationCompletionRequiresAllConsentGates(t *testing.T) {
 			}
 			setChatFixtureLocalOnly(t, app, test.localOnly)
 			auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
-			app.chatTerminal(auth, c.ID, "run", "completed", nil)
+			app.chatrun.Terminal(auth, c.ID, "run", "completed", nil)
 			check := waitCitation(t, app, path)
 			if calls.Load() != test.wantCalls {
 				t.Fatalf("completion made %d calls, want %d; check %+v", calls.Load(), test.wantCalls, check)
@@ -308,7 +311,7 @@ func TestConversationDeletionAndCitationChecksExcludeEachOtherAcrossGateways(t *
 	}
 	// Another gateway checking the conversation's citations holds it.
 	gateway, _ := pgtest.Gateway(t, app.db)
-	held, err := gateway.Shared(t.Context(), conversationLock("alice", c.ID))
+	held, err := gateway.Shared(t.Context(), chatrun.ConversationLock("alice", c.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,7 +325,7 @@ func TestConversationDeletionAndCitationChecksExcludeEachOtherAcrossGateways(t *
 		t.Fatal(err)
 	}
 	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
-	if err = app.startCitationCheck(auth, c.ID, "run", true); !errors.Is(err, chat.ErrNotFound) {
+	if err = app.chatrun.StartCitationCheck(auth, c.ID, "run", true); !errors.Is(err, chat.ErrNotFound) {
 		t.Fatal("a citation check started for a conversation deleted elsewhere", err)
 	}
 	if record, pending, err := app.citations.Snapshot("alice", "default", c.ID, "run"); err != nil || pending || len(record.Checks) != 0 {
