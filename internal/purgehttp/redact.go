@@ -12,7 +12,7 @@ import (
 
 // A purge removes content from the notebook's history; what quoted that
 // content outside the notebook, such as private chat transcripts, Knowledge
-// proposals and Jev records, is redacted by the system as the same purge,
+// proposals and judgment records, is redacted by the system as the same purge,
 // without anyone reading it. A purgeCleaner rewrites one stored JSON
 // document: every string value that holds the purged content is redacted,
 // strings that are JSON documents themselves included, and, after the purge,

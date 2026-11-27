@@ -36,7 +36,7 @@ func (s *Server) instanceAITools(server *mcp.Server) {
 			return nil, workspace.ErrConflict
 		}
 		endpoint := s.indexes.Endpoint()
-		judge, localOnly := s.jevConfigured()
+		judge, localOnly := s.judgmentsConfigured()
 		vision, transcription := s.sourceProviderAvailability()
 		if (in.Config.SourceOCR || in.Config.SourceDescriptions) && !vision || in.Config.SourceTranscription && !transcription {
 			return nil, fmt.Errorf("%w: configure an allowed hosted source processor first", catalog.ErrLocalInput)
@@ -98,7 +98,7 @@ func (s *Server) instanceAIStatus(ctx context.Context, actor string) (map[string
 	config, managed := s.catalog.AISettings()
 	endpoint := s.indexes.Endpoint()
 	embeddings := endpoint != nil && s.chatEmbeddingPolicy(endpoint) != nil
-	judge, localOnly := s.jevConfigured()
+	judge, localOnly := s.judgmentsConfigured()
 	sourceVision, sourceTranscription := s.sourceProviderAvailability()
 	notebooks := []map[string]any{}
 	for _, project := range s.catalog.List(actor) {
@@ -144,7 +144,7 @@ func (s *Server) syncInstanceAI(ctx context.Context) {
 		if store, err := s.catalog.Access(catalog.Bootstrap, project.ID, "read"); err == nil {
 			_ = s.indexes.Register(ctx, store)
 			if policy.Reviews && project.Ordinary() {
-				_ = s.jev.PrepareInstanceReview(ctx, project.ID)
+				_ = s.judgments.PrepareInstanceReview(ctx, project.ID)
 			}
 		}
 	}
@@ -156,13 +156,13 @@ func (s *Server) sourceIndexPolicy(state reposource.State) (reposource.IndexConf
 	if !managed {
 		return config, state.MapActor
 	}
-	config.Embeddings, config.Jev, config.MapJev = settings.Embeddings, settings.Rerank, settings.MapClassification
+	config.Embeddings, config.Judgments, config.MapJudgments = settings.Embeddings, settings.Rerank, settings.MapClassification
 	config.ExternalProcessing = settings.Embeddings || settings.Rerank || settings.MapClassification || settings.Citations || settings.Reviews || settings.Writing
 	if settings.Embeddings {
 		config.Model, config.Dimensions = settings.Model, settings.Dimensions
 	}
 	actor := ""
-	if config.MapJev {
+	if config.MapJudgments {
 		actor = catalog.Bootstrap
 	}
 	return config, actor

@@ -23,14 +23,14 @@ func TestOrganizerAdminRevocationDoesNotReviveGrant(t *testing.T) {
 	if e := app.catalog.UpdateUser(catalog.Bootstrap, catalog.UserUpdate{ID: "alice", Admin: &admin}); e != nil {
 		t.Fatal(e)
 	}
-	if e := app.jev.CheckJob(context.Background(), id); e == nil {
+	if e := app.judgments.CheckJob(context.Background(), id); e == nil {
 		t.Fatal("revoked admin still allowed")
 	}
 	admin = true
 	if e := app.catalog.UpdateUser(catalog.Bootstrap, catalog.UserUpdate{ID: "alice", Admin: &admin}); e != nil {
 		t.Fatal(e)
 	}
-	if e := app.jev.CheckJob(context.Background(), id); e == nil {
+	if e := app.judgments.CheckJob(context.Background(), id); e == nil {
 		t.Fatal("restored administrator role revived old applying grant")
 	}
 }

@@ -4,7 +4,7 @@ import {createApplicationState,requestSequence} from './state.mjs';
 import {icon,setLabel} from './icons.mjs';
 import {initSearch,searchToURL} from './search.mjs';
 import {initQuicknotes} from './quicknotes.mjs';
-import {initJev} from './jev.mjs';
+import {initJudgments} from './judgments.mjs';
 import {initRetrievalSettings} from './retrieval-settings.mjs';
 import {pendingContainer} from './containers.mjs';
 import {paced} from './paced.mjs';
@@ -953,19 +953,19 @@ const chat = initChat({api,post,getProject:appState.notebook,getUser:appState.ac
  canEdit,canManage,openCitation:(path,revision,heading)=>knowledge.openCitation(path,revision,heading),
  openDocument:ref=>ref.origin==='repository'?documents.open(ref):openNotebookReference(ref),
  openReview:()=>$("review-open").click(),openSource:url=>sourceBrowser.open({url}),
- openJevSettings:()=>jev.openSettings(),
- mountCitationChecks:(host,scope)=>jev.mountCitationChecks(host,scope),
+ openJudgmentSettings:()=>judgments.openSettings(),
+ mountCitationChecks:(host,scope)=>judgments.mountCitationChecks(host,scope),
 
  onOpen:()=>{if(sidebarBeforeChat===null)sidebarBeforeChat=layout.snapshot();if(smallScreen.matches)layout.closeMobile();layout.update();},
  onClose:()=>{if(sidebarBeforeChat){layout.restore(sidebarBeforeChat);sidebarBeforeChat=null;layout.update();}}
 });
-const jev = initJev({api,post,getUser:appState.account,getProject:appState.notebook,getProjects:()=>projects,
- openReview:async(id,finding,section="findings")=>{jev.leaveChecks();if(project?.id!==id)await chooseProject(projects.find(p=>p.id===id));if(project?.id===id)await knowledge.openReview(finding,section);},
+const judgments = initJudgments({api,post,getUser:appState.account,getProject:appState.notebook,getProjects:()=>projects,
+ openReview:async(id,finding,section="findings")=>{judgments.leaveChecks();if(project?.id!==id)await chooseProject(projects.find(p=>p.id===id));if(project?.id===id)await knowledge.openReview(finding,section);},
  prepareChat:async(id,text)=>{if(project?.id!==id)await chooseProject(projects.find(p=>p.id===id));if(project?.id===id)await chat.prepareMessage(text);}
 });
 for(const button of document.querySelectorAll('[data-review-section]'))button.onclick=()=>{
-  if(button.dataset.reviewSection==='checks'){knowledge.suspendReview();jev.openChecks();}
-  else {jev.leaveChecks();knowledge.openReview(undefined,button.dataset.reviewSection);}
+  if(button.dataset.reviewSection==='checks'){knowledge.suspendReview();judgments.openChecks();}
+  else {judgments.leaveChecks();knowledge.openReview(undefined,button.dataset.reviewSection);}
 };
 async function openCaptureNote(capture) {
   if(saving || !user)return;
@@ -984,7 +984,7 @@ async function openCaptureNote(capture) {
     await selection;
   } catch(error) {if(active())throw error;}
 }
-const quicknotes=initQuicknotes({api,post,getUser:appState.account,getDraftStorage:()=>browserDrafts,onCapture:()=>{jev.refreshNotifications();},openInbox,openCaptureNote});
+const quicknotes=initQuicknotes({api,post,getUser:appState.account,getDraftStorage:()=>browserDrafts,onCapture:()=>{judgments.refreshNotifications();},openInbox,openCaptureNote});
 const settings = initSettings({api, post, notice, remember});
 const retrievalSettings=initRetrievalSettings({api,post,getProject:appState.notebook,getUser:appState.account,onChange:()=>{search.cancel();if(project)search.refresh($("search").value).catch(error=>notice(error.message))}});
 const documents=initDocuments({api,post,getContext,notice,openNote,currentNotebook,beginNavigation,retainForNavigation,clearDisplayedNote,updateRoute,state,updateCreationControls,layout,
@@ -1170,7 +1170,7 @@ async function reloadProjects() {
   if (project && next) {
     fileActions.close();
     appState.update({notebook:next});
-    chat.setProject();jev.projectChanged();quicknotes.userChanged();
+    chat.setProject();judgments.projectChanged();quicknotes.userChanged();
     $("project-select").value = project.id;
     updateIdentity();
     updateCreationControls();
@@ -1226,7 +1226,7 @@ async function chooseProject(next, note, folder = null, nextCollection = "notes"
   appState.update({notebook:next});
   wiki.projectChanged(next);
   appState.update({collection:["notes","drafts","archives"].includes(nextCollection)?nextCollection:"notes"});search.reset(collection);renderCollections();
-  chat.setProject();jev.projectChanged();quicknotes.userChanged();
+  chat.setProject();judgments.projectChanged();quicknotes.userChanged();
   knowledge.projectChanged();
   repositories.projectChanged();
   backups.projectChanged();

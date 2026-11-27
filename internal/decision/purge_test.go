@@ -9,7 +9,7 @@ import (
 	"forgetmenote/internal/pg/pgtest"
 )
 
-// A purge redacts the Jev records of its notebook: those naming it as a
+// A purge redacts the judgment records of its notebook: those naming it as a
 // project or notebook at any depth, and its jobs' results; other notebooks'
 // records stay as they are.
 func TestRedactNotebookRedactsOnlyThatNotebooksRecords(t *testing.T) {

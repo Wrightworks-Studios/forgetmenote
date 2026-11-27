@@ -599,7 +599,7 @@ func TestAgentMemoryConfirmRenewsReplacesAndRetires(t *testing.T) {
 	}
 }
 
-func TestAgentMemoryJevRetiresTheObservationItReplaces(t *testing.T) {
+func TestAgentMemoryJudgmentRetiresTheObservationItReplaces(t *testing.T) {
 	app, session, store := agentMemoryFixture(t, true)
 	chatConfig := filepath.Join(t.TempDir(), "chat.json")
 	if err := os.WriteFile(chatConfig, []byte(`{"connections":[{"id":"local","label":"Synthetic","format":"chat-completions","baseURL":"http://127.0.0.1:9","models":["synthetic"],"local":true,"capabilities":{"tools":true},"limits":{"runSeconds":10}}]}`), 0600); err != nil {
@@ -610,7 +610,7 @@ func TestAgentMemoryJevRetiresTheObservationItReplaces(t *testing.T) {
 	}
 	var choice atomic.Value
 	var calls atomic.Int32
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		var in struct {
 			Questions map[string]struct {
@@ -634,8 +634,8 @@ func TestAgentMemoryJevRetiresTheObservationItReplaces(t *testing.T) {
 		json.NewEncoder(w).Encode(map[string]any{"model": "jev-1.13.0", "answers": answers, "usage": map[string]int{"input_tokens": 40, "output_tokens": 4}})
 	})
 	login := oidcRequest(app, "POST", "/auth/password/login", url.Values{"username": {"memory-owner"}, "password": {"test-password-long"}}.Encode())
-	if w := localRequest(app, "/api/jev/settings", `{"consent":true}`, login.Result().Cookies()[0]); w.Code != 200 {
-		t.Fatalf("Jev consent: %d %s", w.Code, w.Body.String())
+	if w := localRequest(app, "/api/judgments/settings", `{"consent":true}`, login.Result().Cookies()[0]); w.Code != 200 {
+		t.Fatalf("judgment consent: %d %s", w.Code, w.Body.String())
 	}
 
 	var first, next rememberResult
@@ -646,7 +646,7 @@ func TestAgentMemoryJevRetiresTheObservationItReplaces(t *testing.T) {
 	_, old := core.byText()["Staging runs kernel 6.12."]
 	_, current := core.byText()["Staging runs kernel 6.13."]
 	if calls.Load() != 1 || next.Review != "checked" || len(next.Items) != 1 || next.Items[0].Replaced != first.Items[0].ID || old || !current || len(core.Changed) != 1 || core.Changed[0].New != "Staging runs kernel 6.13." {
-		t.Fatalf("Jev replacement: calls=%d %+v %+v", calls.Load(), next, core)
+		t.Fatalf("judge replacement: calls=%d %+v %+v", calls.Load(), next, core)
 	}
 
 	doc, err := store.Read(t.Context(), "memory.md", "")
@@ -668,7 +668,7 @@ func TestAgentMemoryJevRetiresTheObservationItReplaces(t *testing.T) {
 	}
 }
 
-// A review Jev cannot answer still saves the new item. The result says why in
+// A review the judge cannot answer still saves the new item. The result says why in
 // one word, and the log names the failed step for the operator, never the text.
 func TestAgentMemoryFailedReviewIsLoggedAndKeepsTheItem(t *testing.T) {
 	app, session, _ := agentMemoryFixture(t, true)
@@ -680,13 +680,13 @@ func TestAgentMemoryFailedReviewIsLoggedAndKeepsTheItem(t *testing.T) {
 		t.Fatal(err)
 	}
 	var calls atomic.Int32
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		http.Error(w, `{"error":"invalid key"}`, http.StatusUnauthorized)
 	})
 	login := oidcRequest(app, "POST", "/auth/password/login", url.Values{"username": {"memory-owner"}, "password": {"test-password-long"}}.Encode())
-	if w := localRequest(app, "/api/jev/settings", `{"consent":true}`, login.Result().Cookies()[0]); w.Code != 200 {
-		t.Fatalf("Jev consent: %d %s", w.Code, w.Body.String())
+	if w := localRequest(app, "/api/judgments/settings", `{"consent":true}`, login.Result().Cookies()[0]); w.Code != 200 {
+		t.Fatalf("judgment consent: %d %s", w.Code, w.Body.String())
 	}
 	var logs lockedLogBuffer
 	previous := slog.Default()

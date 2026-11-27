@@ -6691,7 +6691,7 @@
           "type": "string"
         },
         "review": {
-          "description": "checked when Jev compared new items with their topic, skipped when it was not used, failed when it could not answer; items are saved either way",
+          "description": "checked when the judge compared new items with their topic, skipped when it was not used, failed when it could not answer; items are saved either way",
           "type": "string"
         },
         "reviewReason": {

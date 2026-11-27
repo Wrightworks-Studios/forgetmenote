@@ -305,6 +305,9 @@ func TestMCPActionParityInventory(t *testing.T) {
 		"GET /api/repository": "repository_source_status", "GET /api/repository/tree": "repository_source_tree", "GET /api/repository/file": "repository_source_file", "GET /api/repository/changes": "repository_source_changes", "POST /api/repository/refresh": "refresh_repository_source", "POST /api/repository/capture": "retain_repository_citation",
 		// Repository sharing consent and connection management require Owner access.
 		"POST /api/repository/connect": "interactive repository setup", "GET /api/repository/choices": "interactive repository setup", "POST /api/repository/select": "interactive repository setup", "POST /api/repository/control": "interactive repository setup",
+		"POST /api/judgments/jobs": "interactive personal review", "GET /api/judgments/jobs": "interactive personal review", "GET /api/judgments/jobs/{job}": "interactive personal review",
+		"POST /api/judgments/jobs/{job}/continue": "interactive personal review", "POST /api/judgments/jobs/{job}/cancel": "interactive personal review",
+		// The former /api/jev paths serve the same judgments routes for one release.
 		"POST /api/jev/jobs": "interactive personal review", "GET /api/jev/jobs": "interactive personal review", "GET /api/jev/jobs/{job}": "interactive personal review",
 		"POST /api/jev/jobs/{job}/continue": "interactive personal review", "POST /api/jev/jobs/{job}/cancel": "interactive personal review",
 		"GET /api/notifications": "interactive personal review", "POST /api/notifications/read": "interactive personal review",
@@ -327,10 +330,13 @@ func TestMCPActionParityInventory(t *testing.T) {
 		// Private account consent and capture/review orchestration are explicit
 		// browser interactions. Their note operations still use the shared
 		// workspace methods; an MCP client cannot silently enable remote use.
+		"GET /api/judgments/settings": "interactive personal review", "POST /api/judgments/settings": "interactive personal review",
 		"GET /api/jev/settings": "interactive personal review", "POST /api/jev/settings": "interactive personal review",
 		// Organizer grants must originate in the browser and remain bound to the
 		// selected policy; ordinary MCP proposal confirmation remains unchanged.
-		"GET /api/jev/organization": "interactive personal review", "POST /api/jev/organization": "interactive personal review",
+		"GET /api/judgments/organization": "interactive personal review", "POST /api/judgments/organization": "interactive personal review",
+		"POST /api/judgments/jobs/{job}/organization/{action}": "interactive personal review",
+		"GET /api/jev/organization":                            "interactive personal review", "POST /api/jev/organization": "interactive personal review",
 		"POST /api/jev/jobs/{job}/organization/{action}": "interactive personal review",
 		"GET /api/chat/{chat}/runs/{run}/citations":      "interactive personal review", "POST /api/chat/{chat}/runs/{run}/citations": "interactive personal review",
 		"GET /api/quicknotes": "interactive private capture", "POST /api/quicknotes": "interactive private capture",

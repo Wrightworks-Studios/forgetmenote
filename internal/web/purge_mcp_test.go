@@ -153,7 +153,7 @@ func TestPreparePurgeGivesAgentsNoCountsOfRecordsOutsideTheNotebook(t *testing.T
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jev.Records().Write("jobs/"+strings.Repeat("d", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "remember that my bank PIN is 7391, my card ends 4242"}); err != nil {
+	if err := app.judgments.Records().Write("jobs/"+strings.Repeat("d", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "remember that my bank PIN is 7391, my card ends 4242"}); err != nil {
 		t.Fatal(err)
 	}
 	sessions := purgeAgents(t, app, "notes:read notes:write notes:manage", "keeper", catalog.Bootstrap)
@@ -205,7 +205,7 @@ func TestPreparePurgeGivesAgentsNoCountsOfRecordsOutsideTheNotebook(t *testing.T
 		t.Fatal(err)
 	}
 	w, plan = proxyCall(app, "admin", "POST", "/p/default/api/purge/prepare", `{"token":"`+token+`"}`), webPurgePlan{}
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &plan) != nil || plan.Derived.Chats != 1 || plan.Derived.JevRecords != 1 || plan.Derived.Own {
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &plan) != nil || plan.Derived.Chats != 1 || plan.Derived.JudgmentRecords != 1 || plan.Derived.Own {
 		t.Fatalf("the Admin reviews the agent's plan: HTTP %d %s", w.Code, w.Body)
 	}
 }

@@ -112,9 +112,9 @@ The locks that once guarded one process now hold for the instance:
   then uses its token. A per-process mutex keeps one request per gateway waiting
   on the database; the in-flight marker still guards a refresh whose gateway
   stopped.
-- Every write of a Jev record takes a transaction-scoped advisory lock on its
+- Every write of a judgment record takes a transaction-scoped advisory lock on its
   name in the writing transaction, which also covers a record not yet written,
-  and a read-modify-write of Jev settings, jobs, results, read notifications or
+  and a read-modify-write of judgment settings, jobs, results, read notifications or
   citation checks reads the record in that same transaction. So updates of one
   record apply one after another on every gateway, and a removed record stays
   removed. The lock ends with the write's transaction, so unlike `Exclusive` it
@@ -414,10 +414,10 @@ directory, and the export copies them into its directory.
 Areas run in order: the catalog, then knowledge, which finds each notebook's
 engine directory (`projects/<id>`, or `owner-state/<id>` for a notebook on an
 owner) in the catalog document, then sign-in state, chat, automations, source
-jobs, repository sources, Quicknotes, Jev, personal connections and managed
+jobs, repository sources, Quicknotes, judgments, personal connections and managed
 backups. Some refusals ask the operator to act first:
 
-- A Jev call still reserved, or an interrupted catalog change, is repaired only
+- A judgment call still reserved, or an interrupted catalog change, is repaired only
   by the file-based release: start it once, stop it, and import again.
 - Personal connection grants open with `integrations.personal`'s key file, so
   an instance with `personal-connections/credentials.enc` needs that
@@ -455,7 +455,7 @@ still active; its GitHub token expires within the hour it was minted for.
 A copy of an instance restored beside the live one, for example to rehearse a
 cutover with testers signed in, holds the live instance's integration state:
 Slack bindings, personal OAuth grants, backup bindings and in-flight lease
-tokens, queued automation runs and Jev reviews. Set `server.outgoing` to
+tokens, queued automation runs and judgment reviews. Set `server.outgoing` to
 `"paused"` (legacy `OUTGOING=paused`) on that copy so it cannot act outside as
 the live instance. `"enabled"` or no value is the ordinary mode; any other value
 stops startup. The mode is installed before every integration, so none runs
@@ -467,7 +467,7 @@ A paused gateway takes none of these duties:
 
 - `automation-scheduler`, its workers and package refresh: no schedules, events,
   digests, alerts, Slack deliveries, personal assistant runs or publication.
-- `jev-scheduler`: no queued or automatic Jev reviews or organizer runs.
+- `jev-scheduler`: no queued or automatic judgment reviews or organizer runs.
 - `repository-refresh`: no source refresh, and none of its paid embedding and
   map enrichment.
 - `backup-expiry`: copied leases are not revoked; their tokens expire on their
@@ -475,7 +475,7 @@ A paused gateway takes none of these duties:
 
 It keeps `chat-recovery`, which only interrupts the runs of gone gateways, and
 `quicknotes-routing`, which still recovers interrupted saves but sends no capture
-to Jev.
+to judgments.
 
 These refuse with HTTP 503, code `outgoing_paused`, "outgoing actions are paused
 on this instance", before any outside request, recorded intent or token:
@@ -493,7 +493,7 @@ on this instance", before any outside request, recorded intent or token:
   checks and receipts, destination setup, repository creation and controls; the
   browser setup refuses before GitHub authorization. A copied token is never
   validated or revoked; an authority handoff still fences the copy's own leases.
-- Jev reviews: starting or continuing one; cancelling stays available.
+- Judgment reviews: starting or continuing one; cancelling stays available.
 - Hosted source extraction (OCR, image descriptions, transcription): at
   admission, for a job copied while queued, and before each provider call.
 - Background document embedding, for notebooks and repository sources.
@@ -504,7 +504,7 @@ Deliberately left running, because each is a tester's own request or only reads:
 
 - Chat model calls, research, website capture and the citation checks a chat run
   starts.
-- Search query embeddings and Jev reranking, memory review when an agent calls
+- Search query embeddings and judgment reranking, memory review when an agent calls
   `remember`, and an explicit Quicknotes Sort.
 - Read-only data operations, including a connection's static OAuth refresh;
   connections that rotate refresh tokens are already refused.
@@ -577,7 +577,7 @@ prepares and that baseline and reset snapshot with `CREATE DATABASE … TEMPLATE
 | Notebook authority | `authority.json` and `authority-stage.json` beside each working tree | `notebook_authority` rows (migration `0018`), written only over the version read |
 | File state | Every file above | `import-files` copies a stopped file-based instance into an empty database in one transaction, and `export-files` writes the rows back in the file-based formats, each reporting per-area file counts and digests (slice 7) |
 | Quicknotes | `quicknotes/<account>/` record and settings files, `quicknotes.lock` | `captures` rows, one per capture, and `capture_settings` rows, each written only over the version or generation it read; the routing scan runs on the lease holder and leaves captures another live gateway is saving, filing or routing (slices 4 and 5) |
-| Jev | `jev/usage.json` under `usage.lock`, and named records under `jev/` | `jev_usage` rows keyed by attempt, so an attempt is reserved once across gateways and settled only by its reserver; a full ledger moves its oldest settled attempts into daily `jev_usage_totals`, which `export-files` leaves behind. `jev_records` by name. A record's read-modify-write runs in one transaction under the record's lock, which every write of it takes, so no gateway overwrites another's committed change; the scheduler runs on the lease holder (slices 4 and 5) |
+| Judgments | `jev/usage.json` under `usage.lock`, and named records under `jev/` | `jev_usage` rows keyed by attempt, so an attempt is reserved once across gateways and settled only by its reserver; a full ledger moves its oldest settled attempts into daily `jev_usage_totals`, which `export-files` leaves behind. `jev_records` by name. A record's read-modify-write runs in one transaction under the record's lock, which every write of it takes, so no gateway overwrites another's committed change; the scheduler runs on the lease holder (slices 4 and 5) |
 | Automations | `automations/config/jobs.json` and the run, effect, repair, alert and learning files of `automations/` | One versioned `automation-definitions` document and `automation_records` rows by the same names, each written only over the version read, so a write that outlives a dropped queue lock is refused rather than overwriting another gateway's; prepared Python environments stay in `automations/python` on each gateway, which prepares an installed package on first use. Queue changes are serialized across gateways by an advisory lock, each running run records its gateway, and only the runs of gateways that are gone return to the queue. Each gateway's claimer hands runs to its workers when a queue or job change is announced on `automation_queue`, with a five-second fallback scan; one gateway schedules (slices 4 and 5) |
 | Source jobs | `source-jobs/`: each job's `job.json` beside its original, page checkpoints, result and scratch | `source_jobs` rows hold manifests, and admission counts every gateway's jobs under one advisory lock. Each job's original, page checkpoints and result are objects in blob storage under their file paths, so gateways with disks of their own share them through S3, and any gateway reads, resumes and expires another's job; scratch stays in each gateway's `cache/source-jobs`. An upload's row commits, unserved, before its original is stored and retirement deletes rows before objects, so sweeps remove only retired jobs' objects (see [source job files](#source-job-files)). Each queued or running job records its gateway and attempt; opening and a periodic sweep interrupt only the jobs of gateways that are gone, and a run's writes are refused once another gateway resumed its job, whose later runs store their objects under their own attempt (slices 4 and 5) |
 | Repository sources | `repository-sources/<notebook>/state.json` beside each source's Git cache, index and retained evidence | One versioned `repository-sources` document per notebook, reread under the notebook's lock so another gateway's fence or release is seen before acting, and written only over the version read. The refresh scheduler, with its paid embedding and map enrichment, runs on the lease holder (slices 4 and 5). Each source's index generation, whose vectors and map labels were paid for, and its retained evidence are objects in blob storage under their file paths; with the default store they are the directory's own files, copied nowhere. A generation is stored whole, manifest last, before the document names it, and the one it replaced is removed once the document names its successor. A gateway lacking the named generation fetches it, checks it against its manifest and serves it; it fetches its own Git mirror of the named commit. Git mirrors, `index/current.json` and lexical indexes are each gateway's rebuildable cache. The import stores the generation `index/current.json` names and the evidence, and the export writes them back with that pointer |

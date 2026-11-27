@@ -13,8 +13,8 @@ import (
 type Runtime struct {
 	WebsiteCapture *WebsiteCapture
 	configMu       sync.Mutex
-	Jev            *decision.Service
-	JevLedger      *decision.Ledger
+	Judgments      *decision.Service
+	JudgmentLedger *decision.Ledger
 	// Fence cached transcript frames and explicit exports against deletion.
 	ContentFences  map[string]*ContentFence
 	SearchResearch func(context.Context, *Research, string, int) ([]ResearchResult, Usage, error)
@@ -116,10 +116,10 @@ func (c *Runtime) Close() {
 		stopRecovery()
 	}
 	c.recovering.Wait()
-	c.Jev.Close()
+	c.Judgments.Close()
 	c.wg.Wait()
-	if c.JevLedger != nil {
-		c.JevLedger.Close()
+	if c.JudgmentLedger != nil {
+		c.JudgmentLedger.Close()
 	}
 	c.Store.Close()
 }

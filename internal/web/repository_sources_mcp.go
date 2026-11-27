@@ -141,7 +141,7 @@ func (s *Server) repositoryTools(server *mcp.Server) {
 		return s.importRepository(ctx, in)
 	})
 	addProjectTool(s, server, "repository_source_map", "Find components, entry points and file responsibilities in a compact repository map. Optional query matches paths, symbols and navigation roles. Entries are hints; read original source before answering behavior questions. To paginate, pass next as after with the returned revision. Never executes repository files.", "read", s.repositoryMap)
-	addProjectTool(s, server, "configure_repository_index", "Configure source-specific external processing consent, embeddings, Jev and path policy as Owner, with expected generation.", "owner", s.configureRepositoryIndex)
+	addProjectTool(s, server, "configure_repository_index", "Configure source-specific external processing consent, embeddings, judgments and path policy as Owner, with expected generation.", "owner", s.configureRepositoryIndex)
 	addProjectTool(s, server, "resolve_notebook_link", "Resolve a notebook Markdown link, including a stable note ID or historical revision. Returns only currently authorized metadata and available heading anchors. Links never grant access.", "read", func(ctx context.Context, _ *workspace.Store, in struct {
 		projectArg
 		Path     string `json:"path,omitempty"`

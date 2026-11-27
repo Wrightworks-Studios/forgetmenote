@@ -15,7 +15,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test('automatic search ranks keywords locally and Enter asks Jev once', async ({page}) => {
+test('automatic search ranks keywords locally and Enter asks for judgments once', async ({page}) => {
   page.on('pageerror', error => {
     throw error;
   });
@@ -26,7 +26,7 @@ test('automatic search ranks keywords locally and Enter asks Jev once', async ({
     bodies.push(body);
     const response = await route.fetch();
     const result = await response.json();
-    // The synthetic instance has no Jev service; the server-side contract is
+    // The synthetic instance has no judgments service; the server-side contract is
     // covered by Go tests. This checks what the page sends and shows.
     result.rerankAvailable = true;
     if (body.rerank) {
@@ -42,7 +42,7 @@ test('automatic search ranks keywords locally and Enter asks Jev once', async ({
   const results = page.locator('#search-results .note-row a');
   await expect(results).toHaveCount(2);
   await expect(results.first()).toContainText('Garden');
-  await expect(page.locator('#search-status')).toContainText('Press Enter to rank with Jev');
+  await expect(page.locator('#search-status')).toContainText('Press Enter to rank with judgments');
   expect(bodies.length).toBeGreaterThan(0);
   expect(bodies.every(body => !body.rerank)).toBe(true);
 
@@ -51,7 +51,7 @@ test('automatic search ranks keywords locally and Enter asks Jev once', async ({
   );
   await page.locator('#search').press('Enter');
   await ranked;
-  await expect(page.locator('#search-status')).toContainText('Ranked by Jev');
+  await expect(page.locator('#search-status')).toContainText('Ranked by judgments');
   await expect(results.first()).toContainText('Produce');
   expect(bodies.filter(body => body.rerank).length).toBe(1);
 
@@ -63,5 +63,5 @@ test('automatic search ranks keywords locally and Enter asks Jev once', async ({
   await page.locator('#search').press('Enter');
   await expect.poll(() => bodies.length).toBeGreaterThan(before);
   expect(bodies.slice(before).every(body => !body.rerank)).toBe(true);
-  await expect(page.locator('#search-status')).not.toContainText('Jev');
+  await expect(page.locator('#search-status')).not.toContainText('judgments');
 });

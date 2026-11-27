@@ -269,18 +269,18 @@ func TestChatRepositoryEvidenceReachesProviderWithSavedScope(t *testing.T) {
 	}
 }
 
-func TestRepositoryJevRequiresBothConsentGatesAndTextStaysLocal(t *testing.T) {
+func TestRepositoryJudgmentRequiresBothConsentGatesAndTextStaysLocal(t *testing.T) {
 	app := chatFixture(t)
 	configureSearchSource(t, app)
 	var calls atomic.Int32
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		var req struct {
 			Questions map[string]decision.Question `json:"questions"`
 		}
 		json.NewDecoder(r.Body).Decode(&req)
 		if len(req.Questions) > 8 {
-			t.Error("oversized Jev shortlist batch")
+			t.Error("oversized judge shortlist batch")
 		}
 		answers := map[string]any{}
 		for id, q := range req.Questions {
@@ -311,9 +311,9 @@ func TestRepositoryJevRequiresBothConsentGatesAndTextStaysLocal(t *testing.T) {
 		return out
 	}
 	if out := request("auto"); out.Sources.Reranked || calls.Load() != 0 {
-		t.Fatal("Jev ran without consent")
+		t.Fatal("the judge ran without consent")
 	}
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	request("auto")
@@ -322,7 +322,7 @@ func TestRepositoryJevRequiresBothConsentGatesAndTextStaysLocal(t *testing.T) {
 	}
 	state, _ := app.repositories.Status("default")
 	cfg := state.IndexConfig
-	cfg.Jev = true
+	cfg.Judgments = true
 	if _, err := app.repositories.ConfigureIndex("default", catalog.Bootstrap, state.Generation, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +331,7 @@ func TestRepositoryJevRequiresBothConsentGatesAndTextStaysLocal(t *testing.T) {
 	}
 	request("text")
 	if calls.Load() != 0 {
-		t.Fatal("text search called Jev")
+		t.Fatal("text search called the judge")
 	}
 	out := request("auto")
 	if !out.Sources.Reranked || calls.Load() != 1 {
@@ -339,7 +339,7 @@ func TestRepositoryJevRequiresBothConsentGatesAndTextStaysLocal(t *testing.T) {
 	}
 }
 
-func TestRepositoryJevRanksCandidatesBeyondFinalCutoff(t *testing.T) {
+func TestRepositoryJudgmentRanksCandidatesBeyondFinalCutoff(t *testing.T) {
 	app := chatFixture(t)
 	files := map[string]string{"z.txt": "Bicycle workshop chains require CERULEAN lubricant."}
 	for i := range 20 {
@@ -350,7 +350,7 @@ func TestRepositoryJevRanksCandidatesBeyondFinalCutoff(t *testing.T) {
 	}
 	configureSearchSource(t, app, files)
 	var seen atomic.Int32
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Questions map[string]struct {
 				Instructions struct{ Candidate struct{ Path string } }
@@ -381,12 +381,12 @@ func TestRepositoryJevRanksCandidatesBeyondFinalCutoff(t *testing.T) {
 	if err := app.catalog.Member(catalog.Bootstrap, "default", "alice", "read"); err != nil {
 		t.Fatal(err)
 	}
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	state, _ := app.repositories.Status("default")
 	cfg := state.IndexConfig
-	cfg.Jev = true
+	cfg.Judgments = true
 	if _, err := app.repositories.ConfigureIndex("default", catalog.Bootstrap, state.Generation, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -399,6 +399,6 @@ func TestRepositoryJevRanksCandidatesBeyondFinalCutoff(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	if !out.Sources.Reranked || len(out.Results) != 1 || out.Results[0].Ref.Path != "z.txt" || seen.Load() != 32 {
-		t.Fatalf("ranking lost candidates before Jev: seen=%d result=%+v", seen.Load(), out)
+		t.Fatalf("ranking lost candidates before the judge: seen=%d result=%+v", seen.Load(), out)
 	}
 }

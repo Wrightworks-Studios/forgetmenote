@@ -25,16 +25,16 @@ export function occurrenceText(o) {
 }
 
 // What a plan or receipt says of the private chat transcripts, Knowledge
-// proposals and Jev records outside the notebook that quoted the erased
+// proposals and judgment records outside the notebook that quoted the erased
 // content, as lines: their counts, which for someone who is not an Admin
 // cover only their own records, and what it says of everyone else's.
 export function derivedLines(d = {}, done = false) {
   if (d.withheld) return d.others ? [d.others] : [];
-  const records = [d.chats && count(d.chats, 'private chat transcript', 'private chat transcripts'), d.proposals && count(d.proposals, 'Knowledge proposal', 'Knowledge proposals'), d.jevRecords && count(d.jevRecords, 'Jev record', 'Jev records')].filter(Boolean);
+  const records = [d.chats && count(d.chats, 'private chat transcript', 'private chat transcripts'), d.proposals && count(d.proposals, 'Knowledge proposal', 'Knowledge proposals'), d.jevRecords && count(d.jevRecords, 'judgment record', 'judgment records')].filter(Boolean);
   const lines = [];
-  if (done) lines.push((d.own ? 'Of your own records, ' : '') + count(d.chats || 0, 'chat transcript', 'chat transcripts') + ', ' + count(d.proposals || 0, 'proposal', 'proposals') + ' and ' + count(d.jevRecords || 0, 'Jev record', 'Jev records') + ' redacted.');
-  else if (d.own) lines.push(records.length ? 'Of your own records, ' + records.join(', ') + ' quoted it and will be redacted by the system, without anyone reading them.' : 'None of your own chat transcripts, proposals or Jev records quotes it.');
-  else lines.push(records.length ? records.join(', ') + ' that quoted it will be redacted by the system, without anyone reading them.' : 'No chat transcript, proposal or Jev record quotes it.');
+  if (done) lines.push((d.own ? 'Of your own records, ' : '') + count(d.chats || 0, 'chat transcript', 'chat transcripts') + ', ' + count(d.proposals || 0, 'proposal', 'proposals') + ' and ' + count(d.jevRecords || 0, 'judgment record', 'judgment records') + ' redacted.');
+  else if (d.own) lines.push(records.length ? 'Of your own records, ' + records.join(', ') + ' quoted it and will be redacted by the system, without anyone reading them.' : 'None of your own chat transcripts, proposals or judgment records quotes it.');
+  else lines.push(records.length ? records.join(', ') + ' that quoted it will be redacted by the system, without anyone reading them.' : 'No chat transcript, proposal or judgment record quotes it.');
   if (d.others) lines.push(d.others);
   return lines;
 }
@@ -175,7 +175,7 @@ export function initPurge({api, post, getProject, canManage, notice, refresh}) {
     item(summary, plan.referencesToRemap ? count(plan.referencesToRemap, 'reference to an old revision', 'references to old revisions') + ' in your notes will resolve to the new revisions.' : 'No reference in your notes names a rewritten revision.');
     item(summary, exportText(plan));
     const d = plan.derived || {};
-    if (plan.recordsUnsearched) item(summary, 'Chat transcripts, proposals and Jev records are searched only for content this notebook holds; only an instance Admin can search them for this.');
+    if (plan.recordsUnsearched) item(summary, 'Chat transcripts, proposals and judgment records are searched only for content this notebook holds; only an instance Admin can search them for this.');
     else for (const line of derivedLines(d)) item(summary, line);
     if (d.partial) item(summary, 'Some of the erased content was too large to look for in full elsewhere; quotes of it may remain.');
     if (!plan.notebookUnchanged) item(summary, 'Search and semantic indexes are rebuilt from the erased notebook; where embeddings are configured, every note is embedded again, which a paid embedding service charges for.');

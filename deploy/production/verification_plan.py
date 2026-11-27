@@ -100,8 +100,8 @@ FEATURES = {
                    ['settings-layout', 'reading-room', 'visual-polish', 'notebook-creation']),
     'chat': (['internal/chat/', 'internal/web/chat*.go', 'internal/web/ui/chat.mjs'],
              ['chat', 'chat-controls', 'chat-readable', 'chat-corpus', 'chat-corpus-settings', 'website-capture']),
-    'decisions': (['internal/decision/', 'internal/jev/', 'internal/web/jev*.go', 'internal/web/ui/jev.mjs'],
-                  ['jev', 'jev-integration']),
+    'decisions': (['internal/decision/', 'internal/judgments/', 'internal/web/judgments*.go', 'internal/web/ui/judgments.mjs'],
+                  ['judgments', 'judgments-integration']),
     'sources': (['internal/sources/', 'internal/web/sources*.go', 'internal/web/ui/sources.mjs'],
                 ['editor-creation', 'editor-notebooks', 'notebook-documents']),
     'repositories': (['internal/reposource/', 'internal/web/repository*.go', 'internal/web/ui/repositories.mjs'],
@@ -152,7 +152,7 @@ FEATURE_WEB_TESTS = {
     'chat': ['chat_test.go','chat_runner_test.go','chat_security_review_test.go',
              'chat_context_controls_test.go','chat_research*_test.go','automation_*_test.go',
              'source_hosted_test.go'],
-    'decisions': ['jev*_test.go','review*_test.go','organizer*_test.go'],
+    'decisions': ['judgments*_test.go','review*_test.go','organizer*_test.go'],
     'sources': ['source*_test.go','import*_test.go','notebooks_test.go'],
     'repositories': ['repository*_test.go','source*_test.go','authority*_test.go'],
     # The Integrations page: Slack, Google and the other data connections, and the
@@ -181,7 +181,7 @@ IDENTITY = (r'^internal/auth/', r'^internal/catalog/', r'^internal/backups/', r'
             'auth', 'oidc', 'login', 'session', 'password', 'proxy')
 SLOW_CONTAINERS = {
     'source': (r'^internal/sources/', r'^internal/reposource/', r'^internal/sourcehttp/', r'^scripts/source_smoke\.py$'),
-    'jev': (r'^internal/decision/', r'^internal/jev/', r'^internal/web/jev', r'^scripts/jev_smoke\.py$'),
+    'jev': (r'^internal/decision/', r'^internal/judgments/', r'^internal/web/judgments', r'^scripts/jev_smoke\.py$'),
     'oidc': IDENTITY,
     'totp': IDENTITY,
 }

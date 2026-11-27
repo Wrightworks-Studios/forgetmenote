@@ -10,7 +10,7 @@ an OIDC broker does not grant mailbox, calendar, Drive, or Slack access.
 The existing Go automation queue schedules each opted-in employee. There is no
 new service, database, or worker container. Rules exclude spam, bulk mail, the
 employee's own latest replies, and cancelled events. Changed items are judged in
-one parallel Jev request. Luna investigates relevant items with read-only host
+one parallel judgment request. Luna investigates relevant items with read-only host
 tools and writes proposed replies, reminders, or sourced remediation plans to the
 employee's assistant notebook. An unchanged item does not purchase another AI
 generation; Gmail label/history changes alone do not count as changed content.
@@ -130,7 +130,7 @@ only after the person has signed in with the `email` scope requested (see
 
 ## Operator setup
 
-1. Configure the existing Jev decision connection and Luna chat connection.
+1. Configure the existing judgments decision connection and Luna chat connection.
    Personal policy chooses the AI connection/model and a workload reasoning
    override. The initial routine default is `low`; it does not change the chat
    connection's default (for example, Luna `max`). This is a starting point,
@@ -221,7 +221,7 @@ Uncertain generation and external-write receipts are retained for recovery.
 
 Advanced policy fields include `batchItems`, `lookbackHours`, `triageChars`,
 `memoryChars`, and `retainDays`. Existing application capacity budgets remain
-authoritative. Jev sees a small source excerpt plus responsibilities; Luna sees
+authoritative. The judge sees a small source excerpt plus responsibilities; Luna sees
 the selected evidence and may retrieve additional permitted context. Source
 excerpts can miss nuance, so the synthetic regression suite does not establish
 real-world triage recall, prose quality, or the cheapest acceptable reasoning.
@@ -241,7 +241,7 @@ npm run test:browser -- personal-assistant.spec.mjs
 ```
 
 Synthetic HTTP providers use temporary accounts, Git repositories, and local
-fixtures. Real Google/Slack approval, Luna/Jev quality and cost evaluation, live
+fixtures. Real Google/Slack approval, Luna/judgment quality and cost evaluation, live
 notification delivery, and production deployment require a separately authorized
 pilot; passing fixtures does not verify those external systems.
 

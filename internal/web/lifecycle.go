@@ -36,7 +36,7 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	s.started = true
 	// A paused instance takes no duty that acts outward: source refresh and its
-	// paid indexing, backup token revocation, Jev reviews and automations stay
+	// paid indexing, backup token revocation, judgment reviews and automations stay
 	// with the live instance it was copied from.
 	if s.repositories != nil && !s.outgoing.Paused() {
 		s.repositories.Start()
@@ -45,7 +45,7 @@ func (s *Server) Start(ctx context.Context) error {
 		s.backups.manager.Start()
 	}
 	if !s.outgoing.Paused() {
-		s.jev.StartScheduler(ctx)
+		s.judgments.StartScheduler(ctx)
 		s.automationrun.Start(ctx)
 	}
 	if s.chat != nil {
@@ -79,7 +79,7 @@ func (s *Server) closeResources() {
 		s.repositories.Close()
 	}
 	s.citations.Close()
-	s.jev.Close()
+	s.judgments.Close()
 	if s.quicknotes != nil {
 		s.quicknotes.Close()
 	}

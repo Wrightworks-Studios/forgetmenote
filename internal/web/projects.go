@@ -62,7 +62,7 @@ func (s *Server) selectProject(w http.ResponseWriter, r *http.Request, target re
 			http.NotFound(w, r)
 			return false
 		}
-		if target.path == "/api/chat/connections" || target.path == "/api/jev/settings" {
+		if target.path == "/api/chat/connections" || target.path == "/api/judgments/settings" || target.path == "/api/jev/settings" {
 			return true
 		}
 		if _, pattern := s.routes.Mux.Handler(r); pattern != "" {

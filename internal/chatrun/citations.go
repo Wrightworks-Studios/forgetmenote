@@ -16,24 +16,24 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-type jevCitationItem = citationchecks.Item
+type judgmentCitationItem = citationchecks.Item
 
-type jevCitationCheck = citationchecks.Check
+type judgmentCitationCheck = citationchecks.Check
 
-type jevCitationRecord = citationchecks.Record
+type judgmentCitationRecord = citationchecks.Record
 
 func citationRecordName(user, id string) string { return citationchecks.RecordName(user, id) }
 
-func (s *Service) citationRecord(user, project, id string) (jevCitationRecord, error) {
+func (s *Service) citationRecord(user, project, id string) (judgmentCitationRecord, error) {
 	record, _, err := s.hooks.Citations().Snapshot(user, project, id, "")
 	return record, err
 }
 
-func (s *Service) saveCitationCheck(user, project, id, run string, check jevCitationCheck) error {
+func (s *Service) saveCitationCheck(user, project, id, run string, check judgmentCitationCheck) error {
 	return s.hooks.Citations().Save(user, project, id, run, check)
 }
 
-func (s *Service) jevCitations(w http.ResponseWriter, r *http.Request) {
+func (s *Service) judgmentCitations(w http.ResponseWriter, r *http.Request) {
 	// Request-side validation also decodes a conversation. Serialize these short
 	// reads independently of the bounded background preparation workers.
 	releaseRead, err := s.hooks.Citations().AdmitRead(r.Context())
@@ -74,7 +74,7 @@ func (s *Service) jevCitations(w http.ResponseWriter, r *http.Request) {
 	}
 	check, ok := record.Checks[run.ID]
 	if !ok {
-		webcore.JSON(w, jevCitationCheck{State: "disabled", Items: []jevCitationItem{}, Message: "Citation checks have not run for this answer."})
+		webcore.JSON(w, judgmentCitationCheck{State: "disabled", Items: []judgmentCitationItem{}, Message: "Citation checks have not run for this answer."})
 		return
 	}
 	if !active && (check.State == "running" || check.State == "pending") {
@@ -89,14 +89,14 @@ func (s *Service) jevCitations(w http.ResponseWriter, r *http.Request) {
 	if check.Fingerprint != "" {
 		fingerprint, err := s.citationFingerprint(ctx, c.Owner, c.Project)
 		if err != nil || fingerprint != check.Fingerprint {
-			webcore.JSON(w, jevCitationCheck{State: "incomplete", Items: []jevCitationItem{}, Total: check.Total, Message: "The notebook changed. Check again before using these results."})
+			webcore.JSON(w, judgmentCitationCheck{State: "incomplete", Items: []judgmentCitationItem{}, Total: check.Total, Message: "The notebook changed. Check again before using these results."})
 			return
 		}
 	}
 	for _, item := range check.Items {
 		for _, evidence := range item.Evidence {
 			if _, err := s.citationEvidence(ctx, c.Owner, c.Project, evidence); err != nil {
-				webcore.JSON(w, jevCitationCheck{State: "incomplete", Items: []jevCitationItem{}, Total: check.Total, Message: "Cited sources or access changed. Check again before using these results."})
+				webcore.JSON(w, judgmentCitationCheck{State: "incomplete", Items: []judgmentCitationItem{}, Total: check.Total, Message: "Cited sources or access changed. Check again before using these results."})
 				return
 			}
 		}
@@ -109,7 +109,7 @@ func (s *Service) jevCitations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) startCitationCheck(auth chat.RunAuth, id, runID string, explicit bool) error {
-	judge, localOnly := s.hooks.JevConfigured()
+	judge, localOnly := s.hooks.JudgmentsConfigured()
 	if judge == nil || localOnly {
 		if explicit {
 			return decision.ErrDisabled
@@ -118,7 +118,7 @@ func (s *Service) startCitationCheck(auth chat.RunAuth, id, runID string, explic
 	}
 	// Operator configuration, default-off personal consent, and the citations
 	// preference are all required before any source is prepared for remote work.
-	if err := s.hooks.JevAuthorized(context.Background(), auth.User, auth.Project, "citations", judge); err != nil {
+	if err := s.hooks.JudgmentsAuthorized(context.Background(), auth.User, auth.Project, "citations", judge); err != nil {
 		if explicit {
 			return err
 		}
@@ -149,7 +149,7 @@ func (s *Service) startCitationCheck(auth chat.RunAuth, id, runID string, explic
 
 func (s *Service) prepareCitationCheck(ctx context.Context, auth chat.RunAuth, id, runID, checkID string, judge *decision.Service) {
 	// Admission precedes every retained conversation, scope and claim preparation.
-	if s.hooks.CheckRun(auth) != nil || s.hooks.JevAuthorized(ctx, auth.User, auth.Project, "citations", judge) != nil {
+	if s.hooks.CheckRun(auth) != nil || s.hooks.JudgmentsAuthorized(ctx, auth.User, auth.Project, "citations", judge) != nil {
 		return
 	}
 	fence, release := s.hooks.Chat().RetainContent(auth.User, id)
@@ -343,7 +343,7 @@ func prepareProposalQuotes(ctx context.Context, run chat.Run, project string) (m
 	return edits, ctx.Err()
 }
 
-func (s *Service) runCitationCheck(ctx context.Context, auth chat.RunAuth, c chat.Conversation, run chat.Run, turn chat.Turn, check jevCitationCheck, judge *decision.Service) {
+func (s *Service) runCitationCheck(ctx context.Context, auth chat.RunAuth, c chat.Conversation, run chat.Run, turn chat.Turn, check judgmentCitationCheck, judge *decision.Service) {
 	var err error
 	ctx, err = chat.WithRunScope(ctx, c, run)
 	if err != nil {
@@ -369,7 +369,7 @@ func (s *Service) runCitationCheck(ctx context.Context, auth chat.RunAuth, c cha
 		if ctx.Err() != nil {
 			return
 		}
-		item := jevCitationItem{Claim: claim.Claim, Status: "unchecked", Evidence: []knowledge.JudgmentEvidence{}}
+		item := judgmentCitationItem{Claim: claim.Claim, Status: "unchecked", Evidence: []knowledge.JudgmentEvidence{}}
 		if claim.Mapped {
 			if citation, ok := citations[claim.URLs[0]]; ok && (citation.Kind == "committed" || citation.Kind == "notebook" && citation.Project != "") && citation.Path != "" {
 				evidence := knowledge.JudgmentEvidence{Path: citation.Path, Revision: citation.Revision, Hash: citation.Hash, Text: citation.Text, URL: citation.URL}
@@ -415,7 +415,7 @@ func (s *Service) runCitationCheck(ctx context.Context, auth chat.RunAuth, c cha
 			if err := s.hooks.CheckRun(auth); err != nil {
 				return err
 			}
-			if err := s.hooks.JevAuthorized(ctx, c.Owner, c.Project, "citations", judge); err != nil {
+			if err := s.hooks.JudgmentsAuthorized(ctx, c.Owner, c.Project, "citations", judge); err != nil {
 				return err
 			}
 			fingerprint, err := s.citationFingerprint(ctx, c.Owner, c.Project)
@@ -456,7 +456,7 @@ func (s *Service) runCitationCheck(ctx context.Context, auth chat.RunAuth, c cha
 		check.State = "incomplete"
 		check.Message = "Some citation associations or sources could not be checked; unchecked text is not verified."
 	}
-	if s.hooks.CheckRun(auth) != nil || s.hooks.JevAuthorized(ctx, c.Owner, c.Project, "citations", judge) != nil {
+	if s.hooks.CheckRun(auth) != nil || s.hooks.JudgmentsAuthorized(ctx, c.Owner, c.Project, "citations", judge) != nil {
 		return
 	}
 	s.saveCitationCheck(c.Owner, c.Project, c.ID, run.ID, check)

@@ -33,7 +33,7 @@ body:not(.editing-note) #save-state[data-idle="true"] { display: none; }
 /* Query, scope, filters and results share one 760px column. */
 #search-view { max-width: 824px; }
 #inbox-view h1, #search-view h1 { font: 600 30px var(--brand-font); margin: 0; }
-#inbox-content .jev-card { margin: 16px 0; padding: 20px; }
+#inbox-content .judgments-card { margin: 16px 0; padding: 20px; }
 .search-active #document, .search-active #folder-browser, .search-active #empty, .search-active #inbox-view, .search-active #metadata-bar { display: none; }
 #search-results .note-tree { padding: 0; }
 #search-results .note-row { border-bottom: 1px solid var(--border); padding: 12px 0; align-items: flex-start; }
@@ -58,7 +58,7 @@ body:not(.editing-note) #save-state[data-idle="true"] { display: none; }
   #main > header .note-actions > button, #note-details-toggle { min-height: 40px; padding: 8px 14px; }
   #save-state { line-height: 1.4; }
   #inbox-view .folder-heading, #search-view .folder-heading { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
-  #inbox-content .jev-actions { gap: 8px; flex-wrap: wrap; }
+  #inbox-content .judgments-actions { gap: 8px; flex-wrap: wrap; }
   .chat-composer-context { align-items: flex-start; }
 }
 
@@ -68,21 +68,21 @@ body:not(.editing-note) #save-state[data-idle="true"] { display: none; }
 .search-active #main > header .note-actions, #main:has(> #folder-browser:not([hidden])) > header .note-actions { display: none; }
 
 .organization-form { display: grid; gap: .85rem; min-width: 0; }
-.organization-form > label:not(.jev-check) { display: grid; gap: .35rem; }
+.organization-form > label:not(.judgments-check) { display: grid; gap: .35rem; }
 .organization-form fieldset { min-width: 0; border: 0; border-top: 1px solid var(--border); padding: var(--space-3) 0; }
 .organization-form textarea, .organization-form select { box-sizing: border-box; width: 100%; max-width: 100%; }
-.organization-form .jev-selection { max-height: 15rem; overflow: auto; }
+.organization-form .judgments-selection { max-height: 15rem; overflow: auto; }
 .organization-form [hidden] { display: none; }
 .organization-form p { margin: 0; }
 .organization-form fieldset { margin: 0; }
-.organization-form .jev-check { min-height: 36px; }
+.organization-form .judgments-check { min-height: 36px; }
 .organization-footer { position: sticky; bottom: -20px; z-index: var(--layer-content); padding: 16px 0; display: grid; gap: 10px; background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -12px 16px var(--surface); }
 .organization-footer > button { justify-self: start; border: 0; padding: 4px 0; }
-.organization-footer .jev-actions { margin: 0; }
-.organization-footer .jev-actions button { flex: 1; }
+.organization-footer .judgments-actions { margin: 0; }
+.organization-footer .judgments-actions button { flex: 1; }
 #review-checks > div > section { border-bottom: 1px solid var(--border); padding: 8px 0 24px; margin-bottom: 16px; }
-.jev-card pre { max-height: 20rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.jev-card a, .organization-form label { overflow-wrap: anywhere; }
+.judgments-card pre { max-height: 20rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.judgments-card a, .organization-form label { overflow-wrap: anywhere; }
 
 /* Reading Room shell: navigation, library and a single optional note context. */
 #sidebar .navigation-item { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: var(--space-3); border: 1px solid transparent; min-height: 34px; text-align: left; padding: var(--space-1) var(--space-2); font-size: var(--text-body); font-weight: 500; }

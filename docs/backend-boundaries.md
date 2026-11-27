@@ -118,20 +118,20 @@ per-process vectors, the memory instructions connected agents receive, and
 the memory a direct message reads and writes. Web registers the actions
 through the shared action dispatcher, and `internal/messaginghttp` decides whose
 memory a direct message uses, which is the messaging link. The required hooks bind the
-personal-credential check, client notebook access, Jev and its authorization,
+personal-credential check, client notebook access, judgments and their authorization,
 the chat embedding policy and the origin, each read at each call.
 
-`internal/jev` owns Jev reviews and the organizer: review and organization
+`internal/judgments` owns judgment reviews and the organizer: review and organization
 jobs, their scheduler, runner, retention and results, notifications, and each
-person's and notebook's Jev settings. Web keeps the shared Jev admission, the
+person's and notebook's judgment settings. Web keeps the shared judgments admission, the
 protected Inbox consent check and the instance AI policy; `internal/chatrun`
 makes the citation checks a chat run asks for. The required hooks bind the browser identity, the instance
 AI refusal, the configured judge, that admission and the Inbox check, the
 policy's preferences, the instance AI sync and Quick Notes, each read at each
 call. A run reaches notebooks only through the catalog, so it rechecks its
 owner's access there. Its tests run on a real catalog, database and search
-indexes without the instance's guard, so they cover Jev's behaviour; who may
-use Jev is tested in web through the real routes.
+indexes without the instance's guard, so they cover the package's behaviour; who may
+use judgments is tested in web through the real routes.
 
 `internal/messaginghttp` owns conversations in external chat clients: the
 Slack app's events and interactions, the assistant runs a message starts, their
@@ -164,7 +164,7 @@ stay in web, and so do the checks the worker reaches through hooks
 freshness, grant generations, discarding work that became unavailable, mailbox
 drafts and automation authority before each state save. The MCP tools and
 account pages stay in web too. The required hooks bind those checks, the
-automation answer and calls, Jev, the connections, the origin and the Slack
+automation answer and calls, judgments, the connections, the origin and the Slack
 app, each read at each call. The worker's tests stay in web, where a run passes
 those checks. The few exports only tests use are in `testexports.go`. Boundary
 tests fail on a production reference to them, on a grant begun, finished or
@@ -174,10 +174,10 @@ removed outside the connection routes, and on a cookie handled outside web.
 and executes the model's tool calls, approvals and the other controls,
 deletion, the rounds of a run, fitting each model request to its connection,
 retrieval and research, the evidence and provenance of tool results, review
-workflows, the run's terminal state and the Jev citation check of an answer.
+workflows, the run's terminal state and the judgment citation check of an answer.
 Web keeps every authorization check: the request's identity, the run's session
 and its recheck (`chatRunAuth`, `checkRun` and `runContext`), client notebook
-access, data citations, source scope, Jev authorization and personal context.
+access, data citations, source scope, judgments authorization and personal context.
 The chat leg of the guard (`scopeChatActionArguments`, `guardChatAction`,
 `chatPersonalApproval` and `chatReadOnly`) stays beside the dispatcher. A
 model's tool call reaches an action only through the `DispatchAction` hook,
@@ -186,7 +186,7 @@ and after it, and the dispatcher applies the guard. The executor also asks the
 dispatcher for canonical arguments and the guard's preflight of a change. A
 boundary test fails if the engine reaches the action registry or another hub's
 action methods. The required hooks bind those checks, the registered tools a
-run may offer, knowledge engine access, scoped retrieval, Jev preferences,
+run may offer, knowledge engine access, scoped retrieval, judgment preferences,
 source work admission, the chat runtime, citation checks, data connections,
 repositories and the origin; those set after startup are read at each call. The
 engine's server-level tests stay in web; the exports only tests use are in
@@ -245,7 +245,7 @@ that stopped, and the guard that maps revisions a purge rewrote, which the
 shared action dispatcher applies to every read-only action. Web opens the
 notebook as its Owner through the shared tool store before an agent's plan is
 made. Purge plans and history rewrites stay in `internal/workspace` and
-`internal/notestore`. Chat transcripts, Jev records, Knowledge proposals and
+`internal/notestore`. Chat transcripts, judgment records, Knowledge proposals and
 bundle exports are cleaned through required hooks to their owners, read at
 each call.
 

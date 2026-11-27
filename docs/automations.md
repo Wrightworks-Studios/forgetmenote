@@ -142,7 +142,7 @@ bypass instance or source policy. Private Inbox processing is not enabled by a j
 Task/learning jobs and script packages requesting AI inherit the configured instance AI connection and model
 when omitted. Existing model reasoning settings remain authoritative. `maxTokens`,
 `maxRounds` and `timeoutSeconds` bound individual runs; these do not reserve paid
-capacity. Jev remains an optional typed-decision stage within profile learning,
+capacity. Judgments remain an optional typed-decision stage within profile learning,
 not the scheduler, SQL executor, authorization layer or source of truth.
 
 Interactive chat-client requests inherit the selected AI connection's `runSeconds`

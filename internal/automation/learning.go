@@ -20,7 +20,7 @@ type LearningPolicy struct {
 	MaxWaitSeconds  int    `json:"maxWaitSeconds"`
 	MinExamples     int    `json:"minExamples"`
 	RetentionHours  int    `json:"retentionHours"`
-	Jev             bool   `json:"jev,omitempty"`
+	Judgments       bool   `json:"jev,omitempty"`
 }
 
 func (p LearningPolicy) validate() error {

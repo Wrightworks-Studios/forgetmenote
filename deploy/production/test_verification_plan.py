@@ -45,18 +45,18 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(plan['source_profile'], 'routine')
         for title in CRITICAL_BROWSER:
             self.assertRegex(title, plan['browser_grep'])
-        self.assertRegex('jev-integration.spec.mjs organizer real debounce', plan['browser_grep'])
+        self.assertRegex('judgments-integration.spec.mjs organizer real debounce', plan['browser_grep'])
         self.assertNotRegex('unrelated.spec.mjs unknown journey', plan['browser_grep'])
 
-    def test_jev_package_selects_the_decisions_feature_and_the_jev_scenario(self):
-        self.change('internal/jev/jobs.go')
+    def test_judgments_package_selects_the_decisions_feature_and_the_jev_scenario(self):
+        self.change('internal/judgments/jobs.go')
         plan = self.plan()
         self.assertEqual(plan['mode'], 'routine')
         self.assertEqual(plan['features'], ['decisions'])
         self.assertEqual(plan['containers'], ['core', 'jev'])
         self.assertEqual(plan['jev_profile'], 'full')
-        self.assertRegex('jev-integration.spec.mjs organizer real debounce', plan['browser_grep'])
-        self.assertIn('jev', verification_plan_module.escalated_containers(['internal/jev/organizer_runner.go']))
+        self.assertRegex('judgments-integration.spec.mjs organizer real debounce', plan['browser_grep'])
+        self.assertIn('jev', verification_plan_module.escalated_containers(['internal/judgments/organizer_runner.go']))
 
     def test_unknown_shared_and_security_inputs_escalate_even_with_ui_changes(self):
         for path in ('Dockerfile', 'go.mod', 'internal/catalog/assistant.go', 'internal/web/ui/app.mjs',

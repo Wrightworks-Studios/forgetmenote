@@ -19,9 +19,9 @@ func TestLearningConsolidatesRelatedVariantsAcrossBatches(t *testing.T) {
 		t.Run(map[bool]string{true: "same-task", false: "unrelated-task"}[related], func(t *testing.T) {
 			modelCalls := 0
 			app, spec := learningFixture(t, func(w http.ResponseWriter, r *http.Request) { modelCalls++; learningAnswer(w, r) })
-			spec.Learning.Jev = true
+			spec.Learning.Judgments = true
 			setTestAutomationSpec(t, app, spec)
-			configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+			configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 				var req struct {
 					Questions map[string]decision.Question `json:"questions"`
 				}
@@ -184,7 +184,7 @@ func TestLearningUpdatePreservesPriorTemplates(t *testing.T) {
 	captureLearningExamples(t, app, "total")
 	readyLearningQueue(t, app)
 	_, err = app.automations.Queue.RunNext(context.Background(), func(ctx context.Context, run *automation.Run, save func() error) error {
-		// The same route Jev supplies when a new pattern fits an existing recipe.
+		// The same route the judge supplies when a new pattern fits an existing recipe.
 		run.Learning.Decisions = map[string]string{}
 		for _, e := range run.Learning.Events {
 			run.Learning.Decisions[automationrun.LearningGroup(e)] = notes[0].Path

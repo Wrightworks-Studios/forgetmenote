@@ -714,7 +714,7 @@ func runsToolsOnlyThroughDispatch(t *testing.T, name string) {
 	code := typedConnectorDependents(t)
 	dir, engine := "internal/"+name+"/", "forgetmenote/internal/"+name
 	const web = "forgetmenote/internal/web"
-	hubs := []string{"forgetmenote/internal/jev", "forgetmenote/internal/messaging", "forgetmenote/internal/personal"}
+	hubs := []string{"forgetmenote/internal/judgments", "forgetmenote/internal/messaging", "forgetmenote/internal/personal"}
 	registrars := map[string]int{"addAction": 3, "addManagementTool": 5, "addProjectTool": 5, "notebookJSON": 3}
 	server, _ := code.packages[web].Scope().Lookup("Server").(*types.TypeName)
 	bodies := map[string]*ast.BlockStmt{}

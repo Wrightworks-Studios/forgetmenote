@@ -39,7 +39,7 @@ func endOnRewrite(t *testing.T, request func(), end func()) {
 	<-done
 }
 
-// quotedPurgeSecret saves a note holding a secret that a chat and a Jev
+// quotedPurgeSecret saves a note holding a secret that a chat and a judgment
 // record quote, and has an agent prepare a purge plan of it.
 func quotedPurgeSecret(t *testing.T, app *Server, store *workspace.Store, path string) (string, chat.Conversation) {
 	t.Helper()
@@ -57,32 +57,32 @@ func quotedPurgeSecret(t *testing.T, app *Server, store *workspace.Store, path s
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jev.Records().Write("jobs/"+strings.Repeat("d", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "Found:\nThe staging key is " + secret + "."}); err != nil {
+	if err := app.judgments.Records().Write("jobs/"+strings.Repeat("d", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "Found:\nThe staging key is " + secret + "."}); err != nil {
 		t.Fatal(err)
 	}
 	return secret, conversation
 }
 
-// holdingPurgeSecret counts the stored chat transcripts, Jev records and
+// holdingPurgeSecret counts the stored chat transcripts, judgment records and
 // prepared purge plans that still hold secret.
-func holdingPurgeSecret(t *testing.T, app *Server, secret string) (chats, jev, plans int) {
+func holdingPurgeSecret(t *testing.T, app *Server, secret string) (chats, judgments, plans int) {
 	t.Helper()
 	ctx := context.Background()
 	if err := app.db.Pool.QueryRow(ctx, `SELECT count(*) FROM chat_conversations WHERE position(convert_to($1, 'UTF8') IN record) > 0`, secret).Scan(&chats); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.db.Pool.QueryRow(ctx, `SELECT count(*) FROM jev_records WHERE position($1 IN body::text) > 0`, secret).Scan(&jev); err != nil {
+	if err := app.db.Pool.QueryRow(ctx, `SELECT count(*) FROM jev_records WHERE position($1 IN body::text) > 0`, secret).Scan(&judgments); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.db.Pool.QueryRow(ctx, `SELECT count(*) FROM pending_flows WHERE position(convert_to($1, 'UTF8') IN body) > 0`, secret).Scan(&plans); err != nil {
 		t.Fatal(err)
 	}
-	return chats, jev, plans
+	return chats, judgments, plans
 }
 
 // A confirmed purge runs to its end even when its request ends once the
 // history is rewritten, as when the person reloads or closes the tab, or
-// presses Ctrl-C in the operator command: the chat transcripts, Jev records
+// presses Ctrl-C in the operator command: the chat transcripts, judgment records
 // and prepared plans that quoted the content are redacted all the same, and
 // the receipt says so without warnings. A note purge could never be planned
 // again to finish that.
@@ -100,7 +100,7 @@ func TestPurgeWhoseRequestEndsAfterTheRewriteStillCleansUp(t *testing.T) {
 			actionCall(t, session, "prepare_purge", map[string]any{"project": "default", "kind": "text", "text": secret}, false)
 			app.origin = origin
 			plan := preparePurgeHTTP(t, app, scope)
-			if plan.Derived.Chats != 1 || plan.Derived.JevRecords != 1 {
+			if plan.Derived.Chats != 1 || plan.Derived.JudgmentRecords != 1 {
 				t.Fatalf("plan: %+v", plan.Derived)
 			}
 			body, _ := json.Marshal(map[string]any{"scope": plan.Scope, "revision": plan.Revision, "confirmation": plan.Confirmation, "reason": "Leaked staging key"})
@@ -112,11 +112,11 @@ func TestPurgeWhoseRequestEndsAfterTheRewriteStillCleansUp(t *testing.T) {
 			w := httptest.NewRecorder()
 			endOnRewrite(t, func() { app.ServeHTTP(w, r) }, cancel)
 			var receipt purgehttp.Receipt
-			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &receipt) != nil || len(receipt.Warnings) > 0 || receipt.Derived.Chats != 1 || receipt.Derived.JevRecords != 1 {
+			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &receipt) != nil || len(receipt.Warnings) > 0 || receipt.Derived.Chats != 1 || receipt.Derived.JudgmentRecords != 1 {
 				t.Fatalf("execute: HTTP %d %s", w.Code, w.Body)
 			}
-			if chats, jev, plans := holdingPurgeSecret(t, app, secret); chats+jev+plans > 0 {
-				t.Fatalf("still holding the secret: %d chats, %d Jev records, %d plans", chats, jev, plans)
+			if chats, judgments, plans := holdingPurgeSecret(t, app, secret); chats+judgments+plans > 0 {
+				t.Fatalf("still holding the secret: %d chats, %d judgment records, %d plans", chats, judgments, plans)
 			}
 			c, err := app.chat.Store.Read(catalog.Bootstrap, "default", conversation.ID)
 			raw, _ := json.Marshal(c)
@@ -158,10 +158,10 @@ func TestPurgeWhoseClientDisconnectsAfterTheRewriteStillCleansUp(t *testing.T) {
 		}
 		json.Unmarshal(call(app, "GET", "/api/purge", "", testToken).Body.Bytes(), &receipts)
 	}
-	if r := receipts.Receipts[0]; len(r.Warnings) > 0 || r.Derived.Chats != 1 || r.Derived.JevRecords != 1 {
+	if r := receipts.Receipts[0]; len(r.Warnings) > 0 || r.Derived.Chats != 1 || r.Derived.JudgmentRecords != 1 {
 		t.Fatalf("receipt: %+v", r)
 	}
-	if chats, jev, _ := holdingPurgeSecret(t, app, secret); chats+jev > 0 {
-		t.Fatalf("still holding the secret: %d chats, %d Jev records", chats, jev)
+	if chats, judgments, _ := holdingPurgeSecret(t, app, secret); chats+judgments > 0 {
+		t.Fatalf("still holding the secret: %d chats, %d judgment records", chats, judgments)
 	}
 }

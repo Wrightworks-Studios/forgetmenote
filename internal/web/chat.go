@@ -33,18 +33,18 @@ func (s *Server) ConfigureAIConfig(cfg *chat.Config, judge *decision.Config) err
 }
 func (s *Server) chatConfigurationHooks() chat.ConfigurationHooks {
 	hooks := chat.ConfigurationHooks{Installed: func(previous, current *decision.Service, localOnly bool) error {
-		if previous != nil && s.jev != nil {
-			if err := s.jev.InvalidateOrganizationJobs(); err != nil {
+		if previous != nil && s.judgments != nil {
+			if err := s.judgments.InvalidateOrganizationJobs(); err != nil {
 				return err
 			}
 		}
 		if s.quicknotes != nil {
-			s.quicknotes.ConfigureJev(current, localOnly)
+			s.quicknotes.ConfigureJudgments(current, localOnly)
 		}
 		return s.refreshChatEmbeddingPolicy()
 	}}
-	if s.jev != nil {
-		hooks.Guard = s.jev.OrganizationGuard
+	if s.judgments != nil {
+		hooks.Guard = s.judgments.OrganizationGuard
 	}
 	return hooks
 }

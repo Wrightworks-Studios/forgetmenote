@@ -22,7 +22,7 @@ func (s *Server) initChatRun() error {
 // chatRunHooks binds the engine to this instance's checks: the request's
 // identity, the run's session and its recheck (chat_run_auth.go), client
 // access and notebook roles (credentials.go, projects.go), data and source
-// grants, Jev's authorization and personal consent, and to the action
+// grants, the judgments authorization and personal consent, and to the action
 // dispatcher with its chat guard (actions.go, chat_action_scope.go). The
 // runtime, origin, data connections, repository sources and citation checks
 // are read at each call, since web sets or replaces them after startup.
@@ -38,8 +38,8 @@ func (s *Server) chatRunHooks() chatrun.Hooks {
 		ToolStore:                 s.toolStore,
 		CheckDataCitations:        s.checkDataCitations,
 		CheckSourceScope:          s.checkSourceChatScope,
-		JevConfigured:             s.jevConfigured,
-		JevAuthorized:             s.jevAuthorized,
+		JudgmentsConfigured:       s.judgmentsConfigured,
+		JudgmentsAuthorized:       s.judgmentsAuthorized,
 		PersonalConsentStamp:      s.personalConsentStamp,
 		PersonalContext:           s.personalChatContext,
 		RecordPersonalInteraction: s.recordPersonalInteraction,

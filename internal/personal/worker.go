@@ -154,9 +154,9 @@ func (s *Service) Run(ctx context.Context, r *automation.Run, save func() error)
 		return err
 	}
 	pending := append([]Observation{}, state.Pending...)
-	judge, local := s.hooks.JevConfigured()
+	judge, local := s.hooks.JudgmentsConfigured()
 	if judge == nil || local {
-		return errors.New("personal assistant requires configured Jev with external processing enabled")
+		return errors.New("personal assistant requires configured judgments with external processing enabled")
 	}
 	policy := s.catalog.AssistantPolicy()
 	batchLimit := policy.BatchItems

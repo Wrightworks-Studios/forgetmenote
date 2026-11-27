@@ -29,8 +29,8 @@ func (s *Service) Register(mux *http.ServeMux, register func(pattern, role strin
 	register("GET /api/chat/{chat}", "read", s.chatRead)
 	register("DELETE /api/chat/{chat}", "read", s.chatDelete)
 	register("GET /api/chat/{chat}/events", "read", s.chatEvents)
-	register("GET /api/chat/{chat}/runs/{run}/citations", "read", s.jevCitations)
-	register("POST /api/chat/{chat}/runs/{run}/citations", "read", s.jevCitations)
+	register("GET /api/chat/{chat}/runs/{run}/citations", "read", s.judgmentCitations)
+	register("POST /api/chat/{chat}/runs/{run}/citations", "read", s.judgmentCitations)
 }
 
 func (s *Service) chatAuthorized(r *http.Request) (chat.Conversation, error) {

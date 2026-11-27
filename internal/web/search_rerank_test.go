@@ -50,7 +50,7 @@ func searchRerankFixture(t *testing.T) (*Server, *atomic.Int32) {
 	t.Helper()
 	app := chatFixture(t)
 	calls := &atomic.Int32{}
-	configureSyntheticJev(t, app, scoreMaintenanceFirst(calls))
+	configureSyntheticJudgments(t, app, scoreMaintenanceFirst(calls))
 	store, err := app.catalog.Access(catalog.Bootstrap, "default", "edit")
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func searchRerankFixture(t *testing.T) (*Server, *atomic.Int32) {
 	return app, calls
 }
 
-func TestNotebookSearchUsesJevOnlyForExplicitConsentedRequests(t *testing.T) {
+func TestNotebookSearchUsesJudgmentOnlyForExplicitConsentedRequests(t *testing.T) {
 	app, calls := searchRerankFixture(t)
 	search := func(body string) knowledge.HybridResult {
 		t.Helper()
@@ -87,16 +87,16 @@ func TestNotebookSearchUsesJevOnlyForExplicitConsentedRequests(t *testing.T) {
 		return out.Matches[0].Path
 	}
 	if out := search(`{"text":"bicycle workshop","rerank":true}`); out.Reranked || out.RerankAvailable || calls.Load() != 0 || first(out) != "a.md" {
-		t.Fatalf("Jev ran without consent: %+v calls=%d", out, calls.Load())
+		t.Fatalf("the judge ran without consent: %+v calls=%d", out, calls.Load())
 	}
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	if out := search(`{"text":"bicycle workshop"}`); out.Reranked || !out.RerankAvailable || calls.Load() != 0 {
-		t.Fatalf("search as you type used Jev or hid availability: %+v calls=%d", out, calls.Load())
+		t.Fatalf("search as you type used the judge or hid availability: %+v calls=%d", out, calls.Load())
 	}
 	if out := search(`{"text":"bicycle workshop","mode":"text","rerank":true}`); out.Reranked || calls.Load() != 0 {
-		t.Fatalf("text mode used Jev: %+v", out)
+		t.Fatalf("text mode used the judge: %+v", out)
 	}
 	out := search(`{"text":"bicycle workshop","rerank":true}`)
 	if !out.Reranked || calls.Load() == 0 || first(out) != "z.md" {
@@ -107,9 +107,9 @@ func TestNotebookSearchUsesJevOnlyForExplicitConsentedRequests(t *testing.T) {
 	}
 }
 
-func TestMCPHybridSearchExplicitJevRequest(t *testing.T) {
+func TestMCPHybridSearchExplicitJudgmentRequest(t *testing.T) {
 	app, calls := searchRerankFixture(t)
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	ctx := context.Background()
@@ -140,7 +140,7 @@ func TestMCPHybridSearchExplicitJevRequest(t *testing.T) {
 		return out
 	}
 	if out := call(false); out.Reranked || calls.Load() != 0 {
-		t.Fatalf("MCP search without request used Jev: %+v", out)
+		t.Fatalf("MCP search without request used the judge: %+v", out)
 	}
 	if out := call(true); !out.Reranked || calls.Load() == 0 || out.Matches[0].Path != "z.md" {
 		t.Fatalf("MCP explicit request did not rank: %+v calls=%d", out, calls.Load())

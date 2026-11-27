@@ -10,8 +10,8 @@ import (
 )
 
 // initPurge binds purge to this instance's access checks and to the owners of
-// what it cleans outside the notebook: chat transcripts, Jev records,
-// Knowledge proposals and bundle exports. The chat store, Jev and the origin
+// what it cleans outside the notebook: chat transcripts, judgment records,
+// Knowledge proposals and bundle exports. The chat store, judgments and the origin
 // are read at each call.
 func (s *Server) initPurge() error {
 	var err error
@@ -23,14 +23,14 @@ func (s *Server) initPurge() error {
 			}
 			return s.chat.Store.RedactProject(ctx, project, redact, write)
 		},
-		RedactJevRecords: func(ctx context.Context, notebook string, redact func([]byte) ([]byte, bool, error), write bool) (int, error) {
-			if s.jev == nil {
+		RedactJudgmentRecords: func(ctx context.Context, notebook string, redact func([]byte) ([]byte, bool, error), write bool) (int, error) {
+			if s.judgments == nil {
 				return 0, nil
 			}
-			return s.jev.RedactRecords(ctx, notebook, redact, write)
+			return s.judgments.RedactRecords(ctx, notebook, redact, write)
 		},
-		OwnsJevJob: func(job, user string) bool {
-			return s.jev != nil && s.jev.OwnsJob(job, user)
+		OwnsJudgmentJob: func(job, user string) bool {
+			return s.judgments != nil && s.judgments.OwnsJob(job, user)
 		},
 		KnowledgeHolds: func(ctx context.Context, store *workspace.Store, redact func([]byte) ([]byte, bool, error)) (int, error) {
 			return withEngine(s, ctx, store, func(e *knowledge.Engine) (int, error) {
