@@ -303,14 +303,24 @@ func (s *Server) dataConnectionTools(server *mcp.Server) {
 	})
 }
 
+// browserActions are the typed actions the browser reaches here besides the
+// list_data_ reads. They are not organization actions, which are closed to
+// API tokens, because MCP and API clients call them too: a credential lists
+// and revokes itself, and an unrestricted administrative credential imports a
+// repository. An off module's action is not registered and answers 404.
+var browserActions = map[string]bool{
+	"call_data_operation": true, "data_connection_access": true, "set_data_connection_access": true, "bind_external_identity": true,
+	"task_queues": true, "set_task_queues": true,
+	"create_api_credential": true, "list_api_credentials": true, "revoke_api_credential": true,
+	"import_repository": true,
+}
+
 // Browser requests reach the same typed handlers as API and MCP, with the
 // ordinary session and CSRF checks applied by ServeHTTP.
 func (s *Server) dataConnectionRoutes() {
 	s.mux.HandleFunc("POST /integrations/actions/{action}", func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("action")
-		// Task queue settings are here, not among the organization actions,
-		// because those are closed to API tokens and MCP clients set them too.
-		if !strings.HasPrefix(name, "list_data_") && name != "call_data_operation" && name != "data_connection_access" && name != "set_data_connection_access" && name != "bind_external_identity" && name != "task_queues" && name != "set_task_queues" {
+		if !strings.HasPrefix(name, "list_data_") && !browserActions[name] {
 			http.NotFound(w, r)
 			return
 		}

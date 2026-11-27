@@ -5,7 +5,7 @@ outlines and tracked terms, including read-only repository Markdown.
 
 ## Settings
 
-**Your settings** groups **Appearance**, **Account**, and **AI connections**. Appearance preferences apply to this browser; account changes apply to your account. Shared AI controls live in Administration. Sign-in identifiers and Git authorship are under **Sign-in and authorship details**; optional GitHub linking is under **GitHub attribution**. A connected GitHub account is summarized outside the expanded section.
+**Your settings** groups **Appearance**, **Account**, **AI connections** and **API credentials**. Appearance preferences apply to this browser; account changes apply to your account. Shared AI controls live in Administration. **API credentials** lists your own credentials without their secrets, revokes any of them, and creates one for a script or AI client: a name, the notebooks it may reach (or all of yours), its permission, data access while data connections run, whether it works with the API, MCP or both, and its expiry. A new credential's secret is shown once, with a copy button, and is removed from the page when that dialog closes. Sign-in identifiers and Git authorship are under **Sign-in and authorship details**; optional GitHub linking is under **GitHub attribution**. A connected GitHub account is summarized outside the expanded section.
 
 Your settings, notebook settings, and Administration are pages with a left category
 list, a fixed heading, and a breadcrumb back to the notebook. Their `page` and

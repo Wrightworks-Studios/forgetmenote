@@ -141,7 +141,8 @@ behavior for older clients.
 
 Credential issue/list/revoke actions are `create_api_credential`,
 `list_api_credentials`, and `revoke_api_credential`. Issue through a human
-management grant or the stopped-instance command. An API credential cannot mint
+management grant, **Your settings → API credentials** in the browser, or the
+stopped-instance command. An API credential cannot mint
 other credentials. Each has an account, expiry (1–365 days), scopes,
 `projects` **or** explicit `allProjects`, and `audiences` (`api`, `mcp`, or both).
 Secret hashes and grant metadata live in private authentication state, not notes.
