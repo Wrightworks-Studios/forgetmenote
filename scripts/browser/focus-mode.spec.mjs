@@ -178,6 +178,56 @@ test('quick toggles end with full screen matching focus mode', async ({page}) =>
   expect(await stored(page)).toBe('true');
 });
 
+// The browser takes the screen back to ask about unsaved text; that is not the
+// reader leaving focus mode. The page keeps running after the answer, until
+// the next page arrives.
+test('asking about unsaved text keeps focus mode whether the reader stays or reloads', async ({page}) => {
+  await openNote(page, 'focus-leave.md');
+  await edit(page);
+  await page.keyboard.press(shortcut);
+  await expectFocus(page, true);
+  await expect.poll(() => fullscreen(page)).toBe(true);
+  await page.locator('#editor').press(documentEnd);
+  await page.keyboard.type(' Unsaved.');
+  const asked = [];
+  let answer = 'dismiss';
+  page.on('dialog', dialog => {
+    asked.push(dialog.type());
+    dialog[answer]();
+  });
+
+  // Staying keeps focus mode in the window.
+  await page.evaluate(() => location.reload());
+  expect(asked).toEqual(['beforeunload']);
+  await expect.poll(() => fullscreen(page)).toBe(false);
+  await expectFocus(page, true);
+  expect(await stored(page)).toBe('true');
+  // Once the reader is back on the page, leaving full screen in the browser leaves focus mode again.
+  await revealToolbar(page);
+  await page.locator('#focus-fullscreen').click();
+  await expect.poll(() => fullscreen(page)).toBe(true);
+  await page.evaluate(() => document.exitFullscreen());
+  await expectFocus(page, false);
+
+  // A slow server leaves the page time to see the screen go before the next one arrives.
+  await page.keyboard.press(shortcut);
+  await expectFocus(page, true);
+  await expect.poll(() => fullscreen(page)).toBe(true);
+  answer = 'accept';
+  await page.route(
+    url => url.pathname === '/',
+    async route => {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await route.continue();
+    }
+  );
+  await page.reload();
+  expect(asked).toEqual(['beforeunload', 'beforeunload']);
+  await expectFocus(page, true);
+  expect(await stored(page)).toBe('true');
+  expect(await fullscreen(page)).toBe(false);
+});
+
 test('text size, page width, position and background change the page and persist', async ({page}) => {
   await openNote(page, 'focus-page.md');
   const preview = page.locator('#preview'),
