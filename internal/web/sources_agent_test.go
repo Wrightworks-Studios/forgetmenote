@@ -341,7 +341,8 @@ func TestSourceFormatsSayWhoExtracts(t *testing.T) {
 				t.Errorf("%s: agent extracts %q", ext, format.AgentExtracts)
 			}
 		}
-		for _, ext := range []string{".pdf", ".docx", ".xlsx", ".epub", ".eml", ".csv", ".html", ".txt", ".png", ".wav", ".mp4"} {
+		// Agent formats need no integration, so every build lists them.
+		for _, ext := range []string{".pdf", ".docx", ".xlsx", ".epub", ".eml", ".csv", ".html", ".txt", ".png", ".wav", ".mp4", ".pages", ".key"} {
 			if !seen[ext] {
 				t.Errorf("%s is not listed", ext)
 			}
