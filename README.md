@@ -93,8 +93,9 @@ notebooks, so all of them are versioned, permissioned and open to correction in 
 
 - Full-text search over current and committed history, with optional semantic search through an
   embedding service you configure.
-- Archived sources: PDFs with local OCR, office documents and saved email become searchable Markdown
-  with pinned citations back to the original file.
+- Archived sources: PDFs, office documents and saved email become searchable Markdown with pinned
+  citations back to the original file. Connected agents read scans, images and recordings and upload
+  their text with the original.
 - Repository-connected notebooks: read-only snapshots of a Git repository with code search and exact
   line citations, alongside your own notes.
 
@@ -149,7 +150,7 @@ emergencies.
 To run ForgetMeNote on a server with HTTPS, durable storage and upgrades, follow the
 [deployment guide](docs/deployment.md). Local accounts work out of the box; see
 [authentication](docs/authentication.md) for OIDC or a trusted proxy. To build without integrations
-you don't use, such as local OCR or the database connections, set `FMN_OMIT` in `.env`; see
+you don't use, such as Slack or the database connections, set `FMN_OMIT` in `.env`; see
 [optional integrations](docs/integrations.md).
 
 ### Connect an AI client

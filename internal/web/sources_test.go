@@ -8,10 +8,7 @@ import (
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -97,69 +94,15 @@ func TestSourceJSONBudgetIncludesBase64AndEscapedPreviewText(t *testing.T) {
 	}
 }
 
-func TestHostedImageDescriptionsThroughBrowserAndMCP(t *testing.T) {
-	requireLocalOCR(t)
-	if _, err := exec.LookPath("tesseract"); err != nil {
-		t.Skip("requires Tesseract")
-	}
-	app, _ := hostedSourceFixture(t, func(w http.ResponseWriter, r *http.Request) { syntheticVision(w, "Unverified blue flower") })
-	original, err := os.ReadFile("../sources/testdata/reference.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	in := map[string]any{"filename": "image.png", "data": base64.StdEncoding.EncodeToString(original), "describeImages": true}
-	body, _ := json.Marshal(in)
-	preview := call(app, "POST", "/api/sources/preview", string(body), testToken)
-	if preview.Code != 200 {
-		t.Fatal(preview.Code, preview.Body.String())
-	}
-	var prepared preparedSource
-	if err := json.Unmarshal(preview.Body.Bytes(), &prepared); err != nil {
-		t.Fatal(err)
-	}
-
-	if !strings.Contains(prepared.Preview, "AI image descriptions (unverified)") {
-		t.Fatal("description opt-in did not reach the converter")
-	}
-	payload, _ := json.Marshal(map[string]any{"prepared": prepared})
-	imported := call(app, "POST", "/api/sources/import", string(payload), testToken)
-	if imported.Code != 200 {
-		t.Fatal(imported.Code, imported.Body.String())
-	}
-	var browser noteOutput
-	json.Unmarshal(imported.Body.Bytes(), &browser)
-	client := actionClient(t, app, catalog.Bootstrap, "notes:read notes:write")
-	in["project"] = "default"
-	var mcpNote noteOutput
-	if err := json.Unmarshal(actionCall(t, client, "archive_source", in, false), &mcpNote); err != nil {
-		t.Fatal(err)
-	}
-	for _, note := range []noteOutput{browser, mcpNote} {
-		if !strings.Contains(note.Content, "AI image descriptions (unverified)") || note.Metadata.Source == nil {
-			t.Fatal("description or provenance lost", note)
-		}
-		req := httptest.NewRequest("GET", app.origin+"/p/default/assets/"+note.Metadata.Source.Original+"?revision="+note.Revision, nil)
-		req.Header.Set("Authorization", "Bearer "+testToken)
-		response := httptest.NewRecorder()
-		app.ServeHTTP(response, req)
-		if response.Code != 200 || !bytes.Equal(response.Body.Bytes(), original) || !strings.HasPrefix(response.Header().Get("Content-Disposition"), "attachment;") {
-			t.Fatal("image original not preserved as a download", response.Code)
-		}
-	}
-}
-
-func TestPDFOCRImportUsesSharedBrowserAndMCPStorage(t *testing.T) {
+func TestPDFImportUsesSharedBrowserAndMCPStorage(t *testing.T) {
 	dir := t.TempDir()
 	helper := "#!/bin/sh\ncat <<'XML'\n" + `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber scan evidence</word></line></block></flow></page><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Cobalt 17</word></line></block></flow></page></doc></body></html>` + "\nXML\n"
 	if err := os.WriteFile(filepath.Join(dir, "pdftotext"), []byte(helper), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "pdfimages"), []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	app, store := fixture(t)
-	original := []byte("%PDF-1.4\nsynthetic OCR boundary fixture")
+	original := []byte("%PDF-1.4\nsynthetic text layer fixture")
 	input := map[string]any{"filename": "scan.pdf", "data": base64.StdEncoding.EncodeToString(original)}
 	body, _ := json.Marshal(input)
 	preview := call(app, "POST", "/api/sources/preview", string(body), testToken)
@@ -173,7 +116,7 @@ func TestPDFOCRImportUsesSharedBrowserAndMCPStorage(t *testing.T) {
 	if !strings.Contains(prepared.HTML, `id="h-page-2"`) {
 		t.Fatal("page citations or table structure lost", prepared.HTML)
 	}
-	importBody, _ := json.Marshal(map[string]any{"prepared": prepared, "title": "OCR source"})
+	importBody, _ := json.Marshal(map[string]any{"prepared": prepared, "title": "PDF source"})
 	response := call(app, "POST", "/api/sources/import", string(importBody), testToken)
 	if response.Code != 200 {
 		t.Fatal(response.Code, response.Body.String())
@@ -189,7 +132,7 @@ func TestPDFOCRImportUsesSharedBrowserAndMCPStorage(t *testing.T) {
 	}
 	for _, note := range []noteOutput{browser, mcpNote} {
 		if note.Metadata.Source == nil || note.Metadata.Source.Extraction != "extracted" || !strings.Contains(note.Content, "Cobalt 17") {
-			t.Fatal("OCR source lost in shared import", note)
+			t.Fatal("PDF source lost in shared import", note)
 		}
 		doc, err := store.Read(context.Background(), note.Metadata.Source.Original, note.Revision)
 		if err != nil || !bytes.Equal(doc.Content, original) {
@@ -341,10 +284,11 @@ func TestRejectedHTMLUploadIsClientError(t *testing.T) {
 }
 
 // Each format's own refusal reaches the caller as a client error, whichever
-// extractor made it.
+// extractor made it. Formats a connected agent extracts are not read, so their
+// originals are not refused (TestAgentFormatsArchiveTheOriginalOnly).
 func TestRefusedDocumentsAreClientErrors(t *testing.T) {
 	app, _ := fixture(t)
-	const notPackage, notImage = "invalid document ZIP container", "invalid or unsupported image encoding"
+	const notPackage = "invalid document ZIP container"
 	tests := map[string]struct{ document, message string }{
 		"notes.txt":   {"\xff\xfe\xff", "invalid UTF-16 text"},
 		"table.csv":   {"a,b\"c\n", "invalid delimited text"},
@@ -356,21 +300,9 @@ func TestRefusedDocumentsAreClientErrors(t *testing.T) {
 		"memo.odt":    {"not a package", notPackage},
 		"sheet.ods":   {"not a package", notPackage},
 		"deck.odp":    {"not a package", notPackage},
-		"memo.pages":  {"not a package", notPackage},
-		"deck.key":    {"not a package", notPackage},
 		"note.eml":    {"not an email", "invalid email message"},
 		"note.msg":    {"not a compound file", "invalid Outlook compound file"},
-		"photo.png":   {"not an image", notImage},
-		"photo.jpg":   {"not an image", notImage},
-		"photo.webp":  {"not an image", notImage},
-		"photo.bmp":   {"not an image", notImage},
-		"scan.tiff":   {"short", "invalid TIFF header"},
 		"unknown.bin": {"not a format", "unsupported or invalid source format"},
-	}
-	if _, err := exec.LookPath("ffprobe"); err == nil {
-		tests["clip.wav"] = struct{ document, message string }{"not media", "media could not be read"}
-		tests["clip.mp3"] = tests["clip.wav"]
-		tests["clip.mp4"] = tests["clip.wav"]
 	}
 	for filename, test := range tests {
 		if !offeredSource(filename) && filename != "unknown.bin" {
@@ -412,9 +344,7 @@ func TestRefusedSourceRequestsAreClientErrors(t *testing.T) {
 		"host resolving private": {map[string]any{"url": "http://localhost/a"}, "private or special-use"},
 		"provenance URL":         {map[string]any{"filename": "a.txt", "data": upload, "url": "ftp://example.org/a"}, publicURL},
 		"long filename":          {map[string]any{"filename": strings.Repeat("a", 1025) + ".txt", "data": upload}, "source filename or size exceeds its budget"},
-		"long path":              {map[string]any{"filename": "a.txt", "data": upload, "path": strings.Repeat("a", 513)}, "invalid source selection or path budget"},
-		"pages without hosting":  {map[string]any{"filename": "a.txt", "data": upload, "firstPage": 1, "lastPage": 1}, "invalid source selection or path budget"},
-		"backward page range":    {map[string]any{"filename": "a.pdf", "data": upload, "firstPage": 2, "lastPage": 1}, "invalid source selection or path budget"},
+		"long path":              {map[string]any{"filename": "a.txt", "data": upload, "path": strings.Repeat("a", 513)}, "source path exceeds its budget"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			body, _ := json.Marshal(test.input)

@@ -37,10 +37,6 @@ func (s *Server) instanceAITools(server *mcp.Server) {
 		}
 		endpoint := s.indexes.Endpoint()
 		judge, localOnly := s.judgmentsConfigured()
-		vision, transcription := s.sourceProviderAvailability()
-		if (in.Config.SourceOCR || in.Config.SourceDescriptions) && !vision || in.Config.SourceTranscription && !transcription {
-			return nil, fmt.Errorf("%w: configure an allowed hosted source processor first", catalog.ErrLocalInput)
-		}
 		if in.Config.Embeddings && (endpoint == nil || s.chatEmbeddingPolicy(endpoint) == nil) {
 			return nil, fmt.Errorf("%w: an allowed embedding provider must be configured first", catalog.ErrLocalInput)
 		}
@@ -99,7 +95,6 @@ func (s *Server) instanceAIStatus(ctx context.Context, actor string) (map[string
 	endpoint := s.indexes.Endpoint()
 	embeddings := endpoint != nil && s.chatEmbeddingPolicy(endpoint) != nil
 	judge, localOnly := s.judgmentsConfigured()
-	sourceVision, sourceTranscription := s.sourceProviderAvailability()
 	notebooks := []map[string]any{}
 	for _, project := range s.catalog.List(actor) {
 		if project.ProtectedInbox != "" {
@@ -123,7 +118,7 @@ func (s *Server) instanceAIStatus(ctx context.Context, actor string) (map[string
 		}
 		notebooks = append(notebooks, row)
 	}
-	return map[string]any{"config": config, "managed": managed, "providers": map[string]any{"embeddings": embeddings, "decisions": judge != nil, "localOnly": localOnly, "sourceVision": sourceVision, "sourceTranscription": sourceTranscription}, "notebooks": notebooks}, nil
+	return map[string]any{"config": config, "managed": managed, "providers": map[string]any{"embeddings": embeddings, "decisions": judge != nil, "localOnly": localOnly}, "notebooks": notebooks}, nil
 }
 
 func (s *Server) syncInstanceAI(ctx context.Context) {

@@ -95,7 +95,7 @@ jobs:
       # which Ubuntu's package keeps off PATH. Source tests drive the real parsers
       # on the host; smoke-source repeats them with the image's pinned versions.
       - run: |
-          .github/scripts/apt-install.sh openssl inotify-tools postgresql ffmpeg poppler-utils tesseract-ocr
+          .github/scripts/apt-install.sh openssl inotify-tools postgresql poppler-utils
           ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1 >> "$GITHUB_PATH"
       - run: make setup-deps setup-browser
       - run: python deploy/production/release_image.py --verify-only --mode full --jobs 2

@@ -494,8 +494,6 @@ on this instance", before any outside request, recorded intent or token:
   browser setup refuses before GitHub authorization. A copied token is never
   validated or revoked; an authority handoff still fences the copy's own leases.
 - Judgment reviews: starting or continuing one; cancelling stays available.
-- Hosted source extraction (OCR, image descriptions, transcription): at
-  admission, for a job copied while queued, and before each provider call.
 - Background document embedding, for notebooks and repository sources.
   Knowledge status reports the pause; vectors restored with the copy still serve
   search.

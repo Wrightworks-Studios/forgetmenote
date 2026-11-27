@@ -131,11 +131,17 @@ func suppliedResult(extractor string, text SuppliedText) (documentResult, error)
 	return result, nil
 }
 
-// AwaitingText says whether an archived source has no usable text yet: its
-// extraction failed or found none, so a connected agent should supply it.
+// OriginalOnly is the extraction of a source the server stored without
+// reading, because a connected agent extracts its format.
+const OriginalOnly = "original-only"
+
+// AwaitingText says whether an archived source lacks usable text: the server
+// stored its original only, its extraction failed, found no text, or is
+// incomplete (a PDF's pages without a text layer among them), so a connected
+// agent should supply it.
 func AwaitingText(record workspace.SourceRecord) bool {
 	switch record.Extraction {
-	case "no-text", "failed":
+	case OriginalOnly, "no-text", "failed", "partial":
 		return true
 	}
 	return record.TextSHA256 == workspace.ContentHash(nil)

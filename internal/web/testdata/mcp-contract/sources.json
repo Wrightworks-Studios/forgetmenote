@@ -10,18 +10,14 @@
       "formats": [
         {
           "agentExtracts": "scanned or image-only pages: when a PDF has them, upload your own text of the whole document",
-          "describeImages": true,
-          "description": "Local Poppler text and English Tesseract OCR with physical page anchors. Tables, equations and reading order need verification; hosted OCR is explicit.",
+          "description": "Local Poppler text layer with physical page anchors; scanned regions, figures and images are a connected agent's to read. Tables, equations and reading order need verification.",
           "extensions": [
             ".pdf"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/pdf",
-          "name": "PDF",
-          "transcription": false
+          "name": "PDF"
         },
         {
           "description": "Static page text and headings; no scripts or linked assets.",
@@ -29,385 +25,292 @@
             ".html",
             ".htm"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "text/html",
-          "name": "Webpage",
-          "transcription": false
+          "name": "Webpage"
         },
         {
           "description": "UTF-8 or BOM-marked UTF-16 text.",
           "extensions": [
             ".txt"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "text/plain",
-          "name": "Text",
-          "transcription": false
+          "name": "Text"
         },
         {
           "description": "Main document paragraphs, headings, and tables; no pagination or embedded objects.",
           "extensions": [
             ".docx"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "name": "Word",
-          "transcription": false
+          "name": "Word"
         },
         {
           "description": "Chapter text in spine order; no DRM decryption.",
           "extensions": [
             ".epub"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/epub+zip",
-          "name": "EPUB",
-          "transcription": false
+          "name": "EPUB"
         },
         {
           "description": "Sheets and stored cell values, including hidden content; formulas are never calculated.",
           "extensions": [
             ".xlsx"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "name": "Excel",
-          "transcription": false
+          "name": "Excel"
         },
         {
           "description": "Comma-delimited records, including quoted multiline fields.",
           "extensions": [
             ".csv"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "text/csv",
-          "name": "CSV",
-          "transcription": false
+          "name": "CSV"
         },
         {
           "description": "Tab-delimited records.",
           "extensions": [
             ".tsv"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "text/tab-separated-values",
-          "name": "TSV",
-          "transcription": false
+          "name": "TSV"
         },
         {
-          "describeImages": true,
-          "description": "English OCR with page anchors; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".png"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/png",
-          "name": "PNG",
-          "transcription": false
+          "name": "PNG"
         },
         {
-          "describeImages": true,
-          "description": "English OCR with page anchors; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".jpg",
             ".jpeg"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/jpeg",
-          "name": "JPEG",
-          "transcription": false
+          "name": "JPEG"
         },
         {
-          "describeImages": true,
-          "description": "English OCR for each frame; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".tiff",
             ".tif"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/tiff",
-          "name": "TIFF",
-          "transcription": false
+          "name": "TIFF"
         },
         {
-          "describeImages": true,
-          "description": "English OCR with page anchors; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".webp"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/webp",
-          "name": "WebP",
-          "transcription": false
+          "name": "WebP"
         },
         {
-          "describeImages": true,
-          "description": "English OCR with page anchors; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".bmp"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "image/bmp",
-          "name": "Bitmap",
-          "transcription": false
+          "name": "Bitmap"
         },
         {
-          "describeImages": true,
-          "description": "Slide text and tables; animations, notes, and embedded media are not transcribed.",
+          "description": "Slide text and tables; animations, notes, images and embedded media are not read.",
           "extensions": [
             ".pptx"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          "name": "PowerPoint",
-          "transcription": false
+          "name": "PowerPoint"
         },
         {
           "description": "Message headers and body; attachment names only.",
           "extensions": [
             ".eml"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "message/rfc822",
-          "name": "Email",
-          "transcription": false
+          "name": "Email"
         },
         {
           "description": "Message headers and body; attachment names only.",
           "extensions": [
             ".msg"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.ms-outlook",
-          "name": "Outlook message",
-          "transcription": false
+          "name": "Outlook message"
         },
         {
           "description": "Document text and tables; original layout is not retained.",
           "extensions": [
             ".odt"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.text",
-          "name": "OpenDocument text",
-          "transcription": false
+          "name": "OpenDocument text"
         },
         {
           "description": "Stored cell values; formulas are not recalculated.",
           "extensions": [
             ".ods"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.spreadsheet",
-          "name": "OpenDocument spreadsheet",
-          "transcription": false
+          "name": "OpenDocument spreadsheet"
         },
         {
           "description": "Slide text and tables; embedded media are not transcribed.",
           "extensions": [
             ".odp"
           ],
-          "externalOCR": false,
           "extractedBy": "server",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.presentation",
-          "name": "OpenDocument presentation",
-          "transcription": false
+          "name": "OpenDocument presentation"
         },
         {
-          "description": "Document text and tables; complex layout may be omitted.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".pages"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.apple.pages",
-          "name": "Pages",
-          "transcription": false
+          "name": "Pages"
         },
         {
-          "description": "Slide text and tables; animations and embedded media are not transcribed.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".key"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "application/vnd.apple.keynote",
-          "name": "Keynote",
-          "transcription": false
+          "name": "Keynote"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".wav"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/wav",
-          "name": "WAV",
-          "transcription": false
+          "name": "WAV"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".mp3"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/mpeg",
-          "name": "MP3",
-          "transcription": false
+          "name": "MP3"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".m4a"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/mp4",
-          "name": "M4A",
-          "transcription": false
+          "name": "M4A"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".aac"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/aac",
-          "name": "AAC",
-          "transcription": false
+          "name": "AAC"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".ogg"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/ogg",
-          "name": "Ogg",
-          "transcription": false
+          "name": "Ogg"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".flac"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "audio/flac",
-          "name": "FLAC",
-          "transcription": false
+          "name": "FLAC"
         },
         {
-          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".mp4"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "video/mp4",
-          "name": "MP4",
-          "transcription": false
+          "name": "MP4"
         },
         {
-          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".mov"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "video/quicktime",
-          "name": "QuickTime",
-          "transcription": false
+          "name": "QuickTime"
         },
         {
-          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".avi"
           ],
-          "externalOCR": false,
           "extractedBy": "agent",
-          "hostedDescriptions": false,
           "maxBytes": 67108864,
           "mime": "video/x-msvideo",
-          "name": "AVI",
-          "transcription": false
+          "name": "AVI"
         }
       ]
     }

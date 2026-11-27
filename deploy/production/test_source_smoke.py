@@ -59,7 +59,7 @@ class OfflineFixtureMounts(unittest.TestCase):
         for target, modes in self.mounted.items():
             unreadable = [path for path, (_, readable) in modes.items() if not readable]
             self.assertEqual([], unreadable, target)
-        self.assertTrue(any(path.endswith('testdata/iwork') for path in self.mounted['/fixtures']))
+        self.assertTrue(any(path.endswith('testdata/scanned.pdf') for path in self.mounted['/fixtures']))
 
     def test_the_checkout_keeps_its_private_modes(self):
         fixtures = Path(source_smoke.__file__).resolve().parents[1] / 'internal/sources'

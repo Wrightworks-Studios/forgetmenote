@@ -275,14 +275,6 @@
           "description": "Base64 supported source original (see source_formats), bounded by operator FMN_LIMIT_SOURCE_BYTES when decoded. Omit to fetch URL.",
           "type": "string"
         },
-        "describeImages": {
-          "description": "Opt in to explicitly authorized hosted image descriptions for supported formats; see source_formats. Descriptions are labeled and may be inaccurate.",
-          "type": "boolean"
-        },
-        "externalOCR": {
-          "description": "Explicitly upload selected PDF/image pages to the configured hosted OCR model. Never selected automatically.",
-          "type": "boolean"
-        },
         "extractor": {
           "description": "With text: the agent and model that extracted it, such as 'Example Agent 2; example-model-5'. One line of at most 200 characters.",
           "type": "string"
@@ -290,19 +282,12 @@
         "filename": {
           "type": "string"
         },
-        "firstPage": {
-          "description": "First physical page/image selected for hosted processing. At most eight per request.",
-          "type": "integer"
-        },
         "folder": {
           "description": "Destination folder for a new source note. Omit for sources; empty string selects project root. Do not pass with path when refreshing.",
           "type": [
             "null",
             "string"
           ]
-        },
-        "lastPage": {
-          "type": "integer"
         },
         "path": {
           "description": "Existing archived source note to refresh; omit for a new source.",
@@ -368,10 +353,6 @@
         },
         "title": {
           "type": "string"
-        },
-        "transcribe": {
-          "description": "Explicitly upload audio segments to the configured hosted transcription model (five minutes maximum).",
-          "type": "boolean"
         },
         "url": {
           "description": "Public source URL. With data, records provenance only; without data, fetches the URL.",
@@ -9827,9 +9808,6 @@
               "agentExtracts": {
                 "type": "string"
               },
-              "describeImages": {
-                "type": "boolean"
-              },
               "description": {
                 "type": "string"
               },
@@ -9842,14 +9820,8 @@
                   "array"
                 ]
               },
-              "externalOCR": {
-                "type": "boolean"
-              },
               "extractedBy": {
                 "type": "string"
-              },
-              "hostedDescriptions": {
-                "type": "boolean"
               },
               "maxBytes": {
                 "type": "integer"
@@ -9859,9 +9831,6 @@
               },
               "name": {
                 "type": "string"
-              },
-              "transcription": {
-                "type": "boolean"
               }
             },
             "required": [
@@ -9870,10 +9839,7 @@
               "mime",
               "description",
               "maxBytes",
-              "extractedBy",
-              "externalOCR",
-              "hostedDescriptions",
-              "transcription"
+              "extractedBy"
             ],
             "type": "object"
           },

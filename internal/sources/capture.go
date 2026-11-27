@@ -152,13 +152,9 @@ func Fetch(ctx context.Context, rawURL string) ([]byte, string, string, error) {
 	return data, resp.Header.Get("Content-Type"), resp.Request.URL.String(), nil
 }
 
+// Options lets a source job checkpoint a PDF's pages and restart after the
+// last it stored.
 type Options struct {
-	DescribeImages bool `json:"describeImages,omitempty"`
-	ExternalOCR    bool `json:"externalOCR,omitempty"`
-	Transcribe     bool `json:"transcribe,omitempty"`
-	FirstPage      int  `json:"firstPage,omitempty"`
-	LastPage       int  `json:"lastPage,omitempty"`
-	hosted         *Hosted
 	completedPages []PDFPage
 	pageDone       func(PDFPage) error
 	pageStart      func(int) error
@@ -170,9 +166,6 @@ func Prepare(ctx context.Context, filename, originalURL string, data []byte) (wo
 
 func PrepareWithOptions(ctx context.Context, filename, originalURL string, data []byte, options Options) (workspace.SourceCapture, error) {
 	var out workspace.SourceCapture
-	if options.external() && options.hosted == nil {
-		return out, errors.New("hosted source processing requires explicit instance policy and a configured processor")
-	}
 	if err := ctx.Err(); err != nil {
 		return out, err
 	}
@@ -217,9 +210,6 @@ func PrepareWithOptions(ctx context.Context, filename, originalURL string, data 
 		}
 		if err := formatIncluded(format); err != nil {
 			return out, err
-		}
-		if options.DescribeImages && !format.DescribeImages {
-			return out, rejection("image descriptions are available for PDFs, images, and PowerPoint files")
 		}
 		out.Record.MIME = format.MIME
 		out.Record.Extractor = "ForgetMeNote " + format.Name + " text v1"
@@ -268,22 +258,16 @@ func PrepareWithOptions(ctx context.Context, filename, originalURL string, data 
 				out.Record.Warning = "Chapter text follows the book's reading order. Media, interactive content, and exact pagination are omitted. Encrypted chapters are not supported."
 			}
 		default:
-			if mediaExtension(format.Extensions[0]) {
-				if !options.Transcribe {
-					out.Record.Warning, err = mediaOriginal(ctx, format.Extensions[0], data)
-					out.Record.Extractor = "FFmpeg media validation v1"
-				} else {
-					out.Record.Extractor = "Hosted transcription pending"
-				}
-			} else {
-				out.Text, out.Record.Extractor, out.Record.Extraction, err = extractDocument(ctx, format.Extensions[0], data, options)
+			if by, _ := ExtractedBy(format); by == "agent" {
+				// The server reads no image, recording or Apple document. The
+				// original waits for a connected agent's text.
+				out.Record.Extractor = "ForgetMeNote original only v1"
+				out.Record.Extraction = OriginalOnly
+				out.Record.Warning = "The server stores " + format.Name + " originals without reading them. A connected agent can read the original and add its text."
+				break
 			}
-			if !mediaExtension(format.Extensions[0]) {
-				out.Record.Warning = format.Description
-			}
-			if options.DescribeImages {
-				out.Record.Warning += " AI image descriptions may contain errors."
-			}
+			out.Text, out.Record.Extractor, out.Record.Extraction, err = extractDocument(ctx, format.Extensions[0], data)
+			out.Record.Warning = format.Description
 			if out.Record.Extraction == "partial" {
 				out.Record.Warning = "Extraction is incomplete. " + out.Record.Warning
 			}
@@ -301,7 +285,7 @@ func PrepareWithOptions(ctx context.Context, filename, originalURL string, data 
 		if len(out.Text) > workspace.MaxSourceText() {
 			return out, rejection("extracted source text exceeds FMN_LIMIT_SOURCE_TEXT_BYTES")
 		}
-		if out.Record.Extraction == "no-text" || strings.TrimSpace(out.Text) == "" {
+		if out.Record.Extraction != OriginalOnly && (out.Record.Extraction == "no-text" || strings.TrimSpace(out.Text) == "") {
 			out.Record.Extraction = "no-text"
 			out.Record.Warning = "No readable text found. " + out.Record.Warning
 		}
@@ -317,11 +301,6 @@ func PrepareWithOptions(ctx context.Context, filename, originalURL string, data 
 	}
 	if err := ctx.Err(); err != nil {
 		return workspace.SourceCapture{}, err
-	}
-	if options.external() {
-		if err := options.hosted.Process(ctx, &out, options); err != nil {
-			return workspace.SourceCapture{}, err
-		}
 	}
 	out.Record.TextSHA256 = workspace.ContentHash([]byte(out.Text))
 	return out, nil

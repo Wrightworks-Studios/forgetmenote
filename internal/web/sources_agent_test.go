@@ -172,7 +172,6 @@ func TestArchiveSourceRefusesInvalidAgentText(t *testing.T) {
 		"an extractor without text":   {map[string]any{"filename": "a.txt", "data": original, "extractor": "Agent"}, "extractor"},
 		"text without the original":   {map[string]any{"filename": "a.pdf", "url": "https://example.com/a.pdf", "extractor": "Agent", "text": valid}, "original"},
 		"text and nothing else":       {map[string]any{"extractor": "Agent", "text": valid}, "original"},
-		"hosted processing with text": {map[string]any{"filename": "a.png", "data": original, "extractor": "Agent", "text": valid, "externalOCR": true}, "hosted processing"},
 		"an unsupported format":       {map[string]any{"filename": "a.exe", "data": original, "extractor": "Agent", "text": valid}, "unsupported"},
 	} {
 		t.Run(name, func(t *testing.T) {

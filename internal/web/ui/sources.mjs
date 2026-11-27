@@ -35,7 +35,6 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
     const remote = fromURL();
     $('archive-preview-button').disabled = busy || loading; $('archive-save').disabled = busy || loading;
     $('archive-folder').disabled = busy || loading;
-    for (const id of ['archive-describe', 'archive-ocr', 'archive-transcribe', 'archive-first-page', 'archive-last-page']) $(id).disabled = busy || loading;
     $('archive-upload').disabled = busy; $('archive-fetch').disabled = busy;
     $('archive-file').disabled = busy || remote; $('archive-origin-url').disabled = busy || remote;
     $('archive-url').disabled = busy || !remote;
@@ -49,8 +48,6 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
     $('archive-copy').textContent = 'Copy citation';
     $('creation-title').textContent = note ? 'Capture a new version' : 'Add source';
     $('archive-fetch').checked = !!url; $('archive-upload').checked = !url;
-    for (const id of ['archive-describe', 'archive-ocr', 'archive-transcribe']) $(id).checked = false;
-    $('archive-first-page').value = ''; $('archive-last-page').value = '';
     $('archive-file').value = ''; $('archive-url').value = url;
     $('archive-origin-url').value = note?.metadata?.source?.method === 'uploaded' ? note.metadata.source.url || '' : '';
     $('archive-origin-details').open = !!$('archive-origin-url').value;
@@ -71,11 +68,9 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
       }
       formats = available; sourceBytes = formats[0]?.maxBytes || 0;
       if (!Number.isSafeInteger(sourceBytes) || sourceBytes <= 0) throw new Error('Source upload budget is unavailable.');
-      loading = false; enabled(); descriptionOption();
+      loading = false; enabled();
       $('archive-file').accept = formats.flatMap(format => format.extensions).join(',');
-      // A build without local OCR offers no image formats (docs/integrations.md).
-      const kinds = formats.some(format => format.mime?.startsWith('image/')) ? 'Documents, images, email' : 'Documents, email';
-      $('archive-formats').textContent = `${kinds}, audio, and video · Up to ${sourceBytes / (1024 * 1024)} MiB`;
+      $('archive-formats').textContent = `Documents, images, email, audio, and video · Up to ${sourceBytes / (1024 * 1024)} MiB`;
       let remembered; try { remembered = JSON.parse(localStorage.getItem(rememberedKey())); } catch {}
       if (remembered?.id && remembered.path === (target?.path || '')) {
         jobID = remembered.id;
@@ -85,32 +80,14 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
     } catch { if (g === generation) error('Could not load source options. Reopen Add source to try again.'); }
 
   }
-  function descriptionOption() {
-    const name = fromURL() ? $('archive-url').value.split(/[?#]/)[0] : $('archive-file').files[0]?.name || '';
-    const format = formats.find(format => format.extensions.some(ext => name.toLowerCase().endsWith(ext)));
-    const allowed = capability => format?.[capability] || (fromURL() && !format && formats.some(item => item[capability]));
-    for (const [id, capability] of [['describe', 'hostedDescriptions'], ['ocr', 'externalOCR'], ['transcribe', 'transcription']]) {
-      $('archive-' + id + '-field').hidden = !allowed(capability);
-      if (!allowed(capability)) $('archive-' + id).checked = false;
-    }
-    const range = $('archive-ocr').checked || $('archive-describe').checked;
-    $('archive-page-range').hidden = !range;
-    if (!range) { $('archive-first-page').value = ''; $('archive-last-page').value = ''; }
-  }
-  function changed() { invalidate(); descriptionOption(); }
   function mode() {
     const remote = fromURL();
     $('archive-file-field').hidden = remote; $('archive-url-field').hidden = !remote;
     $('archive-file').required = !remote; $('archive-url').required = remote;
-    invalidate(); error(''); enabled(); descriptionOption();
+    invalidate(); error(''); enabled();
   }
   $('archive-upload').onchange = mode; $('archive-fetch').onchange = mode;
-  for (const id of ['archive-describe', 'archive-ocr', 'archive-transcribe', 'archive-first-page', 'archive-last-page']) $(id).onchange = () => {
-    if (id === 'archive-ocr' && $(id).checked) $('archive-describe').checked = false;
-    if (id === 'archive-describe' && $(id).checked) $('archive-ocr').checked = false;
-    invalidate(); descriptionOption();
-  };
-  $('archive-file').onchange = changed; $('archive-url').oninput = changed; $('archive-origin-url').oninput = invalidate;
+  $('archive-file').onchange = invalidate; $('archive-url').oninput = invalidate; $('archive-origin-url').oninput = invalidate;
   $('first-source').onclick = () => open();
   dialog.addEventListener('close', () => { generation++; prepared = null; });
   $('archive-form').onsubmit = async event => {
@@ -119,12 +96,6 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
     $('archive-preview-button').textContent = 'Extracting…';
     try {
       const input = {url: $(fromURL() ? 'archive-url' : 'archive-origin-url').value.trim(), ...(target ? {path: target.path} : {folder: $('archive-folder').value})};
-      for (const [id, option] of [['describe', 'describeImages'], ['ocr', 'externalOCR'], ['transcribe', 'transcribe']]) {
-        if ($('archive-' + id).checked) input[option] = true;
-      }
-      for (const [id, option] of [['first-page', 'firstPage'], ['last-page', 'lastPage']]) {
-        if ($('archive-' + id).value) input[option] = Number($('archive-' + id).value);
-      }
       if (!fromURL()) {
         const file = $('archive-file').files[0]; if (!file) throw new Error('Choose a source file.');
         if (file.size > sourceBytes) throw new Error(`Source files must be ${sourceBytes / (1024 * 1024)} MiB or smaller.`);

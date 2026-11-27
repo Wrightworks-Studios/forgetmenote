@@ -1,6 +1,6 @@
 import {$,busy} from './dom.mjs';
 import {feedback} from './feedback.mjs';
-const features = ['embeddings','mapClassification','rerank','citations','reviews','writing','sourceOCR','sourceDescriptions','sourceTranscription'];
+const features = ['embeddings','mapClassification','rerank','citations','reviews','writing'];
 
 // A disabled feature says why next to its label.
 function hint(input,text) {
@@ -16,12 +16,12 @@ export function initAISettings({post,getUser,getActive}) {
  function render(data) {
   state=data;
   const providers=data.providers, config=data.config;
-  $('instance-ai-providers').textContent=`Embeddings: ${providers.embeddings?'connected':'not configured'} · Decisions: ${providers.decisions?'connected':'not configured'} · Source vision: ${providers.sourceVision?'connected':'not configured'} · Transcription: ${providers.sourceTranscription?'connected':'not configured'}`;
+  $('instance-ai-providers').textContent=`Embeddings: ${providers.embeddings?'connected':'not configured'} · Decisions: ${providers.decisions?'connected':'not configured'}`;
   for(const feature of features) {
    const input=$('instance-ai-'+feature);input.checked=!!config[feature];
-   const unavailable=feature==='embeddings'?!providers.embeddings:feature==='writing'?false:feature==='sourceTranscription'?!providers.sourceTranscription:feature.startsWith('source')?!providers.sourceVision:!providers.decisions||providers.localOnly;
+   const unavailable=feature==='embeddings'?!providers.embeddings:feature==='writing'?false:!providers.decisions||providers.localOnly;
    input.disabled=unavailable&&!input.checked;
-   hint(input,input.disabled?feature==='embeddings'?'Requires a configured embeddings provider.':feature==='sourceTranscription'?'Requires a configured transcription provider.':feature.startsWith('source')?'Requires a configured source vision provider.':providers.localOnly&&providers.decisions?'Unavailable while AI is limited to local processing.':'Requires a configured decision provider.':'');
+   hint(input,input.disabled?feature==='embeddings'?'Requires a configured embeddings provider.':providers.localOnly&&providers.decisions?'Unavailable while AI is limited to local processing.':'Requires a configured decision provider.':'');
   }
   $('instance-ai-model').value=config.model||'';$('instance-ai-dimensions').value=config.dimensions||1536;
   $('instance-ai-rebuild').checked=false;

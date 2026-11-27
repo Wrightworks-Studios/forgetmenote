@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"forgetmenote/internal/decision"
+	"log/slog"
 )
 
 // Hooks connect cross-owner policy updates to a single configuration lifetime.
@@ -84,7 +85,10 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 	var judge *decision.Service
 	ledger := r.JudgmentLedger
 	openedLedger := false
-	if judgeConfig != nil && judgeConfig.Enabled || cfg != nil && cfg.Sources != nil {
+	if cfg != nil && len(cfg.RetiredSources) > 0 {
+		slog.Warn("chat configuration: sources configured hosted source processing, which was removed; the block is ignored and can be deleted")
+	}
+	if judgeConfig != nil && judgeConfig.Enabled {
 		if ledger == nil {
 			ledger, err = decision.OpenLedger(r.db)
 			if err != nil {
