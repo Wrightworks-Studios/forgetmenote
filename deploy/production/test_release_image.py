@@ -57,28 +57,14 @@ elif tool == "docker":
     if "build" in args:
         pathlib.Path(args[args.index("--iidfile") + 1]).write_text("sha256:" + "b" * 64)
     elif "imagetools" in args:
-        # The registry: anonymous reads only when the package allows them.
+        # The registry, as the GitHub CLI's token reads it.
         reference = args[-1]
-        config = pathlib.Path(args[args.index("--config") + 1]) if "--config" in args else None
-        signed_in = bool(config) and "auths" in json.loads((config / "config.json").read_text())
-        if os.environ.get("ANONYMOUS_DENIED") and not signed_in:
-            print("ERROR: failed to authorize: 401 Unauthorized", file=sys.stderr)
-            sys.exit(1)
-        if "--raw" in args:
-            print(json.dumps({"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
-                              "config": {"digest": os.environ.get("REGISTRY_IMAGE_ID", "sha256:" + "b" * 64)}}))
-            sys.exit(0)
-        tag = reference.rpartition(":")[2]
-        current = tag == "main-" + os.environ["FIXTURE_REVISION"] and (
-            (root / "pushed").exists() or os.environ.get("EXISTING_IMAGE"))
-        if not (current or tag in os.environ.get("PUBLISHED_TAGS", "").split(",")):
+        if not (reference.rpartition(":")[2] == "main-" + os.environ["FIXTURE_REVISION"] and (
+                (root / "pushed").exists() or os.environ.get("EXISTING_IMAGE"))):
             print("ERROR: " + reference + ": not found", file=sys.stderr)
             sys.exit(1)
         print(json.dumps({"mediaType": "application/vnd.oci.image.manifest.v1+json", "digest": "sha256:" + "a" * 64, "size": 1}))
     elif "inspect" in args:
-        if os.environ.get("NO_LOCAL_IMAGE"):
-            print("Error: No such image", file=sys.stderr)
-            sys.exit(1)
         digest = os.environ.get("PUSHED_DIGEST", "sha256:" + "a" * 64)
         print(json.dumps([{"Os": "linux", "Architecture": os.environ.get("IMAGE_ARCH", "amd64"),
                            "RepoDigests": [os.environ.get("PUSHED_REPOSITORY", "ghcr.io/example-owner/forgetmenote") + "@" + digest],
@@ -366,7 +352,7 @@ class ReleaseTests(unittest.TestCase):
         expected = 1
         for path in ("scripts/browser/journey.spec.mjs", "internal/web/main_test.go", "internal/instanceconfig/config.go",
                      ".env.example", "compose.yaml", "Dockerfile", ".dockerignore",
-                     ".github/workflows/publish.yml", "internal/sources/testdata/scan.txt",
+                     ".github/workflows/notify-deployments.yml", "internal/sources/testdata/scan.txt",
                      "internal/web/renamed_test.go"):
             with self.subTest(path=path):
                 (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
@@ -858,127 +844,6 @@ class ReleaseTests(unittest.TestCase):
         installs = [c["args"] for c in self.calls() if c["tool"] == "npx" and c["args"][1:3] == ["playwright", "install"]]
         self.assertEqual(len(installs), 1, installs)
         self.assertEqual(set(installs[0][3:]), engines)
-
-    def verified_record(self):
-        """A copy of a complete verify-only record, as the publishing job downloads it."""
-        result = self.release("--verify-only")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.git("checkout", "--", "note.txt")
-        artifact = self.root / "artifact"
-        artifact.mkdir()
-        shutil.copyfile(self.root / "cache/forgetmenote/releases" / self.revision / "verification.json",
-                        artifact / "verification.json")
-        return artifact
-
-    def test_publish_verified_pushes_the_checked_image_without_checking_again(self):
-        artifact = self.verified_record()
-        start = len(self.calls())
-        self.env["GITHUB_ACTOR"] = "example-bot"
-        result = self.release("--publish-verified", str(artifact))
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Deploy this image: " + REGISTRY + "@" + DIGEST, result.stdout)
-        calls = self.calls()[start:]
-        self.assertFalse(any(c["tool"] in ("make", "go", "npm", "npx") or c["tool"] == "docker" and "build" in c["args"]
-                             for c in calls), "publishing runs no check and builds nothing")
-        push = next(c for c in calls if c["tool"] == "docker" and "push" in c["args"])
-        self.assertEqual(push["args"][-1], REGISTRY + ":main-" + self.revision)
-        tag = next(c for c in calls if c["tool"] == "docker" and "tag" in c["args"])
-        self.assertIn(IMAGE_ID, tag["args"])
-        login = next(c for c in calls if c["tool"] == "docker" and "login" in c["args"])
-        self.assertEqual(login["args"][-4:], ["--username", "example-bot", "--password-stdin", "ghcr.io"])
-        self.assertEqual(login["password"], "synthetic-oauth-token")
-        self.assertFalse(Path(login["args"][1]).exists(), "temporary Docker credentials must be removed")
-        self.assertNotIn("synthetic-oauth-token", result.stdout + result.stderr)
-        publication = json.loads((artifact / "publication.json").read_text())
-        self.assertEqual(publication, {"source_revision": self.revision, "image_id": IMAGE_ID, "registry_digest": DIGEST,
-                                       "image": REGISTRY + ":main-" + self.revision})
-        raw = (artifact / "verification.json").read_bytes()
-        record = json.loads(raw)
-        summary = json.loads((artifact / "verification-summary.json").read_text())
-        self.assertEqual(summary["record_sha256"], hashlib.sha256(raw).hexdigest())
-        self.assertEqual((summary["source_revision"], summary["image_id"], summary["complete"]), (self.revision, IMAGE_ID, True))
-        self.assertEqual(summary["expected_checks"], record["expected_checks"])
-        self.assertEqual(set(summary["checks"]), set(record["expected_checks"]))
-        self.assertEqual({(c["status"], c["exit_code"]) for c in summary["checks"].values()}, {("passed", 0)})
-        self.assertEqual(summary["plan"]["mode"], record["plan"]["mode"])
-        # The summary is published: commands, inputs and host paths stay in the record.
-        self.assertIn(str(self.root), raw.decode())
-        self.assertNotIn(str(self.root), json.dumps(summary))
-
-    def test_publish_verified_refuses_what_the_record_does_not_prove(self):
-        artifact = self.verified_record()
-        original = (artifact / "verification.json").read_text()
-        record = json.loads(original)
-        first = record["expected_checks"][0]
-        failed = {**record, "checks": {**record["checks"], first: {**record["checks"][first], "status": "failed", "exit_code": 1}}}
-        for name, value in [("incomplete", {**record, "complete": False}), ("failed check", failed),
-                            ("another revision", {**record, "source_revision": "c" * 40}),
-                            ("no expected checks", {**record, "expected_checks": []})]:
-            with self.subTest(name):
-                (artifact / "verification.json").write_text(json.dumps(value))
-                result = self.release("--publish-verified", str(artifact))
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("complete verification record", result.stderr)
-        (artifact / "verification.json").write_text(original)
-        self.env["NO_LOCAL_IMAGE"] = "1"
-        result = self.release("--publish-verified", str(artifact))
-        self.assertNotEqual(result.returncode, 0, "the checked image must be loaded")
-        self.assertFalse((self.root / "pushed").exists())
-        self.assertFalse((artifact / "publication.json").exists())
-        for extra in (["--verify-only"], ["--since", self.revision], ["--since-published"], ["--dry-run"]):
-            result = self.release("--publish-verified", str(artifact), *extra)
-            self.assertNotEqual(result.returncode, 0, extra)
-            self.assertIn("--publish-verified", result.stderr)
-
-    def test_publish_verified_rerun_reuses_its_own_image_and_refuses_another(self):
-        artifact = self.verified_record()
-        self.env["EXISTING_IMAGE"] = "1"
-        result = self.release("--publish-verified", str(artifact))
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Already published: " + REGISTRY + "@" + DIGEST, result.stdout)
-        self.assertFalse((self.root / "pushed").exists())
-        self.assertEqual(json.loads((artifact / "publication.json").read_text())["registry_digest"], DIGEST)
-        (artifact / "publication.json").unlink()
-        self.env["REGISTRY_IMAGE_ID"] = "sha256:" + "c" * 64
-        result = self.release("--publish-verified", str(artifact))
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("different image", result.stderr)
-        self.assertFalse((self.root / "pushed").exists())
-        self.assertFalse((artifact / "publication.json").exists())
-
-    def test_since_published_verifies_against_the_newest_published_main_commit(self):
-        published = self.revision
-        self.next_revision("README.md", "Documentation that published no image\n")
-        self.next_revision("internal/web/ui/style.css", "button { gap: .5rem; }\n")
-        self.env["PUBLISHED_TAGS"] = "main-" + published
-        result = self.release("--verify-only", "--since-published")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Published baseline: " + published, result.stdout)
-        record = json.loads((self.root / "cache/forgetmenote/releases" / self.revision / "verification.json").read_text())
-        self.assertEqual((record["plan"]["mode"], record["plan"]["baseline"]), ("routine", published))
-        lookups = [c["args"][-1] for c in self.calls() if c["tool"] == "docker" and "imagetools" in c["args"]]
-        self.assertEqual(lookups, [REGISTRY + ":main-" + self.git("rev-parse", "HEAD^").stdout.strip(),
-                                   REGISTRY + ":main-" + published])
-        self.assertFalse(any(c["tool"] == "gh" or "login" in c["args"] for c in self.calls()), "the gate never signs in")
-
-    def test_since_published_without_a_readable_baseline_verifies_completely(self):
-        self.assertIn("exclusive", self.release("--verify-only", "--since-published", "--since", self.revision).stderr)
-        self.next_revision("README.md", "Documentation that published no image\n")
-        self.next_revision("internal/web/ui/style.css", "button { gap: .5rem; }\n")
-        # A refused read stops the search; an unpublished history is searched to its start.
-        for setting, lookups in (({"ANONYMOUS_DENIED": "1"}, 1), ({}, 2)):
-            with self.subTest(setting):
-                self.git("checkout", "--", "note.txt")
-                shutil.rmtree(self.root / "cache", ignore_errors=True)
-                (self.root / "calls.jsonl").unlink(missing_ok=True)
-                self.env.update(setting)
-                result = self.release("--verify-only", "--since-published")
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn("verifying completely", result.stdout)
-                self.assertEqual(sum(c["tool"] == "docker" and "imagetools" in c["args"] for c in self.calls()), lookups)
-                record = json.loads((self.root / "cache/forgetmenote/releases" / self.revision / "verification.json").read_text())
-                self.assertEqual(record["plan"]["mode"], "full")
-                self.env.pop("ANONYMOUS_DENIED", None)
 
     def test_verify_only_runs_without_github_or_credentials(self):
         result = self.release("--verify-only")
