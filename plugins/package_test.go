@@ -21,7 +21,7 @@ func TestPackagesAreScopedPortableAndAllowlisted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if one.ID == two.ID || one.Version != "0.3.4" {
+	if one.ID == two.ID || one.Version != "0.3.5" {
 		t.Fatal(one, two)
 	}
 	renamed, _ := New(one.Origin, "Renamed instance")

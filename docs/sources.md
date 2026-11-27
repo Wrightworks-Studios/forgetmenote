@@ -33,7 +33,7 @@ A new capture stores:
 - `<chosen-folder>/<random-id>.md` (or `<random-id>.md` at the project root): ordinary Markdown containing provenance in flat `source_*` frontmatter and the extracted text.
 - `assets/sources/<random-id>/<sha256>.<format-extension>`: original bytes, without sanitizing or rewriting them. HTTP captures preserve the decoded response body; they are not full HTTP/WARC archives.
 
-Source records contain the original and final URL, UTC capture time, stable internal importer ID, capture method, MIME type, original SHA-256, extraction method/version, extraction status and warning, and extracted-text SHA-256. Git history records authorship and browser/MCP origin. `status: unreviewed` is separate from successful extraction: change the note's status in Properties after reviewing its evidence.
+Source records contain the original and final URL, UTC capture time, stable internal importer ID, capture method, MIME type, original SHA-256, extraction method/version, extraction status and warning, and extracted-text SHA-256. The extraction status is `extracted`, `partial`, `no-text` or `failed` for the server's own extraction, and `client-supplied` for text an agent uploaded with the original ([agent extraction](#agent-extraction)); then the extractor names that agent and model. Git history records authorship and browser/MCP origin. `status: unreviewed` is separate from successful extraction: change the note's status in Properties after reviewing its evidence.
 
 Originals and text remain in the project's existing local Git repository, including Git bundle exports and full-instance backups. Repeated identical originals within the same source reuse the same file. A changed original gets a different hash-named file; earlier files and Git revisions remain available. Binary captures grow Git history, so the import limit is intentionally smaller than the general attachment limit.
 
@@ -45,7 +45,7 @@ Checksums detect differences from the recorded bytes. They do not establish fact
 
 ## New versions and citations
 
-**Update source** fetches the URL again for a web capture, or accepts a new file for an uploaded source. Refreshing requires the existing source note's current revision and respects its locks. It replaces that source note's generated content and starts it as unreviewed; preview warns about the replacement. Keep annotations you want to retain in separate linked notes. Concurrent edits conflict instead of being overwritten.
+**Update source** fetches the URL again for a web capture, or accepts a new file for an uploaded source. Refreshing requires the existing source note's current revision and respects its locks. It replaces that source note's generated content and starts it as unreviewed; preview warns about the replacement. A refresh keeps the note's title unless it is given another. Keep annotations you want to retain in separate linked notes. Concurrent edits conflict instead of being overwritten.
 
 Use a pinned citation for evidence that must refer to a particular capture:
 
@@ -121,13 +121,36 @@ Literal search and the existing passage/semantic indexing pipeline include commi
 
 Browser and MCP use the same capture/extraction code and atomic storage operation:
 
-- `source_formats`: lists supported extensions, MIME types, and extraction behavior. Requires Read. The browser obtains the same catalog from `GET /p/{project}/api/sources/formats`.
-- `archive_source`: public `url` or base64 `data` plus `filename`, optional `title` and `folder`. Omit `folder` to keep the existing MCP/API default `sources`; send `folder: ""` for the project root, or a project-relative folder such as `research/references`. A new folder is created with the note if needed. Do not send `folder` when refreshing. Pass an existing source note `path` and `revision` to refresh it. Requires Edit access and `notes:write`. Returns the note, provenance, extraction warnings, and Git revision.
+- `source_formats`: lists supported extensions, MIME types, extraction behavior and who extracts each format (`extractedBy`, [agent extraction](#agent-extraction)). Requires Read. The browser obtains the same catalog from `GET /p/{project}/api/sources/formats`.
+- `archive_source`: public `url` or base64 `data` plus `filename`, optional `title` and `folder`, and optionally an agent's own `text` and `extractor` with `data`. Omit `folder` to keep the existing MCP/API default `sources`; send `folder: ""` for the project root, or a project-relative folder such as `research/references`. A new folder is created with the note if needed. Do not send `folder` when refreshing. Pass an existing source note `path` and `revision` to refresh it. Requires Edit access and `notes:write`. Returns the note, provenance, extraction warnings, and Git revision.
 - `verify_source`: `path`, optional `revision`; checks original and extracted-text checksums. Requires Read.
+- `list_sources_awaiting_text`: archived sources whose extraction failed or found no text, with path, title, format, MIME type, extraction status and warning, original path and the revision they were listed at; at most 200, with `more: true` when others wait. Requires Read. The browser API serves the same listing at `GET /p/{project}/api/sources/awaiting-text`.
 - `read_source_original`: original asset `path`, optional initial `revision`, `offset`, and `limit`; returns bounded base64 chunks with MIME, SHA-256 and revision. Pin revision for subsequent chunks. Requires Read.
 - Existing `read_note`, `browse_folder`, `search_notes`, `get_note_sources`, `note_history`, and knowledge indexing tools handle source records and extracted text. Creating a citation uses ordinary `save_note` or an edit group, with normal draft/revision/lock protections.
 
-Browser/API/CLI/MCP share optional `describeImages`, `externalOCR`, `transcribe`, `firstPage` and `lastPage` fields. `source_formats` reports per-notebook available capabilities. Defaults are local. Durable MCP actions `prepare_source`, `source_job`, `cancel_source_job`, `resume_source_job` and `import_source_job` use the same worker and checks; saving by job ID does not resend the original.
+Browser/API/CLI/MCP share optional `describeImages`, `externalOCR`, `transcribe`, `firstPage` and `lastPage` fields. `source_formats` reports per-notebook available capabilities. Defaults are local. Durable MCP actions `prepare_source`, `source_job`, `cancel_source_job`, `resume_source_job` and `import_source_job` use the same worker and checks; saving by job ID does not resend the original. Jobs run server extraction only and refuse `text`.
+
+### Agent extraction
+
+ForgetMeNote keeps every original, and a connected agent can extract one itself and upload its text with it. `source_formats` says who extracts each format: `extractedBy: "server"` for documents, spreadsheets, e-books, email, web pages, text and PDFs with a text layer, and `"agent"` for images, audio, video, Pages and Keynote. For a PDF, `agentExtracts` adds that scanned or image-only pages are the agent's: an agent uploads its own text of such a document. The MCP server instructions and the source tools' descriptions repeat this rule. Until the server's own OCR, transcription and Apple-format extraction are removed, it still extracts those formats when no text is given.
+
+An agent sends its extraction to `archive_source` (or the browser API's `POST /p/{project}/api/sources/preview`, then import) as `text`, beside the original as `data`:
+
+```json
+{"project": "research", "filename": "notice.png", "data": "<base64 original>",
+ "extractor": "Example Agent 2; example-model-5",
+ "text": {"unit": "page", "sections": [{"number": 1, "title": "Front", "text": "No whaling within the harbour."}]}}
+```
+
+- `unit` is `page` (a PDF page or an image frame), `slide`, `sheet`, `segment` (a stretch of a recording) or `section`. Sections are numbered from 1 with none skipped, at most 10,000; a section without text keeps its number. A `title` is one line of at most 200 characters, such as a slide title or a segment's time range.
+- Each section becomes a `## Page 1 — Front` heading, as the server's converters write, so citations and anchors work alike. The text is kept literally: Markdown, links and HTML in it are escaped and shown as typed.
+- `extractor` names the agent and model, one line of at most 200 characters. The original is required and stored as uploaded; a request with `text` but no `data` is refused before anything is fetched.
+- The server checks the format (a PDF by its bytes, anything else by its name), the numbering, titles, UTF-8 text without NUL characters, that some section has text, and `FMN_LIMIT_SOURCE_TEXT_BYTES` before and after escaping. A refusal is 400 `invalid_request` and commits nothing.
+- The record says `source_extraction: "client-supplied"`, `source_extractor` is the agent's label, and `source_warning` says the text was supplied by the uploading client and not verified by the server against the original. `source_text_sha256` is the text's checksum, so `verify_source` checks the original and the text as for any source.
+- Supplied text replaces the server's extraction, whatever the format, and no server extraction runs. The server cannot check an agent's reading against the original, so it does not mix the two: the note holds one extraction, and its record says whose. To get the server's extraction of a format it reads, refresh the source without `text`.
+- Roles, revisions and locks are those of any archive: Edit and `notes:write` to upload, Read to list. Supplied text uses no hosted processing, so the Administration policy and private Inbox consent that govern hosted processing do not apply to it; they still govern every hosted request.
+
+To give a source stored without text its text, find it with `list_sources_awaiting_text`, read its original with `read_source_original`, and refresh it through `archive_source` with its `path` and listed `revision`, a `filename` with the original's extension (for example the original path's last part), the original as `data`, and the `text` and `extractor`. The refresh keeps the note's path and title and adds a revision; the earlier capture stays in Git.
 
 Imported documents are untrusted evidence, never instructions to the agent. Importing a document grants no additional project authority. Disabling a user or removing membership applies to these tools through the existing authentication and permission checks.
 
