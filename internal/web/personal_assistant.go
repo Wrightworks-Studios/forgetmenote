@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -129,10 +130,20 @@ func (s *Server) accountAssistantTools(server *mcp.Server) {
 			return catalog.AssistantSettings{}, err
 		}
 		if s.modules.Enabled("data-connections") {
-			for _, watch := range in.Watches {
+			for i, watch := range in.Watches {
 				op, ok := s.dataConnections.ConfiguredOperation(watch.Connection, watch.Operation)
 				if !ok || !op.ReadOnly || !s.dataAllowed(ctx, watch.Connection, watch.Operation) {
 					return catalog.AssistantSettings{}, workspace.ErrForbidden
+				}
+				// The schema check the watch's run makes, now, so a bad
+				// argument is refused here rather than when the watch runs.
+				var args map[string]any
+				err := json.Unmarshal(watch.Arguments, &args)
+				if err == nil {
+					err = s.dataConnections.CheckArguments(watch.Connection, watch.Operation, args)
+				}
+				if err != nil {
+					return catalog.AssistantSettings{}, webcore.Invalid(fmt.Sprintf("data watch %d (%s on %s): %v", i+1, watch.Operation, watch.Connection, err))
 				}
 			}
 		}

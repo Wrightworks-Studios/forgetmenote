@@ -33,7 +33,10 @@ The first provider adapters support:
   **Your assistant → Data watches** offers the connections the employee may use
   that allow AI processing, their read-only operations, and a field for each
   flat argument in the operation's input schema; other arguments are entered as
-  JSON. Saving checks every watch again.
+  JSON. Saving checks every watch again, and its arguments against the
+  operation's configured input schema; a bad argument is refused with the
+  watch and argument named. An MCP or broker operation's schema is known only
+  to its upstream, so its arguments are checked when the watch runs.
 
 Daily briefings after 08:30 in the employee's time zone reuse existing grounded
 suggestions without another LLM call. Follow-up reminders require an explicit
