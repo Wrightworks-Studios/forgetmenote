@@ -11,7 +11,7 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-// Hooks bind agent memory to the instance's shared checks and to the Jev and
+// Hooks bind agent memory to the instance's shared checks and to the judgment and
 // chat configuration, read at each call. All are required; an omitted check
 // cannot open a second path around it.
 type Hooks struct {
@@ -26,9 +26,9 @@ type Hooks struct {
 	// ClientProjectAllowed reports whether the caller's credential reaches a
 	// notebook.
 	ClientProjectAllowed func(ctx context.Context, project string) bool
-	// Judge is the configured Jev service, or nil.
+	// Judge is the configured decision service, or nil.
 	Judge func() *decision.Service
-	// JudgeAuthorized checks that Jev may review a person's notebook for a
+	// JudgeAuthorized checks that the judge may review a person's notebook for a
 	// feature.
 	JudgeAuthorized func(ctx context.Context, user, project, feature string, expected *decision.Service) error
 	// EmbeddingPolicy withholds an embedding endpoint the chat configuration

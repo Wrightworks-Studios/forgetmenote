@@ -2,8 +2,17 @@
 
 Administration → Automation manages background jobs for this instance. The form
 handles identity, service account, notebook, schedule, inputs, output and AI
-consent. The JSON editor handles connector calls, checks, event triggers and
-specialized task options. Changes are saved immediately with revision checks.
+consent, and each task type's own settings: data calls (a connection, one of its
+read-only operations, argument fields from the operation's input schema and time
+arguments), independent checks with assertions or a reference call, a monitor's
+condition and incident alerts, Slack notices, recipe usage rechecks, Google Drive
+folders, a repository package's connection and notebook bindings, optional
+capabilities and parameters (from its manifest), and source events. Arguments a
+schema cannot describe as flat fields stay in a JSON field beside them. The **JSON
+definition** shows the same definition for review, import and duplication; an
+unchanged form save keeps what the JSON saved. The server validates every
+definition however it was built. Changes are saved immediately with revision
+checks.
 All tasks run inside the existing ForgetMeNote process; job definitions cannot
 supply shell commands, scripts, dynamic endpoints or credentials.
 
@@ -17,7 +26,7 @@ supply shell commands, scripts, dynamic endpoints or credentials.
    checks configured providers, connections, operations and Slack destinations.
 3. Use `Test`, inspect its retained result and receipts, then enable the job.
    A test performs real reads and may buy model calls. It suppresses note writes,
-   repository refresh, Drive checkpoints, Slack delivery and script submissions.
+   Drive checkpoints, Slack delivery and script submissions.
    Learning/event tests require a retained evidence run; they do not invent input.
 4. Use Details for failures, results, evidence receipts, token use and delivery
    state. Pause stops future work and cancels superseded queued/active work.
@@ -48,7 +57,7 @@ gateway stops the run within a second.
 
 | Kind | Behavior |
 | --- | --- |
-| `native` | Storage/notebook/job/profile health, scoped activity summary, exact profile duplicate cleanup, existing repository refresh, chat member pairing by email, or task reminders |
+| `native` | Storage/notebook/job/profile health, scoped activity summary, exact profile duplicate cleanup, chat member pairing by email, or task reminders. Repository notebooks refresh on their own, not through an automation |
 | `checks` | Runs every independent assertion/reference, retains all failures, and optionally diagnoses/repairs approved SQL examples |
 | `recipe` | Checks named SQL examples in a Markdown recipe; optionally repairs with AI, independently rechecks, then commits |
 | `digest` | Runs fixed read-only calls and saves their results; an explicit AI connection can summarize them |
@@ -90,7 +99,9 @@ cannot be read, raise an incident.
 
 A job can run manually, on an interval of at least 60 seconds, once at an RFC3339
 instant, or on a calendar with an IANA timezone. Calendar fields are `hours`,
-`minutes`, and optional `weekdays` (0=Sunday). Catch-up is bounded by
+`minutes`, and optional `weekdays` (0=Sunday). The editor picks **Run at** in the
+browser's time zone and saves it with that offset; an unchanged time keeps the
+saved value. Catch-up is bounded by
 `catchUpSeconds` (up to one day). A repeated DST wall minute executes once; a
 nonexistent wall minute is skipped. Missed intervals are not replayed as a burst.
 
@@ -131,7 +142,7 @@ bypass instance or source policy. Private Inbox processing is not enabled by a j
 Task/learning jobs and script packages requesting AI inherit the configured instance AI connection and model
 when omitted. Existing model reasoning settings remain authoritative. `maxTokens`,
 `maxRounds` and `timeoutSeconds` bound individual runs; these do not reserve paid
-capacity. Jev remains an optional typed-decision stage within profile learning,
+capacity. Judgments remain an optional typed-decision stage within profile learning,
 not the scheduler, SQL executor, authorization layer or source of truth.
 
 Interactive chat-client requests inherit the selected AI connection's `runSeconds`

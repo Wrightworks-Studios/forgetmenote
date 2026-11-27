@@ -12,6 +12,7 @@ contents into configuration, notebooks, exports or deployment logs.
   "identity": {},
   "ai": {},
   "integrations": {},
+  "modules": {},
   "notebooks": {}
 }
 ```
@@ -52,6 +53,30 @@ feature schemas, model capacities, privacy policy and mounted secret references.
 plus the optional `python` executable. Notebook owner processes are gone with
 storage v2, so the `notebooks.owners` map and the legacy `OWNER_MAP_FILE` are
 refused ([notebook storage](architecture.md#notebook-storage)).
+
+`modules` names the feature modules an instance turns off, in its one field
+`off`. Omitted or empty, the instance runs every module, as it always has. The
+modules are `chat`, `automations`, `judgments`, `data-connections`, `sources`,
+`repositories`, `tasks`, `messaging`, `personal`, `memory` and
+`managed-backups`. Three need others: `tasks` needs `automations`; `messaging`
+needs `automations`, `tasks`, `memory` and `chat`; and `personal` needs
+`automations` and `messaging`. So this turns off task queues and the two
+modules that depend on them:
+
+```json
+{"version": 1, "modules": {"off": ["tasks", "messaging", "personal"]}}
+```
+
+An unknown name fails before the application opens, and so does a module left
+on while one it needs is off; that error names both modules. Every module can
+be turned off, and with all of them off the instance runs its notebooks alone.
+[Feature modules](modules.md) describes what each module covers and what
+turning it off removes and keeps.
+
+The setting is read once at startup, before recovery; changing it means
+restarting every gateway, and a configuration reload with a different set is
+refused. It has no legacy environment variable. The startup log and
+Administration's instance status list each module and whether it is on.
 
 Configured providers do not enable AI processing or grant notebook access.
 Instance policy, private Inbox consent, connection grants and notebook roles

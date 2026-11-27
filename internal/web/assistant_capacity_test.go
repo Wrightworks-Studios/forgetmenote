@@ -101,7 +101,7 @@ func TestAssistantDiscoversRecipesOnDemand(t *testing.T) {
 	transport := &fixtureChatTransport{}
 	app.messageClients["slack"] = transport
 	r := automation.Run{ID: automation.Hash("recipe-index"), Spec: automation.Spec{ID: "recipe-index", Kind: "assistant", Actor: "alice", Project: "default", ReadProjects: b.ReadProjects, Connections: b.Connections, AIConnection: "local", Model: "synthetic", Instruction: "How was revenue this week?", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "recipe-thread", User: "U123"}}}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 3 || len(transport.replies) != 1 || len(r.Citations) != 1 || r.Citations[0].Path != "learned-revenue.md" {
@@ -111,7 +111,7 @@ func TestAssistantDiscoversRecipesOnDemand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err = app.automationSourceContext(ctx, &r)
+	ctx, err = app.automationrun.SourceContext(ctx, &r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +233,7 @@ func TestAssistantUsesAvailableContextForLargeToolResults(t *testing.T) {
 			transport := &fixtureChatTransport{}
 			app.messageClients["slack"] = transport
 			run := automation.Run{ID: automation.Hash(count), Spec: automation.Spec{ID: "large-answer", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", Connections: []string{"fixture"}, ExternalProcessing: true, Instruction: "Read the data.", Delivery: &automation.Delivery{Channel: "C123", Thread: "thread", User: "U123"}}}
-			if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+			if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 				t.Fatal(err)
 			}
 			if calls != 2 || results != count || len(run.Receipts) != count || len(transport.replies) != 1 {
@@ -290,7 +290,7 @@ func TestAutomationReadsOriginalMarkdownWithoutRenderedDuplicate(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{Spec: spec}
-	answer, err := app.automationAnswer(ctx, &run, "Read the definition.", true)
+	answer, err := app.automationrun.Answer(ctx, &run, "Read the definition.", true)
 	if err != nil || answer != "Definition read." || calls != 2 || len(run.Citations) != 1 || run.Citations[0].Path != "definition.md" {
 		t.Fatal("read-backed answer lost its source dependency", answer, err, calls, run.Citations)
 	}

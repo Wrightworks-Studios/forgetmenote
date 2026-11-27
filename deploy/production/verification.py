@@ -19,6 +19,71 @@ CHECK_LIMIT = 3600
 # How long a stopped check has to remove its containers.
 STOP_GRACE = 30
 LIMIT_EXIT = 124  # as timeout(1) reports it
+# A failed check prints the end of its log, and its full log stays on disk. The end
+# of a `go test -json` log is mostly tests that passed after the failure, so a Go
+# check prints what failed instead (go_failures).
+FAILED_TAIL = 16000
+GO_SECTION = 8000  # one test's, build's or package's output
+GO_SUMMARY = 64000  # every failing test's output together
+GO_NAMES = 100  # failing tests listed by name
+
+
+def clip(text, limit):
+    """The start and end of text: a panic or race report begins, a verdict ends."""
+    if len(text) <= limit:
+        return text
+    return f'{text[:limit // 2]}\n[... {len(text) - limit // 2 * 2} characters omitted ...]\n{text[-(limit // 2):]}'
+
+
+def go_failures(text):
+    """Why `go test -json` output failed, or None when its events do not say.
+
+    Each test that failed or never finished (the one running at a -timeout panic
+    reports no result) comes with its own output. Then come the output of failed
+    builds and packages outside their tests, and lines that are not events, such
+    as go command errors and the gate's limit notice."""
+    order, results, output, other = {}, {}, {}, []
+    for line in text.splitlines(keepends=True):
+        try:
+            event = json.loads(line)
+        except ValueError:
+            event = None
+        if not isinstance(event, dict) or not isinstance(event.get('Action'), str):
+            if line.strip():
+                other.append(line)
+            continue
+        # Build events name an ImportPath such as "pkg [pkg.test]" instead of a Package.
+        build = event['Action'].startswith('build-')
+        key = ('BUILD' if build else 'PACKAGE', str(event.get('ImportPath' if build else 'Package') or ''),
+               '' if build else str(event.get('Test') or ''))
+        order.setdefault(key, None)
+        if event['Action'] in ('output', 'build-output'):
+            output.setdefault(key, []).append(str(event.get('Output', '')))
+        elif event['Action'] in ('pass', 'skip', 'fail', 'build-fail'):
+            results[key] = event['Action']
+    tests = [(('FAIL ' if results.get(key) == 'fail' else 'UNFINISHED ') + key[1] + ' ' + key[2], key)
+             for key in order if key[2] and results.get(key) in ('fail', None)]
+    outside = [(key[0] + ' ' + key[1], output[key]) for key in order
+               if not key[2] and key in output and results.get(key) not in ('pass', 'skip')]
+    if not tests and not outside:
+        return None
+    if other:
+        outside.append(('Output outside test events', other))
+    lines = ['Go tests that failed or never finished:\n' if tests
+             else 'No Go test failed or was left unfinished; see the output outside tests below.\n']
+    lines += ['  ' + title + '\n' for title, _ in tests[:GO_NAMES]]
+    if len(tests) > GO_NAMES:
+        lines.append(f'  and {len(tests) - GO_NAMES} more\n')
+    budget = GO_SUMMARY
+    for index, (title, key) in enumerate(tests):
+        if budget <= 0:
+            lines.append(f'[{len(tests) - index} more failing tests are in the full log]\n')
+            break
+        section = clip(''.join(output.get(key, [])), GO_SECTION)
+        budget -= len(section)
+        lines.append(f'==> {title} <==\n{section}')
+    lines += [f'==> {title} <==\n{clip("".join(chunks), GO_SECTION)}' for title, chunks in outside]
+    return ''.join(line if line.endswith('\n') else line + '\n' for line in lines)
 
 
 def fingerprint(value):
@@ -243,7 +308,8 @@ class Verification:
         if code:
             # The first failure remains in its own immutable attempt log; never
             # retry it automatically or discard it after a later successful run.
-            print(log.read_text(errors='replace')[-16000:], flush=True)
+            text = log.read_text(errors='replace')
+            print(go_failures(text) or text[-FAILED_TAIL:], flush=True)
             reason = f'stopped at its {limit} s limit' if limited else f'exit {code}'
             raise ValueError(f'{name} failed ({reason}). Full original log: {log}')
 

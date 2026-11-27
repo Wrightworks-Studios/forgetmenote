@@ -177,3 +177,32 @@ func TestRetiredNotebookOwnerMapIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// The modules section is strict like the others: its names, and the modules
+// they leave on, are checked before the instance opens. Until module wiring
+// lands, a valid list that turns any module off is refused too.
+func TestModulesSectionIsCheckedBeforeTheInstanceOpens(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance.json")
+	for _, accepted := range []string{`{"version":1}`, `{"version":1,"modules":{}}`, `{"version":1,"modules":{"off":[]}}`} {
+		if err := os.WriteFile(path, []byte(accepted), 0600); err != nil {
+			t.Fatal(err)
+		}
+		config, err := Load(path)
+		if err != nil || len(config.Modules.Off) != 0 {
+			t.Fatalf("%s: %+v %v", accepted, config.Modules, err)
+		}
+	}
+	for _, refused := range []struct{ raw, want string }{
+		{`{"version":1,"modules":{"on":["chat"]}}`, "invalid JSON"},
+		{`{"version":1,"modules":{"off":"chat"}}`, "invalid JSON"},
+		{`{"version":1,"modules":{"off":["jev"]}}`, `"jev", which is not a module`},
+		{`{"version":1,"modules":{"off":["automations"]}}`, `module "tasks" requires "automations"`},
+	} {
+		if err := os.WriteFile(path, []byte(refused.raw), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(path); err == nil || !strings.Contains(err.Error(), refused.want) {
+			t.Fatalf("%s: %v", refused.raw, err)
+		}
+	}
+}

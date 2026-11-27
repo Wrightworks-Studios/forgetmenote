@@ -1,12 +1,15 @@
 import {prepareSettingsPage,closeSettingsPage} from './settings-pages.mjs';
 import {openDialog} from './overlay.mjs';
-import {$,element,busy,isBusy} from './dom.mjs';
+import {$,element,busy,isBusy,followName} from './dom.mjs';
 import {feedback} from './feedback.mjs';
 import {initOrganization} from './organization.mjs';
 import {initAISettings} from './ai-settings.mjs';
 import {initChatClients} from './chat-clients.mjs';
+import {initTaskQueues} from './task-queues.mjs';
+import {initRepositoryImport} from './repository-import.mjs';
 import {contextMenuPosition} from './editor.mjs';
 import {notebookPath} from './request.mjs';
+import {moduleOn} from './state.mjs';
 const roles = {owner:'Owner', edit:'Editor', comment:'Commenter', read:'Reader'};
 const nameOf = (person, names = {}) => person.displayName || names[person.id] || (person.id === '@local-admin' ? 'Recovery administrator' : person.id);
 function identity(name, id) {
@@ -19,7 +22,7 @@ function identity(name, id) {
 // Account selection and member search belong to these dialogs, not note drafts.
 export function initAdministration({api, post, notice, getUser, getProject, reloadProjects, selectProject, openRetrievalSettings, openRepositorySettings = async()=>{}, openBackupSettings = async()=>{}, openAuthoritySettings = async()=>{}, openWikiSettings = ()=>{}}) {
   let memberProject = null, directory = null, selectedUser = '', searchTimer, searchVersion = 0;
-  let generatedID = '', notebookVersion = 0, instancePageActive=()=>false;
+  let notebookVersion = 0, instancePageActive=()=>false;
   let importing = false, connecting = false, repositoryGrant = '';
   const notebookBusy = () => isBusy($('project-form'));
   const organization=initOrganization({post,getProject,getUser,refresh:()=>openInstance(),openNotebook:id=>openWorkspace(id)});
@@ -27,7 +30,13 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
   const chatClients=initChatClients({post,getUser,getActive:()=>instancePageActive});
   const chatCategory=document.querySelector('#admin-dialog [data-settings-category=chat-clients]');
   chatCategory.addEventListener('click',()=>chatClients.open());
+  const taskQueues=initTaskQueues({post,getUser,getActive:()=>instancePageActive});
+  const taskCategory=document.querySelector('#admin-dialog [data-settings-category=tasks]');
+  taskCategory.addEventListener('click',()=>taskQueues.open());
   const aiCategory=document.querySelector('#admin-dialog [data-settings-category=ai]');
+  const connectionsCategory=document.querySelector('#admin-dialog [data-settings-category=connections]');
+  const repositoriesCategory=document.querySelector('#admin-dialog [data-settings-category=repositories]');
+  const repositoryImport=initRepositoryImport({post,getUser,getActive:()=>instancePageActive,reloadProjects});
   aiCategory.addEventListener('click',()=>ai.open());
   const manages = project => !!project && (getUser()?.admin || project.role === 'owner');
 
@@ -53,6 +62,9 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     sharing.hidden=!manages(selected) || (!!selected.protectedInbox || !!selected.assistantOwner);
     openWikiSettings(selected,manages(selected));
     if(sharing.hidden && sharing.getAttribute('aria-pressed')==='true')document.querySelector('#settings-dialog [data-settings-category=search]').click();
+    const sources=document.querySelector('#settings-dialog [data-settings-category=sources]');
+    sources.hidden=!moduleOn(getUser(),'repositories');
+    if(sources.hidden && sources.getAttribute('aria-pressed')==='true')document.querySelector('#settings-dialog [data-settings-category=search]').click();
     $('project-members').hidden = true;
     $('member-list').replaceChildren();
     organization.clearSharing();
@@ -114,7 +126,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     await openRetrievalSettings();
     if (getProject()?.id !== selected.id || !page.active()) return;
     page.show();
-    await openRepositorySettings();
+    if(!sources.hidden)await openRepositorySettings();
     if(getProject()?.id===selected.id)await openBackupSettings();
   }
   $('settings-open').onclick = () => openProject().catch(error => notice(error.message));
@@ -223,10 +235,15 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     try {
     await reloadProjects();if(!page.active())return;
     if (!getUser().admin) { closeSettingsPage($('admin-dialog')); return; }
-    const data=await api('/api/admin');if(!page.active())return;directory=data;
+    for(const [category,module] of [[connectionsCategory,'data-connections'],[repositoriesCategory,'repositories'],[chatCategory,'messaging'],[taskCategory,'tasks']]){
+      category.hidden=!moduleOn(getUser(),module);
+      if(category.hidden && category.getAttribute('aria-pressed')==='true')document.querySelector('#admin-dialog [data-settings-category=people]').click();
+    }
+    const data=await api('/api/admin');if(!page.active())return;directory=data;repositoryImport.open(data.instance);
     await organization.load(directory,page.active);if(!page.active())return;
     if(aiCategory.getAttribute('aria-pressed')==='true')await ai.open();
     if(chatCategory.getAttribute('aria-pressed')==='true')await chatClients.open();
+    if(taskCategory.getAttribute('aria-pressed')==='true')await taskQueues.open();
     if(!page.active())return;
 
     $('managed-workspaces').replaceChildren();
@@ -283,6 +300,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
   function createWorkspace(importBundle = false) {
     if (!getUser()?.canCreateProjects) return;
     closeSettingsPage($('admin-dialog'));
+    $('notebook-repository-mode').hidden=!moduleOn(getUser(),'repositories');
     notebookMode(importBundle);
     openDialog($('workspace-create-dialog'));
     $('project-name').focus();
@@ -309,12 +327,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
   $('notebook-bundle').onchange=()=>{if(!notebookBusy())$('workspace-create-status').textContent='';};
   $('workspace-create-dialog').addEventListener('cancel', event=>{if(notebookBusy())event.preventDefault();});
   $('workspace-create-dialog').addEventListener('close',()=>{notebookVersion++;});
-  $('project-name').oninput=()=>{
-    if(!$('project-id').value || $('project-id').value===generatedID){
-      generatedID=$('project-name').value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);
-      $('project-id').value=generatedID;
-    }
-  };
+  const forgetSuggestedID=followName($('project-name'),$('project-id'));
   $('project-form').onsubmit=event=>{
     event.preventDefault();
     if(notebookBusy())return;
@@ -337,7 +350,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
         const form=new FormData();form.append('id',id);form.append('name',name);form.append('bundle',bundle);
         await api('/api/projects/import',{method:'POST',body:form});
       } else await post('/api/projects',{id,name});
-      $('project-form').reset();generatedID='';$('workspace-create-dialog').close();
+      $('project-form').reset();forgetSuggestedID();$('workspace-create-dialog').close();
       try {
         await reloadProjects();
         if(connecting){await selectProject(id);notice('Repository connected. Files and the local index will appear as the first download finishes.',true);}

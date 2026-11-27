@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// The file-based release kept Jev's state under jev/: the paid-call ledger in
+// The file-based release kept judgment state under jev/: the paid-call ledger in
 // usage.json beside usage.lock, which holds no state, and each named record at
 // jev/<kind>/<name>.json. A file with a temporary prefix is a write that
 // release never renamed into place and never reads.
@@ -33,7 +33,7 @@ const (
 
 var recordKinds = []string{"citations", "jobs", "notebooks", "notifications", "results", "users"}
 
-var errLedgerFile = errors.New("invalid Jev usage ledger")
+var errLedgerFile = errors.New("invalid judgments usage ledger")
 
 type ledgerFile struct {
 	Version int      `json:"version"`
@@ -79,7 +79,7 @@ func ImportFiles(ctx context.Context, db *pg.DB, tx pgx.Tx, src *filestate.Sourc
 				}
 				name := entry.Name() + "/" + file.Name()
 				if !strings.HasSuffix(name, ".json") || !recordName(name) {
-					return filestate.Sum{}, fmt.Errorf("%s/%s is not Jev state the file-based release reads", jevDir, name)
+					return filestate.Sum{}, fmt.Errorf("%s/%s is not judgment state the file-based release reads", jevDir, name)
 				}
 				raw, err := src.Read(jevDir + "/" + name)
 				if err != nil {
@@ -96,7 +96,7 @@ func ImportFiles(ctx context.Context, db *pg.DB, tx pgx.Tx, src *filestate.Sourc
 				tally.Add(jevDir+"/"+name, canonical)
 			}
 		default:
-			return filestate.Sum{}, fmt.Errorf("%s is not Jev state the file-based release reads", rel)
+			return filestate.Sum{}, fmt.Errorf("%s is not judgment state the file-based release reads", rel)
 		}
 	}
 	if _, err = tx.CopyFrom(ctx, pgx.Identifier{"jev_usage"}, []string{"org", "id", "holder", "record"}, pgx.CopyFromRows(usage)); err != nil {
@@ -155,7 +155,7 @@ func ExportFiles(ctx context.Context, db *pg.DB, q pg.Querier, out *filestate.Ta
 		return filestate.Sum{}, err
 	}
 	if len(usage) > ledgerRecords {
-		return filestate.Sum{}, errors.New("the Jev ledger exceeds the file-based release's capacity")
+		return filestate.Sum{}, errors.New("the judgments ledger exceeds the file-based release's capacity")
 	}
 	if len(usage) > 0 {
 		ledger := ledgerFile{Version: 1, Records: make([]Record, 0, len(usage))}
@@ -177,7 +177,7 @@ func ExportFiles(ctx context.Context, db *pg.DB, q pg.Querier, out *filestate.Ta
 			return filestate.Sum{}, err
 		}
 		if len(raw) > ledgerBytes {
-			return filestate.Sum{}, errors.New("the Jev ledger exceeds the file-based release's capacity")
+			return filestate.Sum{}, errors.New("the judgments ledger exceeds the file-based release's capacity")
 		}
 		if err = out.Write(jevDir+"/"+usageFile, raw); err != nil {
 			return filestate.Sum{}, err
@@ -198,7 +198,7 @@ func ExportFiles(ctx context.Context, db *pg.DB, q pg.Querier, out *filestate.Ta
 	for _, record := range records {
 		kind, file, _ := strings.Cut(record.Name, "/")
 		if !slices.Contains(recordKinds, kind) || strings.Contains(file, "/") || !strings.HasSuffix(file, ".json") || strings.HasPrefix(file, recordTemp) || !recordName(record.Name) {
-			return filestate.Sum{}, fmt.Errorf("Jev record %q has no file in the file-based release", record.Name)
+			return filestate.Sum{}, fmt.Errorf("judgment record %q has no file in the file-based release", record.Name)
 		}
 		// jsonb keeps neither key order nor number spelling; the record is
 		// written with sorted keys and the numbers' exact decimal values.
@@ -207,7 +207,7 @@ func ExportFiles(ctx context.Context, db *pg.DB, q pg.Querier, out *filestate.Ta
 			return filestate.Sum{}, err
 		}
 		if len(raw) > recordBytes {
-			return filestate.Sum{}, fmt.Errorf("Jev record %q exceeds the file-based release's capacity", record.Name)
+			return filestate.Sum{}, fmt.Errorf("judgment record %q exceeds the file-based release's capacity", record.Name)
 		}
 		if err = out.Write(jevDir+"/"+record.Name, raw); err != nil {
 			return filestate.Sum{}, err

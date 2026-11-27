@@ -1,4 +1,5 @@
 import {spawn, execFileSync} from 'node:child_process';
+import {randomInt} from 'node:crypto';
 import {mkdtemp, readFile, readdir, writeFile, rm, cp, open} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -7,6 +8,30 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {startPostgres, sql, databaseURL} from './postgres.mjs';
 
 let apps = 0;
+
+// An app's port is unbound while the app starts, on every reset and restart
+// too, and another process given it then answers in the app's place, as a Go
+// test's httptest server once did. The kernel assigns ports to listen(0) and
+// outgoing connections only from its ephemeral range, so take one below it.
+async function appPort() {
+  const ephemeral =
+    process.platform === 'darwin'
+      ? Number(execFileSync('sysctl', ['-n', 'net.inet.ip.portrange.first'], {encoding: 'utf8'}))
+      : Number((await readFile('/proc/sys/net/ipv4/ip_local_port_range', 'utf8')).split(/\s+/)[0]);
+  if (!(ephemeral > 11000)) throw Error(`The ephemeral port range starts at ${ephemeral}: no port below it is free`);
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const port = randomInt(10000, ephemeral),
+      listener = net.createServer();
+    const free = await new Promise(resolve => {
+      listener.once('error', () => resolve(false));
+      listener.listen(port, '127.0.0.1', () => resolve(true));
+    });
+    if (!free) continue;
+    await new Promise((resolve, reject) => listener.close(error => (error ? reject(error) : resolve())));
+    return port;
+  }
+  throw Error(`No free port from 10000 to ${ephemeral}`);
+}
 
 // Native clipboard contents are shared across browser workers and contexts.
 // The invocation owns this path, so interrupted runs cannot leave stale locks.
@@ -33,7 +58,9 @@ export async function withClipboard(action) {
 
 // A real Go app with a private workspace and database; provider HTTP fixtures
 // stay in the specs. Outside Playwright the app starts a cluster of its own.
-export async function startApp({name, account, chatConfig, env = {}}) {
+// `modulesOff` names the feature modules the instance turns off; they are read
+// from an instance.json, which then names the database too.
+export async function startApp({name, account, chatConfig, env = {}, modulesOff}) {
   const dir = await mkdtemp(join(tmpdir(), name));
   const database = `app_${process.pid}_${++apps}`;
   let cluster,
@@ -141,15 +168,18 @@ export async function startApp({name, account, chatConfig, env = {}}) {
         throw startupError('Synthetic app exited before readiness: ' + reason);
       }
       if (Date.now() >= deadline) throw startupError('Synthetic app readiness timed out after 15000 ms');
+      // Ready is this app answering, not just something on its port: only
+      // this app accepts the recovery token it wrote to its data directory.
       try {
-        const response = await fetch(origin + '/healthz', {
+        token = (await readFile(join(dir, 'data', 'admin.token'), 'utf8')).trim();
+        const response = await fetch(origin + '/api/me', {
+          headers: {Authorization: 'Bearer ' + token},
           signal: AbortSignal.timeout(Math.min(1000, deadline - Date.now()))
         });
-        if (response.ok) break;
+        if (response.ok && (await response.json()).id === '@local-admin') break;
       } catch {}
       await Promise.race([delay(50), exited]);
     }
-    token = (await readFile(join(dir, 'data', 'admin.token'), 'utf8')).trim();
   }
   async function api(path, body) {
     const response = await fetch(origin + path, {
@@ -214,13 +244,19 @@ export async function startApp({name, account, chatConfig, env = {}}) {
       stdio: ['ignore', 'ignore', 'pipe'],
       timeout: 30000
     });
-    const listener = net.createServer();
-    await new Promise((resolve, reject) => {
-      listener.once('error', reject);
-      listener.listen(0, '127.0.0.1', resolve);
-    });
-    origin = 'http://localhost:' + listener.address().port;
-    await new Promise((resolve, reject) => listener.close(error => (error ? reject(error) : resolve())));
+    if (modulesOff) {
+      appEnv.INSTANCE_CONFIG_FILE = join(dir, 'instance.json');
+      await writeFile(
+        appEnv.INSTANCE_CONFIG_FILE,
+        JSON.stringify({
+          version: 1,
+          server: {database: {urlFile: appEnv.DATABASE_URL_FILE}},
+          modules: {off: modulesOff}
+        })
+      );
+      appEnv.DATABASE_URL_FILE = '';
+    }
+    origin = 'http://localhost:' + (await appPort());
     await launch();
     await api('/account/setup', account);
     return {

@@ -6,7 +6,8 @@ deploys with its own deployment repository's tools.
 
 ## Local image release
 
-`release_image.py` publishes an image at `ghcr.io/OWNER/REPOSITORY` using your
+This project publishes no image of its own: build one from source, or publish your
+own with `release_image.py`. It publishes to `ghcr.io/OWNER/REPOSITORY` using your
 existing GitHub CLI login, or to a private ECR repository with your AWS sign-in. It builds
 `linux/amd64`, runs the [selected resumable gate](../../docs/verification.md)
 with bounded concurrency, then pushes `main-COMMIT` and prints the verified digest to deploy.
@@ -113,13 +114,6 @@ Docker configuration that is removed on completion or failure, preserving your
 existing Docker login and context. An already-published commit returns its
 existing digest without rebuilding or replacing the image.
 
-To keep checks away from registry credentials, verify and publish separately:
-`--verify-only` writes the record, and `--publish-verified DIR` publishes the image a
-complete `verification.json` in `DIR` describes, already loaded under its image ID,
-without rebuilding or checking again. It writes `publication.json` and the published
-`verification-summary.json` beside the record. `--since-published` verifies against
-the newest earlier `main` commit whose image the registry serves anonymously.
-
 Deploy the printed `REPOSITORY@sha256:...` reference. Registry tags can be
 changed outside this script; the digest identifies the exact checked image.
 The script does not fetch, merge or push Git commits; update and commit `main`
@@ -127,17 +121,20 @@ before running it.
 
 ## GitHub Actions release
 
-[Publish](../../.github/workflows/publish.yml) verifies each push to `main` that
-changes more than documents, publishes the checked image with its attestations, and
-starts a deployment repository's Release with the pinned digest once the
-`DEPLOY_REPOSITORY` and `DEPLOY_DISPATCH_TOKEN` secrets of the `deployments`
-environment are set ([published images](../../docs/verification.md#published-images)).
-The target is a secret so that public logs mask it.
+This repository's workflows build no image to publish. An instance's own deployment
+repository builds, verifies and publishes its image from a checkout of this
+repository, into its own registry. Its tools read the instance's live revision and
+stop when no runtime file changed since. If an earlier run already published an image
+for that runtime, it deploys that image without verifying again. Otherwise it
+verifies with `--since` that revision before any cloud sign-in, publishes reusing
+those checks and deploys. A live revision this history lacks, such as one built from
+a repository this one replaced, counts every runtime file as changed, so that release
+verifies completely.
 
-That deployment repository checks the attestations before it deploys the digest and
-needs no build of its own. Its tools read the instance's live revision and stop when
-no runtime file changed since. A live revision this history lacks, such as one built
-from a repository this one replaced, counts every runtime file as changed.
+[Notify deployments](../../.github/workflows/notify-deployments.yml) starts that
+pipeline with the new commit on each push to `main` that changes more than documents,
+once the `DEPLOY_REPOSITORY` and `DEPLOY_DISPATCH_TOKEN` secrets of the `deployments`
+environment are set. The target is a secret so that public logs mask it.
 
 ### Branches
 
@@ -147,7 +144,11 @@ can wait there and release together. A release is a pull request from `next` int
 stays an ancestor of `main`, and the push starts the pipeline above. Never squash
 or rebase that pull request, and never delete `next`. A fix that cannot wait may
 go straight to `main`; merge `main` back into `next` afterwards. Both branches
-require the `fast` check.
+require the `fast` check, and `next` also requires `full`. `next` merges through a
+merge queue: it runs `fast` on each pull request on top of the ones ahead of it,
+also runs the complete regression as `full` on a pull request labelled
+[`full-gate`](../../docs/verification.md#pr-feedback-and-complete-regression), and
+squash-merges them in turn.
 
 ## Choosing verification coverage
 

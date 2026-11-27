@@ -183,8 +183,10 @@ func identifier(prefix string, db *pg.DB, label string) string {
 
 // HoldWrites makes every insert and update of table's rows in db's org wait,
 // as a stalled disk would, until release runs or the test ends; reads and
-// deletes go on. waiting returns once n statements of the database wait for a
-// lock, held writes among them.
+// deletes go on. waiting returns once n statements wait for this hold, held
+// writes and the statements waiting behind them. It counts only them: the
+// tests of a binary share a database, so another test's lock wait must not
+// stand in for a held write.
 func HoldWrites(t testing.TB, db *pg.DB, table string) (waiting func(n int), release func()) {
 	t.Helper()
 	name := identifier(fmt.Sprintf("pgtest_hold_%d_", count.Add(1)), db, table)
@@ -204,6 +206,10 @@ func HoldWrites(t testing.TB, db *pg.DB, table string) (waiting func(n int), rel
 	if _, err = hold.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", name); err != nil {
 		t.Fatal(err)
 	}
+	var holder int32
+	if err = hold.QueryRow(ctx, "SELECT pg_backend_pid()").Scan(&holder); err != nil {
+		t.Fatal(err)
+	}
 	if _, err = db.Pool.Exec(ctx, "CREATE FUNCTION "+name+"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock_shared(hashtext('"+name+"')); RETURN NEW; END $$"); err != nil {
 		t.Fatal(err)
 	}
@@ -213,17 +219,28 @@ func HoldWrites(t testing.TB, db *pg.DB, table string) (waiting func(n int), rel
 	waiting = func(n int) {
 		t.Helper()
 		for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
-			waiters := LockWaiters(t, db)
+			var waiters int
+			if err := db.Pool.QueryRow(ctx, heldStatements, holder).Scan(&waiters); err != nil {
+				t.Fatal(err)
+			}
 			if waiters >= n {
 				return
 			}
 			if time.Now().After(deadline) {
-				t.Fatalf("%d statements wait for a lock, not %d", waiters, n)
+				t.Fatalf("%d statements wait for the held writes, not %d", waiters, n)
 			}
 		}
 	}
 	return waiting, release
 }
+
+// heldStatements counts the statements that wait for the backend $1, directly
+// or behind another statement that does.
+const heldStatements = `WITH RECURSIVE held(pid) AS (
+	SELECT pid FROM pg_stat_activity WHERE $1::int = ANY(pg_blocking_pids(pid))
+	UNION
+	SELECT waiter.pid FROM pg_stat_activity waiter, held WHERE held.pid = ANY(pg_blocking_pids(waiter.pid))
+) SELECT count(*) FROM held`
 
 // LockWaiters counts the statements of db's database that wait for a lock.
 func LockWaiters(t testing.TB, db *pg.DB) int {

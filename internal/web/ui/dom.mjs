@@ -20,6 +20,18 @@ export function element(tag, text, attributes = {}) {
   }
   return node;
 }
+// A notebook ID field follows its name field, as a lowercase slug, until
+// someone types an ID of their own. The returned function forgets the last
+// suggestion, for a form that was reset.
+export function followName(name, id) {
+  let suggested='';
+  name.addEventListener('input',()=>{
+    if(id.value && id.value!==suggested)return;
+    suggested=name.value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);
+    id.value=suggested;
+  });
+  return ()=>{suggested='';};
+}
 export function button(text, action, attributes = {}) {
   const node=element('button',text,{type:'button',...attributes});
   node.onclick=action;

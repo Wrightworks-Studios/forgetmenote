@@ -33,7 +33,7 @@ func TestScriptCodeOnlyConnectorDoesNotBecomeAIOrChatEvidence(t *testing.T) {
 			t.Fatal(err)
 		}
 		app.dataConnections = manager
-		e.run.Script.Contract, err = app.scriptContract(e.run.Spec)
+		e.run.Script.Contract, err = app.automationrun.ScriptContract(e.run.Spec)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,7 +100,7 @@ func TestAutomationRunnerKeepsCodeOnlyCatalogOutsideChat(t *testing.T) {
 	defer manager.Close()
 	app.dataConnections = manager
 	e.run.Script = nil
-	if err = app.runAutomation(t.Context(), e.run, e.save); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if requests != 1 || !strings.Contains(e.run.Result, `"explicit":true`) {

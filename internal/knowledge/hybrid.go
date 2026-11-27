@@ -15,10 +15,10 @@ import (
 type HybridQuery struct {
 	SearchQuery
 	Mode string `json:"mode,omitempty"`
-	// Rerank asks for one explicit Jev judgment of the shortlist. The gateway
-	// binds Jev only after checking instance policy, consent and access.
-	Rerank bool        `json:"rerank,omitempty"`
-	Jev    *JevRanking `json:"-"`
+	// Rerank asks for one explicit judgment of the shortlist. The gateway
+	// binds the judge only after checking instance policy, consent and access.
+	Rerank    bool             `json:"rerank,omitempty"`
+	Judgments *JudgmentRanking `json:"-"`
 }
 type SearchHit struct {
 	Container            string              `json:"container,omitempty"`
@@ -52,7 +52,7 @@ type HybridResult struct {
 	Message      string                 `json:"message,omitempty"`
 	Scope        string                 `json:"scope"`
 	Reranked     bool                   `json:"reranked,omitempty"`
-	// RerankAvailable is set by the gateway: an explicit request could use Jev.
+	// RerankAvailable is set by the gateway: an explicit request could use the judge.
 	RerankAvailable bool            `json:"rerankAvailable,omitempty"`
 	History         *HistoryStatus  `json:"history,omitempty"`
 	Filters         *HistoryFilters `json:"filters,omitempty"`
@@ -266,7 +266,7 @@ func (e *Engine) HybridSearch(ctx context.Context, query HybridQuery) (HybridRes
 		}
 		return a.Path < b.Path
 	})
-	if query.Rerank && query.Jev != nil && requestedMode != "text" {
+	if query.Rerank && query.Judgments != nil && requestedMode != "text" {
 		if err = e.rerankHits(ctx, query, snapshot, &result, exact, previewPassages); err != nil {
 			return HybridResult{}, err
 		}
@@ -370,11 +370,11 @@ func (e *Engine) keywordHits(ctx context.Context, query HybridQuery, snapshot wo
 	return hits, true, nil
 }
 
-// rerankHits applies one explicit Jev judgment to the leading note hits, each
+// rerankHits applies one explicit judgment to the leading note hits, each
 // represented by the passage that ranked it. Provider failure keeps the local
 // order; revoked access or changed notes remain errors so nothing stale is shown.
 func (e *Engine) rerankHits(ctx context.Context, query HybridQuery, snapshot workspace.Snapshot, result *HybridResult, exact map[string]bool, passages map[string]Passage) error {
-	binding := *query.Jev
+	binding := *query.Judgments
 	if binding.Check == nil {
 		return workspace.ErrForbidden
 	}
@@ -390,7 +390,7 @@ func (e *Engine) rerankHits(ctx context.Context, query HybridQuery, snapshot wor
 		return nil
 	}
 	binding.Check = func(ctx context.Context) error {
-		if err := query.Jev.Check(ctx); err != nil {
+		if err := query.Judgments.Check(ctx); err != nil {
 			return err
 		}
 		return e.validateSearchSnapshot(ctx, snapshot, query.contentScope)
@@ -402,7 +402,7 @@ func (e *Engine) rerankHits(ctx context.Context, query HybridQuery, snapshot wor
 		return err
 	}
 	if values == nil {
-		result.Message = strings.TrimSpace(result.Message + " Jev ranking is unavailable; showing the local order.")
+		result.Message = strings.TrimSpace(result.Message + " Judgment ranking is unavailable; showing the local order.")
 		return nil
 	}
 	hits := make([]SearchHit, len(positions))

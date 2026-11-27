@@ -18,6 +18,10 @@ func (s *Store) ApplyGroup(ctx context.Context, group EditGroup) (GroupResult, e
 	return s.backend.ApplyGroup(ctx, group)
 }
 
+func (s *Store) ArchivedSources(ctx context.Context) (string, []Entry, error) {
+	return s.backend.ArchivedSources(ctx)
+}
+
 func (s *Store) AssertSnapshot(ctx context.Context, revision string) error {
 	return s.backend.AssertSnapshot(ctx, revision)
 }

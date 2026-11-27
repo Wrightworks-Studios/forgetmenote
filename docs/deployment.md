@@ -10,7 +10,7 @@ The app serves HTTP internally. Your reverse proxy, such as SWAG, terminates HTT
 
 Copy the repository to your server, copy `.env.example` to `.env`, and create `data/`. Set `PUID`/`PGID` to the owner of that directory, then build with Compose. Build arguments create a matching Unix user. Changing those IDs requires a rebuild and matching data ownership. Linux IDs must not conflict with users already present in the base image; the defaults are 1000:1000.
 
-To skip the build, each release also publishes `ghcr.io/wrightworks-studios/forgetmenote`, built with the default IDs and every optional integration, with [signed provenance and a verification attestation](verification.md#published-images). Keep `data/` owned by 1000:1000, set `image: ghcr.io/wrightworks-studios/forgetmenote@sha256:DIGEST` for the `forgetmenote` service in `compose.override.yaml`, then run `docker compose pull forgetmenote` and `docker compose up -d --no-build`.
+The project publishes no prebuilt image: build from the source you deploy. To build once and run the image on other hosts, publish it to your own registry with the [release tool](../deploy/production/releasing.md), which verifies it first.
 
 The default port binding is loopback-only. If SWAG runs in Docker, attach ForgetMeNote to the same dedicated proxy network. For example, save `compose.override.yaml` with your existing network name:
 
@@ -46,6 +46,41 @@ External authentication disables local password login and the first-local-admini
 ## Authelia: one sign-in, app-managed project roles
 
 The full [trusted-proxy recipe](trusted-proxy.md) covers header verification, the proxy secret, and MCP route exceptions. Do not add a second authentication service if you already have one.
+
+## Instance configuration and modules
+
+The environment variables in `.env` cover a basic instance. To keep the
+configuration in one private file instead, or to turn [feature
+modules](modules.md) off, write an [`instance.json`](instance-configuration.md)
+in `secrets/`. With it, the database URL file is named in the file rather than
+by `DATABASE_URL_FILE`. This one runs the instance without the Slack app,
+personal assistants or judgments:
+
+```json
+{
+  "version": 1,
+  "server": {"database": {"urlFile": "/run/secrets/database-url"}},
+  "modules": {"off": ["messaging", "personal", "judgments"]}
+}
+```
+
+Mount it read-only and point the container at it. `compose.yaml` sets
+`DATABASE_URL_FILE` by default, which conflicts with `INSTANCE_CONFIG_FILE`, so
+the override clears it:
+
+```yaml
+services:
+  forgetmenote:
+    environment:
+      INSTANCE_CONFIG_FILE: /run/secrets/instance.json
+      DATABASE_URL_FILE: ""
+    volumes:
+      - ./secrets/instance.json:/run/secrets/instance.json:ro
+```
+
+Move any other integration settings from `.env` into the file as well:
+startup names each variable that is still set. The module set is read once at
+startup, so recreate the container after changing it.
 
 ## Startup and upgrades
 

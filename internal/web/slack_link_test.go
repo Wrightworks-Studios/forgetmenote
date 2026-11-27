@@ -166,7 +166,7 @@ func (f *slackLinkFixture) dm(t *testing.T, id, text string) string {
 	if err := f.app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
 		t.Fatal(err)
 	}
-	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); err != nil || !ran || len(f.replies) != before+1 {
+	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); err != nil || !ran || len(f.replies) != before+1 {
 		t.Fatalf("the DM %q was not answered once: %v %v %v", text, ran, err, f.replies[before:])
 	}
 	return f.replies[before]
@@ -335,7 +335,7 @@ func TestSlackLinkedMemoryIsReviewedAsThePerson(t *testing.T) {
 	}
 	old := file.Items[1].ID
 	calls := 0
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		var in struct {
 			Questions map[string]struct {
@@ -354,8 +354,8 @@ func TestSlackLinkedMemoryIsReviewedAsThePerson(t *testing.T) {
 		}
 		json.NewEncoder(w).Encode(map[string]any{"model": "jev-1.13.0", "answers": answers, "usage": map[string]int{"input_tokens": 40, "output_tokens": 4}})
 	})
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true}`); w.Code != 200 {
-		t.Fatalf("Jev consent: %d %s", w.Code, w.Body.String())
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true}`); w.Code != 200 {
+		t.Fatalf("judgment consent: %d %s", w.Code, w.Body.String())
 	}
 	f.requests.remember = `{"items":[{"text":"Alice reviews service health every Tuesday now.","kind":"fact"}]}`
 	f.dm(t, "correction", "I moved service health reviews to Tuesdays.")

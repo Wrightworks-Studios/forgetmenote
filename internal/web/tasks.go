@@ -17,8 +17,14 @@ import (
 // initTasks binds task queues to this instance's access checks, messaging
 // clients, Slack app, data connections, reply reminder policy and origin. The
 // messaging service, the Slack app, the connections and the origin are read at
-// each call, since messaging is created after task queues.
+// each call, since messaging is created after task queues. An instance that
+// turns task queues off has no task service: no task reminder is scheduled or
+// claimed (automationPolicy), and the queues stay in the catalog and the
+// task-queues notebook.
 func (s *Server) initTasks() error {
+	if !s.modules.Enabled("tasks") {
+		return nil
+	}
 	var err error
 	s.tasks, err = taskqueue.New(s.catalog, s.automations, taskqueue.Hooks{
 		Personal: func(ctx context.Context) bool {
@@ -26,13 +32,24 @@ func (s *Server) initTasks() error {
 			return !automated && auth.Global(ctx)
 		},
 		CheckAutomation: s.checkAutomationAuth,
+		// With messaging off no client is configured: task reminders and
+		// notices have nowhere to go, and the queues work without them.
 		Client: func(id string) (messaging.Client, messaging.Transport, bool) {
+			if s.messaging == nil {
+				return messaging.Client{}, nil, false
+			}
 			return s.messaging.MessageClient(id)
 		},
 		SendDM: func(ctx context.Context, effect automation.Effect, t messaging.Transport, d messaging.Address, reply messaging.Reply) (bool, error) {
+			if err := s.modules.Check("messaging"); err != nil {
+				return false, err
+			}
 			return s.messaging.SendOnce(ctx, effect, t, d, reply, messaginghttp.DMSendTimeout, nil)
 		},
 		Enqueue: func(ctx context.Context, e messaging.Event) error {
+			if err := s.modules.Check("messaging"); err != nil {
+				return err
+			}
 			return s.messaging.EnqueueMessage(ctx, e)
 		},
 		Permalink: func(ctx context.Context, channel, ts string) (string, error) {
@@ -61,7 +78,7 @@ func (s *Server) taskTools(server *mcp.Server) {
 	addAction(s, server, &mcp.Tool{Name: "add_task", Description: "Add a task to your queue or a colleague's, or with people give several people their own copy. Name a colleague by Slack mention or member ID, account user ID or person ID, never by a guessed name; ask the user when unsure. A channel, user group or everyone gives each member a copy; more than 20 copies need the user's agreement and confirm. Their queue is private: you will see only the tasks you filed. With every, the task repeats on a fixed schedule from its due date, and the result's nextDates shows the first two dates to confirm with the user."}, s.tasks.AddAction, "notes:write")
 	addAction(s, server, &mcp.Tool{Name: "update_task", Description: "Change, close or reassign a task, with its revision from list_tasks. The owner can do anything; the person who filed it can change its text, due date and schedule or withdraw it. Closing a recurring task records that occurrence and moves it to its next date."}, s.tasks.UpdateAction, "notes:write")
 	addAction(s, server, &mcp.Tool{Name: "task_history", Description: "List every change to one task, including closed ones, newest first: who added, changed and closed it, and why. Its owner and the person who filed it may read it.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true}}, s.tasks.HistoryAction, "notes:read")
-	addManagementTool(s, server, "task_queues", "Read the task queue settings. Administrator only.", true, s.tasks.SettingsAction)
+	addManagementTool(s, server, "task_queues", "Read the task queue settings, the enabled task-reminder automations and any setup warnings. Administrator only.", true, s.tasks.SettingsAction)
 	addManagementTool(s, server, "set_task_queues", "Enable or change task queues: client names the messaging client whose workspace members have queues, group limits the accounts that may use tasks, and revision is the current settings revision (0 to enable). Creates the system notebook task-queues the first time. Administrator only.", false, s.tasks.SetSettingsAction)
 }
 

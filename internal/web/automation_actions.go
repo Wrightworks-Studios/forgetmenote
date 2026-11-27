@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
@@ -77,7 +78,7 @@ func runStatus(r automation.Run) automationRunStatus {
 	if b := r.Learning; b != nil {
 		patterns := map[string]bool{}
 		for _, e := range b.Events {
-			patterns[learningGroup(e)] = true
+			patterns[automationrun.LearningGroup(e)] = true
 		}
 		learning := &learningRunStatus{State: r.State, Observations: len(b.Events), Patterns: len(patterns), Deferred: b.Deferred, Published: b.Published, ReadyAt: b.ReadyAt.Format(time.RFC3339), Expires: b.Expires.Format(time.RFC3339)}
 		if r.State == "completed" {
@@ -155,7 +156,7 @@ func (s *Server) automationTools(server *mcp.Server) {
 			if in.Spec.Script.Environment == "" {
 				return automation.Definition{}, errors.New("prepare or install this package before saving its definition")
 			}
-			if _, _, err := s.scriptPackage(ctx, in.Spec, true); err != nil {
+			if _, _, err := s.automationrun.ScriptPackage(ctx, in.Spec, true); err != nil {
 				return automation.Definition{}, err
 			}
 		}
@@ -258,6 +259,11 @@ func (s *Server) automationTools(server *mcp.Server) {
 		e := s.automations.Queue.Cancel(in.ID)
 		return actionResult{e == nil}, e
 	})
+}
+
+// recipeTools find a notebook's recipe notes, with the health of the
+// automated checks that verify them while automations run.
+func (s *Server) recipeTools(server *mcp.Server) {
 	addProjectTool(s, server, "find_recipes", "Find Markdown recipe notes tagged recipe in an approved notebook. Query is a literal substring: use a short phrase or omit it to list recipes. Read a recipe and current operation schemas before executing its instructions.", "read", func(ctx context.Context, store *workspace.Store, in struct {
 		projectArg
 		Query string `json:"query,omitempty"`
@@ -294,15 +300,16 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 	if err := spec.ValidateConfigured(); err != nil {
 		return err
 	}
+	// Nothing would run an automation that needs a module that is off.
+	if err := s.automationModulesOn(spec); err != nil {
+		return err
+	}
 	if !s.catalog.IsService(spec.Actor) {
 		return errors.New("select an active service account")
 	}
 	role := "read"
 	if spec.Output != "" || spec.Repair != nil && spec.Recipe != "" || spec.Kind == "recipe" || spec.Kind == "learning" || spec.Kind == "drive-sync" || spec.Native != nil && spec.Native.Task == "profile-compaction" {
 		role = "edit"
-	}
-	if spec.Native != nil && spec.Native.Task == "repository-refresh" {
-		role = "owner"
 	}
 	if spec.Native != nil && spec.Native.Task == "email-pairing" {
 		if _, _, err := s.emailPairing(spec); err != nil {
@@ -323,7 +330,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 		}
 	}
 	if spec.Script != nil {
-		_, files, err := s.scriptPackage(ctx, spec, false)
+		_, files, err := s.automationrun.ScriptPackage(ctx, spec, false)
 		if err != nil {
 			return err
 		}
@@ -385,7 +392,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 		}
 	}
 	if spec.UsesAI() {
-		if _, _, _, err := s.automationProvider(spec); err != nil {
+		if _, _, _, err := s.automationrun.Provider(spec); err != nil {
 			return err
 		}
 	}

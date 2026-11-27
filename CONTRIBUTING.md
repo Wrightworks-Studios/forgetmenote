@@ -99,7 +99,12 @@ After editing them, run `npx --no-install prettier --write scripts/browser`;
 ## Pull requests
 
 - Branch from `next` and open the pull request against `next`, the default
-  branch. Pull requests are squash-merged.
+  branch. Pull requests are squash-merged through a merge queue, which runs the
+  `fast` check on each one on top of the ones ahead of it, so there is no need
+  to keep a branch up to date with `next` by hand. A maintainer labels a change
+  to security, storage, authority, dependencies or shared infrastructure
+  `full-gate`, and the queue then runs the complete regression on it too
+  ([verification](docs/verification.md#pr-feedback-and-complete-regression)).
 - Keep each one to a single coherent change, with its tests, and leave unrelated
   code alone. Describe the problem, the resulting behavior and the checks you ran.
 - Keep personal and organization details out of files, commit messages, branch

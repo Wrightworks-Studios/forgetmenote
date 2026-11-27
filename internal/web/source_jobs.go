@@ -90,7 +90,15 @@ func (s *Server) acquireSourceWork(ctx context.Context) (func(), error) {
 		return nil, ctx.Err()
 	}
 }
+
+// initSourceJobs opens the source jobs. On an instance that turns the sources
+// module off no source work runs, so nothing could resume a job: startup
+// retires the jobs left from when the module ran and removes their files at
+// once, rather than keep a private upload for the rest of its 24 hours.
 func (s *Server) initSourceJobs() error {
+	if !s.modules.Enabled("sources") {
+		return sources.RetireJobs(s.db, s.blobs, s.data)
+	}
 	jobs, err := sources.OpenJobs(s.db, s.blobs, s.data, func(ctx context.Context, scope sources.JobScope) error {
 		_, err := s.sourceContext(ctx, scope)
 		return err
@@ -99,15 +107,13 @@ func (s *Server) initSourceJobs() error {
 		return err
 	}
 	s.sourceJobs = jobs
-	jobs.SetHosted(s.hostedSource)
-	s.sourceHTTP, err = sourcehttp.New(jobs, s.renderer, s.sourceWork, sourcehttp.Hooks{
-		Scope: s.sourceScope, Access: s.toolStore, Sign: s.sign,
-		ValidateOptions: func(ctx context.Context, project string, input sources.JobInput) error {
-			_, _, err := s.sourceProcessingPolicy(ctx, project, input, nil)
-			return err
-		},
-	})
+	s.sourceHTTP, err = sourcehttp.New(jobs, s.renderer, s.sourceWork, sourcehttp.Hooks{Scope: s.sourceScope, Access: s.toolStore, Sign: s.sign})
 	return err
+}
+
+func (s *Server) sourceRoutes(r routeRegistrar) {
+	s.sourceHTTP.Register(r.project)
+	r.project("POST /api/sources/chat-text", "edit", s.sourceChatTextHTTP)
 }
 
 type sourceJobOutput = sourcehttp.JobOutput
@@ -118,7 +124,7 @@ type sourceJobInput struct {
 }
 
 func (s *Server) sourceJobTools(server *mcp.Server) {
-	addProjectTool(s, server, "prepare_source", "Queue a source upload or public URL for bounded extraction. Returns a durable job ID; inspect source_job, then import_source_job. Local extraction does not upload to an AI provider.", "edit", func(ctx context.Context, _ *workspace.Store, in sourceInput) (sourceJobOutput, error) {
+	addProjectTool(s, server, "prepare_source", "Queue a source upload or public URL for bounded server extraction. Returns a durable job ID; inspect source_job, then import_source_job. Local extraction does not upload to an AI provider. To upload your own extraction, use archive_source; jobs refuse text.", "edit", func(ctx context.Context, _ *workspace.Store, in sourceInput) (sourceJobOutput, error) {
 		job, err := s.sourceHTTP.Submit(ctx, in.Project, sourcehttp.Input(in))
 		return sourceJobOutput{Job: job}, err
 	})

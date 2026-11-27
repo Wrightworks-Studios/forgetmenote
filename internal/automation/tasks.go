@@ -35,8 +35,10 @@ func (n *NativeTask) validate() error {
 		return errors.New("email-pairing and task-reminder, and only they, name a messaging client")
 	}
 	switch n.Task {
-	case "storage-health", "notebook-health", "automation-health", "activity-summary", "profile-health", "profile-compaction", "repository-refresh", "email-pairing", "task-reminder":
+	case "storage-health", "notebook-health", "automation-health", "activity-summary", "profile-health", "profile-compaction", "email-pairing", "task-reminder":
 		return nil
+	case "repository-refresh":
+		return errors.New("native task repository-refresh was removed: repository notebooks refresh on their own, so remove this job")
 	default:
 		return errors.New("unsupported native task")
 	}

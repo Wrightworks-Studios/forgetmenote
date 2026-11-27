@@ -49,7 +49,7 @@ func TestAssistantUsesDiscoveredOperationContractInsteadOfModelHash(t *testing.T
 	transport := &fixtureChatTransport{}
 	app.messageClients["slack"] = transport
 	run := automation.Run{ID: automation.Hash(t.Name()), Spec: automation.Spec{ID: "contract-discovery", Kind: "assistant", Actor: "alice", Project: "default", Connections: []string{"db"}, AIConnection: "local", Model: "synthetic", Instruction: "How many matching records are there?", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "contracts", User: "U123"}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 3 || len(run.Receipts) != 1 || len(transport.replies) != 1 || transport.replies[0].Text != "The live count is 15." {
@@ -95,7 +95,7 @@ func TestAssistantDiscoveredContractPreservesDriftAndRevocationChecks(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			ctx, err = app.automationSourceContext(ctx, &run)
+			ctx, err = app.automationrun.SourceContext(ctx, &run)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -192,7 +192,7 @@ func TestAssistantStartsWithOnlyPermittedLiveSources(t *testing.T) {
 	app.slack.config.Channels["C123"] = binding
 	app.messageClients["slack"] = &fixtureChatTransport{}
 	run := automation.Run{ID: automation.Hash(t.Name()), Spec: automation.Spec{ID: "source-discovery", Kind: "assistant", Actor: "alice", Project: "default", Connections: binding.Connections, AIConnection: "local", Model: "synthetic", Instruction: "Check the current state.", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "discovery", User: "U123"}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,30 +19,230 @@ import (
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/workspace"
 )
 
-// A session revoked while the model answers keeps the answer out of the
-// conversation: the run rechecks its access before it records the reply.
-func TestChatAnswerRevokedDuringTheModelCallIsNotRecorded(t *testing.T) {
-	var server atomic.Pointer[Server]
-	app, c := runnerFixture(t, func(w http.ResponseWriter, r *http.Request) {
-		if err := server.Load().catalog.Revoke(catalog.Bootstrap, "alice"); err != nil {
+// A run refused by a recheck while the model answers ends failed and keeps
+// none of the answer: neither the text streamed before the refusal nor what
+// arrived after it. A later read, the event stream and save-to-note find none
+// of it, and the run's messages hold none of it to resume from.
+func TestChatAnswerRefusedDuringTheModelCallIsDropped(t *testing.T) {
+	const before, after = "STREAMED_BEFORE_REFUSAL", "ARRIVED_AFTER_REFUSAL"
+	disabled := func(value bool) func(*testing.T, *Server, *http.Cookie) error {
+		return func(_ *testing.T, app *Server, _ *http.Cookie) error {
+			return app.catalog.UpdateUser(catalog.Bootstrap, catalog.UserUpdate{ID: "alice", Disabled: &value})
+		}
+	}
+	role := func(role string) func(*testing.T, *Server, *http.Cookie) error {
+		return func(_ *testing.T, app *Server, _ *http.Cookie) error {
+			return app.catalog.Member(catalog.Bootstrap, "default", "alice", role)
+		}
+	}
+	var handoff catalog.AuthorityTransfer
+	var handoffStore *workspace.Store
+	for _, cause := range []struct {
+		name            string
+		refuse, restore func(*testing.T, *Server, *http.Cookie) error
+	}{
+		{name: "browser session signed out", refuse: func(_ *testing.T, app *Server, session *http.Cookie) error {
+			return app.oauth.DeleteSession(digest(session.Value))
+		}},
+		{name: "every session revoked", refuse: func(_ *testing.T, app *Server, _ *http.Cookie) error {
+			return app.catalog.Revoke(catalog.Bootstrap, "alice")
+		}},
+		{name: "account disabled", refuse: disabled(true), restore: disabled(false)},
+		{name: "notebook access removed", refuse: role(""), restore: role("edit")},
+		// Reads of a notebook stop while its authority handoff publishes.
+		{name: "authority handoff publishing", refuse: func(t *testing.T, app *Server, _ *http.Cookie) error {
+			store, err := app.catalog.Access(catalog.Bootstrap, "default", "edit")
+			if err != nil {
+				return err
+			}
+			saved, err := store.Save(t.Context(), "handoff.md", []byte("# Handoff\n"), "", "fixture")
+			if err != nil {
+				return err
+			}
+			p, err := app.catalog.PreviewAuthority(catalog.Bootstrap, "default", catalog.AuthorityTransfer{To: "github", Revision: saved.Revision})
+			if err != nil {
+				return err
+			}
+			if p, handoffStore, err = app.catalog.BeginAuthority(catalog.Bootstrap, "default", p.ID); err != nil {
+				return err
+			}
+			if _, err = handoffStore.PrepareAuthority(t.Context(), workspace.AuthorityRequest{ID: p.ID, Generation: p.Generation, From: p.From, To: p.To, Revision: p.Revision}); err != nil {
+				return err
+			}
+			handoff, err = app.catalog.PublishAuthority(catalog.Bootstrap, "default", p.ID)
+			return err
+		}, restore: func(t *testing.T, app *Server, _ *http.Cookie) error {
+			if _, err := handoffStore.FinishAuthority(t.Context(), handoff.ID, true); err != nil {
+				return err
+			}
+			return app.catalog.CompleteAuthority("default", handoff.ID, handoff.Revision)
+		}},
+	} {
+		t.Run(cause.name, func(t *testing.T) {
+			var server atomic.Pointer[Server]
+			var session atomic.Pointer[http.Cookie]
+			var conversation, streamedTurn atomic.Value
+			app, c := streamingRunnerFixture(t, func(w http.ResponseWriter, r *http.Request) {
+				app := server.Load()
+				w.Header().Set("Content-Type", "text/event-stream")
+				send := func(text string) {
+					chunk, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"index": 0, "delta": map[string]string{"content": text}, "finish_reason": nil}}})
+					fmt.Fprintf(w, "data: %s\n\n", chunk)
+					w.(http.Flusher).Flush()
+				}
+				// Over 1 KiB, so the run saves it as it arrives.
+				send(strings.Repeat(before+" ", 64))
+				turn := waitStreamedText(t, app, conversation.Load().(string), before)
+				streamedTurn.Store(turn)
+				if err := cause.refuse(t, app, session.Load()); err != nil {
+					t.Error(err)
+				}
+				send(strings.Repeat(after+" ", 64))
+				fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+			})
+			server.Store(app)
+			conversation.Store(c.ID)
+			if err := app.catalog.Member(catalog.Bootstrap, "default", "alice", "edit"); err != nil {
+				t.Fatal(err)
+			}
+			login := httptest.NewRecorder()
+			if err := app.createSession(login, "alice"); err != nil {
+				t.Fatal(err)
+			}
+			session.Store(login.Result().Cookies()[0])
+			path := "/p/default/api/chat/" + c.ID
+			r := httptest.NewRequest("POST", app.origin+path+"/turns", strings.NewReader(`{"submissionId":"refused-answer","text":"Summarize the notebook.","options":{"mode":"ask"}}`))
+			r.Header.Set("Origin", app.origin)
+			r.Header.Set("Content-Type", "application/json")
+			r.AddCookie(session.Load())
+			w := httptest.NewRecorder()
+			app.ServeHTTP(w, r)
+			if w.Code != 200 {
+				t.Fatalf("turn: %d %s", w.Code, w.Body)
+			}
+			waitChatRun(t, app, c.ID)
+			app.chat.Wait()
+			if cause.restore != nil {
+				if err := cause.restore(t, app, session.Load()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := app.chat.Store.Read("alice", "default", c.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if run := got.Runs[len(got.Runs)-1]; run.State != "failed" || run.Error != "Notebook access or session was revoked." {
+				t.Errorf("refused run ended %s %q", run.State, run.Error)
+			}
+			if recordedText(got, before) || recordedText(got, after) {
+				t.Error("the refused answer is saved in the conversation")
+			}
+			read := proxyCall(app, "alice", "GET", path, "")
+			var view struct {
+				Runs []chat.Run `json:"runs"`
+			}
+			if read.Code != 200 || json.Unmarshal(read.Body.Bytes(), &view) != nil || len(view.Runs) != 1 {
+				t.Fatalf("read: %d %s", read.Code, read.Body)
+			}
+			if run := view.Runs[0]; run.State != "failed" {
+				t.Errorf("a read shows the refused run %s", run.State)
+			}
+			if body := read.Body.String(); strings.Contains(body, before) || strings.Contains(body, after) {
+				t.Error("a read of the conversation shows the refused answer")
+			}
+			events := replayChatEvents(t, app, path)
+			if !strings.Contains(events, `"type":"state"`) {
+				t.Errorf("the event stream did not replay the run's end: %s", events)
+			}
+			if strings.Contains(events, before) || strings.Contains(events, after) {
+				t.Error("the event stream replays the refused answer")
+			}
+			turn, _ := streamedTurn.Load().(string)
+			save := proxyCall(app, "alice", "POST", path+"/save-note", `{"submissionId":"save-refused","path":"notes/refused.md","revision":"","turnIds":["`+turn+`"]}`)
+			store, err := app.catalog.Access(catalog.Bootstrap, "default", "read")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := store.Read(t.Context(), "notes/refused.md", ""); err == nil || save.Code == 200 {
+				t.Errorf("the refused answer was saved to a note: %d %s", save.Code, save.Body)
+			}
+		})
+	}
+}
+
+// streamingRunnerFixture is runnerFixture with a model that streams its answer.
+func streamingRunnerFixture(t *testing.T, handler http.HandlerFunc) (*Server, chat.Conversation) {
+	t.Helper()
+	app := chatFixture(t)
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	file := filepath.Join(t.TempDir(), "chat.json")
+	raw, _ := json.Marshal(map[string]any{"connections": []any{map[string]any{"id": "local", "label": "Synthetic", "format": "chat-completions", "baseURL": srv.URL, "models": []string{"synthetic"}, "local": true, "capabilities": map[string]bool{"tools": true, "stream": true}, "limits": map[string]int{"runSeconds": 20}}}})
+	if err := os.WriteFile(file, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.ConfigureChat(file); err != nil {
+		t.Fatal(err)
+	}
+	c, err := app.chat.Store.Create("alice", "default", chat.Options{Connection: "local", Model: "synthetic", Mode: "ask", Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return app, c
+}
+
+// waitStreamedText waits until the conversation saves streamed text containing
+// text, and returns the ID of the turn it streams.
+func waitStreamedText(t *testing.T, app *Server, id, text string) string {
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		c, err := app.chat.Store.Read("alice", "default", id)
+		if err != nil {
 			t.Error(err)
+			return ""
 		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"Answer written after revocation."},"finish_reason":"stop"}]}`)
-	})
-	server.Store(app)
-	if w := proxyCall(app, "alice", "POST", "/p/default/api/chat/"+c.ID+"/turns", `{"submissionId":"revoked-answer","text":"Summarize the notebook.","options":{"mode":"ask"}}`); w.Code != 200 {
-		t.Fatalf("turn: %d %s", w.Code, w.Body)
-	}
-	got := waitChatRun(t, app, c.ID)
-	for _, turn := range got.Turns {
-		if turn.Role == "assistant" {
-			t.Fatalf("answer recorded after revocation: %q", turn.Content)
+		for _, event := range c.Events {
+			var delta struct {
+				TurnID string `json:"turnId"`
+				Text   string `json:"text"`
+			}
+			if event.Type == "text_delta" && json.Unmarshal(event.Data, &delta) == nil && strings.Contains(delta.Text, text) {
+				return delta.TurnID
+			}
 		}
 	}
+	t.Error("the streamed text was not saved")
+	return ""
+}
+
+// replayChatEvents returns what alice's event stream of a conversation sends
+// from its first event; the stream stays open, so the request is bounded.
+func replayChatEvents(t *testing.T, app *Server, path string) string {
+	t.Helper()
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "GET", srv.URL+path+"/events?after=0", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Host = app.originHost()
+	r.Header.Set("Remote-User", "alice")
+	r.Header.Set("X-ForgetMeNote-Proxy-Secret", proxyTestSecret)
+	resp, err := srv.Client().Do(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("event stream: %s", resp.Status)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	return string(body)
 }
 
 // A session revoked while research fetches a source keeps the source out of
@@ -72,24 +274,24 @@ func TestChatResearchSourceRevokedDuringTheFetchIsNotRecorded(t *testing.T) {
 	}
 }
 
-// A session revoked while Jev judges a citation keeps the judgment out of the
+// A session revoked while the judge judges a citation keeps the judgment out of the
 // check: each judgment rechecks the run's access before it is saved.
-func TestJevCitationJudgmentRevokedDuringTheCallIsNotSaved(t *testing.T) {
+func TestJudgmentCitationJudgmentRevokedDuringTheCallIsNotSaved(t *testing.T) {
 	app := chatFixture(t)
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		if err := app.catalog.Revoke(catalog.Bootstrap, "alice"); err != nil {
 			t.Error(err)
 		}
 		syntheticCitationAnswer(w, r)
 	})
 	c, path := citationConversation(t, app, "Every batch requires cooling before packing. [Process](SOURCE)")
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true,"rerank":true,"citations":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true,"rerank":true,"citations":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	if w := proxyCall(app, "alice", "POST", path, `{}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	var record jevCitationRecord
+	var record citationchecks.Record
 	for deadline := time.Now().Add(3 * time.Second); ; time.Sleep(10 * time.Millisecond) {
 		var pending bool
 		var err error
@@ -114,15 +316,15 @@ func TestJevCitationJudgmentRevokedDuringTheCallIsNotSaved(t *testing.T) {
 }
 
 // rerankingRunner is a chat run fixture whose initial retrieval and passage
-// search are ranked by a synthetic Jev. jev runs inside each Jev call before
+// search are ranked by a synthetic judge. judgments runs inside each judgment call before
 // it answers; model answers each model request.
-func rerankingRunner(t *testing.T, jev func(), model http.HandlerFunc) (*Server, chat.Conversation, *atomic.Int32) {
+func rerankingRunner(t *testing.T, judgments func(), model http.HandlerFunc) (*Server, chat.Conversation, *atomic.Int32) {
 	t.Helper()
 	app, c := runnerFixture(t, model)
-	var jevCalls atomic.Int32
-	score := scoreMaintenanceFirst(&jevCalls)
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
-		jev()
+	var judgmentCalls atomic.Int32
+	score := scoreMaintenanceFirst(&judgmentCalls)
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
+		judgments()
 		score(w, r)
 	})
 	store, err := app.catalog.Access(catalog.Bootstrap, "default", "edit")
@@ -137,18 +339,18 @@ func rerankingRunner(t *testing.T, jev func(), model http.HandlerFunc) (*Server,
 			t.Fatal(err)
 		}
 	}
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	return app, c, &jevCalls
+	return app, c, &judgmentCalls
 }
 
-// A session revoked while Jev ranks a run's initial evidence stops the run
+// A session revoked while the judge ranks a run's initial evidence stops the run
 // before the model sees that evidence.
-func TestChatInitialEvidenceRevokedDuringTheJevRankingIsNotSent(t *testing.T) {
+func TestChatInitialEvidenceRevokedDuringTheJudgmentRankingIsNotSent(t *testing.T) {
 	var server atomic.Pointer[Server]
 	var models atomic.Int32
-	app, c, jevCalls := rerankingRunner(t, func() {
+	app, c, judgmentCalls := rerankingRunner(t, func() {
 		if err := server.Load().catalog.Revoke(catalog.Bootstrap, "alice"); err != nil {
 			t.Error(err)
 		}
@@ -162,8 +364,8 @@ func TestChatInitialEvidenceRevokedDuringTheJevRankingIsNotSent(t *testing.T) {
 		t.Fatalf("turn: %d %s", w.Code, w.Body)
 	}
 	got := waitChatRun(t, app, c.ID)
-	if jevCalls.Load() == 0 {
-		t.Fatal("the initial evidence was not ranked by Jev")
+	if judgmentCalls.Load() == 0 {
+		t.Fatal("the initial evidence was not ranked by the judge")
 	}
 	if models.Load() != 0 {
 		t.Fatalf("model received evidence ranked after revocation (run %s)", got.Runs[len(got.Runs)-1].State)
@@ -347,12 +549,12 @@ func TestChatToolCallRevokedDuringTheModelCallDoesNotRun(t *testing.T) {
 	})
 }
 
-// A session revoked while Jev ranks a passage search keeps the ranked passages
+// A session revoked while the judge ranks a passage search keeps the ranked passages
 // out of the run.
-func TestChatPassageSearchRevokedDuringTheJevRankingIsNotRecorded(t *testing.T) {
+func TestChatPassageSearchRevokedDuringTheJudgmentRankingIsNotRecorded(t *testing.T) {
 	var server atomic.Pointer[Server]
 	var armed atomic.Bool
-	app, c, jevCalls := rerankingRunner(t, func() {
+	app, c, judgmentCalls := rerankingRunner(t, func() {
 		if armed.Load() {
 			if err := server.Load().catalog.Revoke(catalog.Bootstrap, "alice"); err != nil {
 				t.Error(err)
@@ -367,8 +569,8 @@ func TestChatPassageSearchRevokedDuringTheJevRankingIsNotRecorded(t *testing.T) 
 		t.Fatalf("turn: %d %s", w.Code, w.Body)
 	}
 	got := waitChatRun(t, app, c.ID)
-	if jevCalls.Load() == 0 {
-		t.Fatal("the passage search was not ranked by Jev")
+	if judgmentCalls.Load() == 0 {
+		t.Fatal("the passage search was not ranked by the judge")
 	}
 	if recordedText(got, "CERULEAN") {
 		t.Fatal("passages ranked after revocation were recorded")
@@ -423,7 +625,8 @@ func waitChatRunOrApproval(t *testing.T, app *Server, id string) chat.Conversati
 }
 
 // A note change the model chooses in a run whose corpus reaches another
-// notebook is refused by the chat guard; nothing is written.
+// notebook is refused by the chat guard before it is recorded as an operation;
+// nothing is written.
 func TestChatCrossNotebookRunCannotWriteNotes(t *testing.T) {
 	app, got := crossNotebookEdit(t, `submit_change_group {"mode":"apply","group":{"id":"x","summary":"Summary","edits":[{"path":"saved.md","content":"# Saved\nFrom another notebook.\n","revision":"","hash":""}]}}`)
 	store, err := app.catalog.Access(catalog.Bootstrap, "default", "read")
@@ -439,6 +642,11 @@ func TestChatCrossNotebookRunCannotWriteNotes(t *testing.T) {
 	}
 	if !recordedText(got, "cross-notebook source context is read-only") {
 		t.Fatalf("the refusal was not recorded: state=%s error=%q", run.State, run.Error)
+	}
+	for _, op := range run.Operations {
+		if op.Name == "submit_change_group" {
+			t.Fatalf("a refused change was recorded as an operation: %+v", op)
+		}
 	}
 }
 
@@ -594,7 +802,7 @@ func countingModel(calls *atomic.Int32) http.HandlerFunc {
 
 // A session revoked while a turn's request is still being read never starts
 // the run: the turn checks the run's access once it has the whole request,
-// before the model or Jev sees anything.
+// before the model or the judge sees anything.
 func TestChatTurnRevokedWhileItsRequestIsReadDoesNotStart(t *testing.T) {
 	start := func(t *testing.T, app *Server, c chat.Conversation) chat.Conversation {
 		t.Helper()
@@ -616,11 +824,11 @@ func TestChatTurnRevokedWhileItsRequestIsReadDoesNotStart(t *testing.T) {
 			t.Fatalf("run started after revocation: %d runs, %d model calls", len(got.Runs), calls.Load())
 		}
 	})
-	t.Run("Jev ranking", func(t *testing.T) {
+	t.Run("judgment ranking", func(t *testing.T) {
 		var calls atomic.Int32
-		app, c, jevCalls := rerankingRunner(t, func() {}, countingModel(&calls))
-		if got := start(t, app, c); len(got.Runs) != 0 || jevCalls.Load() != 0 || calls.Load() != 0 {
-			t.Fatalf("run started after revocation: %d runs, %d Jev calls, %d model calls", len(got.Runs), jevCalls.Load(), calls.Load())
+		app, c, judgmentCalls := rerankingRunner(t, func() {}, countingModel(&calls))
+		if got := start(t, app, c); len(got.Runs) != 0 || judgmentCalls.Load() != 0 || calls.Load() != 0 {
+			t.Fatalf("run started after revocation: %d runs, %d judgment calls, %d model calls", len(got.Runs), judgmentCalls.Load(), calls.Load())
 		}
 	})
 }
@@ -689,7 +897,7 @@ func TestChatApprovedActionWithAnUnknownOutcomeAfterRevocationIsRefused(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.executeNotebookTool(ctx, auth, c.ID, run.ID, call, connection); !errors.Is(err, chatrun.ErrConfirmation) {
+	if err = app.chatrun.ExecuteNotebookTool(ctx, auth, c.ID, run.ID, call, connection); !errors.Is(err, chatrun.ErrConfirmation) {
 		t.Fatalf("approval not prepared: %v", err)
 	}
 	prepared, err := app.chat.Store.Read("alice", "default", c.ID)

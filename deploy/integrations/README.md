@@ -22,7 +22,7 @@ Mount operator-owned JSON and credentials outside **all notebook repositories**:
 | `AUTOMATIONS_CONFIG_FILE` | `/etc/forgetmenote/automations.json` | Optional file-managed jobs; UI-managed definitions need no mounted job file |
 | `SLACK_CONFIG_FILE` | `/etc/forgetmenote/slack.json` | Slack workspace, secret references and optional initial chat policy |
 | `CHAT_CONFIG_FILE` | Existing chat configuration | Existing model providers; reused by automation |
-| `DECISION_CONFIG_FILE` | `/etc/forgetmenote/decisions.json` | Optional typed decisions (`provider: typesafe`); independent of chat providers; see [Jev configuration](../../docs/jev-architecture.md) |
+| `DECISION_CONFIG_FILE` | `/etc/forgetmenote/decisions.json` | Optional typed decisions (`provider: typesafe`); independent of chat providers; see [judgments configuration](../../docs/judgments-architecture.md) |
 
 Keep `/data` on a persistent volume and retain a **single instance owner**. All
 features work with `--headless`. The existing Docker image includes the Go
@@ -217,7 +217,7 @@ contracts support strings, integers, booleans, dates, datetimes and typed arrays
 Profiles remain ordinary Markdown notes, tagged `recipe` for discovery. An agent
 reads them, inspects operation schemas and calls ordinary tools. There is no
 executable profile language. Existing notebook retrieval, embeddings, maps and
-Jev ranking continue to locate useful knowledge; Jev does not execute SQL or decide
+judgment ranking continue to locate useful knowledge; a judgment does not execute SQL or decide
 whether a publication is authorized.
 
 Optional `usage: {"errors":true,"slowMs":5000,"cooldownSeconds":3600}` queues
@@ -306,7 +306,7 @@ operator-authored test cases. Merge the job in [learning.example.json](learning.
 into the private automations configuration. Set its service account, profile
 notebook and existing chat connection. Grant that account notebook Edit and the
 required read-only connection operations. Each source connection also needs
-`externalProcessing: true`. `learning.jev: true` requires the existing Jev
+`externalProcessing: true`. `learning.jev: true` requires the existing judgments
 configuration and its background budget; `false` uses deterministic shape routing.
 The ordinary configured model synthesizes and writes the profile. No new worker,
 database, or provider credential mechanism is required.
@@ -332,13 +332,13 @@ The worker:
    learned patterns with unchanged schemas
    and normal successful execution are skipped. Errors, incomplete calls, schema
    changes, or materially slower execution make them eligible again.
-4. Uses one parallel Jev Choice request to route up to eight patterns, prioritizing
+4. Uses one parallel judgment Choice request to route up to eight patterns, prioritizing
    fresh activity, to existing profiles or new destinations. Variants with the same
    stated intent, connection and operation share a question; different intents can
    join only through a confident semantic match. At least `minExamples` successful,
    complete calls must support the selected profile, across its separate patterns.
    A daily breakdown and a period total need not repeat identical SQL to qualify.
-   Jev does not decide query correctness. Low-confidence choices defer automatically.
+   A judgment does not decide query correctness. Low-confidence choices defer automatically.
 5. Makes one model synthesis call per selected profile with the captured activity,
    exact operation argument schemas and existing profile. Selected examples appear
    once; supporting calls and failures supply additional context. The model proposes
@@ -441,10 +441,11 @@ Mount `SLACK_CONFIG_FILE` with the workspace ID and private runtime secret paths
 ```
 
 Restart once to load the transport, then open **Administration → Chat clients**.
-Link Slack user IDs to active ForgetMeNote user IDs, and add channel or DM
+Link Slack user IDs to active ForgetMeNote accounts, and add channel or DM
 destinations. Each destination selects a primary notebook, additional notebooks
-(including repository notebooks and profiles), allowed data connections, and
-optional thread context and files. Comma-separated lists are accepted in the form.
+(including repository notebooks and profiles), allowed data connections (those
+that allow AI processing), allowed members, and optional thread context and
+files. Slack channel and user IDs are typed: the app has no listing of them.
 Omit `aiConnection` and `model` to use the instance's configured default model.
 `slack.example.json` also demonstrates a complete initial file-managed policy.
 Replace its placeholders and explicitly review the shared audience before using it.
@@ -517,6 +518,11 @@ policy changes cannot override it or revive a removed/disabled client. Credentia
 and workspace identity remain operator-managed runtime configuration. JSON editing
 is available alongside the form; the same admin-only `chat_clients` and
 `set_chat_clients` actions work through API/CLI/MCP, with a revision check on saves.
+The form offers the Slack app's channels and people by name from the admin-only
+`chat_client_directory` action: unarchived public channels, private channels the
+app is in, and active members who are not guests, by ID and name only. Without a
+listing scope, or when Slack refuses or the list is too long, the form takes typed
+IDs for that list and says why.
 Adoption uses catalog format 7: rollback to an older binary requires a compatible
 instance backup. No configuration or token contents are written to notebooks.
 
@@ -540,6 +546,7 @@ and subscriptions for the features used:
 | Verify workspace membership | `users:read` | None additional |
 | Pair members with accounts by email | `users:read`, `users:read.email` | `team_join`, `user_change` to pair changes right away |
 | Give a channel, user group or everyone a [task](../../docs/tasks.md) | `users:read`, `channels:read`, `groups:read`, `usergroups:read` | None additional |
+| Choose channels and people by name in Administration | `channels:read`, `groups:read`, `users:read` | None additional |
 | Working indicator on DMs/private replies | `reactions:write` | None additional |
 | Native working status inside threads | `assistant:write` | None additional |
 
@@ -590,7 +597,7 @@ Interactive data calls contribute to existing opt-in profile-learning jobs when
 the caller can read the profiles notebook. The human request and bounded query
 arguments are captured under the existing sensitive-input filters, consent and
 retention policy. Background automation calls remain excluded to avoid learning
-from the system's own work. No new Jev calls or provider framework are introduced.
+from the system's own work. No new judgment calls or provider framework are introduced.
 
 Chat generation and delivery checkpoints suppress automatic repeats after an
 unknown outcome. Check Administration → Automation for operational failures;

@@ -74,7 +74,7 @@ func TestMessagingRevalidatesEarlierAnswerBeforeFollowup(t *testing.T) {
 				t.Fatal(err)
 			}
 			r := automation.Run{ID: automation.Hash(tc.name), Spec: automation.Spec{ID: "followup", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", Instruction: "What about now?", ExternalProcessing: true, Delivery: &d}}
-			err = app.runAutomation(t.Context(), &r, func() error { return nil })
+			err = app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil })
 			if tc.recovery {
 				if !errors.Is(err, workspace.ErrConflict) || calls != 0 || len(transport.replies) != 0 {
 					t.Fatal("recovery reused changed evidence or regenerated", err, calls, transport.replies)
@@ -113,7 +113,7 @@ func TestMessagingKeepsAnswerLinksWithoutDumpingRetrievedSources(t *testing.T) {
 		Answer:    answer,
 		Citations: []chat.Citation{{Kind: "notebook", Project: "default", Path: doc.Path, Revision: doc.Revision, Hash: workspace.ContentHash(doc.Content), Title: "Unrelated retrieval", URL: "/unrelated"}},
 	}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if len(transport.replies) != 1 || transport.replies[0].Text != answer {
@@ -137,7 +137,7 @@ func TestMessagingMakesNotebookCitationLinksAbsolute(t *testing.T) {
 	link := "/?project=default&note=source.md&revision=" + doc.Revision + "#evidence"
 	answer := "Seven. [Source](" + link + "). [External](https://example.com/evidence)."
 	r := automation.Run{ID: automation.Hash("absolute-citation"), Spec: automation.Spec{ID: "absolute-citation", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", Instruction: "How many?", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "1.2", User: "U123"}}, Answer: answer, Citations: []chat.Citation{{Kind: "notebook", Project: "default", Path: doc.Path, Revision: doc.Revision, Hash: workspace.ContentHash(doc.Content), URL: link}}}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	want := strings.ReplaceAll(answer, "]("+link+")", "]("+app.origin+link+")")

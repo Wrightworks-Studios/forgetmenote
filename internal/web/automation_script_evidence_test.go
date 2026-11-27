@@ -32,13 +32,13 @@ func TestScriptTransientReadRetryReusesCompletedReceipts(t *testing.T) {
 	if err := refreshScriptContract(t, app, e); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.runScript(e.ctx, e.run, e.save); !errors.Is(err, connectors.ErrUnavailable) {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); !errors.Is(err, connectors.ErrUnavailable) {
 		t.Fatalf("lost transient connector cause at the Python boundary: %v", err)
 	}
 	if e.run.Script.Steps["first"].State != "completed" || e.run.Script.Steps["second"].State != "failed" {
 		t.Fatal("read receipts did not preserve the failed boundary")
 	}
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if calls.Load() != 3 || !e.run.Script.Complete {
@@ -93,7 +93,7 @@ func refreshScriptContract(t *testing.T, app *Server, e *scriptExecution) error 
 		return err
 	}
 	e.ctx = ctx
-	e.run.Script.Contract, err = app.scriptContract(e.run.Spec)
+	e.run.Script.Contract, err = app.automationrun.ScriptContract(e.run.Spec)
 	return err
 }
 
@@ -128,7 +128,7 @@ func TestScriptSuppressedFindingDoesNotAttemptDelivery(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host):\n    host.call('finding', 'incidents.report', active=False, severity='warning', summary='Observed checks passed')\n    return {'checked': True}\n", []string{"incidents.report"}, nil, nil)
 	e.run.Spec.NotifyChannel = "channel"
 	e.run.Script = nil
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if e.run.Alert == nil || e.run.Alert.Notify || e.run.DeliveryState != "" {

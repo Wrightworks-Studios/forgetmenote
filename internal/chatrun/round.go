@@ -2,6 +2,7 @@ package chatrun
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/url"
@@ -46,8 +47,10 @@ type chatRoundRequest struct {
 type chatStreamed struct {
 	assistantID string
 	response    chat.Response
-	// err is the provider's failure, or the revocation that stopped the stream.
+	// err is the provider's failure, or the refusal that stopped the stream.
 	err error
+	// refused reports that err is a recheck's refusal.
+	refused bool
 	// flushErr is the failure to persist the last streamed text.
 	flushErr error
 }
@@ -323,7 +326,7 @@ func (r *Runner) stream(ctx context.Context, run chat.Run, next chatRoundRequest
 		sourceErr = r.s.ValidateSources(ctx, run, true)
 	}
 	if sourceErr != nil {
-		out.err = sourceErr
+		out.err, out.refused = sourceErr, true
 		out.response.Message = chat.Message{}
 		pending.Reset()
 	}
@@ -360,9 +363,10 @@ func (r *Runner) startRound(run chat.Run, next chatRoundRequest) error {
 }
 
 // persist settles the round's usage and records the assistant's turn and,
-// unless the round failed, its message for the next request. A run whose
-// access was revoked records only its usage. It then reports the round's
-// failure, if any.
+// unless the round failed, its message for the next request. It then reports
+// the round's failure, if any. A round refused by a recheck, during the
+// stream or here, keeps only its usage: the same update retracts the text it
+// streamed, and the refusal is the round's failure.
 func (r *Runner) persist(request chat.Request, streamed chatStreamed) error {
 	usage := streamed.response.Usage
 	uncertain := int64(0)
@@ -373,9 +377,15 @@ func (r *Runner) persist(request chat.Request, streamed chatStreamed) error {
 		return err
 	}
 	// Authorize before taking the conversation store's lock.
-	authorized := r.s.hooks.CheckRun(r.auth) == nil
+	var refusal error
+	if streamed.refused {
+		refusal = streamed.err
+	} else {
+		refusal = r.s.hooks.CheckRun(r.auth)
+	}
 	if err := r.s.RunUpdate(r.auth, r.id, r.runID, func(c *chat.Conversation, current *chat.Run) error {
-		if !authorized {
+		if refusal != nil {
+			retractStreamedText(c, r.runID, streamed.assistantID)
 			return nil
 		}
 		m := streamed.response.Message
@@ -395,17 +405,42 @@ func (r *Runner) persist(request chat.Request, streamed chatStreamed) error {
 	}); err != nil {
 		return err
 	}
+	if refusal != nil {
+		return refusal
+	}
 	if streamed.err != nil {
 		return streamed.err
 	}
 	return streamed.flushErr
 }
 
+// retractStreamedText replaces, in place so event sequences hold, each event
+// carrying text a turn streamed with a retraction of the turn. When there was
+// any, it also appends one, so that streams which already sent the text drop
+// the turn.
+func retractStreamedText(c *chat.Conversation, runID, turnID string) {
+	retraction, _ := json.Marshal(map[string]string{"turnId": turnID})
+	retracted := false
+	for i, event := range c.Events {
+		var delta struct {
+			TurnID string `json:"turnId"`
+		}
+		if event.Run != runID || event.Type != "text_delta" || json.Unmarshal(event.Data, &delta) != nil || delta.TurnID != turnID {
+			continue
+		}
+		c.Events[i].Type, c.Events[i].Data = "retracted", retraction
+		retracted = true
+	}
+	if retracted {
+		c.AddEvent(runID, "retracted", map[string]string{"turnId": turnID})
+	}
+}
+
 // executeTools executes tool calls in order, stopping at the first that fails
 // or waits for confirmation.
 func (r *Runner) executeTools(ctx context.Context, calls []chat.ToolCall) error {
 	for _, call := range calls {
-		if err := r.s.hooks.ExecuteTool(ctx, r.auth, r.id, r.runID, call, r.connection); err != nil {
+		if err := r.s.executeChatTool(ctx, r.auth, r.id, r.runID, call, r.connection); err != nil {
 			return err
 		}
 	}

@@ -19,8 +19,8 @@ import (
 // existing two-minute write deadline. Chat's shorter parent deadline still wins.
 const ImportTimeout = 110 * time.Second
 
-// Raster and native-library conversion share one bounded work slot across
-// browser, API/MCP, chat and automation callers.
+// PDF conversion, the one local tool the server runs, takes one bounded work
+// slot shared by browser, API/MCP, chat and automation callers.
 var documentWork = make(chan struct{}, 1)
 
 type documentBlock struct {
@@ -43,9 +43,9 @@ type documentSection struct {
 	Blocks []documentBlock `json:"blocks"`
 }
 
-func extractDocument(ctx context.Context, extension string, data []byte, options Options) (string, string, string, error) {
+func extractDocument(ctx context.Context, extension string, data []byte) (string, string, string, error) {
 	switch extension {
-	case ".pptx", ".odt", ".ods", ".odp", ".pages", ".key":
+	case ".pptx", ".odt", ".ods", ".odp":
 		p, err := openPackage(data)
 		if err != nil {
 			return "", "", "", refused(err)
@@ -54,7 +54,7 @@ func extractDocument(ctx context.Context, extension string, data []byte, options
 		// Bound expansion and reject XML entities before any third-party parser
 		// reads the package. Parts are never extracted into the filesystem.
 		for name := range p.files {
-			if strings.HasSuffix(name, ".xml") || strings.HasSuffix(name, ".rels") || strings.HasSuffix(name, ".apxl") {
+			if strings.HasSuffix(name, ".xml") || strings.HasSuffix(name, ".rels") {
 				raw, err := p.read(name)
 				if err != nil {
 					return "", "", "", refused(err)
@@ -71,17 +71,11 @@ func extractDocument(ctx context.Context, extension string, data []byte, options
 			return "", "", "", err
 		}
 		p.ctx = ctx
-		return nativeStructured(options, extension, p)
+		return nativeStructured(extension, p)
 	}
 	if extension == ".eml" {
 		text, err := emailText(ctx, data)
 		return text, "ForgetMeNote native MIME v1", "extracted", err
-	}
-	if extension == ".png" || extension == ".jpg" || extension == ".tiff" || extension == ".webp" || extension == ".bmp" {
-		return extractImage(ctx, extension, data, options)
-	}
-	if extension == ".pages" || extension == ".key" {
-		return extractIWork(ctx, extension, data)
 	}
 	if extension == ".msg" {
 		text, err := outlookText(ctx, data)
@@ -163,56 +157,75 @@ func validateDocumentXML(ctx context.Context, raw []byte) error {
 	}
 }
 
+// sectionLabels name the units a converter or an agent numbers its sections
+// in; the label heads each section and makes its citation anchor.
+var sectionLabels = map[string]string{"page": "Page", "slide": "Slide", "section": "Section", "segment": "Segment", "sheet": "Sheet"}
+
 func renderDocumentResult(result documentResult) (string, string, string, error) {
 	if len(result.Sections) == 0 || len(result.Sections) > 500 || result.Extractor == "" || len(result.Extractor) > 1024 || strings.ContainsAny(result.Extractor, "\x00\r\n") {
 		return "", "", "", errors.New("invalid document conversion result")
 	}
-	labels := map[string]string{"page": "Page", "slide": "Slide", "section": "Section", "segment": "Segment", "sheet": "Sheet"}
-	label, ok := labels[result.Unit]
-	if !ok {
+	if _, ok := sectionLabels[result.Unit]; !ok {
 		return "", "", "", errors.New("invalid document section unit")
 	}
-	var markdown boundedText
-	readable := false
 	for i, page := range result.Sections {
 		// Preserve physical numbering, including empty pages and slides.
 		if page.Number != i+1 {
 			return "", "", "", errors.New("invalid document section sequence")
 		}
-		if !utf8.ValidString(page.Title) || strings.ContainsAny(page.Title, "\x00\r\n") || utf8.RuneCountInString(page.Title) > 200 {
+		if !validSectionTitle(page.Title) {
 			return "", "", "", errors.New("invalid document section title")
 		}
-		title := ""
-		if page.Title != "" {
-			title = " — " + workspace.EscapeSourceText(page.Title)
-		}
-		if _, err := fmt.Fprintf(&markdown, "## %s %d%s\n\n", label, page.Number, title); err != nil {
-			return "", "", "", err
-		}
-		for _, block := range page.Blocks {
-			if block.Kind == "table" && !tableHasText(block.Rows) {
-				result.Partial = true
-				block = documentBlock{Kind: "text", Text: "Table text could not be extracted. See the original file."}
-			}
-			value, err := documentMarkdown(block)
-			if err != nil {
-				return "", "", "", err
-			}
-			if strings.TrimSpace(value) != "" {
-				readable = true
-				if _, err := markdown.Write([]byte(value + "\n\n")); err != nil {
-					return "", "", "", err
-				}
-			}
-		}
+	}
+	markdown, readable, partial, err := renderSections(result)
+	if err != nil {
+		return "", "", "", err
 	}
 	state := "extracted"
-	if result.Partial {
+	if partial || result.Partial {
 		state = "partial"
 	} else if !readable {
 		state = "no-text"
 	}
-	return markdown.String(), result.Extractor, state, nil
+	return markdown, result.Extractor, state, nil
+}
+
+func validSectionTitle(title string) bool {
+	return utf8.ValidString(title) && !strings.ContainsAny(title, "\x00\r\n") && utf8.RuneCountInString(title) <= 200
+}
+
+// renderSections writes validated, physically numbered sections as Markdown:
+// a heading per section that its citation anchor follows, then its blocks.
+// It reports whether any block had text and whether a table lost its text.
+func renderSections(result documentResult) (markdown string, readable, partial bool, err error) {
+	label := sectionLabels[result.Unit]
+	var out boundedText
+	for _, page := range result.Sections {
+		title := ""
+		if page.Title != "" {
+			title = " — " + workspace.EscapeSourceText(page.Title)
+		}
+		if _, err := fmt.Fprintf(&out, "## %s %d%s\n\n", label, page.Number, title); err != nil {
+			return "", false, false, err
+		}
+		for _, block := range page.Blocks {
+			if block.Kind == "table" && !tableHasText(block.Rows) {
+				partial = true
+				block = documentBlock{Kind: "text", Text: "Table text could not be extracted. See the original file."}
+			}
+			value, err := documentMarkdown(block)
+			if err != nil {
+				return "", false, false, err
+			}
+			if strings.TrimSpace(value) != "" {
+				readable = true
+				if _, err := out.Write([]byte(value + "\n\n")); err != nil {
+					return "", false, false, err
+				}
+			}
+		}
+	}
+	return out.String(), readable, partial, nil
 }
 
 func tableHasText(rows [][]string) bool {

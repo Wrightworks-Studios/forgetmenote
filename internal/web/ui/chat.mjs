@@ -4,7 +4,7 @@ import {icon} from './icons.mjs';
 import {reconcileNodes} from './keyed-list.mjs';
 import {createTranscriptView} from './chat-transcript.mjs';
 import {createRunView} from './chat-runs.mjs';
-import {requestSequence,poll} from './state.mjs';
+import {requestSequence,poll,moduleOn} from './state.mjs';
 // Chat owns its private transcript and composer; app.mjs owns all editor drafts.
 import {activeStates,validCorpus,applyChatEvent,chatCitation} from './chat-model.mjs';
 import {createComposerDrafts} from './chat-composer.mjs';
@@ -15,7 +15,7 @@ function iconButton(label,name,action,attrs = {}) {
   const control = button('',action,{class:'quiet chat-icon','aria-label':label,title:label,...attrs});control.append(icon(name));return control;
 }
 
-export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment,canEdit,canManage,openCitation,openDocument,openReview,openSource,openJevSettings,mountCitationChecks,onOpen = () => {},onClose = () => {}}) {
+export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment,canEdit,canManage,openCitation,openDocument,openReview,openSource,openJudgmentSettings,mountCitationChecks,onOpen = () => {},onClose = () => {}}) {
   const panel = document.getElementById('chat-panel'), opener = document.getElementById('chat-open');
   const openerHome=opener.parentElement;
   // Keep the labeled control reachable inside the active contextual surface.
@@ -90,7 +90,7 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
   const body = element('div',undefined,{id:'chat-body'});
   const settingsBody = element('div',undefined,{class:'chat-settings-body'});
   settingsBody.append(choices,corpusFields,scopes,controls);
-  if(openJevSettings)settingsBody.append(button('Evidence checks',()=>{settings.close();openJevSettings();},{class:'quiet'}));
+  if(openJudgmentSettings && moduleOn(getUser(),'judgments'))settingsBody.append(button('Evidence checks',()=>{settings.close();openJudgmentSettings();},{class:'quiet'}));
   settings.append(settingsBody);
   body.append(toolbar,message,setup,error,transcript,runPanel);
   panel.append(header,body,form,settings);
@@ -232,7 +232,7 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
     if (target.kind === 'document' && openDocument) return button(label,() => Promise.resolve(openDocument(target.ref)).catch(showError),{class:'quiet chat-citation',title:target.ref.project+' · '+target.ref.revision});
     const row = element('span',undefined,{class:'chat-source-citation'});
     row.append(element('a',label,{href:target.url,target:'_blank',rel:'noopener noreferrer'}));
-    if (target.kind==='source' && canEdit() && openSource) row.append(button('Archive source',() => openSource(target.url),{class:'quiet'}));
+    if (target.kind==='source' && canEdit() && openSource && moduleOn(getUser(),'sources')) row.append(button('Archive source',() => openSource(target.url),{class:'quiet'}));
     return row;
   }
   function installAnswer(node, html, turn) {
@@ -591,7 +591,9 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
     overlays().panel(panel,{active:active(),modal,group:'note-panels',close});
   }
   function close() {composerRevision++;rememberComposer();closeDialogs();closeMessageMenus();panel.hidden = true;rememberView();stopStream();updateOverlay();document.body.classList.remove('chat-open');opener.setAttribute('aria-expanded','false');opener.replaceChildren(icon('chat'),document.createTextNode('Ask notebook'));opener.setAttribute('aria-label','Ask notebook');opener.title='Ask notebook';onClose();opener.focus({preventScroll:true});}
+  const chatOn=()=>moduleOn(getUser(),'chat');
   function open() {
+    if(!chatOn())return;
     if(!active())onOpen();panel.hidden = false;rememberView();document.body.classList.add('chat-open');opener.setAttribute('aria-expanded','true');opener.replaceChildren(icon('close'));opener.setAttribute('aria-label','Close notebook chat');opener.title='Close notebook chat';updateOverlay();opener.focus({preventScroll:true});
     if (!projectID) message.textContent = 'Choose a notebook to open your private chats.';
     refresh().catch(showError);
@@ -601,6 +603,9 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
     updateControls();
   }
   function setProject() {
+    // With chat off the panel never opens and makes no chat requests.
+    opener.hidden=!chatOn();
+    if (!chatOn()) {if (active()) close();return;}
     const nextProject = getProject()?.id || '', nextUser = getUser()?.id || '';
     if (initialized && projectID === nextProject && userID === nextUser) {
       scope.textContent = getProject() ? 'Notebook: ' + getProject().name + ' · Private chat' : 'Choose a notebook';
@@ -627,7 +632,8 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
   input.addEventListener('keydown',event => {if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {event.preventDefault();form.requestSubmit();}});
 
   async function prepareMessage(text) {
-    const key='draft:jev-'+crypto.randomUUID();
+    if(!chatOn())return;
+    const key='draft:judgments-'+crypto.randomUUID();
     const selection=selectChat(key);
     // Selection installs its composer synchronously, before loading defaults.
     // A later selection, edit, or close supersedes this correction handoff.

@@ -2,7 +2,6 @@
 """Build, verify and publish a committed ForgetMeNote image to GHCR or a private ECR repository."""
 import argparse
 import fnmatch
-import hashlib
 import json
 import math
 import os
@@ -86,15 +85,11 @@ def github(path):
     return json.loads(run(["gh", "api", "--hostname", "github.com", path], capture=True))
 
 
-INDEX_TYPES = ("application/vnd.oci.image.index.v1+json", "application/vnd.docker.distribution.manifest.list.v2+json")
-
-
 def registry_descriptor(docker, reference):
     """The manifest descriptor a registry serves for reference, or None while it holds none.
 
     GHCR is read through the registry rather than GitHub's package API, which accepts only
-    classic personal tokens: a workflow's own token signs docker in, and a public package
-    needs no sign-in at all.
+    classic personal tokens: a workflow's own token signs docker in.
     """
     try:
         found = run([*docker, "buildx", "imagetools", "inspect", "--format", "{{json .Manifest}}", reference], capture=True)
@@ -106,20 +101,6 @@ def registry_descriptor(docker, reference):
     if not re.fullmatch(r"sha256:[a-f0-9]{64}", descriptor.get("digest") or ""):
         raise ValueError("The registry returned an invalid image digest.")
     return descriptor
-
-
-def registry_image_id(docker, uri, descriptor):
-    """The image ID (configuration digest) of the linux/amd64 image descriptor names in uri."""
-    digest = descriptor["digest"]
-    if descriptor.get("mediaType") in INDEX_TYPES:
-        platforms = [entry["digest"] for entry in descriptor.get("manifests", [])
-                     if (entry.get("platform") or {}).get("os") == "linux"
-                     and (entry.get("platform") or {}).get("architecture") == "amd64"]
-        if len(platforms) != 1:
-            raise ValueError(uri + "@" + digest + " does not hold exactly one linux/amd64 image.")
-        digest = platforms[0]
-    manifest = json.loads(run([*docker, "buildx", "imagetools", "inspect", "--raw", uri + "@" + digest], capture=True))
-    return (manifest.get("config") or {}).get("digest")
 
 
 def ghcr_digest(uri, tag):
@@ -145,18 +126,7 @@ def image_cache_options():
     return ["--cache-from", scope, "--cache-to", scope + ",mode=max"]
 
 
-def check_image(image_id, revision, source_url):
-    if not re.fullmatch(r"sha256:[a-f0-9]{64}", image_id or ""):
-        raise ValueError("Docker did not return an immutable image ID.")
-    image = json.loads(run(["docker", "image", "inspect", image_id], capture=True))[0]
-    labels = image["Config"].get("Labels") or {}
-    if (image["Os"], image["Architecture"], labels.get("org.opencontainers.image.revision"),
-            labels.get("org.opencontainers.image.source")) != ("linux", "amd64", revision, source_url):
-        raise ValueError("Built image must be linux/amd64 and match the source repository and revision.")
-    return image
-
-
-def build_and_verify(root, revision, verification, source_url, jobs):
+def build_and_verify(root, revision, verification, source_url, jobs, actions_runtime):
     candidate = verification.candidate
     archive = candidate / "source.tar"
     source = candidate / "source"
@@ -233,7 +203,13 @@ def build_and_verify(root, revision, verification, source_url, jobs):
 
     def image_checks():
         image_id = iidfile.read_text().strip()
-        check_image(image_id, revision, source_url)
+        if not re.fullmatch(r"sha256:[a-f0-9]{64}", image_id):
+            raise ValueError("Docker did not return an immutable image ID.")
+        image = json.loads(run(["docker", "image", "inspect", image_id], capture=True))[0]
+        labels = image["Config"].get("Labels") or {}
+        if (image["Os"], image["Architecture"], labels.get("org.opencontainers.image.revision"),
+                labels.get("org.opencontainers.image.source")) != ("linux", "amd64", revision, source_url):
+            raise ValueError("Built image must be linux/amd64 and match the source repository and revision.")
         verification.image_id = image_id
         later = []
         # Docker scenarios share a memory budget and OIDC's HTTPS port. Never overlap
@@ -265,7 +241,7 @@ def build_and_verify(root, revision, verification, source_url, jobs):
 
     # The build holds the Docker lane from the start, beside the quick preflight
     # and host checks; containers of the image queue behind it.
-    checks.append(dict(name="build", command=build_command, inputs=build_inputs, cwd=context,
+    checks.append(dict(name="build", command=build_command, inputs=build_inputs, cwd=context, env=actions_runtime,
                        force=not exists, docker=True, eager=True, then=image_checks))
     # Each browser worker drives its own fixture server and Chromium: one slot apiece.
     workers = min(4, max(1, jobs // 3))
@@ -374,117 +350,12 @@ def publish(docker, image_id, image):
     run([*docker, "push", image])
 
 
-def push_image(docker, image_id, uri, tag, lookup):
-    """Push the checked image_id as uri:tag; the digest the registry then serves for it."""
-    publish(docker, image_id, uri + ":" + tag)
-    pushed = json.loads(run(["docker", "image", "inspect", image_id], capture=True))[0]
-    for attempt in range(4):
-        digest = lookup()
-        if digest:
-            break
-        time.sleep(2 ** attempt)
-    if not digest or uri + "@" + digest not in pushed.get("RepoDigests", []):
-        raise ValueError("Push completed but the registry digest does not match the checked image; inspect the registry before retrying.")
-    return digest
-
-
-def repository(root, image):
-    """The source repository URL and the image repository, from origin and --image."""
-    remote = run(["git", "remote", "get-url", "origin"], cwd=root, capture=True)
-    match = re.fullmatch(r"(?:git@github\.com:|https://github\.com/)([\w.-]+/[\w.-]+?)(?:\.git)?", remote)
-    if not match:
-        raise ValueError("origin must be a GitHub repository URL without embedded credentials.")
-    uri = image or "ghcr.io/" + match[1].lower()
-    if not (GHCR.fullmatch(uri) or ECR.fullmatch(uri)):
-        raise ValueError("--image must be ghcr.io/OWNER/NAME or ACCOUNT.dkr.ecr.REGION.amazonaws.com/NAME, "
-                         "lowercase, without a tag or digest.")
-    return "https://github.com/" + match[1], uri
-
-
-def published_baseline(root, uri, revision, limit=100):
-    """The newest earlier first-parent commit whose main-COMMIT image uri serves without a sign-in.
-
-    A publishing workflow verifies against the last release it published. None means the
-    gate runs completely: nothing published yet, or a package that refuses anonymous
-    reads, such as a private one.
-    """
-    if subprocess.run(["git", "rev-parse", "--verify", "--quiet", revision + "^"], cwd=root, capture_output=True).returncode:
-        return None
-    commits = run(["git", "rev-list", "--first-parent", "--max-count=" + str(limit), revision + "^"], cwd=root, capture=True).split()
-    with tempfile.TemporaryDirectory(prefix="forgetmenote-registry-") as directory:
-        docker = ["docker", "--config", str(docker_auth_config(Path(directory)))]
-        for commit in commits:
-            try:
-                if registry_descriptor(docker, uri + ":main-" + commit):
-                    print("Published baseline: " + commit, flush=True)
-                    return commit
-            except ValueError as error:
-                print(str(error) + "\nNo readable published baseline; verifying completely.", flush=True)
-                return None
-    print("No published image among the last " + str(len(commits)) + " main commits; verifying completely.", flush=True)
-    return None
-
-
-def write_json(path, value):
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(value, indent=2) + "\n")
-    temporary.replace(path)
-
-
-def verification_summary(record, raw):
-    """What an image's verification attestation states: each expected check's verdict and the
-    plan. Commands, inputs and host paths stay in the record, which record_sha256 names."""
-    return {"source_revision": record["source_revision"], "image_id": record["image_id"], "complete": True,
-            "expected_checks": record["expected_checks"],
-            "checks": {name: {key: record["checks"][name].get(key) for key in ("status", "exit_code", "elapsed_seconds", "reused")}
-                       for name in record["expected_checks"]},
-            "plan": {key: (record.get("plan") or {}).get(key) for key in ("mode", "reason", "baseline")},
-            "record_sha256": hashlib.sha256(raw).hexdigest()}
-
-
-def publish_verified(args, root):
-    """Publish the image a complete verification record in args.publish_verified describes.
-
-    The gate and the publication can then run in separate jobs, so no check ever holds
-    registry or signing credentials. The image must already be loaded under the record's
-    image ID (docker load). Nothing is rebuilt or checked again.
-    """
-    if run(["git", "branch", "--show-current"], cwd=root, capture=True) != "main":
-        raise ValueError("Release from the main branch.")
-    if run(["git", "status", "--porcelain"], cwd=root, capture=True):
-        raise ValueError("Release requires a clean checkout; commit or stash your changes first.")
-    revision = run(["git", "rev-parse", "HEAD"], cwd=root, capture=True)
-    directory = Path(args.publish_verified).expanduser().resolve()
-    raw = (directory / "verification.json").read_bytes()
-    record = json.loads(raw)
-    checks, results = record.get("expected_checks") or [], record.get("checks") or {}
-    if (record.get("source_revision") != revision or record.get("complete") is not True or not checks or
-            any(results.get(name, {}).get("status") != "passed" or results.get(name, {}).get("exit_code") != 0 for name in checks)):
-        raise ValueError("Publish only a complete verification record of " + revision + " whose expected checks all passed.")
-    source_url, uri = repository(root, args.image)
-    image_id = record.get("image_id")
-    check_image(image_id, revision, source_url)
-    tag = "main-" + revision
-    with tempfile.TemporaryDirectory(prefix="forgetmenote-registry-") as temporary:
-        docker = registry_login(Path(temporary), uri)
-        existing = registry_descriptor(docker, uri + ":" + tag)
-        if existing:
-            # A rerun may follow a push that succeeded; any other image keeps its tag.
-            if image_id not in (existing["digest"], registry_image_id(docker, uri, existing)):
-                raise ValueError(uri + ":" + tag + " already holds a different image; inspect the registry before retrying.")
-            digest = existing["digest"]
-            print("Already published: " + uri + "@" + digest)
-        else:
-            digest = push_image(docker, image_id, uri, tag,
-                                lambda: (registry_descriptor(docker, uri + ":" + tag) or {}).get("digest"))
-    write_json(directory / "publication.json", {
-        "source_revision": revision, "image_id": image_id, "registry_digest": digest, "image": uri + ":" + tag})
-    write_json(directory / "verification-summary.json", verification_summary(record, raw))
-    print("\nPublished: " + uri + ":" + tag)
-    print("Deploy this image: " + uri + "@" + digest)
-
-
 def release(args, root):
+    # The Actions runtime variables, token included, are for the image build's layer
+    # cache alone (image_cache_options). Nothing else the gate runs inherits them:
+    # GitHub publishes a failed gate's logs and traces (check.yml), and a test may
+    # record its environment, as the trace of a browser launched with one does.
+    actions_runtime = {name: os.environ.pop(name) for name in list(os.environ) if name.startswith("ACTIONS_")}
     if not args.verify_only and run(["git", "branch", "--show-current"], cwd=root, capture=True) != "main":
         raise ValueError("Release from the main branch.")
     if run(["git", "status", "--porcelain"], cwd=root, capture=True):
@@ -497,14 +368,20 @@ def release(args, root):
         newer=run(["git","diff","--name-only","--no-renames","-z",revision,operator_revision],cwd=root,capture=True).split('\0')
         if any(path and path_class(path) not in ('docs', 'operator') for path in newer):
             raise ValueError('Selected candidate excludes newer verification inputs; use its original checkout and verify newer tests separately.')
-    source_url, uri = repository(root, args.image)
-    if args.since_published:
-        args.since = published_baseline(root, uri, revision)
     runtime_paths = runtime_changes(root, args.since, revision) if args.since else None
     if runtime_paths == []:
         print('No runtime changes since ' + args.since + '; no image build, publication or deployment required. '
               'Run the focused checks for changed tests and operator tools separately.')
         return
+    remote = run(["git", "remote", "get-url", "origin"], cwd=root, capture=True)
+    match = re.fullmatch(r"(?:git@github\.com:|https://github\.com/)([\w.-]+/[\w.-]+?)(?:\.git)?", remote)
+    if not match:
+        raise ValueError("origin must be a GitHub repository URL without embedded credentials.")
+    source_url = "https://github.com/" + match[1]
+    uri = args.image or "ghcr.io/" + match[1].lower()
+    if not (GHCR.fullmatch(uri) or ECR.fullmatch(uri)):
+        raise ValueError("--image must be ghcr.io/OWNER/NAME or ACCOUNT.dkr.ecr.REGION.amazonaws.com/NAME, "
+                         "lowercase, without a tag or digest.")
     tag = "main-" + revision
     image = uri + ":" + tag
     print("Image: " + image, flush=True)
@@ -562,7 +439,7 @@ def release(args, root):
             if retained:plan['retained_failed_browser_tests']=retained
         plan['operator_revision']=operator_revision
         verification.plan.update(plan)
-        image_id = build_and_verify(root, revision, verification, source_url, args.jobs)
+        image_id = build_and_verify(root, revision, verification, source_url, args.jobs, actions_runtime)
         if args.verify_only:
             print("Verified source: " + revision + "\nVerified image: " + image_id)
             return
@@ -573,7 +450,15 @@ def release(args, root):
             if digest:
                 print("Already published (not replaced): " + uri + "@" + digest)
                 return
-            digest = push_image(docker, image_id, uri, tag, lookup)
+            publish(docker, image_id, image)
+            pushed = json.loads(run(["docker", "image", "inspect", image_id], capture=True))[0]
+            for attempt in range(4):
+                digest = lookup()
+                if digest:
+                    break
+                time.sleep(2 ** attempt)
+            if not digest or uri + "@" + digest not in pushed.get("RepoDigests", []):
+                raise ValueError("Push completed but the registry digest does not match the checked image; inspect the registry before retrying.")
         verification.write(verification.candidate / "publication.json", {
             "source_revision": revision, "image_id": image_id, "registry_digest": digest, "image": image})
     print("\nPublished: " + image)
@@ -618,12 +503,6 @@ def main():
     parser.add_argument('--mode', choices=('auto', 'routine', 'full'), default='auto',
                         help='auto selects affected modules and caller/browser/container boundaries against --since; full retains every regression')
     parser.add_argument('--since', help='deployed source revision; skip the image release when runtime inputs are unchanged')
-    parser.add_argument('--since-published', action='store_true',
-                        help='as --since, the newest earlier main commit whose image --image serves without a sign-in; '
-                             'without one the gate runs completely')
-    parser.add_argument('--publish-verified', metavar='DIR',
-                        help='publish the loaded image the complete verification.json in DIR describes, without rebuilding '
-                             'or checking again, and write publication.json and verification-summary.json beside it')
     parser.add_argument('--revision', help='previous committed runtime candidate, allowed only when current HEAD has identical runtime inputs')
     parser.add_argument("--retry-failed", action="store_true", help="explicitly retry investigated failures; keep their original evidence")
     parser.add_argument("--jobs", type=int, default=min(10, max(1, (os.cpu_count() or 2) - 4)),
@@ -633,19 +512,12 @@ def main():
     args = parser.parse_args()
     if not 1 <= args.jobs <= 12:
         parser.error("--jobs must be between 1 and 12")
-    if args.since and args.since_published:
-        parser.error("--since and --since-published are exclusive")
-    if args.since_published and args.dry_run:
-        parser.error("--since-published reads the registry; preview with --since instead")
-    if args.publish_verified and (args.verify_only or args.dry_run or args.since or args.since_published
-                                  or args.revision or args.retry_failed):
-        parser.error("--publish-verified publishes an existing record; it takes only --image")
     os.umask(0o077)
     if sys.version_info < (3, 12):
         parser.error("Python 3.12 or newer is required")
     root = Path(__file__).resolve().parents[2]
     try:
-        (publish_verified if args.publish_verified else release)(args, root)
+        release(args, root)
     except subprocess.CalledProcessError as error:
         parser.exit(1, f"Release stopped: {shlex.join(error.cmd)} exited {error.returncode}.\n{error.stderr or ''}")
     except (OSError, ValueError, tarfile.TarError) as error:

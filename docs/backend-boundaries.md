@@ -45,7 +45,8 @@ An invocation's identity and scope travel on its context, each with the package
 that owns its type:
 
 - `chat.RunScope` and `chat.RunAuth` for a chat run
-- `automation.Identity` for an automation run
+- `automation.Identity` for an automation run, and the script-host mark for an
+  installed package's host call
 - the credential, its scopes and the action API mark in `internal/auth`
 
 Any package may read them. The checks that compare them with current sessions,
@@ -58,7 +59,7 @@ only narrow what an invocation may do. A chat run's scope and an automation's
 identity decide what a run may reach:
 
 - an automation's identity covers its own writes and its code-only data
-  connections
+  connections, which the script-host mark also admits inside a chat scope
 - a person's approval of a chat operation lifts the personal-context refusal
 - a wider or missing chat scope lifts the run's corpus limits
 
@@ -117,20 +118,20 @@ per-process vectors, the memory instructions connected agents receive, and
 the memory a direct message reads and writes. Web registers the actions
 through the shared action dispatcher, and `internal/messaginghttp` decides whose
 memory a direct message uses, which is the messaging link. The required hooks bind the
-personal-credential check, client notebook access, Jev and its authorization,
+personal-credential check, client notebook access, judgments and their authorization,
 the chat embedding policy and the origin, each read at each call.
 
-`internal/jev` owns Jev reviews and the organizer: review and organization
+`internal/judgments` owns judgment reviews and the organizer: review and organization
 jobs, their scheduler, runner, retention and results, notifications, and each
-person's and notebook's Jev settings. Web keeps the shared Jev admission, the
-protected Inbox consent check, the instance AI policy and the citation checks
-a chat run makes. The required hooks bind the browser identity, the instance
+person's and notebook's judgment settings. Web keeps the shared judgments admission, the
+protected Inbox consent check and the instance AI policy; `internal/chatrun`
+makes the citation checks a chat run asks for. The required hooks bind the browser identity, the instance
 AI refusal, the configured judge, that admission and the Inbox check, the
 policy's preferences, the instance AI sync and Quick Notes, each read at each
 call. A run reaches notebooks only through the catalog, so it rechecks its
 owner's access there. Its tests run on a real catalog, database and search
-indexes without the instance's guard, so they cover Jev's behaviour; who may
-use Jev is tested in web through the real routes.
+indexes without the instance's guard, so they cover the package's behaviour; who may
+use judgments is tested in web through the real routes.
 
 `internal/messaginghttp` owns conversations in external chat clients: the
 Slack app's events and interactions, the assistant runs a message starts, their
@@ -163,30 +164,69 @@ stay in web, and so do the checks the worker reaches through hooks
 freshness, grant generations, discarding work that became unavailable, mailbox
 drafts and automation authority before each state save. The MCP tools and
 account pages stay in web too. The required hooks bind those checks, the
-automation answer and calls, Jev, the connections, the origin and the Slack
+automation answer and calls, judgments, the connections, the origin and the Slack
 app, each read at each call. The worker's tests stay in web, where a run passes
 those checks. The few exports only tests use are in `testexports.go`. Boundary
 tests fail on a production reference to them, on a grant begun, finished or
 removed outside the connection routes, and on a cookie handled outside web.
 
-`internal/chatrun` owns the chat run engine: the rounds of a run, fitting each
-model request to its connection, retrieval and research, the evidence and
-provenance of tool results, review workflows and the run's terminal state. Web
-keeps the routes, the runner that starts a run, its controls and the Jev
-citation check, and every authorization check: the run recheck, client
-notebook access, data citations, source scope, Jev authorization and personal
-context. The chat leg of the guard (`scopeChatActionArguments`,
-`guardChatAction`, `chatPersonalApproval` and `chatReadOnly`) stays beside the
-dispatcher. A model's tool call reaches an action only through the
-`ExecuteTool` hook, which web binds to its executor: it rechecks the run,
-applies that guard and dispatches. A boundary test fails if the engine reaches
-the action registry or another hub's action methods. The required hooks bind
-those checks, the registered tools a run may offer, knowledge engine access,
-scoped retrieval, Jev preferences, source work admission, the chat runtime,
-data connections, repositories and the origin; those set after startup are
-read at each call. `ExecuteTool`, `PrepareOperation` and `StartCitationCheck`
-are temporary, until the runner and its controls move here. The engine's
-server-level tests stay in web; the exports only tests use are in
+`internal/chatrun` owns embedded chat: its routes, the runner that starts a run
+and executes the model's tool calls, approvals and the other controls,
+deletion, the rounds of a run, fitting each model request to its connection,
+retrieval and research, the evidence and provenance of tool results, review
+workflows, the run's terminal state and the judgment citation check of an answer.
+Web keeps every authorization check: the request's identity, the run's session
+and its recheck (`chatRunAuth`, `checkRun` and `runContext`), client notebook
+access, data citations, source scope, judgments authorization and personal context.
+The chat leg of the guard (`scopeChatActionArguments`, `guardChatAction`,
+`chatPersonalApproval` and `chatReadOnly`) stays beside the dispatcher. A
+model's tool call reaches an action only through the `DispatchAction` hook,
+which web binds to its dispatcher; the run's executor rechecks the run before
+and after it, and the dispatcher applies the guard. The executor also asks the
+dispatcher for canonical arguments and the guard's preflight of a change. A
+boundary test fails if the engine reaches the action registry or another hub's
+action methods. The required hooks bind those checks, the registered tools a
+run may offer, knowledge engine access, scoped retrieval, judgment preferences,
+source work admission, the chat runtime, citation checks, data connections,
+repositories and the origin; those set after startup are read at each call. The
+engine's server-level tests stay in web; the exports only tests use are in
+`testexports.go`, and a boundary test fails on any production reference to
+them.
+
+`internal/automationrun` owns the automation run engine: the dispatcher that
+runs each queued run by its kind, and the runtime's start; the model turn of an
+answer, with its tool loop, provider and capacity; publication to the run's note
+and notification through the messaging hub; the task, recipe, digest, monitor,
+checks, native and Drive kinds; installed script packages, with their host
+operations, analysis cache, structured answers and research, and their
+automatic updates; learning from observed data calls, with its routing; and
+recipe repair. Web keeps every authorization check: a run's identity and its
+recheck (`automationContext` and `checkAutomationAuth`), the instance AI policy
+(`automationPolicy` and `instanceAIWriting`), the recheck of a run's evidence
+(`checkAutomationEvidence`, with a learning run's `checkLearningEvidence`),
+client notebook access, data connection grants (`dataAllowed`), document reads
+(`readDocument` and `notebookMap`), a learning event's actor and credential
+(`learningEventAllowed`), and personal context and consent. It also keeps
+definition validation, which the automation tools, the package installer and a
+package update run; the capture of learning events from interactive data calls,
+which reads the caller's credential and client from web's context; the Python
+runtime's configuration; and the MCP and organization tools, the package tools
+among them, with their administrator and `notes:manage` checks. An automation
+answer's tool call reaches an action only through the `DispatchAction` hook,
+which web binds to the same dispatcher as chat, and a boundary test fails if
+the engine reaches the action registry or another hub's action methods. The
+engine binds a run's source scope (`scope.go`) after its actor's read check on
+each notebook; clears it to recheck a direct message's recipient as that
+recipient (`publish.go`) and for a script's connector submission
+(`script_capabilities.go`); and marks a script's host calls with
+`automation.WithScriptHost` (`script.go`), which admits the run's own code-only
+connections inside a chat scope. `TestContextAuthorityHasKnownSetters` lists
+all four. The required hooks bind those checks, the dispatcher, content scope,
+source bindings, knowledge engine and source work admission, the configured
+judge, the Slack app's post, the personal assistant's jobs and email pairing.
+The chat runtime, data connections, repositories, backups, messaging, the
+personal assistant, task queues, the Slack app and the Python runtime are read
+at each call. The engine's tests stay in web; the exports only tests use are in
 `testexports.go`, and a boundary test fails on any production reference to
 them.
 
@@ -205,7 +245,7 @@ that stopped, and the guard that maps revisions a purge rewrote, which the
 shared action dispatcher applies to every read-only action. Web opens the
 notebook as its Owner through the shared tool store before an agent's plan is
 made. Purge plans and history rewrites stay in `internal/workspace` and
-`internal/notestore`. Chat transcripts, Jev records, Knowledge proposals and
+`internal/notestore`. Chat transcripts, judgment records, Knowledge proposals and
 bundle exports are cleaned through required hooks to their owners, read at
 each call.
 

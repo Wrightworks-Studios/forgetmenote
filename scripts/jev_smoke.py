@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthetic Docker Jev/Quicknotes HTTP and independent full-volume restore.
+"""Synthetic Docker judgments/Quicknotes HTTP and independent full-volume restore.
 
 All credentials, TLS material, accounts and notes are generated test data. The
 only inference endpoint is a disposable HTTPS fixture on an isolated bridge.
@@ -8,7 +8,6 @@ import json
 import os
 from pathlib import Path
 import secrets
-import socket
 import subprocess
 import tempfile
 import time
@@ -16,7 +15,8 @@ import urllib.error
 import urllib.parse
 import uuid
 
-from chat_smoke import Browser, run, wait_ready
+from chat_smoke import Browser, run
+from smoke_app import app_port, container_token, wait_app
 from smoke_database import Database
 from smoke_export import wait_exported
 
@@ -88,9 +88,7 @@ def main():
     name = 'forgetmenote-jev-smoke-' + uuid.uuid4().hex[:10]
     provider, restored, network = name + '-provider', name + '-restored', name + '-network'
     volume, restored_volume = name + '-data', name + '-restored-data'
-    with socket.socket() as sock:
-        sock.bind(('127.0.0.1', 0))
-        port = sock.getsockname()[1]
+    port = app_port()
     origin = f'http://localhost:{port}'
     with tempfile.TemporaryDirectory(prefix='forgetmenote-jev-fixture-') as temporary:
         fixture = Path(temporary)
@@ -127,7 +125,7 @@ def main():
                     '-e', 'SSL_CERT_FILE=/run/fixture/tls.crt',
                     '-v', data + ':/data', '-v', str(fixture) + ':/run/fixture:ro', image)
                 assert run('docker', 'inspect', container, '--format', '{{.Image}}') == image
-                wait_ready(origin)
+                wait_app(origin, container_token(container))
 
             db.migrate(image)
             start(name, volume)
@@ -137,9 +135,9 @@ def main():
             alice.request('/account/setup', {'username': 'jev-alice', 'password': secrets.token_urlsafe(24)})
             alice_id = alice.request('/api/me')['id']
             Browser(origin).denied('/api/notifications')
-            assert alice.request('/api/jev/settings')['available'], 'Standalone Jev is unavailable'
-            assert not alice.request('/api/chat/connections')['enabled'], 'Jev enabled chat'
-            assert not alice.request('/api/jev/settings')['settings']['consent']
+            assert alice.request('/api/judgments/settings')['available'], 'Standalone judgments are unavailable'
+            assert not alice.request('/api/chat/connections')['enabled'], 'Judgments enabled chat'
+            assert not alice.request('/api/judgments/settings')['settings']['consent']
             quick_settings = alice.request('/api/quicknotes/settings')
             assert quick_settings['mode'] == 'suggest' and not quick_settings['cloudConsent']
             quick_settings['mode'] = 'manual'
@@ -156,14 +154,14 @@ def main():
                 'notes/draft.md': '---\nfmn-container: draft\n---\nEXCLUDED_DRAFT_MARKER\nLarch Observatory opens at 15:00.\n',
             }.items():
                 documents[path] = alice.request('/p/default/api/note', {'path': path, 'content': content, 'revision': ''})
-            alice.request('/api/jev/settings', {'consent': True, 'rerank': True, 'citations': True})
-            assert not alice.request('/p/default/api/jev/settings')['settings']['autoChecks']
+            alice.request('/api/judgments/settings', {'consent': True, 'rerank': True, 'citations': True})
+            assert not alice.request('/p/default/api/judgments/settings')['settings']['autoChecks']
             submission = {'kind': 'consistency', 'operationId': 'smoke-review-1'}
-            job = alice.request('/p/default/api/jev/jobs', submission)
-            job_path = '/p/default/api/jev/jobs/' + job['id']
+            job = alice.request('/p/default/api/judgments/jobs', submission)
+            job_path = '/p/default/api/judgments/jobs/' + job['id']
             completed = finished(alice, job_path)
             assert completed['examined'] > 0 and completed['results'], 'Review has no examined evidence'
-            assert control.request('/control')['calls'] > 0, 'Native HTTPS Jev was never called'
+            assert control.request('/control')['calls'] > 0, 'The synthetic HTTPS judge was never called'
             notifications = alice.request('/api/notifications')
             assert notifications['items'], 'Review notification missing'
             alice.request('/api/notifications/read', {'ids': [notifications['items'][0]['id']]})
@@ -183,8 +181,8 @@ def main():
                 def organize(operation, policy, mode='apply', scope='folder', folder='organization'):
                     request = {'kind': 'organize', 'operationId': operation, 'organization':
                                {'mode': mode, 'scope': scope, 'folder': folder, 'policy': policy}}
-                    created = alice.request('/p/default/api/jev/jobs', request)
-                    path = '/p/default/api/jev/jobs/' + created['id']
+                    created = alice.request('/p/default/api/judgments/jobs', request)
+                    path = '/p/default/api/judgments/jobs/' + created['id']
                     return path, finished(alice, path)
 
                 shared = '# Synthetic duplicate\nJuniper clock calibration requires seven turns.\n'
@@ -200,9 +198,9 @@ def main():
                 assert 'calibration' in alice.request('/p/default/api/note?path=organization%2Fa.md')['content']
                 undo = alice.request(tag_path + '/organization/undo', {})
                 assert not any(o.get('error') for o in undo['outcomes'])
-                auto = alice.request('/p/default/api/jev/organization', {'enabled': True, 'generation': 0,
+                auto = alice.request('/p/default/api/judgments/organization', {'enabled': True, 'generation': 0,
                                      'policy': {'tags': True, 'vocabulary': ['automatic']}})
-                assert not alice.request('/p/default/api/jev/settings')['settings']['autoChecks']
+                assert not alice.request('/p/default/api/judgments/settings')['settings']['autoChecks']
                 auto_calls = control.request('/control')['calls']
                 time.sleep(2)
                 assert control.request('/control')['calls'] == auto_calls, 'Enablement backfilled Notes'
@@ -211,17 +209,17 @@ def main():
                 deadline = time.monotonic() + 210
                 automatic_path = None
                 while time.monotonic() < deadline:
-                    jobs = alice.request('/p/default/api/jev/jobs')['jobs']
+                    jobs = alice.request('/p/default/api/judgments/jobs')['jobs']
                     match = next((j for j in jobs if j.get('automatic') and j['kind'] == 'organize'), None)
                     if match:
-                        automatic_path = '/p/default/api/jev/jobs/' + match['id']
+                        automatic_path = '/p/default/api/judgments/jobs/' + match['id']
                         finished(alice, automatic_path)
                         break
                     time.sleep(2)
                 assert automatic_path, 'Automatic organizer did not run after debounce'
                 auto_content = alice.request('/p/default/api/note?path=organization%2Fchanged.md')['content']
                 assert auto_content.startswith('---\n') and 'automatic' in auto_content.split('---')[1]
-                alice.request('/p/default/api/jev/organization', {'enabled': False, 'generation': auto['settings']['generation'], 'policy': {}})
+                alice.request('/p/default/api/judgments/organization', {'enabled': False, 'generation': auto['settings']['generation'], 'policy': {}})
             before_calls = control.request('/control')['calls']
             before_captures = alice.request('/api/quicknotes')
             before_notifications = alice.request('/api/notifications')
@@ -233,6 +231,7 @@ def main():
             restored_db = db.restore_copy()
             db.migrate(image, restored_db)
             start(restored, restored_volume, restored_db)
+            # The restored image still serves the former /api/jev path for one release.
             assert alice.request('/api/jev/settings')['available']
             assert not alice.request('/api/chat/connections')['enabled']
             assert alice.request('/api/me')['id'] == alice_id
@@ -240,7 +239,7 @@ def main():
             assert alice.request('/api/notifications') == before_notifications
             assert alice.request(job_path) == before_review
             assert alice.request('/api/quicknotes', capture_request)['id'] == capture['id']
-            assert alice.request('/p/default/api/jev/jobs', submission)['id'] == job['id']
+            assert alice.request('/p/default/api/judgments/jobs', submission)['id'] == job['id']
             assert control.request('/control')['calls'] == before_calls, 'Restore replay repeated paid work'
             assert alice.request('/api/quicknotes/settings') == quick_settings
             bob.denied('/p/' + capture['inboxProject'] + '/api/notes')
@@ -256,7 +255,7 @@ def main():
             # Each restored notebook's Git export reaches its head whole.
             for project in ('default', capture['inboxProject']):
                 wait_exported(restored, project, alice.request('/p/' + project + '/api/status')['revision'])
-            print('PASS: standalone HTTPS Jev without chat, consent, active-only review, notifications and replay')
+            print('PASS: standalone HTTPS judgments without chat, consent, active-only review, notifications and replay')
             print('PASS: private capture, filing, Undo, protected history and independent full restore')
             if full:
                 print('PASS: organizer preview/apply, duplicate Trash, debounce, activity and restored Undo')

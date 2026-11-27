@@ -41,6 +41,11 @@ body.settings-page-open :is(#main,#sidebar,#mobile-navigation,#chat-panel,#comme
 .settings-details > summary { cursor: pointer; font-weight: 500; }
 .settings-details[open] > summary { margin-bottom: 16px; }
 #account-user, #oidc-identities { overflow-wrap: anywhere; }
+/* Your API credentials: one line per credential, and a new one's secret once. */
+#credential-list .person-row { grid-template-columns: minmax(0, 1fr) auto; overflow-wrap: anywhere; }
+#credential-form > button[type=submit] { margin-top: 16px; }
+#credential-secret-value { font-family: var(--font-mono, monospace); }
+#credential-secret-dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 #settings-dialog form, #setup-form, #password-form { display: grid; gap: 8px; }
 #project-members { border-bottom: 1px solid var(--border); margin-bottom: 20px; padding-bottom: 16px; }
 #member-list { display: grid; margin-top: 16px; }
@@ -115,4 +120,5 @@ body.settings-page-open :is(#main,#sidebar,#mobile-navigation,#chat-panel,#comme
 /* A panel heading with its own action keeps the action at the right edge. */
 .settings-heading { justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .settings-heading > h3 { margin: 0; }
+.settings-warning { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--warning); border-radius: 0 4px 4px 0; background: var(--warning-bg); color: var(--text); overflow-wrap: anywhere; }
 #group-id-help { margin: 4px 0 0; }

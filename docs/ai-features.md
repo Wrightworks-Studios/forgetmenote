@@ -19,6 +19,13 @@ does not switch on features.
   configured jobs and organization operations. Each job still needs its service
   account, notebook/connection permissions and its configured policy. This switch
   does not create jobs or grant new data access.
+- **The chat reads images uploaded as sources** (`uploadReading`) lets the
+  instance's chat model read a PNG or JPEG image a person archives in the
+  browser and store its text with the source
+  ([the in-app chat reads uploaded images](sources.md#the-in-app-chat-reads-uploaded-images)).
+  It starts off, needs a chat connection that reads images, and is its own
+  opt-in: AI writing does not imply it, and the hosted OCR and description
+  switches of earlier releases do not carry over to it.
 
 Notebook settings retain index status, instructions, search defaults, repository
 path filters and source refresh/pause controls. They do not configure AI providers

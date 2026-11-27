@@ -17,13 +17,20 @@ import (
 // automations, memory and task queues, which messaging uses directly. The
 // Slack app, the transports, the chat store, data and personal connections and
 // the origin are read at each call, since web replaces them after startup.
+// An instance that turns messaging off has no messaging service and no Slack
+// app: no conversation run, email pairing or Slack delivery is scheduled or
+// claimed (automationPolicy), and message links and client settings stay in
+// the catalog.
 func (s *Server) initMessaging() error {
+	if !s.modules.Enabled("messaging") {
+		return nil
+	}
 	var err error
 	s.messaging, err = messaginghttp.New(s.catalog, s.automations, s.tasks, s.memory, s.outgoing, messaginghttp.Hooks{
 		AutomationPolicy:        s.automationPolicy,
-		AutomationProvider:      s.automationProvider,
+		AutomationProvider:      s.automationrun.Provider,
 		CheckAutomationEvidence: s.checkAutomationEvidence,
-		AnswerOnce:              s.answerOnce,
+		AnswerOnce:              s.automationrun.AnswerOnce,
 		ChatStore:               func() *chat.Store { return s.chat.Store },
 		ValidateChatSources:     s.chatrun.ValidateSources,
 		AssistantInstructions:   s.chatrun.AssistantInstructions,

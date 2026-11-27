@@ -9,8 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/redshiftdata v1.49.0 // Redshift Data connector
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.1 // S3 blob store web identity exchange
 	github.com/coreos/go-oidc/v3 v3.21.0 // OIDC sign-in token verification
-	github.com/go-jose/go-jose/v4 v4.1.4 // JOSE fixtures for OIDC tests
-	github.com/golang/snappy v1.0.0 // iWork archive preflight before the native parser
+	github.com/go-jose/go-jose/v4 v4.1.6 // JOSE fixtures for OIDC tests
 	github.com/google/jsonschema-go v0.4.3 // typed action and MCP tool schemas
 	github.com/jackc/pgx/v5 v5.11.0 // PostgreSQL data connector and instance control plane (pgxpool)
 	github.com/microcosm-cc/bluemonday v1.0.27 // rendered Markdown sanitizer
@@ -18,7 +17,6 @@ require (
 	github.com/reearth/ygo v1.49.5 // Yjs live-editing documents
 	github.com/richardlehane/mscfb v1.0.9 // Outlook .msg compound-file reader
 	github.com/yuin/goldmark v1.8.6 // Markdown rendering
-	golang.org/x/image v0.45.0 // BMP, WebP and TIFF decoding for OCR
 	golang.org/x/net v0.62.0 // HTML text extraction for captured pages
 	golang.org/x/oauth2 v0.36.0 // OIDC, GitHub and connector OAuth clients
 	golang.org/x/sys v0.49.0 // rlimits and Landlock for the local extractor sandbox

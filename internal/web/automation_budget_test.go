@@ -35,7 +35,7 @@ func TestAutomationPreservesSafeProviderFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			run := automation.Run{ID: automation.Hash(tc.name), Spec: automation.Spec{ID: "provider-failure", Kind: "task", Actor: "alice", Project: "default", AIConnection: "local", Output: "summary.md", Instruction: "Summarize", ExternalProcessing: true}}
-			err := app.runAutomation(t.Context(), &run, func() error { return nil })
+			err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 			if !errors.Is(err, tc.kind) || !strings.Contains(err.Error(), tc.message) || strings.Contains(err.Error(), tc.body) || calls != 1 {
 				t.Fatalf("lost safe provider failure: calls=%d error=%v", calls, err)
 			}
@@ -89,7 +89,7 @@ func TestAutomationOutputFitsConfiguredAndRemainingBudgets(t *testing.T) {
 				t.Fatal(err)
 			}
 			run := automation.Run{ID: automation.Hash(tc.name), InputTokens: 7000, OutputTokens: 2000, Spec: automation.Spec{ID: "budget", Kind: "task", Actor: "alice", Project: "default", AIConnection: "local", Output: "summary.md", Instruction: "Summarize", ExternalProcessing: true, MaxTokens: tc.budget}}
-			err := app.runAutomation(t.Context(), &run, func() error { return nil })
+			err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 			if tc.wantError != "" {
 				if err == nil || err.Error() != tc.wantError || calls != 0 {
 					t.Fatalf("exhausted job purchased another request: calls=%d error=%v", calls, err)

@@ -19,14 +19,6 @@ func skipOmitted(t *testing.T, filename string) {
 	}
 }
 
-// requireOCR skips a case that drives a job through a local OCR render.
-func requireOCR(t *testing.T) {
-	t.Helper()
-	if err := integrations.Check("ocr"); err != nil {
-		t.Skip(err)
-	}
-}
-
 // Each build offers exactly the formats it extracts, and refuses the others by
 // the integration that would extract them.
 func TestFormatsOfferWhatTheBuildExtracts(t *testing.T) {
@@ -34,13 +26,13 @@ func TestFormatsOfferWhatTheBuildExtracts(t *testing.T) {
 	for _, format := range Formats() {
 		offered[format.Extensions[0]] = true
 	}
-	for _, extension := range []string{".pdf", ".html", ".txt", ".docx", ".xlsx", ".epub", ".pptx", ".eml", ".odt", ".wav", ".mp4"} {
+	for _, extension := range []string{".pdf", ".html", ".txt", ".docx", ".xlsx", ".epub", ".pptx", ".eml", ".odt", ".png", ".tiff", ".wav", ".mp4", ".pages", ".key"} {
 		if !offered[extension] {
 			t.Fatal("core format not offered", extension)
 		}
 	}
 	for _, tc := range []struct{ file, integration string }{
-		{"reference.msg", "outlook"}, {"iwork/modern.pages", "iwork"}, {"reference.png", "ocr"},
+		{"reference.msg", "outlook"},
 	} {
 		format := workspace.SourceFormatForName(tc.file)
 		if offered[format.Extensions[0]] != integrations.Included(tc.integration) {

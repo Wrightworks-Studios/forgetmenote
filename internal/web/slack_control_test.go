@@ -45,7 +45,7 @@ func TestSlackChannelThreadRequiresExplicitMention(t *testing.T) {
 	configureSlackFixture(t, app)
 	app.messageClients["slack"] = &fixtureChatTransport{}
 	signedSlackMessage(t, app, "start", "app_mention", "C123", "", "1.000001", "Please help.")
-	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+	if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 		t.Fatal(err)
 	}
 	signedSlackMessage(t, app, "human", "message", "C123", "1.000001", "2.000001", "<@U456> Is that gross or net?")
@@ -77,7 +77,10 @@ func TestSlackStopCancelsActiveGenerationWithoutReply(t *testing.T) {
 	app.messageClients["slack"] = transport
 	signedSlackMessage(t, app, "start", "app_mention", "C123", "", "1.000001", "Please help.")
 	done := make(chan error, 1)
-	go func() { _, err := app.automations.Queue.RunNext(context.Background(), app.runAutomation); done <- err }()
+	go func() {
+		_, err := app.automations.Queue.RunNext(context.Background(), app.automationrun.RunAutomation)
+		done <- err
+	}()
 	select {
 	case <-started:
 	case <-time.After(5 * time.Second):
@@ -95,7 +98,7 @@ func TestSlackStopCancelsActiveGenerationWithoutReply(t *testing.T) {
 	if len(transport.replies) != 0 {
 		t.Fatal("cancelled request posted a reply or failure", transport.replies)
 	}
-	if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || ran {
+	if ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || ran {
 		t.Fatal("stop request invoked the model", ran, err)
 	}
 }

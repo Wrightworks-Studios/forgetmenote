@@ -1,4 +1,7 @@
 import {test, expect} from '@playwright/test';
+import {mkdtemp, rm, writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {startApp} from './app-fixture.mjs';
 
 let app;
@@ -176,6 +179,239 @@ test('changing the assistant policy updates the preferences without a reload', a
     await expect(page.locator('#assistant-preferences > fieldset')).toHaveJSProperty('disabled', true);
   } finally {
     await plain.close();
+  }
+});
+
+// Watch operations are configured but never called here: a personal run needs a
+// model, and these cases check only what the form saves.
+const watchConnections = {
+  version: 1,
+  connections: [
+    {
+      id: 'logs',
+      label: 'Service logs',
+      kind: 'http',
+      endpoint: 'http://127.0.0.1:9',
+      externalProcessing: true,
+      operations: [
+        {
+          name: 'recent',
+          description: 'Read recent log lines for one service',
+          readOnly: true,
+          method: 'GET',
+          path: '/recent',
+          inputSchema: {
+            type: 'object',
+            required: ['service'],
+            properties: {
+              service: {type: 'string', description: 'Service name'},
+              limit: {type: 'integer', minimum: 1},
+              errors: {type: 'boolean'},
+              level: {enum: ['info', 'warn', 'error']},
+              filter: {type: 'object'}
+            },
+            additionalProperties: false
+          }
+        },
+        {name: 'summary', description: 'Read the error summary', readOnly: true, method: 'GET', path: '/summary'},
+        {name: 'restart', description: 'Restart a service', readOnly: false, method: 'POST', path: '/restart'}
+      ]
+    },
+    {
+      id: 'local',
+      label: 'Local metrics',
+      kind: 'http',
+      endpoint: 'http://127.0.0.1:9',
+      operations: [{name: 'status', description: 'Read local status', readOnly: true, method: 'GET', path: '/status'}]
+    }
+  ]
+};
+
+async function startWatchApp(name) {
+  const dir = await mkdtemp(join(tmpdir(), 'fmn-assistant-watch-config-'));
+  const file = join(dir, 'connections.json');
+  await writeFile(file, JSON.stringify(watchConnections));
+  try {
+    const watched = await startApp({
+      name,
+      account: {username: 'watcher', password: 'DisposableWatches123!'},
+      env: {DATA_CONNECTIONS_CONFIG_FILE: file}
+    });
+    await watched.api('/api/organization/action/set_assistant_policy', {
+      enabled: true,
+      aiConnection: 'luna',
+      model: 'gpt-6-luna',
+      reasoningEffort: 'low'
+    });
+    const close = watched.close;
+    watched.close = async () => {
+      try {
+        await close();
+      } finally {
+        await rm(dir, {recursive: true, force: true});
+      }
+    };
+    return watched;
+  } catch (error) {
+    await rm(dir, {recursive: true, force: true});
+    throw error;
+  }
+}
+
+// Reads the saved settings as the page's own session does.
+async function assistantAction(page, name, body = {}) {
+  return page.evaluate(
+    async ([name, body]) => {
+      const response = await fetch('/api/assistant/action/' + name, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) throw Error(await response.text());
+      return response.json();
+    },
+    [name, body]
+  );
+}
+
+async function openWatches(page, origin) {
+  await page.goto(origin + '/account/assistant');
+  await expect(page.locator('#assistant-enabled')).toBeEnabled();
+  await page.locator('#assistant-watch-section > summary').click();
+}
+
+test('data watches are built from connection, operation and argument controls', async ({page}) => {
+  const watched = await startWatchApp('fmn-assistant-watches-');
+  try {
+    await watched.login(page, 'password');
+    await openWatches(page, watched.origin);
+    await page.getByRole('button', {name: 'Add data watch', exact: true}).click();
+    const first = page.locator('.assistant-watch').nth(0);
+    const connection = first.getByLabel('Connection', {exact: true});
+    await expect(connection.locator('option[value=logs]')).toHaveJSProperty('disabled', false);
+    await expect(connection.locator('option[value=local]')).toHaveJSProperty('disabled', true);
+    await expect(connection.locator('option[value=local]')).toHaveText('Local metrics (no AI processing)');
+    await connection.selectOption('logs');
+    const operation = first.getByLabel('Operation', {exact: true});
+    await expect(operation.locator('option')).toHaveText(['Choose an operation', 'recent', 'summary']);
+    await operation.selectOption('recent');
+    await expect(first.getByText('Read recent log lines for one service')).toBeVisible();
+    await first.getByLabel('service', {exact: true}).fill('api');
+    await expect(first.getByLabel('service', {exact: true})).toHaveAccessibleDescription('Service name');
+    await first.getByLabel('limit', {exact: true}).fill('0');
+    await first.getByLabel('errors', {exact: true}).check();
+    await first.getByLabel('level', {exact: true}).selectOption('warn');
+    await expect(first.getByText('Set here: filter')).toBeVisible();
+    await first.getByLabel('Other arguments (JSON)', {exact: true}).fill('{"filter":{"status":500}}');
+    await page.getByRole('button', {name: 'Add data watch', exact: true}).click();
+    const second = page.locator('.assistant-watch').nth(1);
+    await second.getByLabel('Connection', {exact: true}).selectOption('logs');
+    await second.getByLabel('Operation', {exact: true}).selectOption('summary');
+    await expect(second.locator('.operation-arguments')).toBeEmpty();
+    const save = page.getByRole('button', {name: 'Save preferences', exact: true});
+    await save.click();
+    await expect(page.locator('#assistant-message')).toHaveText('Data watch recent: limit must be at least 1.');
+    expect((await assistantAction(page, 'assistant_status')).settings.watches).toBeUndefined();
+    await first.getByLabel('limit', {exact: true}).fill('25');
+    await save.click();
+    await expect(page.locator('#assistant-message')).toHaveText('Assistant paused.');
+    const expected = [
+      {
+        connection: 'logs',
+        operation: 'recent',
+        arguments: {service: 'api', limit: 25, errors: true, level: 'warn', filter: {status: 500}}
+      },
+      {connection: 'logs', operation: 'summary', arguments: {}}
+    ];
+    expect((await assistantAction(page, 'assistant_status')).settings.watches).toEqual(expected);
+    await openWatches(page, watched.origin);
+    await expect(first.getByLabel('service', {exact: true})).toHaveValue('api');
+    await expect(first.getByLabel('limit', {exact: true})).toHaveValue('25');
+    await expect(first.getByLabel('errors', {exact: true})).toBeChecked();
+    await expect(first.getByLabel('level', {exact: true}).locator('option:checked')).toHaveText('warn');
+    expect(JSON.parse(await first.getByLabel('Other arguments (JSON)', {exact: true}).inputValue())).toEqual({
+      filter: {status: 500}
+    });
+    await second.getByRole('button', {name: 'Remove data watch', exact: true}).click();
+    await save.click();
+    await expect(save).toBeEnabled();
+    await expect(page.locator('.assistant-watch')).toHaveCount(1);
+    expect((await assistantAction(page, 'assistant_status')).settings.watches).toEqual(expected.slice(0, 1));
+  } finally {
+    await watched.close();
+  }
+});
+
+test('a form save keeps data watches written as JSON exactly as they were', async ({page}) => {
+  const watched = await startWatchApp('fmn-assistant-watch-json-');
+  try {
+    await watched.login(page, 'password');
+    await page.goto(watched.origin + '/account/assistant');
+    await expect(page.locator('#assistant-enabled')).toBeEnabled();
+    const {settings} = await assistantAction(page, 'assistant_status');
+    const save = watches => assistantAction(page, 'save_assistant_settings', {...settings, timeZone: 'UTC', watches});
+    // Arguments the operation's schema refuses are refused when saved, naming
+    // the watch and the argument.
+    for (const [args, refusal] of [
+      [{limit: 'many', service: ''}, 'validating /properties/limit: type: many has type "string", want "integer"'],
+      [{service: '', window: {days: 2}}, 'unexpected additional properties ["window"]']
+    ]) {
+      const refused = await page.evaluate(
+        async body => {
+          const response = await fetch('/api/assistant/action/save_assistant_settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+          });
+          return {status: response.status, error: (await response.json()).error};
+        },
+        {...settings, timeZone: 'UTC', watches: [{connection: 'logs', operation: 'recent', arguments: args}]}
+      );
+      expect(refused).toEqual({
+        status: 400,
+        error: `data watch 1 (recent on logs): arguments do not match operation schema: validating root: ${refusal}`
+      });
+    }
+    // Arguments the schema accepts written as no form would write them: keys
+    // out of the schema's order, an optional false set explicitly, an empty
+    // required string and a nested object only JSON can carry; and a watch
+    // on a connection that does not allow AI processing.
+    const written = [
+      {
+        connection: 'logs',
+        operation: 'recent',
+        arguments: {filter: {window: {days: 2}}, errors: false, service: '', level: 'warn'}
+      },
+      {connection: 'local', operation: 'status', arguments: {}}
+    ];
+    await save(written);
+    const before = JSON.stringify((await assistantAction(page, 'assistant_status')).settings.watches);
+    expect(JSON.parse(before)).toEqual(written);
+    await openWatches(page, watched.origin);
+    const first = page.locator('.assistant-watch').nth(0);
+    await expect(first.getByLabel('limit', {exact: true})).toHaveValue('');
+    await expect(first.getByLabel('service', {exact: true})).toHaveValue('');
+    await expect(first.getByLabel('errors', {exact: true})).not.toBeChecked();
+    await expect(first.getByLabel('level', {exact: true}).locator('option:checked')).toHaveText('warn');
+    await expect(first.getByText('Set here: filter')).toBeVisible();
+    expect(JSON.parse(await first.getByLabel('Other arguments (JSON)', {exact: true}).inputValue())).toEqual({
+      filter: {window: {days: 2}}
+    });
+    const second = page.locator('.assistant-watch').nth(1);
+    await expect(second.getByLabel('Connection', {exact: true}).locator('option:checked')).toHaveText(
+      'Local metrics (no AI processing)'
+    );
+    await expect(second.getByLabel('Operation', {exact: true})).toHaveValue('status');
+    await page.getByRole('button', {name: 'Save preferences', exact: true}).click();
+    await expect(page.locator('#assistant-message')).toHaveText('Assistant paused.');
+    expect(JSON.stringify((await assistantAction(page, 'assistant_status')).settings.watches)).toBe(before);
+    await first.getByLabel('Other arguments (JSON)', {exact: true}).fill('{"service":"api"}');
+    await page.getByRole('button', {name: 'Save preferences', exact: true}).click();
+    await expect(page.locator('#assistant-message')).toHaveText(
+      'Data watch recent: Set service in its own field, not in the JSON.'
+    );
+  } finally {
+    await watched.close();
   }
 });
 

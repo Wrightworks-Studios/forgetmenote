@@ -63,7 +63,7 @@ queues are not purged this way.
      plan says so whenever the purge rewrites a revision the export may hold
      by the time the purge runs, even one written seconds ago, and the receipt
      says whether the export actually held one;
-   - how many private chat transcripts, Knowledge proposals and Jev records
+   - how many private chat transcripts, Knowledge proposals and judgment records
      quoted the content; they are redacted by the system and nobody reads
      them, so the plan gives counts only. They are searched only for what the
      notebook holds: a text purge's text when a note, commit message or live
@@ -72,7 +72,7 @@ queues are not purged this way.
      them for the text or pattern itself. What the notebook holds is whatever
      its writers put there, so only an instance Admin is told how many of
      other people's records quote it: an Owner who is not an Admin is told
-     how many of their own chats, proposals and Jev records quote it, and that
+     how many of their own chats, proposals and judgment records quote it, and that
      other people's are redacted too, without a number, so a list of guesses
      written into a note tells them nothing of their colleagues' private
      records. Agents never see these counts (see below).
@@ -133,7 +133,7 @@ choices (`kind` `note`, `versions` or `text`; `path`, `versions`, `text` or
 `pattern`, and `paths`), requires the agent's user to be an Owner or Admin of
 the notebook, and changes nothing. It returns the plan, without what would run
 it, and a `confirmUrl` for the user. An agent's plan does not count the chat
-transcripts, Knowledge proposals and Jev records that quoted the content
+transcripts, Knowledge proposals and judgment records that quoted the content
 (`recordsCountedOnReview`): they are counted only when a person opens the
 plan, so an agent cannot read other people's records by writing guesses into
 a note and preparing purges of them. The link opens the plan in the browser,
@@ -183,7 +183,7 @@ One purge, holding the notebook's write lock:
 5. Redacts what quoted the content outside the notebook, without anyone
    reading it: the private chat transcripts of the notebook and of other
    notebooks' chats that drew on it, its Knowledge proposals and consumer
-   checkpoints, and its Jev records. For a text purge, every occurrence of the
+   checkpoints, and its judgment records. For a text purge, every occurrence of the
    text, or of each text the pattern matched in the notebook; for a note or
    versions purge, every whole line of the erased versions (24 characters or
    longer) that no other note of the notebook still holds. Only the values
@@ -258,7 +258,7 @@ before the purge cannot be saved back.
 - **Find every paraphrase.** A text purge finds the exact text or pattern; a
   note or versions purge finds whole quoted lines. A record that quoted part of
   a line, or reworded it, keeps that.
-- **Redact field names.** Chat transcripts, proposals and Jev records are
+- **Redact field names.** Chat transcripts, proposals and judgment records are
   redacted in their values; content a record kept as a field name, which the
   system normally chooses, stays.
 - **Reach drafts kept in browsers.** A private draft of an affected note,
@@ -333,7 +333,7 @@ not do. Then:
   export). The new repository replaces the old one only once it is
   complete: a rebuild that fails, for example on a full disk, leaves the
   old export and its flag as they were, for another `-recreate`.
-- The chat transcripts, Knowledge proposals and Jev records that quoted the
+- The chat transcripts, Knowledge proposals and judgment records that quoted the
   erased content may not have been redacted, and nothing can find them any
   more from the notebook, which no longer holds it. An instance Admin redacts them with
   a text purge of the erased text, or of each erased line of a note or

@@ -30,6 +30,22 @@ func (n *dbNotebook) List(ctx context.Context) ([]Entry, error) {
 	return l.entries, err
 }
 
+// ArchivedSources is the archived source notes of the head's listing and the
+// revision it lists.
+func (n *dbNotebook) ArchivedSources(ctx context.Context) (string, []Entry, error) {
+	l, err := n.listing(ctx, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	var out []Entry
+	for _, entry := range l.entries {
+		if strings.HasSuffix(entry.Path, ".md") && entry.Metadata != nil && entry.Metadata.Source != nil {
+			out = append(out, entry)
+		}
+	}
+	return l.revision, out, nil
+}
+
 func (n *dbNotebook) Find(ctx context.Context, query, tag, status, pathPrefix string) ([]Entry, error) {
 	l, err := n.listing(ctx, &listingQuery{query: query, tag: tag, status: status, pathPrefix: pathPrefix})
 	return l.entries, err

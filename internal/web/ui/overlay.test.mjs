@@ -41,8 +41,8 @@ test('script-built dialogs share one named shell with a title row and close cont
  const body=make('body');
  globalThis.document={body,createElement:make,createElementNS:(ns,tag)=>make(tag)};
  try {
-  const dialog=dialogShell('Quick note',{id:'quicknotes-dialog',className:'jev-dialog quicknotes-dialog'});
-  assert.equal(dialog.tag,'dialog');assert.equal(dialog.id,'quicknotes-dialog');assert.equal(dialog.className,'jev-dialog quicknotes-dialog');
+  const dialog=dialogShell('Quick note',{id:'quicknotes-dialog',className:'judgments-dialog quicknotes-dialog'});
+  assert.equal(dialog.tag,'dialog');assert.equal(dialog.id,'quicknotes-dialog');assert.equal(dialog.className,'judgments-dialog quicknotes-dialog');
   assert.equal(dialog.attributes['aria-label'],'Quick note');assert.deepEqual(body.children,[dialog]);
   const [heading]=dialog.children,[title,close]=heading.children;
   assert.equal(heading.className,'dialog-title');assert.equal(title.tag,'h2');assert.equal(title.textContent,'Quick note');

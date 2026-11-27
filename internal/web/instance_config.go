@@ -20,6 +20,10 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 	if c.Version != 1 {
 		return errors.New("unsupported instance configuration version")
 	}
+	// First, so that every later step can tell which modules this instance runs.
+	if err := s.ConfigureModules(c.Modules.Off); err != nil {
+		return fmt.Errorf("instance modules: %w", err)
+	}
 	// Before any integration is installed, so none is ever briefly unpaused.
 	if err := s.ConfigureOutgoing(c.Server.Outgoing); err != nil {
 		return fmt.Errorf("instance outgoing: %w", err)
@@ -90,8 +94,8 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 		if chat.WebsiteCapture != nil {
 			files = append(files, chat.WebsiteCapture.AccountIDFile, chat.WebsiteCapture.SecretFile)
 		}
-		if chat.Jev != nil && chat.Jev.Enabled {
-			files = append(files, chat.Jev.SecretFile)
+		if chat.Judgments != nil && chat.Judgments.Enabled && s.modules.Enabled("judgments") {
+			files = append(files, chat.Judgments.SecretFile)
 		}
 		for _, file := range files {
 			if _, err := secret(file); err != nil {
@@ -99,7 +103,8 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 			}
 		}
 	}
-	if c.AI.Decisions != nil && c.AI.Decisions.Enabled {
+	// An off module's credentials stay where the operator put them, unread.
+	if c.AI.Decisions != nil && c.AI.Decisions.Enabled && s.modules.Enabled("judgments") {
 		if _, err := secret(c.AI.Decisions.SecretFile); err != nil {
 			return err
 		}
@@ -179,7 +184,7 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 // decide whether a configured integration may process content.
 func (s *Server) InstanceSummary() map[string]bool {
 	cfg := s.chat.Snapshot().Config
-	judge, _ := s.jevConfigured()
+	judge, _ := s.judgmentsConfigured()
 	automations := s.automations != nil && len(s.automations.Definitions.List()) > 0
 	return map[string]bool{
 		"chat": cfg != nil, "decisions": judge != nil, "embeddings": s.indexes.Endpoint() != nil,

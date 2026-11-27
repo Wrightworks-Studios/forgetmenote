@@ -39,7 +39,7 @@ func TestListRevalidatesSuggestedDestination(t *testing.T) {
 				t.Fatal(err)
 			}
 			var calls atomic.Int32
-			s.ConfigureJev(testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_001") }), false)
+			s.ConfigureJudgments(testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_001") }), false)
 			settings, err := s.Settings("alice")
 			if err != nil {
 				t.Fatal(err)

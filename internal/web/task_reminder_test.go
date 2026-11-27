@@ -48,7 +48,7 @@ func TestWeekdayRemindersReachOwnersWhoAreIn(t *testing.T) {
 		t.Helper()
 		before := len(f.posts)
 		run := automation.Run{ID: automation.Hash(id), DryRun: dry, Spec: spec}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
 		if strings.Contains(run.Result, "Review the Q4") {
@@ -184,7 +184,7 @@ func TestTheFirstReminderAfterTimeAwayListsWhatArrived(t *testing.T) {
 		t.Helper()
 		before := len(f.posts)
 		run := automation.Run{ID: automation.Hash(id), Spec: spec}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
 		return f.posts[before:]
@@ -294,7 +294,7 @@ func TestRemindersSkipCompanyHolidays(t *testing.T) {
 		t.Helper()
 		before := len(f.posts)
 		run := automation.Run{ID: automation.Hash(id), Spec: spec}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
 		return f.posts[before:], run.Result
@@ -420,7 +420,7 @@ func TestRemindersSkipHolidaysOnEveryCalendarTheyName(t *testing.T) {
 		t.Helper()
 		before := len(f.posts)
 		run := automation.Run{ID: automation.Hash(id), Spec: spec}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
 		return f.posts[before:], run.Result
@@ -556,7 +556,7 @@ func TestRemindersListSlackMessagesWaitingOnAReply(t *testing.T) {
 		t.Helper()
 		before := len(f.posts)
 		run := automation.Run{ID: automation.Hash(id), DryRun: dry, Spec: spec}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
 		if strings.Contains(run.Result, "proofs") {
@@ -742,7 +742,7 @@ func TestTheCatchUpListStartsFromTheReminderTheJobRecorded(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: automation.Hash("tuesday"), Spec: spec}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	posts := f.postsTo("UALICE")
@@ -755,7 +755,57 @@ func TestTheCatchUpListStartsFromTheReminderTheJobRecorded(t *testing.T) {
 	// A test run records nothing.
 	now = time.Date(2026, 11, 18, 16, 30, 0, 0, time.UTC)
 	run = automation.Run{ID: automation.Hash("preview"), DryRun: true, Spec: spec}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil || reminded() != "2026-11-17" {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil || reminded() != "2026-11-17" {
 		t.Fatalf("a test run: %v, recorded %q", err, reminded())
+	}
+}
+
+// An administrator who enables task queues sees whether any reminder job will
+// remind people, since nothing reminds them until one exists.
+func TestTaskQueueSettingsWarnUntilAReminderJobRuns(t *testing.T) {
+	f := newSlackLinkFixture(t)
+	admin := actionClient(t, f.app, catalog.Bootstrap, "notes:read notes:manage")
+	type settings struct {
+		Project   string   `json:"project"`
+		Revision  uint64   `json:"revision"`
+		Reminders []string `json:"reminders"`
+		Warnings  []string `json:"warnings"`
+	}
+	read := func(raw json.RawMessage) settings {
+		t.Helper()
+		var out settings
+		if err := json.Unmarshal(raw, &out); err != nil {
+			t.Fatalf("%v: %s", err, raw)
+		}
+		return out
+	}
+	// The documented first call names only the client and revision.
+	enabled := read(actionCall(t, admin, "set_task_queues", map[string]any{"client": "slack", "revision": 0}, false))
+	if enabled.Project != catalog.TaskQueuesProject || len(enabled.Reminders) != 0 || len(enabled.Warnings) != 1 || !strings.Contains(enabled.Warnings[0], "task-reminder") {
+		t.Fatalf("enabling task queues reported %+v", enabled)
+	}
+	// Settings read back can be changed and saved as they are: the reported
+	// fields are ignored.
+	var round map[string]any
+	if err := json.Unmarshal(actionCall(t, admin, "task_queues", map[string]any{}, false), &round); err != nil || round["warnings"] == nil {
+		t.Fatalf("task_queues: %v %v", round, err)
+	}
+	round["awayStatuses"] = []string{"ooo"}
+	if again := read(actionCall(t, admin, "set_task_queues", round, false)); again.Revision != 2 || len(again.Warnings) != 1 {
+		t.Fatalf("saving settings as read reported %+v", again)
+	}
+	job := map[string]any{"id": "task-reminder", "name": "Task reminders", "kind": "native", "actor": f.service, "project": "default", "intervalSeconds": 900, "timeoutSeconds": 120, "native": map[string]any{"task": "task-reminder", "client": "slack"}}
+	var saved automation.Definition
+	if err := json.Unmarshal(actionCall(t, admin, "save_automation", map[string]any{"spec": job, "revision": ""}, false), &saved); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(actionCall(t, admin, "task_queues", map[string]any{}, false)); !slices.Equal(got.Reminders, []string{"task-reminder"}) || len(got.Warnings) != 0 {
+		t.Fatalf("with a reminder job, task_queues reported %+v", got)
+	}
+	// A disabled job reminds nobody.
+	job["disabled"] = true
+	actionCall(t, admin, "save_automation", map[string]any{"spec": job, "revision": saved.Revision}, false)
+	if got := read(actionCall(t, admin, "task_queues", map[string]any{}, false)); len(got.Reminders) != 0 || len(got.Warnings) != 1 {
+		t.Fatalf("with the job disabled, task_queues reported %+v", got)
 	}
 }

@@ -27,21 +27,22 @@ import (
 	"forgetmenote/internal/attribution"
 	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/backups"
 	"forgetmenote/internal/blob"
 	"forgetmenote/internal/branding"
 	"forgetmenote/internal/capacity"
 	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
 	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/decision"
-	"forgetmenote/internal/jev"
+	"forgetmenote/internal/judgments"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/modules"
 	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/outgoing"
 	"forgetmenote/internal/personal"
@@ -64,39 +65,41 @@ import (
 var assets embed.FS
 
 type Server struct {
-	browserAssets   browserManifest
-	customIcons     appIconCache
-	lifecycleMu     sync.Mutex
-	started, closed bool
-	closeOnce       sync.Once
-	// Same credential-free source boundary as document capture; replaceable by
-	// local HTTP fixtures without weakening production DNS/redirect checks.
-	scriptImageFetch     func(context.Context, string) ([]byte, string, string, error)
-	scriptWebsiteCapture func(context.Context, string) (chat.WebsiteEvidence, error)
-	personalConnections  *connectors.PersonalConnections
-	dataConnections      *connectors.Manager
-	dataOperations       *dataops.Service
-	automations          *automationService
-	python               *automation.Python
-	slack                *slackService
-	messaging            *messaginghttp.Service
-	personal             *personal.Service
-	chatrun              *chatrun.Service
-	tasks                *taskqueue.Service
+	browserAssets       browserManifest
+	customIcons         appIconCache
+	lifecycleMu         sync.Mutex
+	started, closed     bool
+	closeOnce           sync.Once
+	personalConnections *connectors.PersonalConnections
+	dataConnections     *connectors.Manager
+	dataOperations      *dataops.Service
+	automations         *automationService
+	python              *automation.Python
+	slack               *slackService
+	messaging           *messaginghttp.Service
+	personal            *personal.Service
+	chatrun             *chatrun.Service
+	automationrun       *automationrun.Service
+	tasks               *taskqueue.Service
 	// messageClients are the configured messaging transports, by client ID.
 	messageClients map[string]messaging.Transport
 	headless       bool
 	outgoing       *outgoing.Mode
-	authority      *notebooks.Authority
+	// modules is the startup module set; the zero set runs every module.
+	modules   modules.Set
+	authority *notebooks.Authority
 
 	repositoryConnections *repositoryConnections
 
-	links               *notebooks.Links
-	repositories        *reposource.Manager
+	links        *notebooks.Links
+	repositories *reposource.Manager
+	// dormantRepositories holds the stored repository sources while the
+	// repositories module is off (openDormantRepositories).
+	dormantRepositories *reposource.Manager
 	backups             *backupService
 	quicknotes          *quicknotes.Service
 	citations           *citationchecks.Runtime
-	jev                 *jev.Service
+	judgments           *judgments.Service
 	decisions           *decision.Policy
 	chat                *chatService
 	actions             actions.Registry
@@ -195,15 +198,18 @@ type noteInput struct {
 }
 type noteOutput = webcore.NoteOutput
 
-// New serves one instance. db is its Postgres control plane, which the caller owns
-// and closes after Close. Its blobs stay in its data directory.
+// New serves one instance that runs every module. db is its Postgres control
+// plane, which the caller owns and closes after Close. Its blobs stay in its
+// data directory.
 func New(projects *catalog.Catalog, db *pg.DB, data, origin, token string) (*Server, error) {
-	return NewWithBlobs(projects, db, nil, data, origin, token)
+	return NewWithBlobs(projects, db, nil, modules.Set{}, data, origin, token)
 }
 
 // NewWithBlobs serves an instance whose blobs are in blobs, which the caller
-// owns, or in the data directory when blobs is nil.
-func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, origin, token string) (*Server, error) {
+// owns, or in the data directory when blobs is nil. It runs the modules in
+// set for its whole life: an off module's routes, tools and workers are never
+// added, so the set cannot change once the server is built.
+func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set modules.Set, data, origin, token string) (*Server, error) {
 	if err := validateBrowserAssets(assets); err != nil {
 		return nil, err
 	}
@@ -227,6 +233,7 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	}
 	s := &Server{outgoing: &outgoing.Mode{}, rpcStreams: make(chan struct{}, 128), sourceWork: make(chan struct{}, capacity.SourceRequests.Limit()), rpcWork: make(chan struct{}, capacity.WriteRequests.Limit()), rpcReadWork: make(chan struct{}, capacity.ReadRequests.Limit()), rpcDecodeWork: make(chan struct{}, capacity.DecodeRequests.Limit()), catalog: projects, data: data, origin: strings.TrimSuffix(origin, "/"), token: token, page: page, mux: http.NewServeMux(), routes: webcore.NewNotebookRoutes(), renderer: webcore.NewRenderer()}
 	s.browserAssets = manifest
+	s.modules = set
 	s.backupDownloads, s.backupBytes = make(chan struct{}, liveExports), maxExportBytes
 	complete := false
 	defer func() {
@@ -278,6 +285,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if s.leave, err = db.KeepPresence(); err != nil {
 		return nil, err
 	}
+	if err = s.recordGatewayModules(); err != nil {
+		return nil, err
+	}
 	s.oauth, err = auth.OpenState(db)
 	if err != nil {
 		return nil, err
@@ -288,14 +298,17 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initChatRun(); err != nil {
 		return nil, err
 	}
-	if err = s.initJev(); err != nil {
+	if err = s.initJudgments(); err != nil {
 		return nil, err
 	}
-	s.decisions = decision.NewPolicy(projects, s.jevConfigured, s.jev.StoredPreferences)
+	s.decisions = decision.NewPolicy(projects, s.judgmentsConfigured, s.judgments.StoredPreferences)
 	if err = s.initMemory(); err != nil {
 		return nil, err
 	}
 	if err = s.initAutomations(); err != nil {
+		return nil, err
+	}
+	if err = s.initAutomationRun(); err != nil {
 		return nil, err
 	}
 	if err = s.initTasks(); err != nil {
@@ -310,16 +323,16 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initDataOperations(); err != nil {
 		return nil, err
 	}
-	s.jevRoutes()
 	if err = s.initQuicknotes(); err != nil {
 		return nil, err
 	}
 	s.quicknotesRoutes()
-	s.repositoryRoutes()
-	s.backupRoutes()
+	s.documentRoutes()
+	s.mux.HandleFunc("POST /api/retrieval", s.retrievalHTTP)
 	s.notebookLinkRoutes()
 	s.dataConnectionRoutes()
 	s.personalAssistantRoutes()
+	s.messageUnlinkRoute()
 	s.personalConnectionRoutes()
 	s.mux.HandleFunc("GET /readyz", s.ready)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
@@ -394,15 +407,20 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initSourceJobs(); err != nil {
 		return nil, err
 	}
-	s.sourceHTTP.Register(s.handleProject)
+	if err = s.openDormantRepositories(); err != nil {
+		return nil, err
+	}
 	s.knowledgeRoutes()
 	s.wikiRoutes()
 	s.trashRoutes()
-	s.chatRoutes()
-	s.connectionRoutes()
+	if s.gitHubConnections() {
+		s.connectionRoutes()
+	}
 	s.authorityRoutes()
 	s.purge.Register(s.handleProject)
 	s.instanceAdministrationRoutes()
+	// After every hub is open, since a module's routes bind its hub.
+	s.moduleRoutes()
 
 	s.mux.Handle("/mcp", s.mcpHandler())
 	complete = true
@@ -554,14 +572,15 @@ func (s *Server) serveHeadless(w http.ResponseWriter, r *http.Request, target re
 
 // serveIntegration serves the endpoints that authenticate their own callers
 // (Slack and GitHub signatures, backup worker credentials) before any session
-// or bearer check.
+// or bearer check. The endpoints of an off module are left to answer like any
+// unknown path.
 func (s *Server) serveIntegration(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch {
-	case path == "/integrations/slack/events" || path == "/integrations/slack/interactions" || path == "/integrations/slack/commands":
+	case (path == "/integrations/slack/events" || path == "/integrations/slack/interactions" || path == "/integrations/slack/commands") && s.modules.Enabled("messaging"):
 		s.slackApp(w, r, path)
-	case strings.HasPrefix(path, "/internal/backups/v1/"):
+	case strings.HasPrefix(path, "/internal/backups/v1/") && s.modules.Enabled("managed-backups"):
 		s.backupWorkerHTTP(w, r)
-	case path == "/repository/github/webhook":
+	case path == "/repository/github/webhook" && s.modules.Enabled("repositories"):
 		s.repositoryWebhook(w, r)
 	default:
 		return false

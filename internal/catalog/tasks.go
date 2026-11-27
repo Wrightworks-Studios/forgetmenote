@@ -27,9 +27,10 @@ var taskPersonID = regexp.MustCompile(`^p-[a-z2-7]{10}$`)
 
 // TaskQueues configures task queues. Client names the messaging client whose
 // workspace members have queues; Group, when set, limits the accounts that may
-// use them. Workspace is reported from the client and never stored.
+// use them. Project and Workspace are reported, never chosen: the notebook is
+// always task-queues, and the workspace is the client's and never stored.
 type TaskQueues struct {
-	Project   string `json:"project"`
+	Project   string `json:"project,omitempty"`
 	Client    string `json:"client,omitempty"`
 	Workspace string `json:"workspace,omitempty"`
 	Group     string `json:"group,omitempty"`

@@ -275,20 +275,12 @@
           "description": "Base64 supported source original (see source_formats), bounded by operator FMN_LIMIT_SOURCE_BYTES when decoded. Omit to fetch URL.",
           "type": "string"
         },
-        "describeImages": {
-          "description": "Opt in to explicitly authorized hosted image descriptions for supported formats; see source_formats. Descriptions are labeled and may be inaccurate.",
-          "type": "boolean"
-        },
-        "externalOCR": {
-          "description": "Explicitly upload selected PDF/image pages to the configured hosted OCR model. Never selected automatically.",
-          "type": "boolean"
+        "extractor": {
+          "description": "With text: the agent and model that extracted it, such as 'Example Agent 2; example-model-5'. One line of at most 200 characters.",
+          "type": "string"
         },
         "filename": {
           "type": "string"
-        },
-        "firstPage": {
-          "description": "First physical page/image selected for hosted processing. At most eight per request.",
-          "type": "integer"
         },
         "folder": {
           "description": "Destination folder for a new source note. Omit for sources; empty string selects project root. Do not pass with path when refreshing.",
@@ -296,9 +288,6 @@
             "null",
             "string"
           ]
-        },
-        "lastPage": {
-          "type": "integer"
         },
         "path": {
           "description": "Existing archived source note to refresh; omit for a new source.",
@@ -311,12 +300,59 @@
           "description": "Required current note revision when refreshing an existing source.",
           "type": "string"
         },
+        "text": {
+          "additionalProperties": {
+            "not": {}
+          },
+          "description": "Your own extraction of the original in data, for a format source_formats marks extractedBy agent (or a PDF with scanned pages). The server stores it instead of extracting, labelled client-supplied and unverified. Requires data and extractor.",
+          "properties": {
+            "sections": {
+              "description": "Every section in order, numbered from 1 with none skipped; a section without text keeps its number with empty text.",
+              "items": {
+                "additionalProperties": {
+                  "not": {}
+                },
+                "properties": {
+                  "number": {
+                    "description": "The section's physical number, from 1.",
+                    "type": "integer"
+                  },
+                  "text": {
+                    "description": "The section's text as read from the original. It is stored literally: Markdown, links and HTML show as typed.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Optional one-line title of at most 200 characters, such as a slide title or a segment's time range.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "number",
+                  "text"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "null",
+                "array"
+              ]
+            },
+            "unit": {
+              "description": "What the sections number: page (a PDF page or an image frame), slide, sheet, segment (a stretch of a recording) or section.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "unit",
+            "sections"
+          ],
+          "type": [
+            "null",
+            "object"
+          ]
+        },
         "title": {
           "type": "string"
-        },
-        "transcribe": {
-          "description": "Explicitly upload audio segments to the configured hosted transcription model (five minutes maximum).",
-          "type": "boolean"
         },
         "url": {
           "description": "Public source URL. With data, records provenance only; without data, fetches the URL.",
@@ -758,6 +794,11 @@
       "additionalProperties": {},
       "type": "object"
     },
+    "readOnly": true
+  },
+  {
+    "coverage": "not called",
+    "name": "chat_client_directory",
     "readOnly": true
   },
   {
@@ -4410,6 +4451,84 @@
     "readOnly": true
   },
   {
+    "coverage": "called",
+    "inputSchema": {
+      "additionalProperties": {
+        "not": {}
+      },
+      "properties": {
+        "project": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "type": "object"
+    },
+    "name": "list_sources_awaiting_text",
+    "outputSchema": {
+      "properties": {
+        "more": {
+          "type": "boolean"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "properties": {
+              "extraction": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "mime": {
+                "type": "string"
+              },
+              "original": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "warning": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "title",
+              "format",
+              "mime",
+              "extraction",
+              "original",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        }
+      },
+      "required": [
+        "revision",
+        "sources"
+      ],
+      "type": "object"
+    },
+    "readOnly": true
+  },
+  {
     "coverage": "deferred: task queues need a Slack-linked task fixture",
     "name": "list_tasks",
     "readOnly": true
@@ -6691,7 +6810,7 @@
           "type": "string"
         },
         "review": {
-          "description": "checked when Jev compared new items with their topic, skipped when it was not used, failed when it could not answer; items are saved either way",
+          "description": "checked when the judge compared new items with their topic, skipped when it was not used, failed when it could not answer; items are saved either way",
           "type": "string"
         },
         "reviewReason": {
@@ -9691,8 +9810,8 @@
         "formats": {
           "items": {
             "properties": {
-              "describeImages": {
-                "type": "boolean"
+              "agentExtracts": {
+                "type": "string"
               },
               "description": {
                 "type": "string"
@@ -9706,11 +9825,8 @@
                   "array"
                 ]
               },
-              "externalOCR": {
-                "type": "boolean"
-              },
-              "hostedDescriptions": {
-                "type": "boolean"
+              "extractedBy": {
+                "type": "string"
               },
               "maxBytes": {
                 "type": "integer"
@@ -9720,9 +9836,6 @@
               },
               "name": {
                 "type": "string"
-              },
-              "transcription": {
-                "type": "boolean"
               }
             },
             "required": [
@@ -9731,9 +9844,7 @@
               "mime",
               "description",
               "maxBytes",
-              "externalOCR",
-              "hostedDescriptions",
-              "transcription"
+              "extractedBy"
             ],
             "type": "object"
           },

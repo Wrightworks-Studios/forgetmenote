@@ -141,12 +141,12 @@ retrieval retains its priority tiers, neighbor/dedup logic and complete serializ
 passage estimates; ordinary note search retains distinct-note results.
 
 Owners opt connected sources into external processing separately from ordinary
-notebook settings. Embeddings reuse the existing configured endpoint. Jev may
+notebook settings. Embeddings reuse the existing configured endpoint. Judgments may
 rank the leading 32 retrieved source candidates before final packing or optionally
 classify small changed map entries; the conversational model interprets original
 excerpts and answers. Citation coordinates, permissions, freshness and byte hashes
 are deterministic. There is no repository documentation generation or claim-checking
-loop. General notebook Jev reviews, extraction and citation checks remain supported.
+loop. General notebook judgment reviews, extraction and citation checks remain supported.
 
 Source candidate discovery combines lexical and semantic branches with bounded
 map hints and unambiguous same-file helper excerpts. Repeated symbol names do not
@@ -161,13 +161,13 @@ payloads. All returned excerpts retain original bytes and pinned citations.
 `internal/reposource/map.go` derives the compact navigation map from admitted files
 and existing chunks. Map queries use the same pinned snapshot and access policy as
 source search. `map_enrichment.go` shares the embedding worker's cancellation and
-publication lifetime; `internal/web/repository_map.go` owns the optional Jev boundary,
+publication lifetime; `internal/web/repository_map.go` owns the optional judgments boundary,
 enabling Owner's consent and existing usage ledger. Uncertain purchased results fall
 back to local roles without repurchasing them or blocking later entries. No large
 model maintains the map, and no map entry is treated as citation evidence.
 
 Details and limits: [knowledge](knowledge.md), [repository notebooks](repository-notebooks.md),
-[chat](chat.md), [Jev](jev.md) and its [integration contract](jev-architecture.md).
+[chat](chat.md), [judgments](judgments.md) and their [integration contract](judgments-architecture.md).
 
 ## Requests and permissions
 
@@ -210,7 +210,7 @@ See [authentication](authentication.md), [MCP contracts](mcp-actions.md) and
 | `retrieval-settings.mjs` | Personal search preferences and notebook retrieval defaults |
 | `repositories.mjs` | Source settings, status polling, pinned file viewer and explicitly requested legacy history |
 | `chat.mjs`, `chat-runs.mjs`, `chat-transcript.mjs` | Private conversation UI, streaming ownership and transcript projection |
-| `knowledge.mjs`, `jev.mjs` | References, proposals and notebook judgment workflows |
+| `knowledge.mjs`, `judgments.mjs` | References, proposals and notebook judgment workflows |
 | `settings.mjs`, `administration.mjs`, `settings-pages.mjs` | Personal settings and routable instance/notebook administration |
 | `dom.mjs`, `overlay.mjs`, `feedback.mjs`, `state.mjs`, `request.mjs` | Shared browser interaction and rendered-HTML installation, overlay lifetime, feedback, polling/state primitives and the JSON request boundary |
 

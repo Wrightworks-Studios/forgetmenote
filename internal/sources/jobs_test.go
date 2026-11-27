@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"image"
-	"image/color"
-	"image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,12 +109,9 @@ func TestSourceJobsRetainedStorageAdmission(t *testing.T) {
 }
 
 func TestSourceJobsExpiryDrainsWorker(t *testing.T) {
-	requireOCR(t)
 	dir := t.TempDir()
-	for name, body := range map[string]string{"pdftotext": "printf '<html><body><doc><page width=\"612\" height=\"792\"/></doc></body></html>\\n'", "pdfimages": "printf '1 0 image\\n'", "pdftoppm": "touch started\nexec /bin/sleep 30"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+body+"\n"), 0700); err != nil {
-			t.Fatal(err)
-		}
+	if err := os.WriteFile(filepath.Join(dir, "pdftotext"), []byte("#!/bin/sh\ntouch started\nexec /bin/sleep 30\n"), 0700); err != nil {
+		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	data := t.TempDir()
@@ -127,7 +121,7 @@ func TestSourceJobsExpiryDrainsWorker(t *testing.T) {
 	original := []byte("%PDF-fixture")
 	scope := JobScope{Subject: "user", Notebook: "notes", Generation: 1}
 	// Each extractor starts through the sandbox re-exec; leave a loaded race build
-	// time to reach rendering before the job expires.
+	// time to start pdftotext before the job expires.
 	seedJob(t, db, store, sourceJob{Version: 1, JobStatus: JobStatus{ID: id, State: "canceled", Expires: time.Now().Add(3 * time.Second)}, Scope: scope, Input: JobInput{Filename: "scan.pdf"}, Hash: workspace.ContentHash(original)}, original)
 	jobs, err := OpenJobs(db, store, data, func(ctx context.Context, _ JobScope) error { return ctx.Err() })
 	if err != nil {
@@ -143,7 +137,7 @@ func TestSourceJobsExpiryDrainsWorker(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("fixture never reached rendering")
+			t.Fatal("fixture never started pdftotext")
 		}
 		time.Sleep(time.Millisecond * 5)
 	}
@@ -174,13 +168,9 @@ func TestSourceJobsExpiredActiveCanBeCanceled(t *testing.T) {
 }
 
 func TestSourceJobsAdmissionCancellationAndRevocation(t *testing.T) {
-	requireOCR(t)
 	dir := t.TempDir()
-	bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber checkpoint</word></line></block></flow></page><page width="612" height="792"/></doc></body></html>`
-	for name, body := range map[string]string{"pdftotext": "cat <<'XML'\n" + bbox + "\nXML\n", "pdfimages": "printf '2 0 image\\n'\n", "pdftoppm": "touch started\nexec /bin/sleep 30\n"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+body), 0700); err != nil {
-			t.Fatal(err)
-		}
+	if err := os.WriteFile(filepath.Join(dir, "pdftotext"), []byte("#!/bin/sh\ntouch started\nexec /bin/sleep 30\n"), 0700); err != nil {
+		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	var revoked atomic.Bool
@@ -208,7 +198,7 @@ func TestSourceJobsAdmissionCancellationAndRevocation(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("worker did not start OCR")
+			t.Fatal("worker did not start pdftotext")
 		}
 		time.Sleep(time.Millisecond * 5)
 	}
@@ -240,21 +230,13 @@ func TestSourceJobsAdmissionCancellationAndRevocation(t *testing.T) {
 }
 
 func TestSourceJobsRestartResumeUsesCompletedPages(t *testing.T) {
-	requireOCR(t)
-	dir := t.TempDir()
-	bbox := `<html><body><doc><page width="612" height="792"><flow><block><line><word xMin="10" yMin="10" xMax="30" yMax="20">Amber checkpoint</word></line></block></flow></page><page width="612" height="792"/></doc></body></html>`
-	for name, body := range map[string]string{"pdftotext": "cat <<'XML'\n" + bbox + "\nXML\n", "pdfimages": "printf '2 0 image\\n'\n", "pdftoppm": "touch started\nexec /bin/sleep 30\n"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+body), 0700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	finish := pdfTools(t)
 	authorize := func(ctx context.Context, scope JobScope) error { return ctx.Err() }
 	scope := JobScope{Subject: "user", Notebook: "notes", Generation: 1}
 	data := t.TempDir()
 	db, store := pgtest.Org(t), dataStore(t, data)
-	marker := scratchGlob(data, "started")
-	jobs, err := OpenJobs(db, store, data, authorize)
+	pause, reached := pauseAtSecondPage(store)
+	jobs, err := OpenJobs(db, store, data, pause)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,47 +244,20 @@ func TestSourceJobsRestartResumeUsesCompletedPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(3 * time.Second)
-	for {
-		if len(scratchFiles(t, marker)) > 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			jobs.Close()
-			t.Fatal("worker did not reach second physical page")
-		}
-		time.Sleep(time.Millisecond * 5)
+	select {
+	case <-reached:
+	case <-time.After(3 * time.Second):
+		jobs.Close()
+		t.Fatal("worker did not reach second physical page")
 	}
 	started := time.Now()
 	jobs.Close()
 	if time.Since(started) > time.Second {
 		t.Fatal("shutdown did not drain cancellation promptly")
 	}
-	// Change the first-page extractor fixture: resumed work must use its persisted
-	// page, while the unfinished page renders now. No notebook store is involved.
-	if err := os.WriteFile(filepath.Join(dir, "pdftotext"), []byte("#!/bin/sh\ncat <<'XML'\n"+strings.ReplaceAll(bbox, "Amber checkpoint", "Discarded new extraction")+"\nXML\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	white := image.NewRGBA(image.Rect(0, 0, 32, 32))
-	for y := 0; y < 32; y++ {
-		for x := 0; x < 32; x++ {
-			white.Set(x, y, color.White)
-		}
-	}
-	pngFile := filepath.Join(dir, "white.png")
-	f, err := os.Create(pngFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := png.Encode(f, white); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "pdftoppm"), []byte("#!/bin/sh\nfor last; do :; done\ncp '"+pngFile+"' \"$last.png\"\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
+	// Change the first page's text: resumed work must use its persisted page,
+	// while the unfinished page is read now. No notebook store is involved.
+	finish()
 	resumed, err := OpenJobs(db, store, data, authorize)
 	if err != nil {
 		t.Fatal(err)
@@ -593,7 +548,8 @@ func TestSourceJobRecordsRejection(t *testing.T) {
 	if _, err := first.Submit(t.Context(), JobScope{}, JobInput{Filename: "page.html"}, []byte("<p>Amber</p>")); err == nil || errors.Is(err, ErrRejected) {
 		t.Fatalf("job without a scope: %v", err)
 	}
-	broken, err := first.Submit(t.Context(), scope, JobInput{Filename: "page.html", Options: Options{ExternalOCR: true}}, []byte("<p>Amber</p>"))
+	// A host that does not resolve says nothing about the URL.
+	broken, err := first.Submit(t.Context(), scope, JobInput{URL: "http://forgetmenote-test.invalid/page.html"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -683,5 +639,43 @@ func TestOpeningLeavesAnotherLiveGatewaysJobRunning(t *testing.T) {
 	restarted.Close()
 	if _, err := os.Stat(scratch); !os.IsNotExist(err) {
 		t.Fatal("recovery kept a stopped job's scratch", err)
+	}
+}
+
+// A job an earlier release admitted for hosted OCR, descriptions or
+// transcription may still be within its 24 hours. Its manifest opens with
+// the rest, but it is never run again: that processing is gone.
+func TestRetiredHostedJobOpensButIsNotResumed(t *testing.T) {
+	db, store := pgtest.Org(t), dataStore(t, t.TempDir())
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	expires := time.Now().UTC().Add(time.Hour).Format(time.RFC3339Nano)
+	original := []byte("image")
+	scope := JobScope{Subject: "user", Notebook: "notes", Generation: 1}
+	// The first attempted a paid upload; the second never reached one.
+	for id, options := range map[string]string{
+		strings.Repeat("e", 32): `{"externalOCR":true,"firstPage":1,"lastPage":1}`,
+		strings.Repeat("f", 32): `{"transcribe":true}`,
+	} {
+		blocked := id[0] == 'e'
+		if err := blob.Write(t.Context(), store, jobsDir+"/"+id+"/original", original); err != nil {
+			t.Fatal(err)
+		}
+		manifest := `{"version":1,"id":"` + id + `","state":"interrupted","pages":0,"created":"` + now + `","updated":"` + now + `","expires":"` + expires + `","resumeBlocked":` + strconv.FormatBool(blocked) + `,"scope":{"subject":"user","notebook":"notes","generation":1,"epoch":0},"input":{"filename":"scan.png","options":` + options + `},"hash":"` + workspace.ContentHash(original) + `","downloaded":true,"textBytes":0,"attempt":1,"fetched":1}`
+		if _, err := db.Pool.Exec(t.Context(), `INSERT INTO source_jobs (org, id, version, reserved, manifest) VALUES ($1, $2, 1, 0, $3)`, db.Org, id, []byte(manifest)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	jobs, err := OpenJobs(db, store, t.TempDir(), func(ctx context.Context, _ JobScope) error { return ctx.Err() })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer jobs.Close()
+	for _, id := range []string{strings.Repeat("e", 32), strings.Repeat("f", 32)} {
+		if status, err := jobs.Status(t.Context(), scope, id); err != nil || status.State != "interrupted" {
+			t.Fatalf("a retired hosted job did not open: %+v %v", status, err)
+		}
+		if _, err := jobs.Resume(t.Context(), scope, id); err == nil || !strings.Contains(err.Error(), "hosted") {
+			t.Fatalf("a retired hosted job resumed: %v", err)
+		}
 	}
 }

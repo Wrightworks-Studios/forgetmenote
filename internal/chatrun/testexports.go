@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
 )
@@ -63,4 +64,29 @@ func (s *Service) FailRun(ctx context.Context, auth chat.RunAuth, id, runID stri
 }
 func (s *Service) AppendSources(ctx context.Context, run chat.Run, query knowledge.RetrievalQuery, result *Retrieval) error {
 	return s.appendChatSources(ctx, run, query, result)
+}
+
+// The runner, its executors and the citation check, which web's tests drive
+// directly to recheck access at each step.
+func (s *Service) ExecuteChat(ctx context.Context, cancel context.CancelFunc, a chat.RunAuth, id, runID string, connection chat.Connection) {
+	s.executeChat(ctx, cancel, a, id, runID, connection)
+}
+func (s *Service) ExecuteChatTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
+	return s.executeChatTool(ctx, a, id, runID, call, connection)
+}
+func (s *Service) ExecuteNotebookTool(ctx context.Context, a chat.RunAuth, id, runID string, call chat.ToolCall, connection chat.Connection) error {
+	return s.executeNotebookTool(ctx, a, id, runID, call, connection)
+}
+func (s *Service) StartCitationCheck(a chat.RunAuth, id, runID string, explicit bool) error {
+	return s.startCitationCheck(a, id, runID, explicit)
+}
+func (s *Service) CitationRecord(user, project, id string) (citationchecks.Record, error) {
+	return s.citationRecord(user, project, id)
+}
+func (s *Service) SaveCitationCheck(user, project, id, run string, check citationchecks.Check) error {
+	return s.saveCitationCheck(user, project, id, run, check)
+}
+func ConversationLock(user, id string) string { return conversationLock(user, id) }
+func RetainedProposalQuoteMatcher(ctx context.Context, run chat.Run, project string) func(knowledge.JudgmentEvidence, string) (bool, error) {
+	return retainedProposalQuoteMatcher(ctx, run, project)
 }

@@ -1,6 +1,6 @@
 # Connect an AI client
 
-For the integrated same-origin notebook assistant, see [private chat](chat.md). Optional [Jev judgments](jev.md) add evidence ranking, citation checks and notebook reviews; [Quicknotes](quicknotes.md) adds private capture and optional sorting. It uses your stable signed-in account directly; public MCP/OAuth setup below applies to external clients.
+For the integrated same-origin notebook assistant, see [private chat](chat.md). Optional [judgments](judgments.md) add evidence ranking, citation checks and notebook reviews; [Quicknotes](quicknotes.md) adds private capture and optional sorting. It uses your stable signed-in account directly; public MCP/OAuth setup below applies to external clients.
 
 MCP JSON uploads use the same finite encoded request budget as the API: the largest
 configured file, bundle or source limit, expanded for base64 with envelope space.

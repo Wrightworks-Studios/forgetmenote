@@ -852,7 +852,7 @@ func (m *Manager) refreshLoop(ctx context.Context, _ *pg.Lease) {
 					progressed = true
 				}
 			}
-			if err == nil && s.Connected && !s.Paused && s.IndexConfig.MapJev && s.IndexConfig.ExternalProcessing {
+			if err == nil && s.Connected && !s.Paused && s.IndexConfig.MapJudgments && s.IndexConfig.ExternalProcessing {
 				more, e := m.EnrichMapPending(ctx, p)
 				if e == nil && more {
 					progressed = true

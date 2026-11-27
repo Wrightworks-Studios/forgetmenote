@@ -168,7 +168,7 @@ func TestChatReviewToolDependencySurvivesReload(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err = f.app.executeChatTool(ctx, f.auth, f.conversation, f.run, call, f.connection); err != nil {
+			if err = f.app.chatrun.ExecuteChatTool(ctx, f.auth, f.conversation, f.run, call, f.connection); err != nil {
 				t.Fatal(err)
 			}
 			read := f.read(t)
@@ -273,7 +273,7 @@ func TestChatReviewAccumulatesOriginalSourcesAcrossParts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = f.app.executeChatTool(ctx, f.auth, f.conversation, f.run, call, f.connection); err != nil {
+	if err = f.app.chatrun.ExecuteChatTool(ctx, f.auth, f.conversation, f.run, call, f.connection); err != nil {
 		t.Fatal(err)
 	}
 	f.update(t, func(r *chat.Run) { chatrun.FinishReviewBatch(r, "First original passage reviewed.") })

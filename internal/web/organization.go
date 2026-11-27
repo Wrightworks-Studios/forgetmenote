@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 
+	"forgetmenote/internal/backups"
 	"forgetmenote/internal/branding"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/integrations"
@@ -17,7 +18,7 @@ import (
 var organizationActions = map[string]bool{
 	"set_assistant_responsibilities": true, "assistant_policy": true, "set_assistant_policy": true,
 	"provision_work_notebook": true,
-	"chat_clients":            true, "set_chat_clients": true,
+	"chat_clients":            true, "set_chat_clients": true, "chat_client_directory": true,
 	"ai_settings": true, "set_ai_settings": true,
 	"discover_automation_packages": true, "install_automation_package": true, "prepare_automation_package": true, "save_automation": true, "delete_automation": true, "validate_automation": true, "test_automation": true, "automation_run": true, "automation_status": true, "run_automation": true, "cancel_automation": true,
 	"data_connection_access": true, "set_data_connection_access": true, "bind_external_identity": true,
@@ -71,7 +72,14 @@ func (s *Server) organizationTools(server *mcp.Server) {
 		err := s.catalog.ProvisionWorkNotebook(subject(ctx), in.User, in.ID, in.Name)
 		return actionResult{err == nil}, err
 	})
-	s.messagingTools(server)
+	addManagementTool(s, server, "bind_external_identity", "Bind an external issuer/subject to an existing account as instance administrator. Never use an email match as proof of identity.", false, func(ctx context.Context, in struct {
+		Issuer  string `json:"issuer"`
+		Subject string `json:"subject"`
+		User    string `json:"user"`
+	}) (actionResult, error) {
+		err := s.catalog.BindExternalIdentity(subject(ctx), in.Issuer, in.Subject, in.User)
+		return actionResult{err == nil}, err
+	})
 	s.instanceAITools(server)
 	addManagementTool(s, server, "organization_status", "Inspect this instance's groups, invitations and administrative activity. Admin only; no secrets.", true, func(ctx context.Context, in struct{}) (map[string]any, error) {
 		org, err := s.catalog.Organization(subject(ctx))
@@ -85,7 +93,11 @@ func (s *Server) organizationTools(server *mcp.Server) {
 			mode = "proxy"
 		}
 		summary := s.InstanceSummary()
-		return map[string]any{"organization": org, "branding": currentBrand(s.catalog), "authentication": mode, "instance": summary, "omittedIntegrations": integrations.Omitted(),
+		gateways, err := s.gatewayModules(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"organization": org, "branding": currentBrand(s.catalog), "authentication": mode, "instance": summary, "omittedIntegrations": integrations.Omitted(), "modules": s.modules.States(), "gateways": gateways,
 			"headless": summary["headless"], "githubConfigured": summary["repositorySources"], "backupsConfigured": summary["managedBackups"], "chatConfigured": summary["chat"], "embeddingsConfigured": summary["embeddings"]}, nil
 	})
 	addManagementTool(s, server, "set_instance_name", "Set the instance display name. Admin only.", false, func(ctx context.Context, in struct {
@@ -219,22 +231,32 @@ func (s *Server) offboarding(actor, id string) (map[string]any, error) {
 	}
 	credentials := s.oauth.CredentialList(id, "")
 	connections := []map[string]any{}
+	// An offboarding report that omitted a connection would leave it running,
+	// or let it run again once its module is back on; with a module off, the
+	// connections stored while it ran are listed.
+	repositories := s.storedRepositories()
+	var stored map[string]backups.Binding
+	if s.backups == nil && !s.modules.Enabled("managed-backups") {
+		if stored, err = backups.Stored(context.Background(), s.db); err != nil {
+			return nil, err
+		}
+	}
 	for _, p := range s.catalog.List(actor) {
-		if s.repositories != nil {
-			state, e := s.repositories.Status(p.ID)
+		if repositories != nil {
+			state, e := repositories.Status(p.ID)
 			if e == nil && state.Actor == id && state.Connected {
 				connections = append(connections, map[string]any{"project": p.ID, "kind": "repository", "paused": state.Paused, "reauthorize": report.User.Disabled})
 			}
 		}
+		b, ok := stored[p.ID]
 		if s.backups != nil {
-			// An offboarding report that omitted a connection would leave it running.
-			b, e := s.backups.manager.Status(p.ID)
-			if e != nil {
-				return nil, e
+			if b, err = s.backups.manager.Status(p.ID); err != nil {
+				return nil, err
 			}
-			if b.Actor == id && b.Connected {
-				connections = append(connections, map[string]any{"project": p.ID, "kind": "backup", "paused": !b.Enabled, "reauthorize": report.User.Disabled || s.catalog.Epoch(id) != b.Epoch})
-			}
+			ok = true
+		}
+		if ok && b.Actor == id && b.Connected {
+			connections = append(connections, map[string]any{"project": p.ID, "kind": "backup", "paused": !b.Enabled, "reauthorize": report.User.Disabled || s.catalog.Epoch(id) != b.Epoch})
 		}
 	}
 	return map[string]any{"account": report, "credentials": credentials, "connections": connections}, nil
@@ -279,20 +301,22 @@ func (s *Server) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 	respond(w, map[string]string{"id": user}, err)
 }
 
-// Re-enabling an account never restarts a repository writer implicitly.
+// Re-enabling an account never restarts a repository writer implicitly, even
+// one stored while the repositories module is off.
 func (s *Server) updateUser(actor string, in catalog.UserUpdate) error {
 	old, err := s.catalog.UserInfo(actor, in.ID)
 	if err != nil && !s.catalog.IsAdmin(actor) {
 		return err
 	}
 	pause := func() error {
-		if s.repositories == nil {
+		repositories := s.storedRepositories()
+		if repositories == nil {
 			return nil
 		}
 		for _, p := range s.catalog.List(catalog.Bootstrap) {
-			state, e := s.repositories.Status(p.ID)
+			state, e := repositories.Status(p.ID)
 			if e == nil && state.Connected && state.Actor == in.ID && !state.Paused {
-				if _, e = s.repositories.Control(p.ID, catalog.Bootstrap, "pause"); e != nil {
+				if _, e = repositories.Control(p.ID, catalog.Bootstrap, "pause"); e != nil {
 					return e
 				}
 			}

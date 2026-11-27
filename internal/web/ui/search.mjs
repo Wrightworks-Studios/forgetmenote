@@ -44,6 +44,7 @@ export function initSearch({
   api,post,getContext,retrievalSettings,notice,
   onOpen,onClose,onVisibilityChange,onStateChange,renderCollections,
   openNote,openCitation,openTrash,openSource,setupFileActions,canEdit,canCreate,addSource,
+  sourcesOn=()=>true,repositoriesOn=()=>true,judgmentsOn=()=>true,
 }) {
   let searchOpen=false,searchCollection='',searchScroll=0;const requests=requestSequence();
   let searchController;
@@ -66,7 +67,7 @@ export function initSearch({
    $('search-projects').replaceChildren(...projects.map(notebook=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=notebook.id;input.checked=selected.size?selected.has(notebook.id):notebook.id===project.id;label.append(input,document.createTextNode(notebook.name));return label;}));
   }
   function syncMeaningControl(){const source=$("search-corpus").value!=="notes"||scopeInputs().some(o=>o.value!==getContext().project?.id);$("search-meaning").disabled=!source&&!noteMeaningAvailable;if($("search-meaning").disabled&&$("search-meaning").checked)$("search-all").checked=true;}
-  // rerank asks for one Jev ranking of this search. Only an explicit Enter
+  // rerank asks for one judgment ranking of this search. Only an explicit Enter
   // sends it; typing stays local, and the current results stay visible meanwhile.
   async function refreshList(query = "", reuseNavigation = false, {rerank = false} = {}) {
     const {project,user,collection}=getContext();
@@ -123,8 +124,8 @@ export function initSearch({
     const scope = $("search-scope").checked ? "history" : "current";
     const includeTrash = $("include-trash").checked;
     renderSearchOptions();
-    const ranking = rerank && searching && mode !== "text" && scope === "current";
-    $("search-status").textContent = ranking ? "Ranking with Jev…" : searching ? "Searching…" : "";
+    const ranking = rerank && judgmentsOn() && searching && mode !== "text" && scope === "current";
+    $("search-status").textContent = ranking ? "Ranking with judgments…" : searching ? "Searching…" : "";
     const tag = $("tag-filter").value, statusFilter = $("status-filter").value, path = $("folder-filter").value;
     const filteredQuery = new URLSearchParams({q:query, tag, status:statusFilter, path,...contentSelection});
     let allEntries, matches, collectionEntries, collectionCounts;
@@ -149,7 +150,7 @@ export function initSearch({
     const count=`${entries.length}${entries.length===50 ? "+" : ""}`;
     const routine=mode==="all" && /^Semantic search is off\.( Showing text matches\.)?$/.test(matches?.message||"");
     $("search-status").textContent = searching
-      ? [routine ? "" : matches.message, mode==="all" ? `${count} ${entries.length === 1 ? "result" : "results"}` : `${count} ${matches.mode==="meaning" ? "meaning" : "text"} ${entries.length === 1 ? "match" : "matches"}`, matches.reranked ? "Ranked by Jev" : matches.rerankAvailable && !ranking && mode !== "text" && entries.length > 1 ? "Press Enter to rank with Jev" : ""].filter(Boolean).join(" · ")
+      ? [routine ? "" : matches.message, mode==="all" ? `${count} ${entries.length === 1 ? "result" : "results"}` : `${count} ${matches.mode==="meaning" ? "meaning" : "text"} ${entries.length === 1 ? "match" : "matches"}`, matches.reranked ? "Ranked by judgments" : matches.rerankAvailable && !ranking && mode !== "text" && entries.length > 1 ? "Press Enter to rank with judgments" : ""].filter(Boolean).join(" · ")
       : scope === "history" ? "Enter a search to include previous versions." : "";
     const historicalFilters=matches?.filters;
     updateFilterOptions(historicalFilters ? [...historicalFilters.paths.map(path=>({path})),{path:"",metadata:{tags:historicalFilters.tags}},...historicalFilters.statuses.map(status=>({path:"",metadata:{status}}))] : (matches?.matches || matches || collectionEntries || allEntries));
@@ -203,7 +204,7 @@ export function initSearch({
           $("search-scope").onchange();
         };
         resultHost.append(previous);
-      } else if (!filtered && canEdit()) {
+      } else if (!filtered && canEdit() && sourcesOn()) {
         const source = document.createElement("button");
         source.id = "empty-source";
         source.className = "quiet";
@@ -354,7 +355,9 @@ export function initSearch({
     cancelSearch();hide();navigationEntries=null;navigationProject=null;
     $('search-all').checked=true;$('search-scope').checked=false;$('include-trash').checked=false;
     showSearchOptions(false);$('search-status').textContent='';
-    $('search-corpus').value=getContext().project?.kind==='repository'?'repository':'notes';$('search-projects').replaceChildren();
+    // Repository source is searchable only while the repositories module runs.
+    for(const option of $('search-corpus').options)if(option.value!=='notes'&&option.hidden===repositoriesOn())option.hidden=option.disabled=!repositoriesOn();
+    $('search-corpus').value=getContext().project?.kind==='repository'&&repositoriesOn()?'repository':'notes';$('search-projects').replaceChildren();
     $('search-projects-label').hidden=false;$('search').placeholder='Search your notes…';
     setCollection(collection);renderSearchOptions();
   }

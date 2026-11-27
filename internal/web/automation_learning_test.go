@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
 	"net/http"
@@ -33,16 +34,20 @@ func TestLearningCapturesInteractiveChatButNotBackgroundCalls(t *testing.T) {
 	app.messageClients["slack"] = transport
 	for _, id := range []string{"one", "two"} {
 		r := automation.Run{ID: automation.Hash(id), Spec: automation.Spec{ID: "chat-" + id, Kind: "assistant", Project: "default", Actor: "alice", AIConnection: "local", Model: "synthetic", Connections: []string{"db"}, ExternalProcessing: true, Instruction: "Count matching examples.", Delivery: &automation.Delivery{Client: "slack", Workspace: "T123", Channel: "C123", Thread: "thread", User: "U123"}}}
-		if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// The same read-only data boundary is used by scheduled checks; those must not
 	// feed their synthetic usage back into profile learning.
-	background := automation.Spec{ID: "check", Kind: "checks", Actor: "alice", Project: "default", Connections: []string{"db"}, Calls: []automation.Call{{Connection: "db", Operation: "query", Arguments: map[string]any{"sql": "select count(*) from examples where id = 7"}}}}
+	query := automation.Call{Connection: "db", Operation: "query", Arguments: map[string]any{"sql": "select count(*) from examples where id = 7"}}
+	background := automation.Spec{ID: "check", Kind: "checks", Actor: "alice", Project: "default", Connections: []string{"db"}, Checks: []automation.Check{{Name: "count", Call: query, Assertions: []automation.Assertion{{Pointer: "/rows/0/0", Equals: json.RawMessage(`15`)}}}}}
 	r := automation.Run{ID: automation.Hash("background"), Spec: background}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal(err)
+	}
+	if len(r.Receipts) != 1 || r.CheckReport == nil || r.CheckReport.State != "healthy" {
+		t.Fatalf("background check did not call the data connection: %d receipts, %+v", len(r.Receipts), r.CheckReport)
 	}
 	runs, err := app.automations.Queue.List()
 	if err != nil || len(runs) != 1 || runs[0].Learning == nil || len(runs[0].Learning.Events) != 2 {
@@ -139,7 +144,7 @@ func TestLearningPublishesOnlyReplayValidatedProfiles(t *testing.T) {
 				t.Fatal(runs, err)
 			}
 			run := runs[0]
-			err = app.runAutomation(context.Background(), &run, func() error { return nil })
+			err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil })
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -157,7 +162,7 @@ func TestLearningPublishesOnlyReplayValidatedProfiles(t *testing.T) {
 			}
 			if !wrong {
 				first, _ := store.Status(context.Background())
-				if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil {
+				if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 					t.Fatal(err)
 				}
 				after, _ := store.Status(context.Background())
@@ -194,7 +199,7 @@ func TestLearningReplayUsesNewestSuccessfulSchema(t *testing.T) {
 		{ID: "old", At: now.Add(-time.Hour), Complete: true, Outcome: "succeeded", Call: automation.Call{SchemaHash: "v1"}},
 		{ID: "new2", At: now.Add(time.Second), Complete: true, Outcome: "succeeded", Call: automation.Call{SchemaHash: "v2"}},
 	}
-	got := learningExamples(events)
+	got := automationrun.LearningExamples(events)
 	if len(got) != 2 || got[0].ID != "new1" || got[1].ID != "new2" {
 		t.Fatal("stale schema entered the reference replay", got)
 	}
@@ -202,7 +207,7 @@ func TestLearningReplayUsesNewestSuccessfulSchema(t *testing.T) {
 
 func TestLearningPreservesOriginalFrontmatterBytes(t *testing.T) {
 	for _, header := range []string{"---\r\ntags: [recipe]\r\ncustom: retained\r\n---\r\n", "---\ntags: [recipe]\ncustom: retained\n---"} {
-		content, err := learningContent([]byte(header), learningCandidate{Content: "# Updated guidance"}, learnedProfile{})
+		content, err := automationrun.LearningContent([]byte(header), automationrun.LearningCandidate{Content: "# Updated guidance"}, automationrun.LearnedProfile{})
 		if err != nil || !strings.HasPrefix(content, header+"\n") {
 			t.Fatalf("frontmatter was replaced: %q (%v)", content, err)
 		}

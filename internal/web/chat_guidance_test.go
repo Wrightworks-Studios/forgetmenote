@@ -7,6 +7,7 @@ import (
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/pg"
 	"forgetmenote/internal/workspace"
 	"forgetmenote/internal/workspace/workspacetest"
 	"net/http"
@@ -252,7 +253,7 @@ func TestChatGuidancePreservesPermissionErrors(t *testing.T) {
 // reading committed guidance needs.
 func guidanceEngine(t *testing.T) *chatrun.Service {
 	t.Helper()
-	engine, err := chatrun.New(new(catalog.Catalog), (&Server{}).chatRunHooks())
+	engine, err := chatrun.New(new(catalog.Catalog), new(pg.DB), (&Server{}).chatRunHooks())
 	if err != nil {
 		t.Fatal(err)
 	}

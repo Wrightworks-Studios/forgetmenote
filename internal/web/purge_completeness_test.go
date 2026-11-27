@@ -87,7 +87,7 @@ func unitVector(i int) []float32 {
 
 // The purge completeness test for what lies outside the notebook: a secret
 // in notes, quoted by a private chat transcript, a Knowledge proposal, a
-// consumer checkpoint and Jev records, indexed as current and historical
+// consumer checkpoint and judgment records, indexed as current and historical
 // passages with semantic vectors and in the note map, is purged by
 // redaction through the browser route; then no row of any
 // table, no file of the data directory and no object of the Git export
@@ -140,7 +140,7 @@ func TestPurgeLeavesNoDerivedCopyOfARedactedSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 	release()
-	// A private chat transcript and Jev records that quote it.
+	// A private chat transcript and judgment records that quote it.
 	conversation, err := app.chat.Store.Create("admin", "default", chat.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -154,13 +154,13 @@ func TestPurgeLeavesNoDerivedCopyOfARedactedSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 	job := strings.Repeat("a", 64)
-	if err := app.jev.Records().Write("jobs/"+job+".json", map[string]any{"version": 2, "project": "default", "message": "Checked " + secret}); err != nil {
+	if err := app.judgments.Records().Write("jobs/"+job+".json", map[string]any{"version": 2, "project": "default", "message": "Checked " + secret}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jev.Records().Write("results/"+job+"-0001.json", map[string]any{"quote": secret}); err != nil {
+	if err := app.judgments.Records().Write("results/"+job+"-0001.json", map[string]any{"quote": secret}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jev.Records().Write("jobs/"+strings.Repeat("b", 64)+".json", map[string]any{"version": 2, "project": "elsewhere", "message": "Not this notebook"}); err != nil {
+	if err := app.judgments.Records().Write("jobs/"+strings.Repeat("b", 64)+".json", map[string]any{"version": 2, "project": "elsewhere", "message": "Not this notebook"}); err != nil {
 		t.Fatal(err)
 	}
 	// A private chat of another notebook that drew on this one.
@@ -195,14 +195,14 @@ func TestPurgeLeavesNoDerivedCopyOfARedactedSecret(t *testing.T) {
 	}
 
 	plan := preparePurgeHTTP(t, app, workspace.PurgeScope{Kind: workspace.PurgeText, Text: secret})
-	if plan.Derived.Chats != 2 || plan.Derived.JevRecords != 2 || plan.Derived.Proposals != 2 {
+	if plan.Derived.Chats != 2 || plan.Derived.JudgmentRecords != 2 || plan.Derived.Proposals != 2 {
 		t.Fatalf("the plan counts what quoted the text: %+v", plan.Derived)
 	}
 	code, receipt, body := executePurgeHTTP(app, plan, "Leaked staging key")
 	if code != 200 || len(receipt.Warnings) > 0 {
 		t.Fatalf("execute: HTTP %d %s", code, body)
 	}
-	if receipt.Derived.Chats != 2 || receipt.Derived.JevRecords != 2 || receipt.Derived.Proposals != 1 || receipt.Derived.Checkpoints != 1 || receipt.Derived.Vectors != before {
+	if receipt.Derived.Chats != 2 || receipt.Derived.JudgmentRecords != 2 || receipt.Derived.Proposals != 1 || receipt.Derived.Checkpoints != 1 || receipt.Derived.Vectors != before {
 		t.Fatalf("derived: %+v (vectors before %d)", receipt.Derived, before)
 	}
 
@@ -274,8 +274,8 @@ func TestPurgeLeavesNoDerivedCopyOfARedactedSecret(t *testing.T) {
 		t.Fatalf("the checkpoint after the purge: %+v", checkpoints)
 	}
 	var other map[string]any
-	if err := app.jev.Records().Read("jobs/"+strings.Repeat("b", 64)+".json", &other); err != nil || other["message"] != "Not this notebook" {
-		t.Fatalf("another notebook's Jev record changed: %v %v", other, err)
+	if err := app.judgments.Records().Read("jobs/"+strings.Repeat("b", 64)+".json", &other); err != nil || other["message"] != "Not this notebook" {
+		t.Fatalf("another notebook's judgment record changed: %v %v", other, err)
 	}
 	// The index is derived again from the purged notebook.
 	pending, err := engine.Pending(ctx, 64)

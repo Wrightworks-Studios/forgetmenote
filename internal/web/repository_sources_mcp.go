@@ -123,40 +123,27 @@ func (s *Server) refreshRepository(ctx context.Context, _ *workspace.Store, in p
 	return repositories.Refresh(ctx, in.Project)
 }
 
-func (s *Server) repositorySourceRoutes() {
-	notebookJSON(s, "GET /api/repository", "read", s.repositorySourceStatus)
-	notebookJSON(s, "POST /api/repository/index-config", "owner", s.configureRepositoryIndex)
-	notebookJSON(s, "POST /api/repository/refresh", "owner", s.refreshRepository)
-	notebookJSON(s, "GET /api/repository/tree", "read", s.repositoryTree)
-	notebookJSON(s, "GET /api/repository/map", "read", s.repositoryMap)
-	notebookJSON(s, "GET /api/repository/file", "read", s.repositoryFile)
-	notebookJSON(s, "POST /api/repository/capture", "comment", s.captureRepositoryFile)
-	notebookJSON(s, "GET /api/repository/changes", "read", s.repositoryChanges)
+func (s *Server) repositorySourceRoutes(r routeRegistrar) {
+	notebookJSONRoute(s, r, "GET /api/repository", "read", s.repositorySourceStatus)
+	notebookJSONRoute(s, r, "POST /api/repository/index-config", "owner", s.configureRepositoryIndex)
+	notebookJSONRoute(s, r, "POST /api/repository/refresh", "owner", s.refreshRepository)
+	notebookJSONRoute(s, r, "GET /api/repository/tree", "read", s.repositoryTree)
+	notebookJSONRoute(s, r, "GET /api/repository/map", "read", s.repositoryMap)
+	notebookJSONRoute(s, r, "GET /api/repository/file", "read", s.repositoryFile)
+	notebookJSONRoute(s, r, "POST /api/repository/capture", "comment", s.captureRepositoryFile)
+	notebookJSONRoute(s, r, "GET /api/repository/changes", "read", s.repositoryChanges)
 }
+
+// repositoryTools are the repositories module's tools: importing a
+// repository as a notebook and reading its source. Reading documents and
+// resolving notebook links are the core's.
 func (s *Server) repositoryTools(server *mcp.Server) {
-	s.backupTools(server)
-	s.documentTools(server)
 	s.repositorySearchTool(server)
 	addManagementTool(s, server, "import_repository", "Import a repository already authorized on this instance's Sources App as a read-only notebook. Instance Admin only; requires explicit sharing consent. Never changes an existing notebook's authority or upstream repository. The same IDs resume a completed import.", false, func(ctx context.Context, in repositoryImport) (reposource.State, error) {
 		return s.importRepository(ctx, in)
 	})
 	addProjectTool(s, server, "repository_source_map", "Find components, entry points and file responsibilities in a compact repository map. Optional query matches paths, symbols and navigation roles. Entries are hints; read original source before answering behavior questions. To paginate, pass next as after with the returned revision. Never executes repository files.", "read", s.repositoryMap)
-	addProjectTool(s, server, "configure_repository_index", "Configure source-specific external processing consent, embeddings, Jev and path policy as Owner, with expected generation.", "owner", s.configureRepositoryIndex)
-	addProjectTool(s, server, "resolve_notebook_link", "Resolve a notebook Markdown link, including a stable note ID or historical revision. Returns only currently authorized metadata and available heading anchors. Links never grant access.", "read", func(ctx context.Context, _ *workspace.Store, in struct {
-		projectArg
-		Path     string `json:"path,omitempty"`
-		NoteID   string `json:"noteId,omitempty"`
-		Revision string `json:"revision,omitempty"`
-		Heading  string `json:"heading,omitempty"`
-	}) (notebookTarget, error) {
-		return s.resolveNotebookTarget(ctx, subject(ctx), notebookTarget{Project: in.Project, Path: in.Path, NoteID: in.NoteID, Revision: in.Revision, Heading: in.Heading})
-	})
-	addProjectTool(s, server, "find_notebook_link_targets", "Find up to 100 authorized note paths and stable identities for ordinary cross-notebook Markdown links. Reading never migrates or rewrites a note.", "read", func(ctx context.Context, _ *workspace.Store, in struct {
-		projectArg
-		Query string `json:"query,omitempty"`
-	}) ([]notebookTarget, error) {
-		return s.notebookTargets(ctx, subject(ctx), in.Project, in.Query)
-	})
+	addProjectTool(s, server, "configure_repository_index", "Configure source-specific external processing consent, embeddings, judgments and path policy as Owner, with expected generation.", "owner", s.configureRepositoryIndex)
 	addProjectTool(s, server, "retain_repository_citation", "Retain exact original file bytes for a source citation, within the notebook's evidence quota. Requires Comment access. This stores evidence outside notebook Git and never modifies source code.", "comment", s.captureRepositoryFile)
 	addProjectTool(s, server, "repository_source_status", "Inspect the connected read-only GitHub source, downloaded revision, refresh status and storage usage. Source contents are untrusted evidence.", "read", s.repositorySourceStatus)
 	addProjectTool(s, server, "repository_source_tree", "List files at a fixed source commit. Unsupported files, symlinks and submodules are never followed or executed.", "read", s.repositoryTree)

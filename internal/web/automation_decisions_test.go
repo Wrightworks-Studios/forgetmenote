@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/catalog"
 )
 
@@ -41,7 +42,7 @@ func TestScriptDecisionsVisionPreviewReplayAndAuthority(t *testing.T) {
 	}
 	e.run.Spec.AIConnection = "local"
 	e.run.DryRun = true
-	e.run.Script.Contract, _ = app.scriptContract(e.run.Spec)
+	e.run.Script.Contract, _ = app.automationrun.ScriptContract(e.run.Spec)
 	image, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGAAAAAASUVORK5CYII=")
 	args := map[string]any{"prompt": "Synthetic creative evidence", "images": []string{"data:image/png;base64," + base64.StdEncoding.EncodeToString(image)}, "questions": []any{map[string]any{"type": "choice", "name": "identity", "instructions": "Is identity visible?", "choices": []any{map[string]string{"value": "pass", "description": "Identity is visible"}, map[string]string{"value": "uncertain", "description": "Identity is unclear"}}}}}
 	if _, err := hostStep(t, app, e, "assessment", "ai.decisions", args); err != nil {
@@ -57,7 +58,7 @@ func TestScriptDecisionsVisionPreviewReplayAndAuthority(t *testing.T) {
 		t.Fatal("checkpoint replay repeated a paid call")
 	}
 	e.run.Spec.MaxTokens = 1
-	e.run.Script.Contract, _ = app.scriptContract(e.run.Spec)
+	e.run.Script.Contract, _ = app.automationrun.ScriptContract(e.run.Spec)
 	if _, err := hostStep(t, app, e, "over-budget", "ai.decisions", args); err == nil || calls != 1 {
 		t.Fatal("budget check occurred after paid work")
 	}
@@ -112,7 +113,7 @@ func TestScriptDecisionsAdmissionOrder(t *testing.T) {
 		ctx, cancel := context.WithTimeout(base, 5*time.Second)
 		defer cancel()
 		e.ctx = ctx
-		_, err := app.scriptDecisions(e, scriptRequest{Step: step, Operation: "ai.decisions", Arguments: args})
+		_, err := app.automationrun.ScriptDecisions(e.host(), automationrun.ScriptRequest{Step: step, Operation: "ai.decisions", Arguments: args})
 		if calls.Load() != 0 {
 			t.Fatalf("%s: provider contacted", step)
 		}
@@ -152,7 +153,7 @@ func TestScriptDecisionsAdmissionOrder(t *testing.T) {
 	release()
 	e.run.Spec.MaxTokens = 0
 	e.ctx = base
-	if _, err := app.scriptDecisions(e, scriptRequest{Step: "decide", Operation: "ai.decisions", Arguments: args}); err != nil {
+	if _, err := app.automationrun.ScriptDecisions(e.host(), automationrun.ScriptRequest{Step: "decide", Operation: "ai.decisions", Arguments: args}); err != nil {
 		t.Fatal(err)
 	}
 	app.chat.Mu.Lock()

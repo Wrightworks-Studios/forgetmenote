@@ -10,8 +10,14 @@ import (
 )
 
 // initPersonal starts the personal assistant worker with personalHooks. It
-// runs after automations and messaging, which the worker uses directly.
+// runs after automations and messaging, which the worker uses directly. An
+// instance that turns personal assistants off has no worker: no personal run
+// is scheduled or claimed (automationPolicy), and what assistants stored stays
+// in their notebooks and run state.
 func (s *Server) initPersonal() error {
+	if !s.modules.Enabled("personal") {
+		return nil
+	}
 	var err error
 	s.personal, err = personal.New(s.catalog, s.automations, s.messaging, s.personalHooks())
 	return err
@@ -19,7 +25,7 @@ func (s *Server) initPersonal() error {
 
 // personalHooks binds the worker to this instance's consent and access checks
 // (personal_access.go, personal_ui.go, credentials.go), its automation runs,
-// Jev, and its connections and Slack app. Connections, the origin and the
+// judgments, and its connections and Slack app. Connections, the origin and the
 // Slack app are read at each call, since web replaces them after startup.
 func (s *Server) personalHooks() personal.Hooks {
 	return personal.Hooks{
@@ -35,11 +41,11 @@ func (s *Server) personalHooks() personal.Hooks {
 		MailboxDraft:        s.personalMailboxDraft,
 		CheckAutomationAuth: s.checkAutomationAuth,
 		AutomationAnswer: func(ctx context.Context, r *automation.Run, prompt string, tools bool) (string, error) {
-			return s.automationAnswer(ctx, r, prompt, tools)
+			return s.automationrun.Answer(ctx, r, prompt, tools)
 		},
 		CheckAutomationEvidence: s.checkAutomationEvidence,
-		AutomationCall:          s.automationCall,
-		JevConfigured:           s.jevConfigured,
+		AutomationCall:          s.automationrun.Call,
+		JudgmentsConfigured:     s.judgmentsConfigured,
 		PersonalConnections:     func() *connectors.PersonalConnections { return s.personalConnections },
 		DataConnections:         func() *connectors.Manager { return s.dataConnections },
 		Origin:                  func() string { return s.origin },

@@ -303,7 +303,7 @@ func (s *Authority) abort(ctx context.Context, p catalog.AuthorityTransfer, stor
 func (s *Authority) Recover(ctx context.Context, managers Managers) error {
 	for _, p := range s.catalog.PendingAuthorities() {
 		if managers.Repositories == nil || p.BackupGeneration > 0 && managers.Backups == nil {
-			return fmt.Errorf("notebook %s: restore Sources/Backups configuration before authority recovery", p.Project)
+			return fmt.Errorf("notebook %s: restore Sources/Backups configuration, with the repositories and managed-backups modules on, before authority recovery", p.Project)
 		}
 		if err := s.recover(ctx, p, managers); err != nil {
 			return fmt.Errorf("notebook %s authority recovery: %w", p.Project, err)

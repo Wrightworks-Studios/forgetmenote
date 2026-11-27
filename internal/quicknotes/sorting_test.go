@@ -95,7 +95,7 @@ func waitCapture(t *testing.T, s *Service, id, status string) Capture {
 	t.Fatalf("capture did not reach %s: status=%s routing=%s error=%q read_error=%v", status, latest.Status, latest.RoutingState, latest.Error, err)
 	return Capture{}
 }
-func TestSuggestSavesBeforeBlockedJevAndRequiresAcceptance(t *testing.T) {
+func TestSuggestSavesBeforeBlockedJudgmentAndRequiresAcceptance(t *testing.T) {
 	s, c, _ := fixture(t)
 	routeTarget(t, c)
 	called := make(chan struct{}, 1)
@@ -111,7 +111,7 @@ func TestSuggestSavesBeforeBlockedJevAndRequiresAcceptance(t *testing.T) {
 		case <-r.Context().Done():
 		}
 	})
-	s.ConfigureJev(judge, false)
+	s.ConfigureJudgments(judge, false)
 	settings, _ := s.Settings("alice")
 	settings.CloudConsent = true
 	if _, err := s.UpdateSettings("alice", settings); err != nil {
@@ -158,7 +158,7 @@ func TestStaleCloudResultCannotFileNewerCapture(t *testing.T) {
 		case <-r.Context().Done():
 		}
 	})
-	s.ConfigureJev(judge, false)
+	s.ConfigureJudgments(judge, false)
 	available, _ := s.Destinations(context.Background(), "alice")
 	settings, _ := s.Settings("alice")
 	settings.Mode = "automatic"
@@ -204,7 +204,7 @@ func TestAutomaticApprovedDestinationAndLocalOnly(t *testing.T) {
 	routeTarget(t, c)
 	var calls atomic.Int32
 	judge := testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_000") })
-	s.ConfigureJev(judge, true)
+	s.ConfigureJudgments(judge, true)
 	available, _ := s.Destinations(context.Background(), "alice")
 	settings, _ := s.Settings("alice")
 	settings.Mode = "automatic"
@@ -223,7 +223,7 @@ func TestAutomaticApprovedDestinationAndLocalOnly(t *testing.T) {
 	if calls.Load() != 0 {
 		t.Fatal("local-only sent capture")
 	}
-	s.ConfigureJev(judge, false)
+	s.ConfigureJudgments(judge, false)
 	filed := waitCapture(t, s, saved.ID, "filed")
 	if !filed.CanUndo || filed.Project != "target" || calls.Load() != 1 {
 		t.Fatal("automatic approved filing", filed, calls.Load())
@@ -257,7 +257,7 @@ func TestExplicitRetryAfterProviderFailureUsesNewRecordedOperation(t *testing.T)
 		}
 		routeReply(w, r, "destination_000")
 	})
-	s.ConfigureJev(judge, false)
+	s.ConfigureJudgments(judge, false)
 	settings, _ := s.Settings("alice")
 	settings.CloudConsent = true
 	if _, err := s.UpdateSettings("alice", settings); err != nil {

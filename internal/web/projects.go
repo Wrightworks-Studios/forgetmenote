@@ -62,7 +62,7 @@ func (s *Server) selectProject(w http.ResponseWriter, r *http.Request, target re
 			http.NotFound(w, r)
 			return false
 		}
-		if target.path == "/api/chat/connections" || target.path == "/api/jev/settings" {
+		if target.path == "/api/chat/connections" || target.path == "/api/judgments/settings" || target.path == "/api/jev/settings" {
 			return true
 		}
 		if _, pattern := s.routes.Mux.Handler(r); pattern != "" {
@@ -98,7 +98,7 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	jsonResponse(w, map[string]any{"id": subject(r.Context()), "displayName": name, "username": s.catalog.LocalUsername(subject(r.Context())), "admin": s.catalog.IsAdmin(subject(r.Context())), "canCreateProjects": s.catalog.CanCreateProjects(subject(r.Context())), "sso": s.proxy != nil, "passwordAvailable": s.localPasswords(), "setupAvailable": s.setupAvailable(r)})
+	jsonResponse(w, map[string]any{"id": subject(r.Context()), "displayName": name, "username": s.catalog.LocalUsername(subject(r.Context())), "admin": s.catalog.IsAdmin(subject(r.Context())), "canCreateProjects": s.catalog.CanCreateProjects(subject(r.Context())), "sso": s.proxy != nil, "passwordAvailable": s.localPasswords(), "setupAvailable": s.setupAvailable(r), "modulesOff": s.modulesOff()})
 }
 func (s *Server) projects(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, s.catalog.List(subject(r.Context())))

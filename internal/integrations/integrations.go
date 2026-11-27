@@ -21,8 +21,6 @@ var all = []Integration{
 	{Name: "postgres", Title: "PostgreSQL data connections"},
 	{Name: "redshift", Title: "Amazon Redshift data connections"},
 	{Name: "outlook", Title: "Outlook message sources (.msg)"},
-	{Name: "iwork", Title: "Pages and Keynote sources (.pages, .key)"},
-	{Name: "ocr", Title: "Tesseract OCR of images and scanned PDF pages"},
 	{Name: "slack", Title: "Slack workspace app and personal Slack connections"},
 }
 
