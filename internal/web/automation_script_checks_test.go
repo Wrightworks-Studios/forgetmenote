@@ -60,8 +60,72 @@ func TestScriptPaidSearchFollowsInstanceAIPolicy(t *testing.T) {
 	if n := searches.Load(); n != 1 {
 		t.Fatalf("the search provider was contacted again with instance AI writing off: %d searches", n)
 	}
-	if step := e.run.Script.Steps["refused"]; step == nil || step.State != "failed" {
-		t.Fatalf("refused search step: %+v", step)
+	if step := e.run.Script.Steps["refused"]; step != nil {
+		t.Fatalf("the refused search was recorded as a paid step: %+v", step)
+	}
+}
+
+// A search refused before the provider is contacted bought nothing, so it
+// leaves no paid step with an unknown outcome: a later write in the same run
+// proceeds, and the run has nothing to reconcile.
+func TestScriptSearchRefusedBeforeTheProviderIsNotAPaidStep(t *testing.T) {
+	for _, refusal := range []string{"instance-ai", "research-off", "search-budget", "result-budget", "token-budget"} {
+		t.Run(refusal, func(t *testing.T) {
+			app, e := scriptFixture(t, "def main(host): return {}", []string{"web.search", "notebooks.publish"}, nil, map[string]string{"notes": "edit"})
+			var searches atomic.Int32
+			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				searches.Add(1)
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]any{"status": "completed", "output": []any{
+					map[string]any{"type": "web_search_call", "status": "completed", "action": map[string]any{"type": "search", "query": "fixture", "sources": []any{map[string]string{"type": "url", "url": "https://example.org/original"}}}},
+					map[string]any{"type": "message", "role": "assistant", "content": []any{map[string]string{"type": "output_text", "text": "One source."}}},
+				}, "usage": map[string]int{"input_tokens": 100, "output_tokens": 10}})
+			}))
+			defer provider.Close()
+			cfg := map[string]any{"defaultConnection": "local", "connections": []any{map[string]any{"id": "local", "label": "Fixture", "format": "responses", "baseURL": provider.URL, "models": []string{"gpt-6-luna"}, "defaultModel": "gpt-6-luna", "local": true, "limits": map[string]int{"contextTokens": 65536}}}, "research": map[string]any{"enabled": true, "format": "openai", "connection": "local", "maxSearches": 1, "maxFetches": 4}}
+			if refusal == "research-off" {
+				delete(cfg, "research")
+			}
+			raw, _ := json.Marshal(cfg)
+			file := filepath.Join(t.TempDir(), "chat.json")
+			if err := os.WriteFile(file, raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := app.ConfigureChat(file); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := app.catalog.SetAISettings(catalog.Bootstrap, catalog.AISettings{Writing: refusal != "instance-ai"}); err != nil {
+				t.Fatal(err)
+			}
+			search := map[string]any{"query": "fixture original", "limit": 1}
+			bought := int32(0)
+			switch refusal {
+			case "search-budget":
+				if _, err := hostStep(t, app, e, "first", "web.search", search); err != nil {
+					t.Fatal(err)
+				}
+				bought = 1
+			case "result-budget":
+				search["limit"] = 5
+			case "token-budget":
+				e.run.Spec.MaxTokens = 1
+				e.run.Script.Contract, _ = app.automationrun.ScriptContract(e.run.Spec)
+			}
+			if _, err := hostStep(t, app, e, "refused", "web.search", search); err == nil {
+				t.Fatal("the search was not refused")
+			} else if refusal == "instance-ai" && !errors.Is(err, errInstanceAI) {
+				t.Fatalf("search with instance AI writing off: %v", err)
+			}
+			if n := searches.Load(); n != bought {
+				t.Fatalf("the refused search contacted the provider: %d searches, want %d", n, bought)
+			}
+			if _, err := hostStep(t, app, e, "publish", "notebooks.publish", map[string]any{"notebook": "notes", "path": "after-refusal.md", "content": "# After\n", "revision": ""}); err != nil {
+				t.Fatalf("a write after the refused search: %v", err)
+			}
+			if e.run.Script.Uncertain() {
+				t.Fatalf("the run has an unknown paid outcome to reconcile: %+v", e.run.Script.Steps["refused"])
+			}
+		})
 	}
 }
 
