@@ -46,7 +46,7 @@ func TestSourceJobMovesBetweenGatewaysThroughBlobStorage(t *testing.T) {
 			store := open(t)
 			db, leave := pgtest.Gateway(t, app.db)
 			firstData := t.TempDir()
-			first, err := NewWithBlobs(app.catalog, db, store, firstData, app.origin, app.token)
+			first, err := NewWithBlobs(app.catalog, db, store, app.modules, firstData, app.origin, app.token)
 			if err != nil {
 				t.Fatal(err)
 			}

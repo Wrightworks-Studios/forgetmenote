@@ -1,6 +1,9 @@
 import {$,busy} from './dom.mjs';
 import {feedback} from './feedback.mjs';
+import {moduleOn} from './state.mjs';
 const features = ['embeddings','mapClassification','rerank','citations','reviews','writing'];
+// The feature module an AI feature needs; with it off the feature says so.
+const needs = {mapClassification:'judgments',rerank:'judgments',citations:'judgments',reviews:'judgments'};
 
 // A disabled feature says why next to its label.
 function hint(input,text) {
@@ -19,9 +22,10 @@ export function initAISettings({post,getUser,getActive}) {
   $('instance-ai-providers').textContent=`Embeddings: ${providers.embeddings?'connected':'not configured'} · Decisions: ${providers.decisions?'connected':'not configured'}`;
   for(const feature of features) {
    const input=$('instance-ai-'+feature);input.checked=!!config[feature];
-   const unavailable=feature==='embeddings'?!providers.embeddings:feature==='writing'?false:!providers.decisions||providers.localOnly;
+   const off=!!needs[feature]&&!moduleOn(getUser(),needs[feature]);
+   const unavailable=off||(feature==='embeddings'?!providers.embeddings:feature==='writing'?false:!providers.decisions||providers.localOnly);
    input.disabled=unavailable&&!input.checked;
-   hint(input,input.disabled?feature==='embeddings'?'Requires a configured embeddings provider.':providers.localOnly&&providers.decisions?'Unavailable while AI is limited to local processing.':'Requires a configured decision provider.':'');
+   hint(input,off?`The ${needs[feature]} module is turned off on this instance.`:input.disabled?feature==='embeddings'?'Requires a configured embeddings provider.':providers.localOnly&&providers.decisions?'Unavailable while AI is limited to local processing.':'Requires a configured decision provider.':'');
   }
   $('instance-ai-model').value=config.model||'';$('instance-ai-dimensions').value=config.dimensions||1536;
   $('instance-ai-rebuild').checked=false;

@@ -98,6 +98,17 @@ test('source audit details stay collapsed while warnings and verification proble
  response=new Error('offline');await sources.render(note);nodes=all(panel);
  assert.match(panel.children[0].textContent,/Verification unavailable/);
  assert.ok(nodes.some(n=>n.role==='status' && !n.hidden && /Could not verify/.test(n.textContent)));
+ response={originalState:'Original checksum matches', originalStatus: 'match',textState:'Extracted text checksum matches', textStatus: 'match'};
+ await sources.render({...note,editable:true});nodes=all(panel);
+ assert.ok(nodes.some(n=>n.textContent==='Update source'));
+ // Without the sources module the note keeps its provenance and original,
+ // and is neither updated nor verified.
+ let verified=0;const off=initSources({api:async()=>{verified++;return response;},getProject:()=>({id:'test'}),available:()=>false});
+ await off.render({...note,editable:true});nodes=all(panel);
+ assert.equal(verified,0);
+ assert.ok(nodes.some(n=>n.textContent==='The sources module is turned off on this instance, so this capture is not verified.'));
+ assert.equal(nodes.some(n=>n.textContent==='Update source'),false);
+ assert.ok(nodes.some(n=>n.textContent==='Download original'));
  }finally{Object.assign(globalThis,old);}
 });
 

@@ -2,6 +2,7 @@ import {element as node,button as control,busy} from './dom.mjs';
 import {feedback} from './feedback.mjs';
 import {request} from './request.mjs';
 import {checkList,choiceSelect,chooseOption,notebookChoices} from './pickers.mjs';
+import {moduleOn} from './state.mjs';
 
 const button=(text,action)=>control(text,action,{class:'quiet'});
 
@@ -11,7 +12,7 @@ export function initChatClients({post,getUser,getActive}) {
   const active=getActive(),current=++version;root.replaceChildren(node('p','Loading chat clients…'));
   try{
    // Slack channel and user IDs stay typed: the server has no listing of them.
-   const [data,directory,available]=await Promise.all([post('/api/organization/action/chat_clients',{}),request('/api/admin'),post('/integrations/actions/list_data_connections',{})]);
+   const [data,directory,available]=await Promise.all([post('/api/organization/action/chat_clients',{}),request('/api/admin'),moduleOn(getUser(),'data-connections')?post('/integrations/actions/list_data_connections',{}):[]]);
    if(current!==version||!getUser()?.admin||!active())return;
    const accounts=directory.users.filter(u=>!u.disabled&&!u.id.startsWith('@')).map(u=>[u.id,u.displayName||directory.usernames?.[u.id]||u.id,u.kind]);
    const people=accounts.filter(([,,kind])=>kind!=='service').map(([id,name])=>[id,name]),members=accounts.map(([id,name,kind])=>[id,kind==='service'?name+' (service account)':name]);

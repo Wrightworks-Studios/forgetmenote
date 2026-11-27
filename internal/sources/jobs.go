@@ -201,6 +201,57 @@ func OpenJobs(db *pg.DB, blobs blob.Store, data string, authorize func(context.C
 	return m, nil
 }
 
+// RetireJobs is for an instance that runs no source work, in place of
+// OpenJobs. Opening would interrupt a job younger than its 24-hour limit and
+// leave it for an explicit resume, which nothing there can make; so instead
+// every job whose gateway is gone, however young, is removed with its files
+// at once, as is the gateway's conversion scratch. A job another live gateway
+// holds is that gateway's to finish or expire.
+func RetireJobs(db *pg.DB, blobs blob.Store, data string) error {
+	if blobs == nil {
+		return errors.New("source jobs require blob storage")
+	}
+	scratch := filepath.Join(data, "cache", jobsDir)
+	if err := os.RemoveAll(scratch); err != nil {
+		return err
+	}
+	if err := removeReleaseLeftovers(filepath.Join(data, jobsDir)); err != nil {
+		return err
+	}
+	m := &Jobs{db: db, blobs: blobs, scratch: scratch}
+	err := m.locked(func(ctx context.Context, tx pgx.Tx) error {
+		jobs, err := m.list(ctx, tx)
+		if err != nil {
+			return err
+		}
+		for _, job := range jobs {
+			if job.Holder != db.Holder && !time.Now().After(job.Expires) {
+				if gone, err := db.Gone(ctx, tx, job.Holder); err != nil || !gone {
+					if err != nil {
+						return err
+					}
+					continue
+				}
+			}
+			if err := m.deleteRow(ctx, tx, job.ID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	// Blob storage that is unreachable now does not stop the gateway; the
+	// next startup sweeps again.
+	ctx, cancel := blobContext(context.Background())
+	defer cancel()
+	if err = m.sweep(ctx); err != nil {
+		slog.Warn("source job storage sweep", "error", err)
+	}
+	return nil
+}
+
 // removeReleaseLeftovers removes what an interrupted file-based release left in
 // its source job directory, as that release did when it opened: admission and
 // retirement intermediates, and conversion scratch. Nothing else there is

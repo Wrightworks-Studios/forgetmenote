@@ -1,0 +1,33 @@
+name: Notify deployments
+# Starts a deployment repository's Release workflow when main changes, so an instance
+# can verify, publish and deploy this revision. In the deployments environment, set
+# two secrets: DEPLOY_REPOSITORY (OWNER/NAME) and DEPLOY_DISPATCH_TOKEN, a fine-grained
+# token with only Actions read and write on that repository. The target is a secret so
+# logs mask it. Without both secrets, and in forks, the job dispatches nothing.
+on:
+  push:
+    branches: [main]
+    # Documents only. Embedded Markdown (plugins/) still releases.
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'deploy/production/**/*.md'
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    if: ${{ !github.event.repository.fork }}
+    runs-on: ubuntu-latest
+    environment: deployments
+    timeout-minutes: 5
+    steps:
+      - name: Start the deployment repository's Release
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          TARGET: ${{ secrets.DEPLOY_REPOSITORY }}
+        run: |
+          if [ -z "$TARGET" ] || [ -z "$GH_TOKEN" ]; then
+            echo "No deployment repository is configured."
+            exit 0
+          fi
+          gh workflow run release.yml --repo "$TARGET" --ref main -f revision="$GITHUB_SHA"

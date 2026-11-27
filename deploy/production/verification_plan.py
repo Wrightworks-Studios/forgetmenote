@@ -11,7 +11,7 @@ import subprocess
 
 # Path classes, shared by PR feedback, releases and deployment. The Dockerfile copies
 # only IMAGE_SOURCES and .dockerignore removes IMAGE_EXCLUDED from them; operator
-# tests check both files, and publish.yml's paths-ignore, against these.
+# tests check both files, and notify-deployments.yml's paths-ignore, against these.
 IMAGE_SOURCES = ('go.mod', 'go.sum', 'package.json', 'package-lock.json', 'frontend/', 'cmd/', 'internal/', 'plugins/',
                  'deploy/debian.sources', 'deploy/git-backup/watcher.py')
 IMAGE_EXCLUDED = ('**/*_test.go', '**/*.test.mjs', '**/testdata')

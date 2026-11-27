@@ -20,7 +20,10 @@ export function originalURL(project, record, revision) {
 function publicLink(url, label) {
   try { const u = new URL(url); if (!['https:', 'http:'].includes(u.protocol) || u.username || u.password) return null; const a = node('a', label); a.href = u.href; a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; } catch { return null; }
 }
-export function initSources({api, post, getProject, getNote, getFolder = () => '', present, onBusy = () => {}, canEdit, dirty, refresh, openNote, insertCitation,notice}) {
+// available reports whether the instance runs the sources module. With it off
+// an archived note still shows its provenance and original, but is neither
+// updated nor verified.
+export function initSources({api, post, getProject, getNote, getFolder = () => '', present, onBusy = () => {}, canEdit, dirty, refresh, openNote, insertCitation,notice,available = () => true}) {
   const dialog = $('new-dialog');
   let formats = [], sourceBytes = 0;
   let prepared = null, scope = '', target = null, imported = null, busy = false, loading = false, generation = 0, jobID = '';
@@ -179,7 +182,7 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
     actions.append(anchors);
     const copy = node('button','Copy citation','quiet'); actions.append(copy);
     copy.onclick = async () => { try { await navigator.clipboard.writeText(sourceCitation(note,anchors.value)); copy.textContent='Copied'; } catch { const text=node('textarea',sourceCitation(note,anchors.value));body.append(text);text.select(); } };
-    if(note.editable){const refreshButton=node('button','Update source','quiet'); actions.append(refreshButton);refreshButton.onclick=()=>open({url:record.method==='server-http'?record.url:'',note});}
+    if(note.editable&&available()){const refreshButton=node('button','Update source','quiet'); actions.append(refreshButton);refreshButton.onclick=()=>open({url:record.method==='server-http'?record.url:'',note});}
     if (record.warning) body.append(node('p',record.warning,'small'));
     const problem=node('p',undefined,'archive-integrity-warning');problem.hidden=true;problem.setAttribute('role','status');body.append(problem);
     const technical=node('details',undefined,'archive-technical');technical.append(node('summary','Technical details'));body.append(technical);
@@ -191,6 +194,7 @@ export function initSources({api, post, getProject, getNote, getFolder = () => '
       summary.textContent=summaryText+' · '+label;
       problem.textContent=message;problem.hidden=false;
     }
+    if(!available()){integrity.textContent='The sources module is turned off on this instance, so this capture is not verified.';return;}
     try {
       const result=await api(notebookPath(projectID)+`/api/sources/verify?path=${encodeURIComponent(note.path)}&revision=${note.revision}`);
       integrity.textContent=result.originalState+' · '+result.textState;

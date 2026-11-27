@@ -94,7 +94,7 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 		if chat.WebsiteCapture != nil {
 			files = append(files, chat.WebsiteCapture.AccountIDFile, chat.WebsiteCapture.SecretFile)
 		}
-		if chat.Judgments != nil && chat.Judgments.Enabled {
+		if chat.Judgments != nil && chat.Judgments.Enabled && s.modules.Enabled("judgments") {
 			files = append(files, chat.Judgments.SecretFile)
 		}
 		for _, file := range files {
@@ -103,7 +103,8 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 			}
 		}
 	}
-	if c.AI.Decisions != nil && c.AI.Decisions.Enabled {
+	// An off module's credentials stay where the operator put them, unread.
+	if c.AI.Decisions != nil && c.AI.Decisions.Enabled && s.modules.Enabled("judgments") {
 		if _, err := secret(c.AI.Decisions.SecretFile); err != nil {
 			return err
 		}
