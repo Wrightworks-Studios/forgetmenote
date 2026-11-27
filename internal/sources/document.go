@@ -19,8 +19,8 @@ import (
 // existing two-minute write deadline. Chat's shorter parent deadline still wins.
 const ImportTimeout = 110 * time.Second
 
-// Raster and native-library conversion share one bounded work slot across
-// browser, API/MCP, chat and automation callers.
+// PDF conversion, the one local tool the server runs, takes one bounded work
+// slot shared by browser, API/MCP, chat and automation callers.
 var documentWork = make(chan struct{}, 1)
 
 type documentBlock struct {
@@ -43,9 +43,9 @@ type documentSection struct {
 	Blocks []documentBlock `json:"blocks"`
 }
 
-func extractDocument(ctx context.Context, extension string, data []byte, options Options) (string, string, string, error) {
+func extractDocument(ctx context.Context, extension string, data []byte) (string, string, string, error) {
 	switch extension {
-	case ".pptx", ".odt", ".ods", ".odp", ".pages", ".key":
+	case ".pptx", ".odt", ".ods", ".odp":
 		p, err := openPackage(data)
 		if err != nil {
 			return "", "", "", refused(err)
@@ -54,7 +54,7 @@ func extractDocument(ctx context.Context, extension string, data []byte, options
 		// Bound expansion and reject XML entities before any third-party parser
 		// reads the package. Parts are never extracted into the filesystem.
 		for name := range p.files {
-			if strings.HasSuffix(name, ".xml") || strings.HasSuffix(name, ".rels") || strings.HasSuffix(name, ".apxl") {
+			if strings.HasSuffix(name, ".xml") || strings.HasSuffix(name, ".rels") {
 				raw, err := p.read(name)
 				if err != nil {
 					return "", "", "", refused(err)
@@ -71,17 +71,11 @@ func extractDocument(ctx context.Context, extension string, data []byte, options
 			return "", "", "", err
 		}
 		p.ctx = ctx
-		return nativeStructured(options, extension, p)
+		return nativeStructured(extension, p)
 	}
 	if extension == ".eml" {
 		text, err := emailText(ctx, data)
 		return text, "ForgetMeNote native MIME v1", "extracted", err
-	}
-	if extension == ".png" || extension == ".jpg" || extension == ".tiff" || extension == ".webp" || extension == ".bmp" {
-		return extractImage(ctx, extension, data, options)
-	}
-	if extension == ".pages" || extension == ".key" {
-		return extractIWork(ctx, extension, data)
 	}
 	if extension == ".msg" {
 		text, err := outlookText(ctx, data)

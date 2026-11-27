@@ -47,6 +47,41 @@ External authentication disables local password login and the first-local-admini
 
 The full [trusted-proxy recipe](trusted-proxy.md) covers header verification, the proxy secret, and MCP route exceptions. Do not add a second authentication service if you already have one.
 
+## Instance configuration and modules
+
+The environment variables in `.env` cover a basic instance. To keep the
+configuration in one private file instead, or to turn [feature
+modules](modules.md) off, write an [`instance.json`](instance-configuration.md)
+in `secrets/`. With it, the database URL file is named in the file rather than
+by `DATABASE_URL_FILE`. This one runs the instance without the Slack app,
+personal assistants or judgments:
+
+```json
+{
+  "version": 1,
+  "server": {"database": {"urlFile": "/run/secrets/database-url"}},
+  "modules": {"off": ["messaging", "personal", "judgments"]}
+}
+```
+
+Mount it read-only and point the container at it. `compose.yaml` sets
+`DATABASE_URL_FILE` by default, which conflicts with `INSTANCE_CONFIG_FILE`, so
+the override clears it:
+
+```yaml
+services:
+  forgetmenote:
+    environment:
+      INSTANCE_CONFIG_FILE: /run/secrets/instance.json
+      DATABASE_URL_FILE: ""
+    volumes:
+      - ./secrets/instance.json:/run/secrets/instance.json:ro
+```
+
+Move any other integration settings from `.env` into the file as well:
+startup names each variable that is still set. The module set is read once at
+startup, so recreate the container after changing it.
+
 ## Startup and upgrades
 
 ```sh

@@ -1,6 +1,6 @@
 import {openDialog,dialogShell} from './overlay.mjs';
 import {feedback} from './feedback.mjs';
-import {poll} from './state.mjs';
+import {poll,moduleOn} from './state.mjs';
 import {element as el,actionButton,routeLink,keepTyped} from './dom.mjs';
 
 function destinationKey(destination){return JSON.stringify([destination.project,destination.folder || '']);}
@@ -77,11 +77,11 @@ export function initQuicknotes({api,post,getUser,getDraftStorage,onCapture=()=>{
  }
  function destinationLabel(destination){return (destination.name || destination.project)+(destination.folder?' / '+destination.folder:' / root')+(destination.shared?' · shared':'');}
  async function openSettings(){
-  const t=token(),version=++view;body.replaceChildren(el('p','Loading preferences…'));const [saved,available,policy]=await Promise.all([api('/api/quicknotes/settings',options()),api('/api/quicknotes/destinations',options()),api('/api/judgments/settings',options())]);if(!valid(t)||version!==view||!visible())return;settings=saved;destinations=available.destinations || [];
+  const t=token(),version=++view;body.replaceChildren(el('p','Loading preferences…'));const [saved,available,policy]=await Promise.all([api('/api/quicknotes/settings',options()),api('/api/quicknotes/destinations',options()),moduleOn(getUser(),'judgments')?api('/api/judgments/settings',options()):{available:false,off:true}]);if(!valid(t)||version!==view||!visible())return;settings=saved;destinations=available.destinations || [];
   const section=el('section');section.append(el('h3','Quicknotes preferences'));const label=el('label','Sorting mode'),mode=el('select');mode.setAttribute('aria-label','Sorting mode');for(const [value,text] of [['manual','Manual'],['suggest','Suggest destinations'],['automatic','File automatically to approved destinations']]){const option=el('option',text);option.value=value;mode.append(option);}mode.value=settings.mode;label.append(mode);section.append(label);
   const consent=check('Allow TypeSafe to read saved Quicknotes for sorting',settings.cloudConsent),notify=check('Notify me when a destination is chosen',settings.notifyDestination);
   const remoteDisabled=!policy.available || policy.localOnly;const updateConsent=()=>{consent.input.disabled=remoteDisabled&&!consent.input.checked;};consent.input.onchange=updateConsent;updateConsent();for(const option of mode.options)if(option.value!=='manual')option.disabled=remoteDisabled;
-  if(remoteDisabled)section.append(el('p',policy.localOnly?'Remote sorting is disabled by local-only policy.':'Remote sorting is unavailable.','small'));
+  if(remoteDisabled)section.append(el('p',policy.off?'Remote sorting needs the judgments module, which is turned off on this instance.':policy.localOnly?'Remote sorting is disabled by local-only policy.':'Remote sorting is unavailable.','small'));
   section.append(consent.row,notify.row);
   const approved=new Set((settings.approvedDestinations || []).map(approvalKey)),choices=el('fieldset');choices.append(el('legend','Approved automatic destinations'));
   for(const destination of destinations){const control=check(destinationLabel(destination),approved.has(approvalKey(destination)));control.input.onchange=()=>control.input.checked?approved.add(approvalKey(destination)):approved.delete(approvalKey(destination));choices.append(control.row);}

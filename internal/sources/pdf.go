@@ -5,9 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -26,16 +24,10 @@ type PDFPage struct {
 }
 
 type pdfWord struct {
-	X1   float64 `xml:"xMin,attr"`
-	Y1   float64 `xml:"yMin,attr"`
-	X2   float64 `xml:"xMax,attr"`
-	Y2   float64 `xml:"yMax,attr"`
-	Text string  `xml:",chardata"`
+	Text string `xml:",chardata"`
 }
 type pdfGeometry struct {
-	Width  float64 `xml:"width,attr"`
-	Height float64 `xml:"height,attr"`
-	Flows  []struct {
+	Flows []struct {
 		Blocks []struct {
 			Lines []struct {
 				Words []pdfWord `xml:"word"`
@@ -44,17 +36,6 @@ type pdfGeometry struct {
 	} `xml:"flow"`
 }
 
-func (p pdfGeometry) words() []pdfWord {
-	var words []pdfWord
-	for _, flow := range p.Flows {
-		for _, block := range flow.Blocks {
-			for _, line := range block.Lines {
-				words = append(words, line.Words...)
-			}
-		}
-	}
-	return words
-}
 func (p pdfGeometry) text() string {
 	var out strings.Builder
 	for _, flow := range p.Flows {
@@ -74,12 +55,17 @@ func (p pdfGeometry) text() string {
 	return strings.TrimSpace(out.String())
 }
 
-var errExtractorOutput = errors.New("extractor output exceeds its budget")
+// The server reads a PDF's text layer only. It renders, inventories and
+// recognizes no page, so scanned regions, figures and images are a connected
+// agent's to read from the retained original.
+const (
+	pdfExtractor = "ForgetMeNote PDF v3; Poppler text layer (physical pages)"
+	pdfWarning   = "Only the PDF's text layer is read; scanned regions, figures and images are not. Tables, equations and reading order may contain errors. Verify against the retained original."
+	// pdfAgentWarning follows the pages without a text layer.
+	pdfAgentWarning = " A connected agent can read the original and add its text of the whole document."
+)
 
-// toolFailure is a local tool that ran and exited with status 1, as FFprobe and
-// the iWork adapter do on a file they cannot read. The sandbox helper exits 2,
-// 126 or 127 without running the tool, and limits kill it with a signal.
-type toolFailure struct{ error }
+var errExtractorOutput = errors.New("extractor output exceeds its budget")
 
 func sourceCommand(ctx context.Context, dir string, limit int, name string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, extractorTimeout)
@@ -91,12 +77,7 @@ func sourceCommand(ctx context.Context, dir string, limit int, name string, args
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		failure := fmt.Errorf("%s failed or exceeded its output budget", name)
-		var exit *exec.ExitError
-		if errors.As(err, &exit) && exit.ExitCode() == 1 {
-			return nil, toolFailure{failure}
-		}
-		return nil, failure
+		return nil, fmt.Errorf("%s failed or exceeded its output budget", name)
 	}
 	return out.Bytes(), nil
 }
@@ -106,7 +87,7 @@ func extractPDF(ctx context.Context, data []byte, options Options) (text, extrac
 	case documentWork <- struct{}{}:
 		defer func() { <-documentWork }()
 	case <-ctx.Done():
-		return "", pdfCanceledTools, "failed", "PDF extraction canceled."
+		return "", "Poppler", "failed", "PDF extraction canceled."
 	}
 	extractor = sourceExtractor(pdfExtractor)
 	warning = pdfWarning
@@ -129,22 +110,9 @@ func extractPDF(ctx context.Context, data []byte, options Options) (text, extrac
 	if err = xml.Unmarshal(raw, &doc); err != nil || len(doc.Pages) == 0 || len(doc.Pages) > 10000 {
 		return "", extractor, "failed", "Invalid or excessive PDF page geometry. Original retained."
 	}
-	images := map[int]bool{}
-	raw, imageErr := sourceCommand(ctx, dir, 1<<20, "pdfimages", "-list", filename)
-	if imageErr == nil {
-		for _, line := range strings.Split(string(raw), "\n") {
-			fields := strings.Fields(line)
-			if len(fields) < 2 {
-				continue
-			}
-			n, e := strconv.Atoi(fields[0])
-			if e == nil {
-				images[n] = true
-			}
-		}
-	}
 	var out boundedText
 	partial, readable := false, false
+	var blank []int
 	for i, geometry := range doc.Pages {
 		if ctx.Err() != nil {
 			return "", extractor, "failed", "PDF extraction canceled. Original retained."
@@ -159,34 +127,20 @@ func extractPDF(ctx context.Context, data []byte, options Options) (text, extrac
 		if i < len(options.completedPages) && options.completedPages[i].Number == n {
 			page = options.completedPages[i]
 		} else {
-			native := geometry.text()
-			page.Text = workspace.EscapeSourceText(native)
-			if (images[n] || imageErr != nil) && !(options.ExternalOCR && options.selectedPage(n, len(doc.Pages))) {
-				scan, e := ocrPDFPage(ctx, dir, filename, n, geometry)
-				if e != nil {
-					page.Partial = true
-					page.Warning = e.Error() + "; OCR for this page is incomplete."
-				} else if strings.TrimSpace(scan) != "" {
-					if page.Text != "" {
-						page.Text += "\n\n"
-					}
-					page.Text += workspace.EscapeSourceText(strings.TrimSpace(scan))
-				}
-			}
-			if imageErr != nil {
-				page.Partial = true
-				page.Warning = "Image inventory unavailable; rendered-page OCR was attempted. " + page.Warning
-			}
+			page.Text = workspace.EscapeSourceText(geometry.text())
 			if options.pageDone != nil {
 				if err := options.pageDone(page); err != nil {
 					return "", extractor, "failed", err.Error()
 				}
 			}
 		}
+		// A checkpoint an earlier release stored may be partial.
 		partial = partial || page.Partial
-		readable = readable || strings.TrimSpace(page.Text) != ""
-		if page.Text == "" {
-			page.Text = "_No readable text on this physical page._"
+		if strings.TrimSpace(page.Text) == "" {
+			blank = append(blank, n)
+			page.Text = "_No text layer on this physical page._"
+		} else {
+			readable = true
 		}
 		if page.Warning != "" {
 			page.Text += "\n\n" + workspace.EscapeSourceText(page.Warning)
@@ -196,26 +150,33 @@ func extractPDF(ctx context.Context, data []byte, options Options) (text, extrac
 		}
 	}
 	state = "extracted"
-	if partial {
+	switch {
+	case !readable:
+		state = "no-text"
+		warning = "No page has a text layer; the pages may be scans." + pdfAgentWarning + " " + warning
+	case len(blank) > 0:
+		state = "partial"
+		warning = "Extraction is incomplete. " + pagesWithoutText(blank) + pdfAgentWarning + " " + warning
+	case partial:
 		state = "partial"
 		warning = "Extraction is incomplete. " + warning
-	} else if !readable {
-		state = "no-text"
 	}
 	return out.String(), extractor, state, warning
 }
 
-// The original rendering and masked copy together occupy at most 64 MiB.
-type scratchWriter struct {
-	io.Writer
-	remaining int
-}
-
-func (w *scratchWriter) Write(p []byte) (int, error) {
-	if len(p) > w.remaining {
-		return 0, errors.New("page scratch exceeds 32 MiB")
+// pagesWithoutText names the pages, for example "Pages 2, 5 and 7 have no
+// text layer; they may be scans.", with at most ten numbers.
+func pagesWithoutText(pages []int) string {
+	if len(pages) == 1 {
+		return fmt.Sprintf("Page %d has no text layer; it may be a scan.", pages[0])
 	}
-	n, err := w.Writer.Write(p)
-	w.remaining -= n
-	return n, err
+	var names []string
+	for _, n := range pages[:min(len(pages), 10)] {
+		names = append(names, strconv.Itoa(n))
+	}
+	list := strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+	if len(pages) > 10 {
+		list = strings.Join(names, ", ") + fmt.Sprintf(" and %d more", len(pages)-10)
+	}
+	return "Pages " + list + " have no text layer; they may be scans."
 }

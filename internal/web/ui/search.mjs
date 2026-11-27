@@ -44,7 +44,7 @@ export function initSearch({
   api,post,getContext,retrievalSettings,notice,
   onOpen,onClose,onVisibilityChange,onStateChange,renderCollections,
   openNote,openCitation,openTrash,openSource,setupFileActions,canEdit,canCreate,addSource,
-  sourcesOn=()=>true,
+  sourcesOn=()=>true,repositoriesOn=()=>true,judgmentsOn=()=>true,
 }) {
   let searchOpen=false,searchCollection='',searchScroll=0;const requests=requestSequence();
   let searchController;
@@ -124,7 +124,7 @@ export function initSearch({
     const scope = $("search-scope").checked ? "history" : "current";
     const includeTrash = $("include-trash").checked;
     renderSearchOptions();
-    const ranking = rerank && searching && mode !== "text" && scope === "current";
+    const ranking = rerank && judgmentsOn() && searching && mode !== "text" && scope === "current";
     $("search-status").textContent = ranking ? "Ranking with judgments…" : searching ? "Searching…" : "";
     const tag = $("tag-filter").value, statusFilter = $("status-filter").value, path = $("folder-filter").value;
     const filteredQuery = new URLSearchParams({q:query, tag, status:statusFilter, path,...contentSelection});
@@ -355,7 +355,9 @@ export function initSearch({
     cancelSearch();hide();navigationEntries=null;navigationProject=null;
     $('search-all').checked=true;$('search-scope').checked=false;$('include-trash').checked=false;
     showSearchOptions(false);$('search-status').textContent='';
-    $('search-corpus').value=getContext().project?.kind==='repository'?'repository':'notes';$('search-projects').replaceChildren();
+    // Repository source is searchable only while the repositories module runs.
+    for(const option of $('search-corpus').options)if(option.value!=='notes'&&option.hidden===repositoriesOn())option.hidden=option.disabled=!repositoriesOn();
+    $('search-corpus').value=getContext().project?.kind==='repository'&&repositoriesOn()?'repository':'notes';$('search-projects').replaceChildren();
     $('search-projects-label').hidden=false;$('search').placeholder='Search your notes…';
     setCollection(collection);renderSearchOptions();
   }

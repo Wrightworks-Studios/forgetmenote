@@ -58,6 +58,9 @@ func (s *Server) personalSpec(user string, settings catalog.AssistantSettings) (
 
 func (s *Server) personalSpecs() []automation.Spec {
 	specs := []automation.Spec{}
+	if !s.modules.Enabled("personal") {
+		return specs
+	}
 	for user, settings := range s.catalog.ActiveAssistants() {
 		spec, err := s.personalSpec(user, settings)
 		if err == nil {
@@ -169,7 +172,8 @@ func (s *Server) recordPersonalInteraction(ctx context.Context, user string, in 
 	if err != nil {
 		return err
 	}
-	if !settings.Enabled || !settings.ExternalProcessing || !settings.MaintainMemory || !s.catalog.AssistantPolicy().Enabled {
+	// With personal assistants off, nothing would ever read what is recorded.
+	if !settings.Enabled || !settings.ExternalProcessing || !settings.MaintainMemory || !s.catalog.AssistantPolicy().Enabled || !s.modules.Enabled("personal") {
 		return nil
 	}
 	if _, err = s.clientAccess(ctx, user, settings.Project, "read"); err != nil {

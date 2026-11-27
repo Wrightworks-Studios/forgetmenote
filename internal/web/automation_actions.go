@@ -259,6 +259,11 @@ func (s *Server) automationTools(server *mcp.Server) {
 		e := s.automations.Queue.Cancel(in.ID)
 		return actionResult{e == nil}, e
 	})
+}
+
+// recipeTools find a notebook's recipe notes, with the health of the
+// automated checks that verify them while automations run.
+func (s *Server) recipeTools(server *mcp.Server) {
 	addProjectTool(s, server, "find_recipes", "Find Markdown recipe notes tagged recipe in an approved notebook. Query is a literal substring: use a short phrase or omit it to list recipes. Read a recipe and current operation schemas before executing its instructions.", "read", func(ctx context.Context, store *workspace.Store, in struct {
 		projectArg
 		Query string `json:"query,omitempty"`
@@ -293,6 +298,10 @@ func (s *Server) automationTools(server *mcp.Server) {
 
 func (s *Server) validateAutomationDefinition(ctx context.Context, spec automation.Spec) error {
 	if err := spec.ValidateConfigured(); err != nil {
+		return err
+	}
+	// Nothing would run an automation that needs a module that is off.
+	if err := s.automationModulesOn(spec); err != nil {
 		return err
 	}
 	if !s.catalog.IsService(spec.Actor) {

@@ -72,21 +72,24 @@ def every_integration(image):
 def offline_pdf_fixtures(image, *, full=True):
     """Exercise real native parsers in the final runtime, without networking.
 
-    Build a disposable Go test executable; compiler and development document
-    libraries stay on the host. The full suite includes all format families,
-    hostile input, local checkpoint/restart, real Apple fixtures and mock hosted
-    boundaries. Loopback providers in tests never upload to an external service.
+    Build a disposable Go test executable; the compiler stays on the host. The
+    full suite includes all format families, hostile input and local
+    checkpoint/restart. The image's one document tool is Poppler's pdftotext.
     """
     repo = Path(__file__).resolve().parents[1]
     fixtures = repo / 'internal/sources/testdata'
     packaging = r"""
-import hashlib, importlib.util, pathlib
+import importlib.util, pathlib, shutil
 for name in ('docling', 'torch', 'torchvision', 'transformers', 'huggingface_hub'):
     assert importlib.util.find_spec(name) is None, 'displaced inference dependency: ' + name
 assert not pathlib.Path('/usr/local/bin/forgetmenote-convert').exists()
 assert not pathlib.Path('/opt/docling').exists()
-assert hashlib.sha256(pathlib.Path('/usr/share/tesseract-ocr/5/tessdata/eng.traineddata').read_bytes()).hexdigest() == '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2'
-assert pathlib.Path('/usr/local/bin/forgetmenote-iwork').is_file()
+assert shutil.which('pdftotext'), 'Poppler pdftotext is missing'
+# Connected agents read scans, images, media and Apple documents themselves.
+for name in ('tesseract', 'ffmpeg', 'ffprobe', 'forgetmenote-iwork'):
+    assert shutil.which(name) is None, 'removed extractor present: ' + name
+assert not pathlib.Path('/usr/share/tesseract-ocr').exists()
+assert pathlib.Path('/usr/share/forgetmenote/source-versions').read_text().startswith('Poppler ')
 """
     subprocess.run(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none', '--read-only',
                     '--entrypoint', 'python', image, '-c', packaging], check=True)
@@ -98,7 +101,7 @@ assert pathlib.Path('/usr/local/bin/forgetmenote-iwork').is_file()
         shutil.copytree(repo / 'internal/sources', mounted)
         open_to_container(executable)
         open_to_container(mounted)
-        selection = '.' if full else '^TestNativePDFMixedAndBlankPages$/scanned'
+        selection = '.' if full else '^TestNativePDFReadsTheTextLayerOnly$/scanned'
         # Source job tests keep their manifests in Postgres. The database is the
         # only other container on an internal network, so the matrix reaches
         # nothing else.
@@ -110,7 +113,7 @@ assert pathlib.Path('/usr/local/bin/forgetmenote-iwork').is_file()
                                      '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
                                      '--mount', f'type=bind,source={executable},target=/checks/sources.test,readonly',
                                      '--mount', f'type=bind,source={mounted},target=/fixtures,readonly',
-                                     '-e', 'FMN_IWORK_TEST_FIXTURES=/fixtures/testdata/iwork', '-w', '/fixtures',
+                                     '-w', '/fixtures',
                                      '--entrypoint', '/checks/sources.test', image,
                                      '-test.run', selection, '-test.timeout=15m', '-test.v'],
                                     capture_output=True, text=True, timeout=960)
@@ -118,8 +121,8 @@ assert pathlib.Path('/usr/local/bin/forgetmenote-iwork').is_file()
             if db:
                 db.close()
         assert result.returncode == 0, result.stdout + result.stderr
-        assert '--- SKIP: TestModernIWorkAdapter' not in result.stdout, result.stdout
-        print('PASS: network-isolated native source ' + ('complete format and hosted boundary matrix' if full else 'scanned PDF fixture'))
+        assert '--- SKIP: TestNativePDFReadsTheTextLayerOnly' not in result.stdout, result.stdout
+        print('PASS: network-isolated native source ' + ('complete format matrix' if full else 'scanned PDF fixture'))
     return [(label, (fixtures / (label + '.pdf')).read_bytes()) for label in (('scanned', 'mixed', 'searchable') if full else ('scanned',))]
 
 
@@ -130,7 +133,7 @@ def main():
         raise ValueError('SMOKE_PROFILE must be full or routine')
     full = profile == 'full'
     every_integration(image)
-    ocr_fixtures = offline_pdf_fixtures(image, full=full)
+    pdf_fixtures = offline_pdf_fixtures(image, full=full)
     name = f'fmn-source-smoke-{os.getpid()}'
     volume = name + '-data'
     port = app_port()
@@ -157,7 +160,7 @@ def main():
         original = pdf_bytes('Rare amber paradigm')
         prepared = request('/api/sources/preview', {'filename': 'grammar.pdf', 'data': base64.b64encode(original).decode()})
         assert prepared['capture']['record']['extraction'] == 'extracted', prepared['capture']['record']['warning']
-        assert 'Poppler' in prepared['capture']['record']['extractor'] and 'tessdata_fast' in prepared['capture']['record']['extractor'], prepared['capture']['record']
+        assert 'Poppler' in prepared['capture']['record']['extractor'] and 'Tesseract' not in prepared['capture']['record']['extractor'], prepared['capture']['record']
         assert '## Page 1' in prepared['preview'] and 'Rare amber paradigm' in prepared['preview']
         first = request('/api/sources/import', {'prepared': prepared, 'title': 'Grammar evidence'})
         assert 'checksum matches' in request('/api/sources/verify?path=' + first['path'])['originalState']
@@ -186,15 +189,23 @@ def main():
             assert prepared['capture']['record']['finalURL']
             request('/api/sources/import', {'prepared': prepared, 'title': 'Public webpage test'})
             print('PASS: public URL capture')
-        documents = []
-        for label, data in ocr_fixtures:
+        documents, awaiting = [], []
+        for label, data in pdf_fixtures:
             prepared = request('/api/sources/preview', {'filename': label + '.pdf', 'data': base64.b64encode(data).decode()})
-            assert prepared['capture']['record']['extraction'] == 'extracted', prepared['capture']['record']
-            assert 'Cobalt' in prepared['preview']
-            if label == 'scanned': assert 'id="h-page-3"' in prepared['html'] and '## Page 2' in prepared['preview']
-            assert 'Verify against the retained original' in prepared['capture']['record']['warning']
+            record = prepared['capture']['record']
+            assert 'Verify against the retained original' in record['warning'], record
+            if label == 'scanned':
+                # No text layer: the pages wait for a connected agent.
+                assert record['extraction'] == 'no-text' and 'connected agent' in record['warning'], record
+                assert 'id="h-page-3"' in prepared['html'] and '## Page 2' in prepared['preview']
+            else:
+                assert record['extraction'] == 'extracted', record
+                assert ('Cobalt' if label == 'searchable' else 'Native header') in prepared['preview']
             note = request('/api/sources/import', {'prepared': prepared, 'title': label + ' evidence'})
-            assert any(found['path'] == note['path'] for found in request('/api/notes?q=Cobalt'))
+            if label == 'searchable':
+                assert any(found['path'] == note['path'] for found in request('/api/notes?q=Cobalt'))
+            if label == 'scanned':
+                awaiting.append(note['path'])
             documents.append((note, data))
         formats = request('/api/sources/formats')
         assert any('.xlsx' in item['extensions'] for item in formats)
@@ -228,13 +239,17 @@ def main():
                 assert response.headers['Content-Disposition'].startswith('attachment;')
                 assert response.read() == data
             documents.append((note, data))
-        if full:
-            data = (fixtures / 'announcement.wav').read_bytes()
-            prepared = request('/api/sources/preview', {'filename': 'announcement.wav', 'data': base64.b64encode(data).decode()})
-            assert prepared['capture']['record']['extraction'] == 'no-text'
-            assert 'without transcription' in prepared['capture']['record']['warning']
+        # The server stores agent formats as their originals alone.
+        for filename in (['announcement.wav', 'reference.png', 'iwork/modern.pages'] if full else []):
+            data = (fixtures / filename).read_bytes()
+            prepared = request('/api/sources/preview', {'filename': Path(filename).name, 'data': base64.b64encode(data).decode()})
+            record = prepared['capture']['record']
+            assert record['extraction'] == 'original-only' and 'connected agent' in record['warning'], record
             note = request('/api/sources/import', {'prepared': prepared})
+            awaiting.append(note['path'])
             documents.append((note, data))
+        listed = {source['path'] for source in request('/api/sources/awaiting-text')['sources']}
+        assert set(awaiting) <= listed, (awaiting, listed)
         run('docker', 'restart', name)
         ready()
         assert request('/api/note?path=' + first['path'])['content'] == second['content']
@@ -252,7 +267,7 @@ def main():
             for note, data in documents:
                 assert (clone / note['metadata']['source']['original']).read_bytes() == data
                 assert request('/api/note?path=' + note['path'])['content'] == note['content']
-        print('PASS: ' + ('complete document extraction matrix' if full else 'PDF OCR and HTML capture') + ', search, capture history, restart and independent Git restoration')
+        print('PASS: ' + ('complete document extraction matrix' if full else 'PDF text and HTML capture') + ', sources awaiting agent text, search, capture history, restart and independent Git restoration')
         if os.environ.get('SOURCE_SMOKE_KEEP'):
             print(json.dumps({'container': name, 'volume': volume, 'database': db.name, 'network': db.network, 'origin': origin, 'note': second['path']}))
     finally:

@@ -201,7 +201,7 @@ exception is a failed gate on a GitHub runner, whose evidence the
 ## Performance targets and known bottlenecks
 
 Targets are focused verification under five minutes and a complete warm-cache
-release gate within 10–15 minutes. Cold compiler, dependency, browser, OCR model
+release gate within 10–15 minutes. Cold compiler, dependency, browser
 or base-image downloads must be reported separately. Do not remove race,
 persistence, restoration, authorization or concurrency checks to meet a deadline.
 Record actual wall time, resource limits, original failures and bottlenecks from
@@ -272,10 +272,14 @@ baseline means all race tests, including the entire web package.
 GitHub Check uses this tier for pull requests. Its manual full
 runs execute `release_image.py --verify-only --mode full` on a standard runner,
 with npm downloads, Playwright browsers and image layers (`FMN_IMAGE_CACHE=gha`)
-in the Actions cache. The gate prints only the last 16,000 characters of a failed
-check's log, so a failed full run uploads the candidate's check logs
-(`REVISION/*.log`), browser reports, `verification.json` and `browser-*-results/`
-traces and screenshots as its `gate-failure-ATTEMPT` artifact, kept for seven days.
+in the Actions cache. A failed `go test -json` check prints each test that failed
+or never finished (as at a `-timeout` panic) with its own output, then the output of
+failed builds and packages outside their tests, such as build errors and panics or
+races after the tests. Any other failed check prints the last 16,000 characters of
+its log. The full logs stay on the runner, so a failed full run uploads the
+candidate's check logs (`REVISION/*.log`), browser reports, `verification.json` and
+`browser-*-results/` traces and screenshots as its `gate-failure-ATTEMPT` artifact,
+kept for seven days.
 Anyone signed in to GitHub can read a public repository's artifacts. These hold only
 synthetic test data, and `release_image.py` keeps the Actions runtime variables
 (`ACTIONS_*`, with the cache token) from every command but the image build, because a
@@ -319,10 +323,9 @@ On other hosts only those live watcher cases skip; portable once, managed push,
 revocation and independent restore tests still run. The complete release gate
 retains its Linux container backup checks.
 
-Source tests drive the real Poppler, Tesseract and FFmpeg on the host. Hosted image
-descriptions in `internal/web` fail without Tesseract; other cases skip when a tool
-is missing. GitHub's full job installs Ubuntu's packages, and `smoke-source` repeats
-the whole matrix with the image's pinned versions.
+Source tests drive the real Poppler `pdftotext` on the host and skip when it is
+missing. GitHub's full job installs Ubuntu's package, and `smoke-source` repeats the
+whole matrix with the image's pinned version.
 
 Docker smokes must not rely on Docker Desktop hiding differences from a Linux host.
 The gate runs under umask 077 and containers run as another user, so a bind mount
@@ -338,8 +341,8 @@ smoke in a Docker-in-Docker container limited with `docker update --cpuset-cpus=
 process at `http://127.0.0.1:8080/healthz` and opens no application state. An operator
 may select a different endpoint with `-url`. Redirects, oversized responses and
 non-`ok` bodies fail without disclosing upstream diagnostics. Docker uses this
-probe instead of an additional wget package. Existing parser package versions,
-base-image digests and OCR content hashes remain pinned.
+probe instead of an additional wget package. Existing parser package versions
+and base-image digests remain pinned.
 
 ## Reproducible runtime dependencies
 
@@ -354,10 +357,9 @@ See [Debian snapshots](https://snapshot.debian.org/) and
 [apt source configuration](https://manpages.debian.org/testing/apt/sources.list.5.en.html).
 
 For an update, choose a reviewed snapshot timestamp, verify all explicit parser
-versions are available in both the iWork and runtime stages, update the snapshot
+versions are available in the runtime stage, update the snapshot
 and package pins together, and run the full image gate. Never fall back silently
-to a moving mirror or disable signature checks. OCR data retains its separate
-revision and SHA-256 pin. Python operator requirements have one owner at
+to a moving mirror or disable signature checks. Python operator requirements have one owner at
 `deploy/requirements.txt`; the runtime uses standard-library helpers.
 
 Integration adapters remain in the single Go executable. They do not start

@@ -30,7 +30,15 @@ type repositoryConnections struct {
 	github *reposource.GitHub
 }
 
+// ConfigureRepositorySources and ConfigureRepositorySourcesConfig install the
+// Sources GitHub App and open the repository source manager. On an instance
+// that turns the repositories module off they install nothing, and the file
+// and the App's secrets stay unread; openDormantRepositories keeps stored
+// sources reachable instead.
 func (s *Server) ConfigureRepositorySources(file string) error {
+	if !s.modules.Enabled("repositories") {
+		return nil
+	}
 	if err := s.privateRuntimeFile(file); err != nil {
 		return err
 	}
@@ -46,6 +54,9 @@ func (s *Server) ConfigureRepositorySourcesConfig(cfg reposource.Config) error {
 		return err
 	}
 	defer unlock()
+	if !s.modules.Enabled("repositories") {
+		return nil
+	}
 
 	if err := cfg.Validate(); err != nil {
 		return err
@@ -70,16 +81,46 @@ func (s *Server) ConfigureRepositorySourcesConfig(cfg reposource.Config) error {
 	manager.SetIndexPolicy(s.sourceIndexPolicy)
 	return nil
 }
-func (s *Server) repositoryRoutes() {
-	s.documentRoutes()
-	s.repositoryCreationRoutes()
-	s.mux.HandleFunc("POST /api/retrieval", s.retrievalHTTP)
-	s.repositorySourceRoutes()
-	s.handleProject("POST /api/repository/connect", "owner", s.repositoryConnect)
-	s.handleProject("GET /api/repository/choices", "owner", s.repositoryChoices)
-	s.handleProject("POST /api/repository/select", "owner", s.repositorySelect)
-	s.handleProject("POST /api/repository/control", "owner", s.repositoryControl)
-	s.mux.HandleFunc("GET /repository/github/callback", s.repositoryCallback)
+
+// openDormantRepositories opens, on an instance that turns the repositories
+// module off, a manager of the repository sources stored while it ran. It has
+// no GitHub App and is never started, so it fetches, indexes and serves
+// nothing; it lets account changes still reach stored sources: disabling a
+// person pauses the sources they connected, and their offboarding report
+// lists them.
+func (s *Server) openDormantRepositories() error {
+	if s.modules.Enabled("repositories") {
+		return nil
+	}
+	manager, err := reposource.Open(s.db, filepath.Join(s.data, "repository-sources"), s.blobs, nil, func(project, actor string) error { return s.catalog.CheckNotebookOwner(actor, project) })
+	if err != nil {
+		return err
+	}
+	s.dormantRepositories = manager
+	return nil
+}
+
+// storedRepositories is the manager of stored repository sources: the running
+// one, or the dormant one while the module is off. Account changes read it,
+// and so does choosing a managed backup, which must not be the notebook's
+// source repository. It is nil when neither is open.
+func (s *Server) storedRepositories() *reposource.Manager {
+	if s.repositories != nil {
+		return s.repositories
+	}
+	return s.dormantRepositories
+}
+
+// repositoryRoutes are the repositories module's routes: creating a
+// repository notebook, connecting a notebook's source and reading it.
+func (s *Server) repositoryRoutes(r routeRegistrar) {
+	s.repositoryCreationRoutes(r)
+	s.repositorySourceRoutes(r)
+	r.project("POST /api/repository/connect", "owner", s.repositoryConnect)
+	r.project("GET /api/repository/choices", "owner", s.repositoryChoices)
+	r.project("POST /api/repository/select", "owner", s.repositorySelect)
+	r.project("POST /api/repository/control", "owner", s.repositoryControl)
+	r.global("GET /repository/github/callback", s.repositoryCallback)
 }
 func (s *Server) repositoryConnect(w http.ResponseWriter, r *http.Request) {
 	g, err := s.repoApp()

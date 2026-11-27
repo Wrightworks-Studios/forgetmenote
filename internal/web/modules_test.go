@@ -1,8 +1,13 @@
 package web
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,11 +21,16 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"forgetmenote/internal/automation"
+	"forgetmenote/internal/backups"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/decision"
+	"forgetmenote/internal/githubapp"
 	"forgetmenote/internal/modules"
 	"forgetmenote/internal/pg/pgtest"
+	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/workspace"
 )
 
@@ -107,6 +117,60 @@ func listedTools(t *testing.T, session *mcp.ClientSession) map[string]bool {
 	return names
 }
 
+// guidance is what tells a connected agent which tools to use: the MCP
+// instructions the session was initialized with, each listed tool's
+// description, and every text file of both companion packages the instance
+// offers for download, keyed by where it is.
+func guidance(t *testing.T, app *Server, session *mcp.ClientSession) map[string]string {
+	t.Helper()
+	listed, err := session.ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	texts := map[string]string{"MCP instructions": session.InitializeResult().Instructions}
+	for _, tool := range listed.Tools {
+		texts["the description of "+tool.Name] = tool.Description
+	}
+	companion, err := app.companion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, client := range []string{"claude", "codex"} {
+		files, err := companion.Files(client)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for path, body := range files {
+			if !strings.HasSuffix(path, ".png") {
+				texts["the "+client+" package's "+path] = string(body)
+			}
+		}
+	}
+	return texts
+}
+
+// offWith is the smallest modules.off that turns the module off: the module
+// and every module that requires it, directly or through another, in the
+// registry's order.
+func offWith(name string) []string {
+	off := map[string]bool{name: true}
+	for changed := true; changed; {
+		changed = false
+		for _, module := range modules.All() {
+			if !off[module.Name] && slices.ContainsFunc(module.Requires, func(required string) bool { return off[required] }) {
+				off[module.Name], changed = true, true
+			}
+		}
+	}
+	var out []string
+	for _, module := range modules.All() {
+		if off[module.Name] {
+			out = append(out, module.Name)
+		}
+	}
+	return out
+}
+
 // startedModuleServer is fixture for an instance that runs every module but
 // off. It is given every module's settings, as an operator would, and then
 // started as the runtime starts it.
@@ -133,7 +197,8 @@ func startedModuleServer(t *testing.T, off ...string) *Server {
 func heldModuleDuties(t *testing.T, app *Server, names []string) []string {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
-	for held := heldDuties(t, app); !held["chat-recovery"]; held = heldDuties(t, app) {
+	// Quick notes' routing is a core duty every started instance takes.
+	for held := heldDuties(t, app); !held["quicknotes-routing"]; held = heldDuties(t, app) {
 		if time.Now().After(deadline) {
 			t.Fatalf("the instance took no duties: %v", held)
 		}
@@ -162,12 +227,367 @@ type moduleChecks struct {
 	installed func(app *Server) bool
 	// running reports whether the module's hub and its workers are open.
 	running func(app *Server) bool
+	// integrations are the module's endpoints that authenticate their own
+	// callers, such as webhooks, as "METHOD path": served while the module
+	// runs, and 404 while it is off.
+	integrations []string
 	// cleanup proves that a purge, account deletion or access removal still
 	// reaches the module's stored data while it is off.
 	cleanup func(t *testing.T, app *Server)
 }
 
+// gitHubAppFiles writes a synthetic GitHub App's private key, client secret
+// and webhook secret, as an operator would, and returns their paths.
+func gitHubAppFiles(t *testing.T) (key, client, webhook string) {
+	t.Helper()
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	key, client, webhook = filepath.Join(dir, "key"), filepath.Join(dir, "client"), filepath.Join(dir, "webhook")
+	for path, body := range map[string][]byte{key: pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(private)}), client: []byte("synthetic-client"), webhook: []byte(strings.Repeat("h", 32))} {
+		if err := os.WriteFile(path, body, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return key, client, webhook
+}
+
+// offboardingConnections are the integration connections an Admin's
+// offboarding report lists for a person.
+func offboardingConnections(t *testing.T, app *Server, user string) []map[string]any {
+	t.Helper()
+	w := apiCall(app, "POST", "/api/v1/actions/offboarding_status", `{"user":"`+user+`"}`, testToken)
+	var out struct {
+		Connections []map[string]any `json:"connections"`
+	}
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil {
+		t.Fatalf("offboarding_status: HTTP %d %s", w.Code, w.Body)
+	}
+	return out.Connections
+}
+
+// notebookOwner adds a person who owns the notebook, of the given kind, and
+// creates the notebook unless it exists.
+func notebookOwner(t *testing.T, app *Server, user, project, kind string) {
+	t.Helper()
+	if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: user}); err != nil {
+		t.Fatal(err)
+	}
+	if project != "default" {
+		if err := app.catalog.CreateKind(catalog.Bootstrap, project, project, kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := app.catalog.Member(catalog.Bootstrap, project, user, "owner"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// localCookie signs in a local user and returns their session cookie.
+func localCookie(t *testing.T, app *Server, user string) *http.Cookie {
+	t.Helper()
+	login := oidcRequest(app, "POST", "/auth/password/login", url.Values{"username": {user}, "password": {"test-password-long"}}.Encode())
+	if login.Code != http.StatusSeeOther {
+		t.Fatalf("login: %d %s", login.Code, login.Body)
+	}
+	return login.Result().Cookies()[0]
+}
+
 var offModuleChecks = map[string]moduleChecks{
+	"automations": {
+		duties: []string{"automation-scheduler"},
+		configure: func(t *testing.T, app *Server) {
+			if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "automation-steward"}); err != nil {
+				t.Fatal(err)
+			}
+			bot, err := app.catalog.CreateService(catalog.Bootstrap, "Storage check", "automation-steward")
+			if err != nil {
+				t.Fatal(err)
+			}
+			spec := automation.Spec{ID: "storage-check", Kind: "native", Actor: bot.ID, Project: "default", Native: &automation.NativeTask{Task: "storage-health"}, Disabled: true}
+			if err := app.ConfigureAutomationsConfig(automation.Config{Version: 2, Jobs: []automation.Spec{spec}}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		installed: func(app *Server) bool {
+			_, ok := app.automations.Definitions.Get("storage-check")
+			return ok
+		},
+		cleanup: func(t *testing.T, app *Server) {
+			// A run queued while the module ran stays queued: no worker
+			// claims it, and the policy every claim checks refuses it.
+			spec := automation.Spec{ID: "queued-check", Kind: "native", Actor: "automation-steward", Project: "default", Native: &automation.NativeTask{Task: "storage-health"}}
+			queued, err := app.automations.Queue.Enqueue(spec, "queued-while-on")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := app.automationPolicy(spec); err == nil || !strings.Contains(err.Error(), "modules.off") {
+				t.Fatalf("a queued run may be claimed: %v", err)
+			}
+			time.Sleep(time.Second)
+			if run, err := app.automations.Queue.Get(queued.ID); err != nil || run.State != "queued" {
+				t.Fatalf("the queued run: %+v %v", run, err)
+			}
+			// Recipe notes are notebook content: they are still found, with no
+			// check health while no check runs.
+			store, err := app.catalog.Access(catalog.Bootstrap, "default", "edit")
+			if err != nil {
+				t.Fatal(err)
+			}
+			savePurgeNote(t, store, "notes/revenue.md", "---\ntags: [recipe]\n---\n# Revenue\n\nSum the orders.\n", "")
+			if w := apiCall(app, "POST", "/api/v1/actions/find_recipes", `{"project":"default"}`, testToken); w.Code != 200 || !strings.Contains(w.Body.String(), "notes/revenue.md") || strings.Contains(w.Body.String(), "health") {
+				t.Fatalf("find_recipes: HTTP %d %s", w.Code, w.Body)
+			}
+		},
+	},
+	"chat": {
+		duties: []string{"chat-recovery"},
+		cleanup: func(t *testing.T, app *Server) {
+			// A conversation kept while chat ran quotes a key the notebook
+			// held. With chat off, a purge of the key still redacts it.
+			store, err := app.catalog.Access(catalog.Bootstrap, "default", "edit")
+			if err != nil {
+				t.Fatal(err)
+			}
+			secret := webPurgeSecret()
+			savePurgeNote(t, store, "notes/keys.md", "# Keys\n\nThe key is "+secret+".\n", "")
+			conversation, err := app.chat.Store.Create("admin", "default", chat.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = app.chat.Store.Update("admin", "default", conversation.ID, func(c *chat.Conversation) error {
+				c.AddEvent("run-1", "tool", map[string]any{"result": "notes/keys.md: The key is " + secret})
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := preparePurgeHTTP(t, app, workspace.PurgeScope{Kind: workspace.PurgeText, Text: secret})
+			if code, receipt, body := executePurgeHTTP(app, plan, "Leaked key"); code != 200 || receipt.Derived.Chats != 1 {
+				t.Fatalf("execute: HTTP %d %s", code, body)
+			}
+			read, err := app.chat.Store.Read("admin", "default", conversation.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if raw, _ := json.Marshal(read); strings.Contains(string(raw), secret) {
+				t.Fatalf("the transcript after the purge: %s", raw)
+			}
+		},
+	},
+	"tasks": {
+		running: func(app *Server) bool { return app.tasks != nil },
+		cleanup: func(t *testing.T, app *Server) {
+			// A task reminder queued while the module ran is neither
+			// scheduled nor claimed, and nobody can turn reply reminders on.
+			reminder := automation.Spec{Kind: "native", Native: &automation.NativeTask{Task: "task-reminder"}}
+			if err := app.automationPolicy(reminder); err == nil || !strings.Contains(err.Error(), "modules.off") {
+				t.Fatalf("a task reminder may run: %v", err)
+			}
+			admin := recoverySession(t, app)
+			alice := addLocal(t, app, admin, "tasks-alice")
+			settings, err := app.catalog.Assistant(alice)
+			if err != nil {
+				t.Fatal(err)
+			}
+			settings.ReplyReminders = true
+			body, _ := json.Marshal(settings)
+			if w := localRequest(app, "/api/assistant/action/save_assistant_settings", string(body), localCookie(t, app, "tasks-alice")); w.Code != 400 || !strings.Contains(w.Body.String(), "task queues are turned off") {
+				t.Fatalf("reply reminders turned on with the module off: %d %s", w.Code, w.Body)
+			}
+		},
+	},
+	"memory": {
+		cleanup: func(t *testing.T, app *Server) {
+			// A person kept memory on while the module ran. With it off,
+			// their agents are told nothing about memory, and they can turn
+			// the Memory setting off but not on again.
+			admin := recoverySession(t, app)
+			alice := addLocal(t, app, admin, "memory-alice")
+			cookie := localCookie(t, app, "memory-alice")
+			settings, err := app.catalog.SaveAssistant(alice, catalog.AssistantSettings{TimeZone: "UTC", MaintainMemory: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			origin := app.origin
+			client := actionClient(t, app, alice, moduleScopes)
+			app.origin = origin
+			// The account's own guidance; the plugin's shared text is static.
+			if instructions := client.InitializeResult().Instructions; strings.Contains(instructions, "Memory is on for this account") {
+				t.Fatal("the MCP instructions tell the account's agents to use memory")
+			}
+			w := apiCall(app, "POST", "/api/v1/actions/capabilities", `{}`, testToken)
+			if w.Code != 200 || strings.Contains(w.Body.String(), "recall_memory") {
+				t.Fatalf("capabilities: %d %s", w.Code, w.Body)
+			}
+			save := func(settings catalog.AssistantSettings) *httptest.ResponseRecorder {
+				body, _ := json.Marshal(settings)
+				return localRequest(app, "/api/assistant/action/save_assistant_settings", string(body), cookie)
+			}
+			off := settings
+			off.MaintainMemory = false
+			if w := save(off); w.Code != 200 {
+				t.Fatalf("turning memory off: %d %s", w.Code, w.Body)
+			}
+			on, err := app.catalog.Assistant(alice)
+			if err != nil {
+				t.Fatal(err)
+			}
+			on.MaintainMemory = true
+			if w := save(on); w.Code != 400 || !strings.Contains(w.Body.String(), "agent memory is turned off") {
+				t.Fatalf("memory turned on with the module off: %d %s", w.Code, w.Body)
+			}
+		},
+	},
+	"messaging": {
+		configure:    configureSlackFixture,
+		installed:    func(app *Server) bool { return app.slack != nil },
+		running:      func(app *Server) bool { return app.messaging != nil },
+		integrations: []string{"POST /integrations/slack/events", "POST /integrations/slack/interactions", "POST /integrations/slack/commands"},
+		cleanup: func(t *testing.T, app *Server) {
+			// A person linked a Slack account while the module ran. With it
+			// off nothing uses the link, and they can still remove it.
+			admin := recoverySession(t, app)
+			alice := addLocal(t, app, admin, "messaging-alice")
+			if err := app.catalog.LinkMessageUser(alice, "slack", "T123", "U999"); err != nil {
+				t.Fatal(err)
+			}
+			form := url.Values{"client": {"slack"}, "workspace": {"T123"}, "user": {"U999"}}
+			r := httptest.NewRequest("POST", app.origin+"/account/link/remove", strings.NewReader(form.Encode()))
+			r.Header.Set("Origin", app.origin)
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			r.AddCookie(localCookie(t, app, "messaging-alice"))
+			w := httptest.NewRecorder()
+			app.ServeHTTP(w, r)
+			if w.Code != http.StatusSeeOther || app.catalog.MessageLink("slack", "T123", "U999") != "" {
+				t.Fatalf("removing the link: %d %s", w.Code, w.Body)
+			}
+		},
+	},
+	"personal": {
+		configure: func(t *testing.T, app *Server) {
+			dir := t.TempDir()
+			key, secret := filepath.Join(dir, "key"), filepath.Join(dir, "secret")
+			for path, body := range map[string][]byte{key: []byte(strings.Repeat("k", 32)), secret: []byte("synthetic-client-secret")} {
+				if err := os.WriteFile(path, body, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := app.ConfigurePersonalConnectionsConfig(connectors.PersonalConfig{Version: 1, KeyFile: key, Google: &connectors.OAuthApplication{ClientID: "synthetic", SecretFile: secret}}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		installed: func(app *Server) bool { return app.personalConnections != nil },
+		running:   func(app *Server) bool { return app.personal != nil },
+		cleanup: func(t *testing.T, app *Server) {
+			// A person set up their assistant while the module ran. With it
+			// off, no personal run is scheduled or claimed. They can still
+			// pause the assistant and withdraw its AI processing consent,
+			// and nothing else about it changes.
+			admin := recoverySession(t, app)
+			alice := addLocal(t, app, admin, "personal-alice")
+			cookie := localCookie(t, app, "personal-alice")
+			if _, err := app.catalog.SetAssistantPolicy(catalog.Bootstrap, catalog.AssistantPolicy{Enabled: true}); err != nil {
+				t.Fatal(err)
+			}
+			settings, err := app.catalog.SaveAssistant(alice, catalog.AssistantSettings{Enabled: true, ExternalProcessing: true, TimeZone: "UTC", Features: []string{"operations"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if specs := app.personalSpecs(); len(specs) != 0 {
+				t.Fatalf("personal runs are scheduled: %+v", specs)
+			}
+			if err := app.automationPolicy(automation.Spec{Kind: "personal", Actor: alice, Project: settings.Project}); err == nil || !strings.Contains(err.Error(), "modules.off") {
+				t.Fatalf("a queued personal run may be claimed: %v", err)
+			}
+			save := func(settings catalog.AssistantSettings) *httptest.ResponseRecorder {
+				body, _ := json.Marshal(settings)
+				return localRequest(app, "/api/assistant/action/save_assistant_settings", string(body), cookie)
+			}
+			changed := settings
+			changed.QuietStart, changed.QuietEnd = "22:00", "07:00"
+			if w := save(changed); w.Code != 400 || !strings.Contains(w.Body.String(), "personal assistants are turned off") {
+				t.Fatalf("the assistant's settings changed with the module off: %d %s", w.Code, w.Body)
+			}
+			paused := settings
+			paused.Enabled, paused.ExternalProcessing = false, false
+			if w := save(paused); w.Code != 200 {
+				t.Fatalf("pausing the assistant: %d %s", w.Code, w.Body)
+			}
+			if stored, err := app.catalog.Assistant(alice); err != nil || stored.Enabled || stored.ExternalProcessing || stored.QuietStart != "" {
+				t.Fatalf("saved settings: %+v %v", stored, err)
+			}
+		},
+	},
+	"repositories": {
+		duties: []string{"repository-refresh"},
+		configure: func(t *testing.T, app *Server) {
+			key, client, webhook := gitHubAppFiles(t)
+			if err := app.ConfigureRepositorySourcesConfig(reposource.Config{AppID: "123", Slug: "sources", ClientID: "sources", PrivateKeyFile: key, ClientSecretFile: client, WebhookSecretFile: webhook}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		installed:    func(app *Server) bool { return app.repositories != nil || app.repositoryConnections != nil },
+		integrations: []string{"POST /repository/github/webhook"},
+		cleanup: func(t *testing.T, app *Server) {
+			// A source connected while the module ran fetches as a person
+			// who is then disabled with the module off. The source is paused
+			// all the same, so re-enabling them never restarts it, and their
+			// offboarding report lists it.
+			notebookOwner(t, app, "repo-alice", "code", "repository")
+			state := reposource.State{ID: "fixture", Project: "code", Actor: "repo-alice", Installation: 7, Repository: reposource.Repository{ID: 42, FullName: "example/source", DefaultBranch: "main", Private: true}, Connected: true, Generation: 1, Downloaded: "synthetic"}
+			data, _ := json.Marshal(map[string]any{"version": 1, "active": "fixture", "sources": map[string]reposource.State{"fixture": state}})
+			if _, err := app.db.WriteDocument(t.Context(), app.db.Pool, "repository-sources", "code", 0, data); err != nil {
+				t.Fatal(err)
+			}
+			if w := apiCall(app, "POST", "/api/v1/actions/set_user_access", `{"id":"repo-alice","disabled":true}`, testToken); w.Code != 200 {
+				t.Fatalf("disable: HTTP %d %s", w.Code, w.Body)
+			}
+			_, raw, err := app.db.ReadDocument(t.Context(), app.db.Pool, "repository-sources", "code", 0)
+			var stored struct {
+				Sources map[string]reposource.State `json:"sources"`
+			}
+			if err != nil || json.Unmarshal(raw, &stored) != nil || !stored.Sources["fixture"].Paused {
+				t.Fatalf("the disabled person's source is not paused: %s %v", raw, err)
+			}
+			connections := offboardingConnections(t, app, "repo-alice")
+			if len(connections) != 1 || connections[0]["project"] != "code" || connections[0]["kind"] != "repository" || connections[0]["paused"] != true {
+				t.Fatalf("offboarding lists %v", connections)
+			}
+		},
+	},
+	"managed-backups": {
+		duties: []string{"backup-expiry"},
+		configure: func(t *testing.T, app *Server) {
+			key, client, webhook := gitHubAppFiles(t)
+			worker := filepath.Join(t.TempDir(), "worker")
+			if err := os.WriteFile(worker, []byte(strings.Repeat("w", 32)), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := app.ConfigureBackupsConfig(backups.AppConfig{App: githubapp.Config{AppID: "2", Slug: "backups", ClientID: "backups", PrivateKeyFile: key, ClientSecretFile: client, WebhookSecretFile: webhook}, Workers: map[string]backups.WorkerConfig{"fixture": {Owner: "local", TokenFile: worker}}}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		installed:    func(app *Server) bool { return app.backups != nil },
+		integrations: []string{"POST /internal/backups/v1/lease"},
+		cleanup: func(t *testing.T, app *Server) {
+			// A backup connected while the module ran stays listed in the
+			// offboarding report of the person who connected it, so that
+			// removing their access does not overlook it.
+			notebookOwner(t, app, "backup-alice", "default", "notes")
+			binding := backups.Binding{Project: "default", Actor: "backup-alice", Owner: "local", Epoch: app.catalog.Epoch("backup-alice"), Installation: 7, Repository: githubapp.Repository{ID: 43, FullName: "example/backup", DefaultBranch: "main"}, Branch: "main", Generation: 1, Connected: true, Enabled: true}
+			data, _ := json.Marshal(map[string]any{"version": 1, "bindings": map[string]backups.Binding{"default": binding}})
+			if _, err := app.db.WriteDocument(t.Context(), app.db.Pool, "backups", "bindings", 0, data); err != nil {
+				t.Fatal(err)
+			}
+			connections := offboardingConnections(t, app, "backup-alice")
+			if len(connections) != 1 || connections[0]["project"] != "default" || connections[0]["kind"] != "backup" || connections[0]["paused"] != false {
+				t.Fatalf("offboarding lists %v", connections)
+			}
+		},
+	},
 	"sources": {
 		running: func(app *Server) bool { return app.sourceJobs != nil && app.sourceHTTP != nil },
 		cleanup: func(t *testing.T, app *Server) {
@@ -233,13 +653,14 @@ var offModuleChecks = map[string]moduleChecks{
 		cleanup: func(t *testing.T, app *Server) {
 			// A grant made while the module ran is to a group that is then
 			// deleted with the module off.
-			if _, err := app.catalog.SetGroup(catalog.Bootstrap, catalog.Group{ID: "analysts", Name: "Analysts"}); err != nil {
+			group, err := app.catalog.SetGroup(catalog.Bootstrap, catalog.Group{ID: "analysts", Name: "Analysts"})
+			if err != nil {
 				t.Fatal(err)
 			}
 			if _, err := app.catalog.SetConnectionAccess(catalog.Bootstrap, catalog.ConnectionGrant{Connection: "metrics", Groups: map[string][]string{"analysts": {"read"}}}); err != nil {
 				t.Fatal(err)
 			}
-			r := httptest.NewRequest("POST", app.origin+"/api/v1/actions/delete_group", strings.NewReader(`{"id":"analysts","revision":1}`))
+			r := httptest.NewRequest("POST", app.origin+"/api/v1/actions/delete_group", strings.NewReader(fmt.Sprintf(`{"id":"analysts","revision":%d}`, group.Revision)))
 			r.Header.Set("Authorization", "Bearer "+testToken)
 			r.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
@@ -294,8 +715,8 @@ var offModuleChecks = map[string]moduleChecks{
 	},
 }
 
-// Every module that can be turned off has its wiring and its checks here, and
-// no module that cannot be turned off claims wiring.
+// Every module has its wiring and its checks here, once, and nothing else
+// claims wiring.
 func TestEveryModuleThatCanBeTurnedOffIsWired(t *testing.T) {
 	wired := map[string]bool{}
 	for _, module := range wiredModules {
@@ -308,10 +729,54 @@ func TestEveryModuleThatCanBeTurnedOffIsWired(t *testing.T) {
 		}
 	}
 	for _, module := range modules.All() {
-		_, err := modules.Parse([]string{module.Name})
-		if (err == nil) != wired[module.Name] {
-			t.Errorf("%s: wired=%v, but turning it off alone gives %v", module.Name, wired[module.Name], err)
+		if !wired[module.Name] {
+			t.Errorf("%s has no wiring", module.Name)
 		}
+		delete(wired, module.Name)
+	}
+	if len(wired) > 0 {
+		t.Errorf("wiring for modules the registry does not list: %v", wired)
+	}
+}
+
+// An instance can run as the core alone, with every module off at once. It
+// starts, takes none of the modules' duties, offers exactly the actions no
+// module adds, and still saves and reads notes.
+func TestACoreInstanceRunsWithEveryModuleOff(t *testing.T) {
+	var every, duties []string
+	module := map[string]bool{}
+	full := startedModuleServer(t)
+	// The GitHub App connection flow runs while repositories or managed
+	// backups do.
+	shared := wiredModule{name: "github-connections", tools: []func(*Server, *mcp.Server){(*Server).connectionTools}}
+	for _, wired := range wiredModules {
+		every = append(every, wired.name)
+		duties = append(duties, offModuleChecks[wired.name].duties...)
+	}
+	for _, wired := range append(slices.Clone(wiredModules), shared) {
+		actions, _ := declaredModule(t, full, wired)
+		for _, name := range actions {
+			module[name] = true
+		}
+	}
+	core := startedModuleServer(t, every...)
+	if held := heldModuleDuties(t, core, duties); len(held) > 0 {
+		t.Errorf("the core took %v", held)
+	}
+	for name := range full.actions {
+		if _, ok := core.actions[name]; ok == module[name] {
+			t.Errorf("%s: in the core %v, added by a module %v", name, ok, module[name])
+		}
+	}
+	if len(core.actions) == 0 || len(core.actions) >= len(full.actions) {
+		t.Fatalf("the core offers %d of %d actions", len(core.actions), len(full.actions))
+	}
+	w := apiCall(core, "POST", "/api/v1/actions/save_note", `{"project":"default","path":"notes/core.md","content":"# Core\n\nStill here.\n","revision":""}`, testToken)
+	if w.Code != 200 {
+		t.Fatalf("save_note: HTTP %d %s", w.Code, w.Body)
+	}
+	if w = apiCall(core, "POST", "/api/v1/actions/read_note", `{"project":"default","path":"notes/core.md"}`, testToken); w.Code != 200 || !strings.Contains(w.Body.String(), "Still here.") {
+		t.Fatalf("read_note: HTTP %d %s", w.Code, w.Body)
 	}
 }
 
@@ -335,13 +800,21 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 				t.Fatal("the module declares neither tools nor routes")
 			}
 			for _, name := range actions {
-				if _, ok := full.actions[name]; !ok || !fullListed[name] {
+				// Actions only the account page calls are never listed over MCP.
+				if _, ok := full.actions[name]; !ok || fullListed[name] == accountUIActions[name] {
 					t.Errorf("with every module on, %s is missing: registered=%v listed=%v", name, ok, fullListed[name])
 				}
 			}
 			for _, route := range routes {
 				if !route.registered(full) {
 					t.Errorf("with every module on, %s is not routed", route.pattern)
+				}
+			}
+			for _, endpoint := range checks.integrations {
+				w := httptest.NewRecorder()
+				full.ServeHTTP(w, moduleRoute{pattern: endpoint}.request(full))
+				if w.Code == 404 {
+					t.Errorf("with every module on, %s answers 404: %s", endpoint, w.Body)
 				}
 			}
 
@@ -352,7 +825,19 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 				t.Error("with every module on, its hub is not open")
 			}
 
-			app := startedModuleServer(t, module.name)
+			// Turning the module off turns off the modules that require it
+			// too; only what those declare may go with it.
+			off := offWith(module.name)
+			app := startedModuleServer(t, off...)
+			removable := map[string]bool{}
+			for _, other := range wiredModules {
+				if slices.Contains(off, other.name) {
+					names, _ := declaredModule(t, full, other)
+					for _, name := range names {
+						removable[name] = true
+					}
+				}
+			}
 			if checks.installed != nil && checks.installed(app) {
 				t.Error("the off module's settings were installed")
 			}
@@ -362,8 +847,19 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 			// The MCP client serves the instance at another origin; the
 			// requests below use the instance's own.
 			origin := app.origin
-			listed := listedTools(t, actionClient(t, app, catalog.Bootstrap, moduleScopes))
+			session := actionClient(t, app, catalog.Bootstrap, moduleScopes)
+			listed := listedTools(t, session)
+			texts := guidance(t, app, session)
 			app.origin = origin
+			// Nothing that guides an agent names a tool the instance does
+			// not offer.
+			for where, text := range texts {
+				for name := range removable {
+					if regexp.MustCompile(`\b` + regexp.QuoteMeta(name) + `\b`).MatchString(text) {
+						t.Errorf("%s names %s", where, name)
+					}
+				}
+			}
 			for _, name := range actions {
 				if _, ok := app.actions[name]; ok || listed[name] {
 					t.Errorf("%s is still offered: registered=%v listed=%v", name, ok, listed[name])
@@ -378,8 +874,8 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 				}
 			}
 			for name := range full.actions {
-				if _, ok := app.actions[name]; !ok && !slices.Contains(actions, name) {
-					t.Errorf("turning %s off removed %s, which another module or the core adds", module.name, name)
+				if _, ok := app.actions[name]; !ok && !removable[name] {
+					t.Errorf("turning %v off removed %s, which another module or the core adds", off, name)
 				}
 			}
 			for _, route := range routes {
@@ -387,6 +883,13 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 				app.ServeHTTP(w, route.request(app))
 				if w.Code != 404 || route.registered(app) {
 					t.Errorf("%s: HTTP %d %s", route.pattern, w.Code, w.Body)
+				}
+			}
+			for _, endpoint := range checks.integrations {
+				w := httptest.NewRecorder()
+				app.ServeHTTP(w, moduleRoute{pattern: endpoint}.request(app))
+				if w.Code != 404 {
+					t.Errorf("%s: HTTP %d %s", endpoint, w.Code, w.Body)
 				}
 			}
 			if held := heldModuleDuties(t, app, checks.duties); len(held) > 0 {
@@ -399,7 +902,7 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 			r := httptest.NewRequest("GET", app.origin+"/api/me", nil)
 			r.Header.Set("Authorization", "Bearer "+testToken)
 			app.ServeHTTP(w, r)
-			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &me) != nil || !slices.Equal(me.ModulesOff, []string{module.name}) {
+			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &me) != nil || !slices.Equal(me.ModulesOff, off) {
 				t.Errorf("/api/me: HTTP %d %s", w.Code, w.Body)
 			}
 			if checks.cleanup != nil {
@@ -464,5 +967,34 @@ func TestSavedWatchesStayWithDataConnectionsOff(t *testing.T) {
 	stored, err := app.catalog.Assistant(alice)
 	if err != nil || stored.QuietStart != "22:00" || len(stored.Watches) != 1 || stored.Watches[0].Operation != "read" {
 		t.Fatalf("saved settings: %+v %v", stored, err)
+	}
+}
+
+// Repositories and managed backups share the GitHub App connection flow. It
+// runs while either module does, answering that the other is not available,
+// and is absent with both off.
+func TestGitHubConnectionsRunWithRepositoriesOrManagedBackups(t *testing.T) {
+	for _, tc := range []struct {
+		off     []string
+		purpose string
+	}{{[]string{"repositories"}, "source"}, {[]string{"managed-backups"}, "backup"}, {[]string{"repositories", "managed-backups"}, ""}} {
+		t.Run(strings.Join(tc.off, "+"), func(t *testing.T) {
+			app := startedModuleServer(t, tc.off...)
+			present := tc.purpose != ""
+			for _, name := range []string{"begin_github_connection", "github_connection_status", "finish_github_connection"} {
+				if _, ok := app.actions[name]; ok != present {
+					t.Errorf("%s registered=%v", name, ok)
+				}
+			}
+			if route := (moduleRoute{pattern: "GET /connections/start"}); route.registered(app) != present {
+				t.Errorf("/connections/start routed=%v", !present)
+			}
+			if present {
+				w := apiCall(app, "POST", "/api/v1/actions/begin_github_connection", `{"project":"default","purpose":"`+tc.purpose+`"}`, testToken)
+				if w.Code != 503 {
+					t.Errorf("a %s connection with its module off: HTTP %d %s", tc.purpose, w.Code, w.Body)
+				}
+			}
+		})
 	}
 }

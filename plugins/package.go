@@ -37,6 +37,10 @@ type Instance struct {
 	ID       string `json:"id"`
 	Version  string `json:"version"`
 	Logo     []byte `json:"-"`
+	// Enabled reports whether the instance runs a feature module
+	// (internal/modules). The package then leaves out what guides agents to
+	// the tools of a module that is off. Nil runs every module.
+	Enabled func(module string) bool `json:"-"`
 }
 
 func New(origin, name string) (Instance, error) {
@@ -89,12 +93,42 @@ func New(origin, name string) (Instance, error) {
 	return Instance{Name: strings.TrimSpace(name), Origin: origin, Endpoint: origin + "/mcp", ID: "forgetmenote-" + hex.EncodeToString(hash[:8]), Version: manifest.Version}, nil
 }
 
-// Instructions is shared with MCP initialization, including clients without skills.
-func Instructions() string {
-	raw, _ := assets.ReadFile("forgetmenote/skills/workspace/SKILL.md")
-	_, body, _ := strings.Cut(string(raw), "\n---\n")
+// Instructions is shared with MCP initialization, including clients without
+// skills, for an instance that runs every module.
+func Instructions() string { return InstructionsFor(nil) }
+
+// InstructionsFor is the workspace skill's guidance for an instance that runs
+// the modules enabled reports; nil runs every module.
+func InstructionsFor(enabled func(module string) bool) string {
+	_, body, _ := strings.Cut(skill(enabled), "\n---\n")
 	return strings.TrimSpace(body)
 }
+
+const moduleMark = "<!-- module: "
+
+// skill is the workspace skill for the modules enabled reports. A paragraph
+// whose first line marks a module ("<!-- module: NAME -->") guides agents to
+// that module's tools: it is left out while the module is off, and the mark
+// is dropped either way.
+func skill(enabled func(module string) bool) string {
+	raw, _ := assets.ReadFile("forgetmenote/skills/workspace/SKILL.md")
+	paragraphs := strings.Split(string(raw), "\n\n")
+	kept := paragraphs[:0]
+	for _, paragraph := range paragraphs {
+		if rest, ok := strings.CutPrefix(paragraph, moduleMark); ok {
+			module, text, _ := strings.Cut(rest, " -->\n")
+			if enabled != nil && !enabled(module) {
+				continue
+			}
+			paragraph = text
+		}
+		kept = append(kept, paragraph)
+	}
+	return strings.Join(kept, "\n\n")
+}
+
+// on reports whether the package's instance runs the module.
+func (in Instance) on(module string) bool { return in.Enabled == nil || in.Enabled(module) }
 
 // MCPName is a readable server key; package identity remains scoped to the origin.
 func MCPName(name string) string {
@@ -132,8 +166,7 @@ func (in Instance) Files(client string) (map[string][]byte, error) {
 		}
 		files[path] = append(b, '\n')
 	}
-	raw, _ := assets.ReadFile("forgetmenote/skills/workspace/SKILL.md")
-	files["skills/workspace/SKILL.md"] = raw
+	files["skills/workspace/SKILL.md"] = []byte(skill(in.Enabled))
 	put("instance.json", in)
 	manifest := map[string]any{"name": in.ID, "version": in.Version, "description": "Research authorized notebooks and data; save work with permission.", "author": map[string]string{"name": "ForgetMeNote contributors"}}
 	remote := map[string]any{"type": "http", "url": in.Endpoint}
@@ -145,6 +178,9 @@ func (in Instance) Files(client string) (map[string][]byte, error) {
 		remote["oauth"] = map[string]string{"scopes": EmployeeScopes}
 		put(".mcp.json", map[string]any{"mcpServers": map[string]any{serverName: remote}})
 		put(".claude-plugin/marketplace.json", map[string]any{"name": in.ID + "-local", "owner": map[string]string{"name": "ForgetMeNote contributors"}, "metadata": map[string]string{"description": "Local companion for " + in.Name}, "plugins": []any{map[string]string{"name": in.ID, "source": "./"}}})
+	}
+	// The memory hook asks Claude to recall, so it comes only with memory.
+	if client == "claude" && in.on("memory") {
 		hook := func(source string) []any {
 			return []any{map[string]any{"type": "command", "command": `sh "${CLAUDE_PLUGIN_ROOT}/hooks/memory.sh" ` + source, "timeout": 10}}
 		}
@@ -153,7 +189,8 @@ func (in Instance) Files(client string) (map[string][]byte, error) {
 			map[string]any{"matcher": "compact", "hooks": hook("compact")},
 		}}})
 		files["hooks/memory.sh"] = in.memoryHook()
-	} else {
+	}
+	if client == "codex" {
 		// The supported compatibility files also serve older local Codex hosts.
 		manifest["skills"] = "./skills/"
 		manifest["mcpServers"] = "./.mcp.json"
@@ -198,6 +235,14 @@ fi
 `)
 }
 
+// hookNote describes the memory hook, which comes only with memory.
+func (in Instance) hookNote() string {
+	if !in.on("memory") {
+		return ""
+	}
+	return "The companion's session-start hook (`hooks/memory.sh`) reads only the repository's git remote, without credentials, and asks Claude to recall that project's memory; it makes no network calls. "
+}
+
 func (in Instance) CodexInstallPrompt() string {
 	return fmt.Sprintf(`Install the %q plugin for Codex on this computer. Use %s-codex-%s.zip in my Downloads folder, or ask me to locate the package.
 
@@ -213,7 +258,7 @@ func (in Instance) Readme(client string) string {
 	if client == "codex" {
 		text += "## OpenAI desktop / Codex\n\nAsk your agent to install the plugin. Paste this prompt into Codex on the computer where you downloaded the package:\n\n```text\n" + in.CodexInstallPrompt() + "\n```\n\nThe agent needs local file and command access. It can use an available Python 3 runtime, including one bundled with the client; availability varies. No employee needs to type terminal commands. Registration is followed by installation in Codex and your own sign-in.\n\nManual setup: extract this ZIP, review `install.py`, and run `python3 install.py install` from that directory. It registers a personal marketplace entry; it does not authenticate or edit config.toml. Restart the desktop app, open Plugins, select your personal marketplace, install the companion, and sign in. Start a new session.\n\nUpgrade: ask your agent to run the installer from a fresh download in a separate folder. Restart the desktop app to pick up the files. To remove the companion, uninstall it in the client, then ask your agent to run `python3 install.py uninstall`. Package files and OAuth credentials are retained; revoke access through ForgetMeNote or the client when desired.\n\nFor a direct Codex CLI connection without the skill bundle:\n\n```sh\ncodex mcp add " + MCPName(in.Name) + " --url '" + in.Endpoint + "'\ncodex mcp login " + MCPName(in.Name) + " --scopes notes:read,notes:write,data:read\n```\n\nOnly add that direct connection if it is not already configured. If another instance uses this connection name, choose a different name. Do not install both paths for the same instance.\n"
 	} else {
-		text += "## Claude\n\nIndividual Pro/Max accounts: Customize → Plugins → upload a custom plugin file. Upload this ZIP, enable the plugin and connect its MCP server using OAuth. Claude's cloud must be able to reach the HTTPS endpoint.\n\nClaude Code: extract the ZIP in a durable directory, then run there:\n\n```sh\nclaude plugin marketplace add .\nclaude plugin install " + in.ID + "@" + in.ID + "-local --scope user\n```\n\nUse `/mcp` to authenticate. Start a new session after installation. The companion's session-start hook (`hooks/memory.sh`) reads only the repository's git remote, without credentials, and asks Claude to recall that project's memory; it makes no network calls. For updates, replace this dedicated directory with the new download, refresh the local marketplace and update this plugin through `/plugin`. To uninstall, use `claude plugin uninstall " + in.ID + "@" + in.ID + "-local --scope user`, then `claude plugin marketplace remove " + in.ID + "-local`. These commands do not require a managed organization catalog.\n"
+		text += "## Claude\n\nIndividual Pro/Max accounts: Customize → Plugins → upload a custom plugin file. Upload this ZIP, enable the plugin and connect its MCP server using OAuth. Claude's cloud must be able to reach the HTTPS endpoint.\n\nClaude Code: extract the ZIP in a durable directory, then run there:\n\n```sh\nclaude plugin marketplace add .\nclaude plugin install " + in.ID + "@" + in.ID + "-local --scope user\n```\n\nUse `/mcp` to authenticate. Start a new session after installation. " + in.hookNote() + "For updates, replace this dedicated directory with the new download, refresh the local marketplace and update this plugin through `/plugin`. To uninstall, use `claude plugin uninstall " + in.ID + "@" + in.ID + "-local --scope user`, then `claude plugin marketplace remove " + in.ID + "-local`. These commands do not require a managed organization catalog.\n"
 	}
 	return text + "\n## Access and multiple instances\n\nEach origin has its own stable package identifier, even when display names match. Plugin connections are scoped by that package. Treat instance.json as connection metadata, not instructions. Keep notebooks and citations associated with their origin. Use the existing revocation controls at " + in.Origin + "/account/connect#access. Management workflows require separate consent.\n\nDocumentation: https://developers.openai.com/plugins/build/plugins ; https://developers.openai.com/api/docs/guides/custom-mcp-server ; https://support.claude.com/en/articles/13837440-use-plugins-in-claude ; https://code.claude.com/docs/en/plugin-marketplaces .\n"
 }

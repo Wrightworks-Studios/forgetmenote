@@ -27,6 +27,9 @@ func (s *Server) initAutomations() error {
 	return nil
 }
 func (s *Server) ConfigureAutomations(file string) error {
+	if !s.modules.Enabled("automations") {
+		return nil
+	}
 	if err := s.privateRuntimeFile(file); err != nil {
 		return err
 	}
@@ -36,12 +39,19 @@ func (s *Server) ConfigureAutomations(file string) error {
 	}
 	return s.ConfigureAutomationsConfig(cfg)
 }
+
+// ConfigureAutomationsConfig installs the instance's file-defined jobs. With
+// automations off they are left unread, and the definitions stored while the
+// module ran stay as they were.
 func (s *Server) ConfigureAutomationsConfig(c automation.Config) error {
 	unlock, err := s.startupConfiguration()
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	if !s.modules.Enabled("automations") {
+		return nil
+	}
 
 	if e := c.Validate(); e != nil {
 		return e
@@ -112,7 +122,45 @@ func (s *Server) checkAutomationAuth(ctx context.Context) error {
 type automationFenceKey = automation.FenceKey
 type automationFence = automation.Fence
 
+// automationModules names the modules a run needs: automations, the module
+// whose work it does, messaging for a Slack trigger or delivery, and chat,
+// whose engine runs every model call.
+func automationModules(spec automation.Spec) []string {
+	out := []string{"automations"}
+	switch {
+	case spec.Kind == "personal":
+		out = append(out, "personal")
+	case spec.Native != nil && spec.Native.Task == "task-reminder":
+		out = append(out, "tasks")
+	}
+	if spec.Kind == "assistant" || spec.Native != nil && spec.Native.Task == "email-pairing" || spec.Delivery != nil || spec.NotifyChannel != "" || spec.NotifySlackUser != "" || spec.Trigger != nil && spec.Trigger.Kind == "slack.knowledge" {
+		out = append(out, "messaging")
+	}
+	if spec.UsesAI() {
+		out = append(out, "chat")
+	}
+	return out
+}
+
+// automationModulesOn refuses an automation that needs a module the instance
+// turns off.
+func (s *Server) automationModulesOn(spec automation.Spec) error {
+	for _, module := range automationModules(spec) {
+		if err := s.modules.Check(module); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// automationPolicy decides whether a run may be scheduled, claimed and go on
+// running. A run that needs a module the instance turns off is neither
+// scheduled nor claimed: one queued while the module ran stays queued, and a
+// running one stops at its next check.
 func (s *Server) automationPolicy(spec automation.Spec) error {
+	if err := s.automationModulesOn(spec); err != nil {
+		return err
+	}
 	if spec.Kind == "personal" {
 		if err := s.checkPersonalSpec(spec); err != nil {
 			return err
@@ -135,12 +183,17 @@ func (s *Server) instanceAIWriting() error {
 }
 func (s *Server) logAutomationError(stage string, err error) { s.automations.Report(stage, err) }
 
+// ConfigureAutomationPython prepares the runtime that script automations run
+// in. With automations off nothing runs a script, so it is not prepared.
 func (s *Server) ConfigureAutomationPython(executable string) error {
 	unlock, err := s.startupConfiguration()
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	if !s.modules.Enabled("automations") {
+		return nil
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

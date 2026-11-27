@@ -17,8 +17,14 @@ import (
 // initTasks binds task queues to this instance's access checks, messaging
 // clients, Slack app, data connections, reply reminder policy and origin. The
 // messaging service, the Slack app, the connections and the origin are read at
-// each call, since messaging is created after task queues.
+// each call, since messaging is created after task queues. An instance that
+// turns task queues off has no task service: no task reminder is scheduled or
+// claimed (automationPolicy), and the queues stay in the catalog and the
+// task-queues notebook.
 func (s *Server) initTasks() error {
+	if !s.modules.Enabled("tasks") {
+		return nil
+	}
 	var err error
 	s.tasks, err = taskqueue.New(s.catalog, s.automations, taskqueue.Hooks{
 		Personal: func(ctx context.Context) bool {
@@ -26,13 +32,24 @@ func (s *Server) initTasks() error {
 			return !automated && auth.Global(ctx)
 		},
 		CheckAutomation: s.checkAutomationAuth,
+		// With messaging off no client is configured: task reminders and
+		// notices have nowhere to go, and the queues work without them.
 		Client: func(id string) (messaging.Client, messaging.Transport, bool) {
+			if s.messaging == nil {
+				return messaging.Client{}, nil, false
+			}
 			return s.messaging.MessageClient(id)
 		},
 		SendDM: func(ctx context.Context, effect automation.Effect, t messaging.Transport, d messaging.Address, reply messaging.Reply) (bool, error) {
+			if err := s.modules.Check("messaging"); err != nil {
+				return false, err
+			}
 			return s.messaging.SendOnce(ctx, effect, t, d, reply, messaginghttp.DMSendTimeout, nil)
 		},
 		Enqueue: func(ctx context.Context, e messaging.Event) error {
+			if err := s.modules.Check("messaging"); err != nil {
+				return err
+			}
 			return s.messaging.EnqueueMessage(ctx, e)
 		},
 		Permalink: func(ctx context.Context, channel, ts string) (string, error) {

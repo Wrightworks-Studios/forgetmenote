@@ -83,9 +83,17 @@ async function focusSource(page) {
   return editor;
 }
 
-// Replaces the whole Source text, as typing over a full selection does.
+// Replaces the whole Source text, as selecting all (Ctrl/Cmd+A, which the
+// editor binds to the whole note) and typing over it does. Not locator.fill:
+// it selects the editor's DOM, which holds only the lines CodeMirror has
+// drawn, and types at once. When CodeMirror read the typing before that
+// selection, it replaced only the drawn lines, and the typed text was lost.
 export async function fillSource(page, text) {
-  await (await focusSource(page)).fill(text);
+  await expect(await focusSource(page)).toBeEditable();
+  await page.keyboard.press('ControlOrMeta+a');
+  if (text) await page.keyboard.insertText(text);
+  else await page.keyboard.press('Delete');
+  await expectEditorText(page, text);
 }
 
 export async function selectSource(page, from, to = from, direction = 'forward') {

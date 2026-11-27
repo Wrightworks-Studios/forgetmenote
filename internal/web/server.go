@@ -91,8 +91,11 @@ type Server struct {
 
 	repositoryConnections *repositoryConnections
 
-	links               *notebooks.Links
-	repositories        *reposource.Manager
+	links        *notebooks.Links
+	repositories *reposource.Manager
+	// dormantRepositories holds the stored repository sources while the
+	// repositories module is off (openDormantRepositories).
+	dormantRepositories *reposource.Manager
 	backups             *backupService
 	quicknotes          *quicknotes.Service
 	citations           *citationchecks.Runtime
@@ -282,6 +285,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set mo
 	if s.leave, err = db.KeepPresence(); err != nil {
 		return nil, err
 	}
+	if err = s.recordGatewayModules(); err != nil {
+		return nil, err
+	}
 	s.oauth, err = auth.OpenState(db)
 	if err != nil {
 		return nil, err
@@ -321,11 +327,12 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set mo
 		return nil, err
 	}
 	s.quicknotesRoutes()
-	s.repositoryRoutes()
-	s.backupRoutes()
+	s.documentRoutes()
+	s.mux.HandleFunc("POST /api/retrieval", s.retrievalHTTP)
 	s.notebookLinkRoutes()
 	s.dataConnectionRoutes()
 	s.personalAssistantRoutes()
+	s.messageUnlinkRoute()
 	s.personalConnectionRoutes()
 	s.mux.HandleFunc("GET /readyz", s.ready)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
@@ -400,11 +407,15 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set mo
 	if err = s.initSourceJobs(); err != nil {
 		return nil, err
 	}
+	if err = s.openDormantRepositories(); err != nil {
+		return nil, err
+	}
 	s.knowledgeRoutes()
 	s.wikiRoutes()
 	s.trashRoutes()
-	s.chatRoutes()
-	s.connectionRoutes()
+	if s.gitHubConnections() {
+		s.connectionRoutes()
+	}
 	s.authorityRoutes()
 	s.purge.Register(s.handleProject)
 	s.instanceAdministrationRoutes()
@@ -561,14 +572,15 @@ func (s *Server) serveHeadless(w http.ResponseWriter, r *http.Request, target re
 
 // serveIntegration serves the endpoints that authenticate their own callers
 // (Slack and GitHub signatures, backup worker credentials) before any session
-// or bearer check.
+// or bearer check. The endpoints of an off module are left to answer like any
+// unknown path.
 func (s *Server) serveIntegration(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch {
-	case path == "/integrations/slack/events" || path == "/integrations/slack/interactions" || path == "/integrations/slack/commands":
+	case (path == "/integrations/slack/events" || path == "/integrations/slack/interactions" || path == "/integrations/slack/commands") && s.modules.Enabled("messaging"):
 		s.slackApp(w, r, path)
-	case strings.HasPrefix(path, "/internal/backups/v1/"):
+	case strings.HasPrefix(path, "/internal/backups/v1/") && s.modules.Enabled("managed-backups"):
 		s.backupWorkerHTTP(w, r)
-	case path == "/repository/github/webhook":
+	case path == "/repository/github/webhook" && s.modules.Enabled("repositories"):
 		s.repositoryWebhook(w, r)
 	default:
 		return false

@@ -72,51 +72,48 @@ func TestTheDependencyCheckRefusesEachBrokenRequirementAndNamesBothModules(t *te
 		if err == nil || !strings.Contains(err.Error(), strconv.Quote(requirement.module)) || !strings.Contains(err.Error(), strconv.Quote(requirement.requires)) || !strings.Contains(err.Error(), "requires") {
 			t.Fatalf("%s without %s (off %v): %v", requirement.module, requirement.requires, off, err)
 		}
-		if strings.Contains(err.Error(), "not supported yet") {
-			t.Fatalf("the dependency check ran after the support check: %v", err)
-		}
 	}
 }
 
-// Until a module's wiring lands, a valid list that names it is refused at
-// startup instead of running a module that was meant to be off. The refusal
-// names only the modules that cannot be turned off yet.
-func TestTurningAModuleOffIsNotSupportedYet(t *testing.T) {
-	_, err := Parse([]string{"sources", "personal", "messaging", "tasks"})
-	if err == nil || !strings.Contains(err.Error(), "not supported yet") {
-		t.Fatal(err)
-	}
-	for _, name := range []string{`"personal"`, `"messaging"`, `"tasks"`} {
-		if !strings.Contains(err.Error(), name) {
-			t.Fatalf("the refusal does not name %s: %v", name, err)
+// Every module can be turned off with the modules that require it, so the
+// modules nothing requires each alone, and every module can be turned off at
+// once.
+func TestEveryModuleCanBeTurnedOff(t *testing.T) {
+	for _, module := range All() {
+		off := map[string]bool{module.Name: true}
+		for changed := true; changed; {
+			changed = false
+			for _, other := range All() {
+				if !off[other.Name] && slices.ContainsFunc(other.Requires, func(required string) bool { return off[required] }) {
+					off[other.Name], changed = true, true
+				}
+			}
 		}
-	}
-	if strings.Contains(err.Error(), `"sources"`) {
-		t.Fatalf("the refusal names a module that can be turned off: %v", err)
-	}
-}
-
-// The wired modules nothing requires can each be turned off, alone or
-// together.
-func TestTheModulesNothingRequiresCanBeTurnedOff(t *testing.T) {
-	optional := []string{"judgments", "data-connections", "sources"}
-	for _, name := range optional {
-		set, err := Parse([]string{name})
+		var list []string
+		for name := range off {
+			list = append(list, name)
+		}
+		set, err := Parse(list)
 		if err != nil {
-			t.Fatalf("%s: %v", name, err)
+			t.Fatalf("%s with %v: %v", module.Name, list, err)
 		}
-		for _, module := range All() {
-			if set.Enabled(module.Name) == (module.Name == name) {
-				t.Fatalf("with %s off, %s is %v", name, module.Name, set.Enabled(module.Name))
+		for _, other := range All() {
+			if set.Enabled(other.Name) == off[other.Name] {
+				t.Fatalf("with %v off, %s is %v", list, other.Name, set.Enabled(other.Name))
 			}
 		}
 	}
-	all, err := Parse(optional)
+	every, err := Parse(names(All()))
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, module := range All() {
+		if every.Enabled(module.Name) {
+			t.Fatalf("with every module off, %s is on", module.Name)
+		}
+	}
 	one, _ := Parse([]string{"sources"})
-	if !all.Equal(all) || all.Equal(one) || one.Equal(Set{}) || !(Set{}).Equal(Set{off: map[string]bool{}}) {
+	if !every.Equal(every) || every.Equal(one) || one.Equal(Set{}) || !(Set{}).Equal(Set{off: map[string]bool{}}) {
 		t.Fatal("Equal compares the modules a set runs")
 	}
 }

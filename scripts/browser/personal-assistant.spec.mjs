@@ -348,29 +348,54 @@ test('a form save keeps data watches written as JSON exactly as they were', asyn
     await watched.login(page, 'password');
     await page.goto(watched.origin + '/account/assistant');
     await expect(page.locator('#assistant-enabled')).toBeEnabled();
-    // Values the generated controls cannot show as they are: a limit that is
-    // not an integer, an argument the schema does not declare, and a watch on
-    // a connection that does not allow AI processing.
+    const {settings} = await assistantAction(page, 'assistant_status');
+    const save = watches => assistantAction(page, 'save_assistant_settings', {...settings, timeZone: 'UTC', watches});
+    // Arguments the operation's schema refuses are refused when saved, naming
+    // the watch and the argument.
+    for (const [args, refusal] of [
+      [{limit: 'many', service: ''}, 'validating /properties/limit: type: many has type "string", want "integer"'],
+      [{service: '', window: {days: 2}}, 'unexpected additional properties ["window"]']
+    ]) {
+      const refused = await page.evaluate(
+        async body => {
+          const response = await fetch('/api/assistant/action/save_assistant_settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+          });
+          return {status: response.status, error: (await response.json()).error};
+        },
+        {...settings, timeZone: 'UTC', watches: [{connection: 'logs', operation: 'recent', arguments: args}]}
+      );
+      expect(refused).toEqual({
+        status: 400,
+        error: `data watch 1 (recent on logs): arguments do not match operation schema: validating root: ${refusal}`
+      });
+    }
+    // Arguments the schema accepts written as no form would write them: keys
+    // out of the schema's order, an optional false set explicitly, an empty
+    // required string and a nested object only JSON can carry; and a watch
+    // on a connection that does not allow AI processing.
     const written = [
-      {connection: 'logs', operation: 'recent', arguments: {limit: 'many', service: '', window: {days: 2}}},
+      {
+        connection: 'logs',
+        operation: 'recent',
+        arguments: {filter: {window: {days: 2}}, errors: false, service: '', level: 'warn'}
+      },
       {connection: 'local', operation: 'status', arguments: {}}
     ];
-    const {settings} = await assistantAction(page, 'assistant_status');
-    await assistantAction(page, 'save_assistant_settings', {
-      ...settings,
-      timeZone: 'UTC',
-      watches: written
-    });
+    await save(written);
     const before = JSON.stringify((await assistantAction(page, 'assistant_status')).settings.watches);
     expect(JSON.parse(before)).toEqual(written);
     await openWatches(page, watched.origin);
     const first = page.locator('.assistant-watch').nth(0);
-    await expect(first.getByLabel('limit', {exact: true})).toHaveCount(0);
+    await expect(first.getByLabel('limit', {exact: true})).toHaveValue('');
     await expect(first.getByLabel('service', {exact: true})).toHaveValue('');
-    await expect(first.getByText('Set here: limit, filter')).toBeVisible();
+    await expect(first.getByLabel('errors', {exact: true})).not.toBeChecked();
+    await expect(first.getByLabel('level', {exact: true}).locator('option:checked')).toHaveText('warn');
+    await expect(first.getByText('Set here: filter')).toBeVisible();
     expect(JSON.parse(await first.getByLabel('Other arguments (JSON)', {exact: true}).inputValue())).toEqual({
-      limit: 'many',
-      window: {days: 2}
+      filter: {window: {days: 2}}
     });
     const second = page.locator('.assistant-watch').nth(1);
     await expect(second.getByLabel('Connection', {exact: true}).locator('option:checked')).toHaveText(

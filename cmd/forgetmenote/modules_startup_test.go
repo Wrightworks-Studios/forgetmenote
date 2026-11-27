@@ -28,12 +28,12 @@ func instanceFile(t *testing.T, dir, address, modules string) string {
 	return file
 }
 
-// Until a module's wiring lands, a gateway configured to turn it off does not
-// start, rather than run a module the operator meant to be off.
+// A gateway whose modules.off turns a module off but leaves on a module that
+// requires it does not start, rather than run that module without it.
 func TestModulesOffStopsStartup(t *testing.T) {
-	t.Setenv("INSTANCE_CONFIG_FILE", instanceFile(t, t.TempDir(), "127.0.0.1:0", `{"off":["personal","messaging","tasks"]}`))
-	if err := runArguments(nil); err == nil || !strings.Contains(err.Error(), "turning these modules off is not supported yet") {
-		t.Fatalf("startup accepted modules off: %v", err)
+	t.Setenv("INSTANCE_CONFIG_FILE", instanceFile(t, t.TempDir(), "127.0.0.1:0", `{"off":["automations"]}`))
+	if err := runArguments(nil); err == nil || !strings.Contains(err.Error(), `module "tasks" requires "automations"`) {
+		t.Fatalf("startup accepted a broken modules.off: %v", err)
 	}
 }
 

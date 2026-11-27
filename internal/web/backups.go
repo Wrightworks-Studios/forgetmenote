@@ -30,7 +30,14 @@ type backupService struct {
 	config     backupConfig
 }
 
+// ConfigureBackups and ConfigureBackupsConfig install the Backups GitHub App
+// and its workers. On an instance that turns the managed-backups module off
+// they install nothing, and the file, the App's secrets and the worker
+// secrets stay unread.
 func (s *Server) ConfigureBackups(file string) error {
+	if !s.modules.Enabled("managed-backups") {
+		return nil
+	}
 	if err := s.privateRuntimeFile(file); err != nil {
 		return err
 	}
@@ -46,6 +53,9 @@ func (s *Server) ConfigureBackupsConfig(cfg backups.AppConfig) error {
 		return err
 	}
 	defer unlock()
+	if !s.modules.Enabled("managed-backups") {
+		return nil
+	}
 
 	if len(cfg.Workers) == 0 || len(cfg.Workers) > 256 {
 		return errors.New("invalid backup App configuration")
@@ -96,16 +106,19 @@ func (s *Server) ConfigureBackupsConfig(cfg backups.AppConfig) error {
 	}
 	return err
 }
-func (s *Server) backupRoutes() {
-	s.handleProject("GET /api/managed-backup", "owner", func(w http.ResponseWriter, r *http.Request) {
+
+// backupRoutes are the managed-backups module's routes: connecting a
+// notebook's backup and controlling it.
+func (s *Server) backupRoutes(register routeRegistrar) {
+	register.project("GET /api/managed-backup", "owner", func(w http.ResponseWriter, r *http.Request) {
 		out, err := s.backupStatus(r.Context(), projectID(r.Context()))
 		respond(w, out, err)
 	})
-	s.handleProject("POST /api/managed-backup/connect", "owner", s.backupConnect)
-	s.handleProject("GET /api/managed-backup/choices", "owner", s.backupChoices)
-	s.handleProject("POST /api/managed-backup/select", "owner", s.backupSelect)
-	s.handleProject("POST /api/managed-backup/create", "owner", s.backupCreate)
-	s.handleProject("POST /api/managed-backup/control", "owner", func(w http.ResponseWriter, r *http.Request) {
+	register.project("POST /api/managed-backup/connect", "owner", s.backupConnect)
+	register.project("GET /api/managed-backup/choices", "owner", s.backupChoices)
+	register.project("POST /api/managed-backup/select", "owner", s.backupSelect)
+	register.project("POST /api/managed-backup/create", "owner", s.backupCreate)
+	register.project("POST /api/managed-backup/control", "owner", func(w http.ResponseWriter, r *http.Request) {
 		service, ok := s.backupReady(w, r)
 		if !ok {
 			return
@@ -122,7 +135,7 @@ func (s *Server) backupRoutes() {
 		})
 		respond(w, out, err)
 	})
-	s.mux.HandleFunc("GET /backup/github/callback", s.backupCallback)
+	register.global("GET /backup/github/callback", s.backupCallback)
 }
 func (s *Server) backupStatus(ctx context.Context, project string) (any, error) {
 	store, err := s.toolStore(ctx, project, "owner")
@@ -338,8 +351,8 @@ func (s *Server) selectManagedBackup(ctx context.Context, p repositoryGrant, ins
 	if err := s.backupGrantAuthority(p); err != nil {
 		return backups.Binding{}, err
 	}
-	if s.repositories != nil {
-		st, e := s.repositories.Status(p.Project)
+	if repositories := s.storedRepositories(); repositories != nil {
+		st, e := repositories.Status(p.Project)
 		if e == nil && st.Repository.ID == repository {
 			return backups.Binding{}, backups.ErrDenied
 		}

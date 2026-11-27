@@ -61,7 +61,7 @@ class PlanTests(unittest.TestCase):
     def test_unknown_shared_and_security_inputs_escalate_even_with_ui_changes(self):
         for path in ('Dockerfile', 'go.mod', 'internal/catalog/assistant.go', 'internal/web/ui/app.mjs',
                      'internal/web/ui/index.html', 'internal/chat/permissions.go', 'internal/chat/store.go', 'internal/chat/admission.go', 'internal/chat/config.go',
-                     'deploy/iwork/convert.cpp', 'internal/future/new.go', 'internal/web/automation_script_capabilities.go',
+                     'deploy/debian.sources', 'internal/future/new.go', 'internal/web/automation_script_capabilities.go',
                      'scripts/browser/app-fixture.mjs', 'frontend/editor.mjs'):
             with self.subTest(path=path):
                 self.git('reset', '--hard', self.baseline)
@@ -305,7 +305,7 @@ class PathClassTests(unittest.TestCase):
             'deploy/git-backup/test_watcher.py': 'test', 'deploy/integrations/slack.example.json': 'test',
             'Dockerfile': 'runtime', '.dockerignore': 'runtime', 'go.sum': 'runtime', 'package-lock.json': 'runtime',
             'internal/web/server.go': 'runtime', 'internal/web/ui/style.css': 'runtime', 'frontend/editor.mjs': 'runtime',
-            'plugins/forgetmenote/skills/workspace/SKILL.md': 'runtime', 'deploy/iwork/convert.cpp': 'runtime',
+            'plugins/forgetmenote/skills/workspace/SKILL.md': 'runtime',
             'deploy/git-backup/watcher.py': 'runtime', 'deploy/debian.sources': 'runtime',
             # Unreviewed inputs and Go implementations outside the image fail closed.
             'new-runtime-input.txt': 'runtime', 'deploy/production/helper.go': 'runtime', 'lib/x.go': 'runtime',

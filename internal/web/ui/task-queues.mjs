@@ -1,6 +1,7 @@
 import {element as node,button as control,busy} from './dom.mjs';
 import {feedback} from './feedback.mjs';
 import {choiceSelect,chooseOption} from './pickers.mjs';
+import {moduleOn} from './state.mjs';
 
 const button=(text,action)=>control(text,action,{class:'quiet'});
 // Phrases are typed one per line; an unchanged field keeps the saved list.
@@ -18,7 +19,7 @@ export function initTaskQueues({post,getUser,getActive}){
   const active=getActive(),current=++version;root.replaceChildren(node('p','Loading task queues…'));
   const live=()=>current===version&&!!getUser()?.admin&&active();
   try{
-   const [status,chat]=await Promise.all([post('/api/organization/action/organization_status',{}),post('/api/organization/action/chat_clients',{}).catch(()=>({config:{}}))]);
+   const [status,chat]=await Promise.all([post('/api/organization/action/organization_status',{}),moduleOn(getUser(),'messaging')?post('/api/organization/action/chat_clients',{}).catch(()=>({config:{}})):{config:{}}]);
    if(!live())return;
    const heading=node('div');heading.className='actions settings-heading';heading.append(node('h3','Task queues'),button('Refresh',open));
    if((status.modules||[]).some(module=>module.name==='tasks'&&!module.enabled)){root.replaceChildren(heading,node('p','Task queues are switched off for this instance. An operator turns them on by removing "tasks" from modules.off in instance.json.','small'));return;}
@@ -35,7 +36,7 @@ export function initTaskQueues({post,getUser,getActive}){
   const state=node('p',enabled?settings.disabled?'Paused: every task action is refused until you resume them.':'On. Queues live in the task-queues notebook.':'Off. Turning them on creates the task-queues notebook, where every queue is kept.','small');
   const status=node('p');status.setAttribute('role','status');
   function labelled(text,control,hint){const wrap=node('label',text);control.setAttribute('aria-label',text);wrap.append(control);if(hint)wrap.append(node('small',hint));form.append(wrap);return control;}
-  const client=labelled('Messaging client',choiceSelect('Messaging client',clients.map(id=>[id,id==='slack'?'Slack':id]),{placeholder:'None'}),unsaved?'Save the client under Chat clients first; then choose it here.':'Members of this client’s workspace have queues and get reminders. Clients are set up under Chat clients.');
+  const client=labelled('Messaging client',choiceSelect('Messaging client',clients.map(id=>[id,id==='slack'?'Slack':id]),{placeholder:'None'}),!moduleOn(getUser(),'messaging')?'Slack messaging is turned off on this instance, so queues work without a client: nobody gets reminders or notices.':unsaved?'Save the client under Chat clients first; then choose it here.':'Members of this client’s workspace have queues and get reminders. Clients are set up under Chat clients.');
   // A first setup starts from the only configured client.
   chooseOption(client,settings.client||(!enabled&&clients.length===1?clients[0]:''),value=>`${value} (not configured)`);
   const group=labelled('Accounts that may use tasks',choiceSelect('Accounts that may use tasks',groups.map(g=>[g.id,g.name||g.id]),{placeholder:'Everyone with an account'}),'Workspace members can use tasks either way.');

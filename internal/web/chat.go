@@ -48,8 +48,11 @@ func (s *Server) chatConfigurationHooks() chat.ConfigurationHooks {
 	}
 	return hooks
 }
-func (s *Server) chatRoutes() {
+
+// chatRoutes adds the conversation routes. With chat off none is added, and
+// /api/chat/ answers 404 like any unknown path.
+func (s *Server) chatRoutes(register routeRegistrar) {
 	// Chat lifecycle authorization historically precedes method/path rejection.
 	s.routes.RejectPrefix("/api/chat/", webcore.MethodRoles{Write: "read"})
-	s.chatrun.Register(s.mux, s.handleProject)
+	s.chatrun.Register(register.project, register.global)
 }

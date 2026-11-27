@@ -69,6 +69,9 @@ func (s *Server) dataAllowed(ctx context.Context, id, operation string) bool {
 			return false
 		}
 		if a.Spec.Kind == "assistant" && a.Spec.Delivery != nil && a.Spec.Delivery.Shared {
+			if s.messaging == nil {
+				return false
+			}
 			_, binding, _, err := s.messaging.MessageBinding(*a.Spec.Delivery)
 			if err != nil {
 				return false
