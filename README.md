@@ -220,7 +220,8 @@ how to report a vulnerability.
 ## Contributing
 
 Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) takes you from a
-fresh clone to a running instance with sample notes and an open pull request.
+fresh clone to a running instance with sample notes and an open pull request. Contributors agree to the
+[Contributor License Agreement](CLA.md) once, by commenting on their first pull request.
 
 ## License
 

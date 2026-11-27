@@ -36,24 +36,25 @@ class FormatTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which('make'), 'make required')
 class OperatorTestTargetTests(unittest.TestCase):
-    def test_host_python_tests_include_the_github_app_manifest(self):
+    def test_host_python_tests_include_the_github_app_manifest_and_cla_check(self):
         with tempfile.TemporaryDirectory() as temporary:
             tree = Path(temporary)
             shutil.copyfile(ROOT / 'Makefile', tree / 'Makefile')
             passing = 'import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n'
-            for name in ('deploy/standalone/test_operator.py', 'deploy/production/test_release.py'):
+            selected = ('scripts/test_github_app_manifest.py', '.github/scripts/test_cla.py')
+            for name in ('deploy/standalone/test_operator.py', 'deploy/production/test_release.py') + selected:
                 (tree / name).parent.mkdir(parents=True, exist_ok=True)
                 (tree / name).write_text(passing)
-            manifest = tree / 'scripts/test_github_app_manifest.py'
-            manifest.parent.mkdir()
             run = lambda: subprocess.run(['make', '-s', 'test-python-host', 'PYTHON=' + sys.executable],
                                          cwd=tree, capture_output=True, text=True)
-            manifest.write_text(passing)
             self.assertEqual(run().returncode, 0)
-            manifest.write_text(passing.replace('pass', 'self.fail("manifest regression")'))
-            result = run()
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn('manifest regression', result.stderr)
+            for name in selected:
+                with self.subTest(test=name):
+                    (tree / name).write_text(passing.replace('pass', 'self.fail("%s regression")' % name))
+                    result = run()
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(name + ' regression', result.stderr)
+                    (tree / name).write_text(passing)
 
 
 @unittest.skipUnless(shutil.which('make'), 'make required')

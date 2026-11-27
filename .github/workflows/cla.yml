@@ -1,0 +1,38 @@
+name: CLA
+# Each author and committer of a pull request agrees to the Contributor License
+# Agreement (CLA.md) before it merges; the `cla` commit status reports who still
+# needs to. A comment on the pull request records an agreement and rechecks it.
+# See .github/scripts/cla.py.
+#
+# pull_request_target and issue_comment run the base branch's copy of the script
+# with a write token. It reads pull request metadata through the API and never
+# checks out or runs pull request code, which is what keeps that token safe. A
+# merge queue entry passes: each pull request in it passed before it could join.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+  issue_comment:
+    types: [created]
+  merge_group:
+permissions: {}
+concurrency:
+  group: cla-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
+  cancel-in-progress: false
+jobs:
+  agreement:
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # signatures.json on the cla-signatures branch
+      pull-requests: write # the status comment
+      statuses: write # the cla status
+    steps:
+      # The base branch for pull requests and comments, never the pull request head.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - run: python3 .github/scripts/cla.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

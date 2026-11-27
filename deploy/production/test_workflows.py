@@ -100,7 +100,7 @@ class CheckWorkflowTests(unittest.TestCase):
     def test_every_action_is_pinned_to_a_commit(self):
         for path in sorted((ROOT / '.github/workflows').glob('*.yml')):
             for line in path.read_text().splitlines():
-                found = re.search(r'uses:\s*(\S+)', line)
+                found = re.match(r'\s*(?:-\s+)?uses:\s*(\S+)', line)
                 if found:
                     with self.subTest(workflow=path.name, action=found[1]):
                         self.assertRegex(found[1], r'^[\w.-]+/[\w.-]+@[0-9a-f]{40}$')
@@ -214,6 +214,26 @@ class ScorecardWorkflowTests(unittest.TestCase):
         self.assertIs(scorecard['with']['publish_results'], True)
         checkout = next(step for step in job['steps'] if step.get('uses', '').startswith('actions/checkout@'))
         self.assertIs(checkout['with']['persist-credentials'], False)
+
+
+class CLAWorkflowTests(unittest.TestCase):
+    def test_the_cla_check_never_runs_pull_request_code_with_its_write_token(self):
+        value, triggers = workflow('cla.yml')
+        self.assertEqual(set(triggers), {'pull_request_target', 'issue_comment', 'merge_group'})
+        self.assertEqual(value['permissions'], {})
+        # A check run named cla could satisfy the required cla status by itself.
+        self.assertNotIn('cla', value['jobs'])
+        job, = value['jobs'].values()
+        self.assertEqual(job['permissions'], {'contents': 'write', 'pull-requests': 'write', 'statuses': 'write'})
+        checkout, run = job['steps']
+        self.assertTrue(checkout['uses'].startswith('actions/checkout@'))
+        # Without a ref, pull_request_target checks out the base branch, not the pull request.
+        self.assertEqual(set(checkout['with']), {'persist-credentials', 'sparse-checkout'})
+        self.assertIs(checkout['with']['persist-credentials'], False)
+        self.assertEqual(run['run'], 'python3 .github/scripts/cla.py')
+        # Comment and pull request text reach the script only through the event file.
+        self.assertNotRegex((ROOT / '.github/workflows/cla.yml').read_text(),
+                            r'\$\{\{\s*github\.event\.(comment|issue|pull_request)\.(body|title|head)')
 
 
 class NotifyDeploymentsWorkflowTests(unittest.TestCase):
