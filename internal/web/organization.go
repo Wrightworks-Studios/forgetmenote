@@ -94,7 +94,11 @@ func (s *Server) organizationTools(server *mcp.Server) {
 			mode = "proxy"
 		}
 		summary := s.InstanceSummary()
-		return map[string]any{"organization": org, "branding": currentBrand(s.catalog), "authentication": mode, "instance": summary, "omittedIntegrations": integrations.Omitted(), "modules": s.modules.States(),
+		gateways, err := s.gatewayModules(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"organization": org, "branding": currentBrand(s.catalog), "authentication": mode, "instance": summary, "omittedIntegrations": integrations.Omitted(), "modules": s.modules.States(), "gateways": gateways,
 			"headless": summary["headless"], "githubConfigured": summary["repositorySources"], "backupsConfigured": summary["managedBackups"], "chatConfigured": summary["chat"], "embeddingsConfigured": summary["embeddings"]}, nil
 	})
 	addManagementTool(s, server, "set_instance_name", "Set the instance display name. Admin only.", false, func(ctx context.Context, in struct {

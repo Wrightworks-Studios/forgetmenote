@@ -285,6 +285,9 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, set mo
 	if s.leave, err = db.KeepPresence(); err != nil {
 		return nil, err
 	}
+	if err = s.recordGatewayModules(); err != nil {
+		return nil, err
+	}
 	s.oauth, err = auth.OpenState(db)
 	if err != nil {
 		return nil, err
