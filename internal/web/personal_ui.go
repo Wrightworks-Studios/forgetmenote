@@ -22,7 +22,7 @@ func (s *Server) assistantPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var page bytes.Buffer
-	if err := s.page.ExecuteTemplate(&page, "assistant.html", map[string]any{"Admin": s.catalog.IsAdmin(subject(r.Context())), "Headless": s.headless, "DataConnections": s.modules.Enabled("data-connections")}); err != nil {
+	if err := s.page.ExecuteTemplate(&page, "assistant.html", map[string]any{"Admin": s.catalog.IsAdmin(subject(r.Context())), "Headless": s.headless, "DataConnections": s.modules.Enabled("data-connections"), "Personal": s.modules.Enabled("personal"), "Memory": s.modules.Enabled("memory")}); err != nil {
 		fail(w, err)
 		return
 	}
