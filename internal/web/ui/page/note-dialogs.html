@@ -36,10 +36,6 @@
           </div>
           <div id="archive-url-field" hidden><label for="archive-url">Page or file URL</label><input id="archive-url" type="url" placeholder="https://…" disabled/></div>
           <div id="archive-folder-field"><label for="archive-folder">Folder</label><div class="select-picker"><select id="archive-folder" aria-label="Destination folder"></select></div></div>
-          <label id="archive-describe-field" hidden><input id="archive-describe" type="checkbox"/>Upload images for hosted interpretation</label>
-          <label id="archive-ocr-field" hidden><input id="archive-ocr" type="checkbox"/>Upload selected pages for hosted OCR</label>
-          <label id="archive-transcribe-field" hidden><input id="archive-transcribe" type="checkbox"/>Upload audio for hosted transcription</label>
-          <div id="archive-page-range" hidden><label>Selected physical pages/images (up to eight)</label><div class="archive-links"><input id="archive-first-page" type="number" min="1" max="10000" placeholder="First" aria-label="First physical page"/><input id="archive-last-page" type="number" min="1" max="10000" placeholder="Last" aria-label="Last physical page"/></div><p class="small">Leave empty for documents with up to eight pages. Hosted options send content to the configured provider.</p></div>
           <button id="archive-preview-button" class="primary" type="submit">Preview source</button>
         </div>
         <p id="archive-job-status" class="small" role="status"></p>
@@ -51,7 +47,7 @@
         <p id="archive-error" role="alert" hidden></p>
         <button id="archive-save" class="primary" type="button" hidden>Archive source</button>
         <div id="archive-saved" hidden>
-          <p>Source archived.</p><textarea id="archive-result" readonly aria-label="Pinned source citation"></textarea>
+          <p>Source archived.</p><p id="archive-chat-status" role="status" hidden></p><textarea id="archive-result" readonly aria-label="Pinned source citation"></textarea>
           <div class="archive-links"><button id="archive-insert" type="button">Insert citation</button><button id="archive-copy" type="button" class="quiet">Copy citation</button><button id="archive-view" type="button" class="quiet">Open source</button></div>
         </div>
       </form>

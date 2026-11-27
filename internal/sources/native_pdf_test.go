@@ -7,13 +7,26 @@ import (
 	"testing"
 )
 
-func TestNativePDFMixedAndBlankPages(t *testing.T) {
-	for _, tool := range []string{"pdftotext", "pdfimages", "pdftoppm", "tesseract"} {
-		if _, err := exec.LookPath(tool); err != nil {
-			t.Skip("requires Poppler and Tesseract: " + tool)
-		}
+// The real Poppler reads each fixture's text layer and nothing else. The
+// scanned fixtures, which have none, wait for a connected agent.
+func TestNativePDFReadsTheTextLayerOnly(t *testing.T) {
+	if _, err := exec.LookPath("pdftotext"); err != nil {
+		t.Skip("requires Poppler's pdftotext")
 	}
-	for _, name := range []string{"mixed", "scanned", "searchable"} {
+	for name, test := range map[string]struct {
+		extraction string
+		words      []string
+	}{
+		"searchable": {"extracted", []string{"Amber evidence", "Cobalt findings"}},
+		// The native header is read once; the scanned region beside it is not.
+		"mixed":     {"extracted", []string{"Native header"}},
+		"scanned":   {"no-text", nil},
+		"columns":   {"no-text", nil},
+		"table":     {"no-text", nil},
+		"equations": {"no-text", nil},
+		"rotated":   {"no-text", nil},
+		"poor":      {"no-text", nil},
+	} {
 		t.Run(name, func(t *testing.T) {
 			raw, err := os.ReadFile("testdata/" + name + ".pdf")
 			if err != nil {
@@ -23,53 +36,16 @@ func TestNativePDFMixedAndBlankPages(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !strings.Contains(got.Record.Extractor, "Tesseract") || got.Record.Extraction != "extracted" {
-				t.Fatalf("native extraction missing: %+v", got.Record)
+			if got.Record.Extraction != test.extraction || AwaitingText(got.Record) != (test.extraction != "extracted") || string(got.Original) != string(raw) || !strings.Contains(got.Text, "## Page 1") {
+				t.Fatalf("record: %+v\n%s", got.Record, got.Text)
 			}
-			times := 1
-			if name == "scanned" {
-				times = 2
-			}
-			if strings.Count(got.Text, "Amber evidence") != times || strings.Count(got.Text, "Cobalt findings") != times {
-				t.Fatalf("lost or duplicated evidence: %s", got.Text)
-			}
-			if name == "mixed" && strings.Count(got.Text, "Native header") != 1 {
-				t.Fatalf("native text duplicated: %s", got.Text)
-			}
-			if name == "scanned" && !strings.Contains(got.Text, "## Page 2\n\n_No readable text") {
-				t.Fatalf("blank physical page lost: %s", got.Text)
-			}
-			if string(got.Original) != string(raw) {
-				t.Fatal("original changed")
-			}
-		})
-	}
-}
-
-func TestNativePDFQualityCorpusRetainsHonestWarnings(t *testing.T) {
-	for _, tool := range []string{"pdftotext", "pdfimages", "pdftoppm", "tesseract"} {
-		if _, err := exec.LookPath(tool); err != nil {
-			t.Skip("requires Poppler/Tesseract")
-		}
-	}
-	for _, name := range []string{"columns", "table", "equations", "rotated", "poor"} {
-		t.Run(name, func(t *testing.T) {
-			raw, err := os.ReadFile("testdata/" + name + ".pdf")
-			if err != nil {
-				t.Fatal(err)
-			}
-			got, err := Prepare(t.Context(), name+".pdf", "", raw)
-			if err != nil || !strings.Contains(got.Text, "## Page 1") || string(got.Original) != string(raw) || !strings.Contains(got.Record.Warning, "Verify against the retained original") {
-				t.Fatalf("quality corpus %s: %s %v", name, got.Record.Warning, err)
-			}
-			// Local OCR cannot certify numeric cells or mathematical notation. This
-			// fixture checks the warning/original boundary, not invented fidelity.
-			if name == "table" && !strings.Contains(got.Text, "Amber") {
-				if got.Record.Extraction != "partial" || !strings.Contains(got.Record.Warning, "incomplete") {
-					t.Fatal("unreadable ruled table reported complete", got.Record)
+			for _, words := range test.words {
+				if strings.Count(got.Text, words) != 1 {
+					t.Fatalf("%q lost or duplicated: %s", words, got.Text)
 				}
-			} else if name != "equations" && (!strings.Contains(got.Text, "Amber") || !strings.Contains(got.Text, "Cobalt")) {
-				t.Fatalf("quality corpus readable words missing: %q", got.Text)
+			}
+			if name == "scanned" && !strings.Contains(got.Text, "## Page 2\n\n_No text layer") {
+				t.Fatalf("physical page lost: %s", got.Text)
 			}
 		})
 	}

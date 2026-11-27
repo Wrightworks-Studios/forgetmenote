@@ -1,6 +1,6 @@
 # Production hardening and verification
 
-Integrated chat release checks and limitations are documented in [chat.md](chat.md#validation-and-limits-of-live-verification). Provider/model authentication alone does not establish successful generation. Retrieval, native tool continuations and final answers require separate live verification; keep their synthetic-data receipts with each release. Full backups must include the instance database, which holds chat; standalone notebook bundles cannot restore it. Optional [Jev reviews](jev.md) and [Quicknotes](quicknotes.md) add durable usage, review, notification, capture and transfer state that also requires a complete instance backup.
+Integrated chat release checks and limitations are documented in [chat.md](chat.md#validation-and-limits-of-live-verification). Provider/model authentication alone does not establish successful generation. Retrieval, native tool continuations and final answers require separate live verification; keep their synthetic-data receipts with each release. Full backups must include the instance database, which holds chat; standalone notebook bundles cannot restore it. Optional [judgment reviews](judgments.md) and [Quicknotes](quicknotes.md) add durable usage, review, notification, capture and transfer state that also requires a complete instance backup.
 
 
 The application is one Go binary over Postgres and the blob store, with embedded browser assets; every notebook change is one database transaction. No new runtime service or database is required. Playwright is a pinned development-only dependency for real Chromium regression tests; it is not shipped in the runtime image.
@@ -19,7 +19,7 @@ Existing refresh credentials acquire a family on their first rotation, preservin
 
 ## Bounded work and retained records
 
-Source previews/imports use one durable sources-owned worker with four waiting jobs, local page checkpoints and private 24-hour retention. Browser jobs poll progress; synchronous compatibility callers retain a 110-second deadline. Poppler/Tesseract process physical pages with one OCR thread, bounded rendered pixels and 64 MiB scratch, independently of notebook write locks. Shutdown cancels process groups and drains the worker; restart requires explicit resume. Hosted OCR, figures and transcription require explicit catalog policy, user selection and current consent. Paid attempts are fenced before upload and cannot resume after an unknown outcome. FFmpeg retains the five-minute media limit; local archival without transcription is supported. HTML accepts up to 100,000 tokenizer events before DOM construction, in addition to byte limits. XML/decompression and HTML readers check cancellation. Exact layout/OCR and other format limitations remain in [Sources](sources.md).
+Source previews/imports use one durable sources-owned worker with four waiting jobs, local page checkpoints and private 24-hour retention. Browser jobs poll progress; synchronous compatibility callers retain a 110-second deadline. Poppler's `pdftotext` reads physical pages' text layers, independently of notebook write locks; images, media and Apple documents are stored as originals for a connected agent to read. Shutdown cancels process groups and drains the worker; restart requires explicit resume. HTML accepts up to 100,000 tokenizer events before DOM construction, in addition to byte limits. XML/decompression and HTML readers check cancellation. Exact layout and other format limitations remain in [Sources](sources.md).
 
 MCP exports hold at most two snapshots per instance, each at most 1 GiB, for 15 minutes, stored in Postgres so any gateway serves the next chunk. Subsequent chunks use the same snapshot despite new commits and recheck the caller's permissions. Completion removes the snapshot; a periodic expiry sweep, the next export and gateway startup remove abandoned ones, and startup removes temporary bundle files. Transfer expiry/restart requires beginning at offset zero. Larger projects use the operator's full-instance backup process, not unlimited MCP staging.
 
@@ -37,7 +37,7 @@ Use the [verification workflow](verification.md) and
 [local release command](../deploy/production/releasing.md#local-image-release).
 Run focused checks during development, then the selected gate once per committed
 candidate. Pass the deployed source revision with `--since`; reviewed single-feature
-changes use critical browser journeys plus affected suites and compact OCR/decision
+changes use critical browser journeys plus affected suites and compact source/decision
 checks. Shared, security, storage, dependency and unknown changes escalate to full
 regression. Use `--mode full` before the first release each week. The runner records reusable successes, original failures and timings
 against the source inputs/toolchain and immutable image; it can resume without
@@ -47,7 +47,7 @@ registry digest. Explicitly investigate and report intermittent failures.
 The complete gate covers every Go package with the race detector, vet/format,
 frontend and real-process fixture tests, standalone/production operator tests,
 Linux backup watcher tests, the full Chromium suite, and eight Docker scenarios:
-core, headless, source conversion, resource/OCR conversion, chat, typed decisions,
+core, headless, source conversion, resource limits, chat, typed decisions,
 OIDC password and OIDC with required TOTP. All existing assertions and security
 checks remain in the full/affected suites; all Go race, authentication and backup
 coverage remains required in routine releases. Independent host checks run within a concurrency limit;
@@ -57,7 +57,7 @@ operator checks; no vulnerability scanner is included. Triage findings before re
 
 The chat smoke verifies synthetic provider HTTP, private scope, durable stream/actions/usage and independent full-volume restore. `SMOKE_RESTORE_IMAGE` optionally selects a different restored app image (default: `SMOKE_IMAGE`); the final `CHAT_RESTORE_IMAGES` receipt contains inspected image IDs after all checks pass. Use both image directions to verify a proposed rollback pair. `SMOKE_PROVIDER_IMAGE` can select an available synthetic Node provider image.
 
-The Jev smoke uses a synthetic HTTPS service and generated notebooks to exercise remote consent, active-only consistency review, notifications, protected capture, filing and Undo. It restores an independent complete volume and checks durable operation replay without repeated provider calls. Its `JEV_RESTORE_IMAGE` receipt binds that verification to the inspected candidate image. Synthetic responses verify workflow behavior, not model accuracy.
+The judgments smoke (`scripts/jev_smoke.py`) uses a synthetic HTTPS service and generated notebooks to exercise remote consent, active-only consistency review, notifications, protected capture, filing and Undo. It restores an independent complete volume and checks durable operation replay without repeated provider calls. Its `JEV_RESTORE_IMAGE` receipt binds that verification to the inspected candidate image. Synthetic responses verify workflow behavior, not model accuracy.
 
 The browser suite runs its own temporary binary, data directory, and accounts; it must never target an existing instance. Test-results files are ignored. Storage tests use real repositories and disposable child processes to kill writes before staging and after commit. Full-instance restoration is tested separately from a project export. Verify users, permissions, source originals, attachments, history, and a new save after restoring into a separate stopped instance.
 

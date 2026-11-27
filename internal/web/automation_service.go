@@ -33,7 +33,7 @@ func (s *Server) initAutomationRun() error {
 // (credentials.go), data connections (data_connections.go), document reads
 // (documents.go), definition validation (automation_actions.go), a learning
 // event's actor and credential (automation_learning_capture.go), the
-// configured judge (jev.go) and personal context and consent
+// configured judge (judgments.go) and personal context and consent
 // (personal_ui.go), and to the action dispatcher (actions.go). The chat
 // runtime, data connections, repository sources, backups, messaging, the
 // personal assistant, task queues, the Slack app and the Python runtime are
@@ -78,7 +78,7 @@ func (s *Server) automationRunHooks() automationrun.Hooks {
 
 		ValidateDefinition:  s.validateAutomationDefinition,
 		CheckLearningEvent:  s.learningEventAllowed,
-		JudgmentsConfigured: s.jevConfigured,
+		JudgmentsConfigured: s.judgmentsConfigured,
 
 		DispatchAction:        s.dispatchActionOutcome,
 		DocumentContentScope:  s.documentContentScope,

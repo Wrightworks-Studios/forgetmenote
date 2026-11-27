@@ -5,6 +5,7 @@ import {originalURL} from './sources.mjs';
 import { resolveLink } from "./editor.mjs";
 import {$,installHTML,contentElement,element as el,actionButton,keepTyped} from './dom.mjs';
 import {notebookPath,assetURL} from './request.mjs';
+import {moduleOn} from './state.mjs';
 function citationTarget(source, href) {
   const link = resolveLink(source, href);
   if (!link) return null;
@@ -188,7 +189,7 @@ function initKnowledge({ api, post, getProject, getUser, getNote, canEdit, canMa
             const a=el('a',ref.label || ref.url);a.href=ref.url;a.target='_blank';a.rel='noopener noreferrer';item.append(a);
             if(ref.code)item.append(action('Inspect code',()=>openCode(ref.code)));
             else if(ref.path)item.append(target(ref.path,ref.revision,'Open archived copy'));
-            else if(canEdit() && archiveSource)item.append(action('Archive source',()=>{close();archiveSource(ref.url);}));
+            else if(canEdit() && archiveSource && moduleOn(getUser(),'sources'))item.append(action('Archive source',()=>{close();archiveSource(ref.url);}));
           }else if(ref.state.includes('unavailable'))item.append(el('span',ref.label || ref.path));
           else item.append(target(title==='Referenced by'?ref.note:ref.path,title==='Sources'?ref.revision:'',ref.label || ref.note || ref.path,ref.heading));
           item.append(el('p',ref.state+(ref.scope?' · '+ref.scope:''),'small'));section.append(item);

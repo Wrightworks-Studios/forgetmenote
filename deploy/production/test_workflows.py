@@ -1,6 +1,8 @@
 """GitHub workflows keep the promises SECURITY.md and docs/verification.md make."""
 from pathlib import Path
 import re
+import subprocess
+import tempfile
 import unittest
 
 import yaml
@@ -15,7 +17,7 @@ def workflow(name):
 
 
 def assert_failed_gate_uploads_its_evidence(test, steps):
-    """The gate prints only the end of a failed log; GitHub discards the rest with the runner."""
+    """The gate prints only a summary of a failed log; GitHub discards the rest with the runner."""
     gate = next(index for index, step in enumerate(steps) if 'release_image.py' in step.get('run', ''))
     uploads = [step for step in steps if step.get('if') == 'failure()']
     test.assertEqual(len(uploads), 1)
@@ -45,7 +47,7 @@ class CheckWorkflowTests(unittest.TestCase):
         self.assertNotIn('if', value['jobs']['vulnerabilities'])
         # Pushes and the schedule run the scan alone; PR and manual tiers keep their events.
         self.assertEqual(value['jobs']['fast']['if'], "github.event_name == 'pull_request' || github.event_name == 'merge_group'")
-        self.assertEqual(value['jobs']['full']['if'], "github.event_name == 'workflow_dispatch'")
+        self.assertEqual(value['jobs']['full']['if'], "github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group'")
         self.assertEqual(set(value['jobs']), {'vulnerabilities', 'fast', 'full'})
 
     def test_the_merge_queue_runs_the_fast_tier_against_its_base(self):
@@ -62,6 +64,38 @@ class CheckWorkflowTests(unittest.TestCase):
         self.assertEqual(fetch['with']['fetch-depth'], 0)
         # Only pull request runs give way to a newer push; queue entries finish.
         self.assertEqual(value['concurrency']['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}")
+
+    def test_queue_entries_decide_the_full_gate_inside_the_required_job(self):
+        # next can require full: a pull request run skips it, and GitHub reports a
+        # skipped job as Success. The same holds for a job whose `needs` failed, so
+        # the decision is a step of full itself, where an error fails the check.
+        value, _ = workflow('check.yml')
+        job = value['jobs']['full']
+        self.assertNotIn('needs', job)
+        self.assertEqual(job['permissions'], {'contents': 'read', 'pull-requests': 'read'})
+        steps = job['steps']
+        self.assertTrue(steps[0]['uses'].startswith('actions/checkout@'))
+        self.assertIs(steps[0]['with']['persist-credentials'], False)
+        decide = steps[1]
+        self.assertEqual(decide['id'], 'gate')
+        self.assertEqual(decide['run'], '.github/scripts/full-gate-needed.sh')
+        self.assertEqual(decide['env'], {'GH_TOKEN': '${{ github.token }}'})
+        self.assertNotIn('if', decide)
+        self.assertNotIn('continue-on-error', decide)
+        # An entry without the label succeeds at once; every later step runs only
+        # for the gate, and still stops at the first failure.
+        upload = next(step for step in steps if step.get('if') == 'failure()')
+        for step in steps[2:]:
+            if step is not upload:
+                with self.subTest(step=step.get('uses') or step.get('run')):
+                    self.assertEqual(step.get('if'), "steps.gate.outputs.run == 'true'")
+                    self.assertNotIn('continue-on-error', step)
+        # The queue drops an entry whose checks report nothing within 90 minutes. A
+        # stuck gate fails first, with time left to pick up a runner and upload its logs.
+        gate = next(step for step in steps if 'release_image.py' in step.get('run', ''))
+        self.assertLessEqual(gate['timeout-minutes'], 65)
+        self.assertLess(gate['timeout-minutes'], job['timeout-minutes'])
+        self.assertLessEqual(job['timeout-minutes'], 80)
 
     def test_every_action_is_pinned_to_a_commit(self):
         for path in sorted((ROOT / '.github/workflows').glob('*.yml')):
@@ -95,6 +129,77 @@ class CheckWorkflowTests(unittest.TestCase):
         assert_failed_gate_uploads_its_evidence(self, value['jobs']['full']['steps'])
 
 
+class FullGateDecisionTests(unittest.TestCase):
+    """full-gate-needed.sh: whether a full job runs the gate or succeeds at once."""
+
+    SCRIPT = ROOT / '.github/scripts/full-gate-needed.sh'
+    QUEUE_REF = 'refs/heads/gh-readonly-queue/next/pr-63-' + '1802893ecaaf4e433c682c65976add8f9114bcd7'
+
+    def decide(self, event, ref=QUEUE_REF, labels='', gh_fails=False):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            gh = directory / 'gh'
+            gh.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >>"$FAKE_GH_CALLS"\n'
+                          '[ -z "$FAKE_GH_FAILS" ] || exit 1\nprintf \'%s\' "$FAKE_GH_LABELS"\n')
+            gh.chmod(0o755)
+            output = directory / 'output'
+            calls = directory / 'calls'
+            output.touch()
+            calls.touch()
+            result = subprocess.run([str(self.SCRIPT)], capture_output=True, text=True, env={
+                'PATH': f'{directory}:/usr/bin:/bin',
+                'GITHUB_EVENT_NAME': event,
+                'GITHUB_REF': ref,
+                'GITHUB_REPOSITORY': 'example/forgetmenote',
+                'GITHUB_OUTPUT': str(output),
+                'GH_TOKEN': 'test-token',
+                'FAKE_GH_CALLS': str(calls),
+                'FAKE_GH_LABELS': labels,
+                'FAKE_GH_FAILS': '1' if gh_fails else '',
+            })
+            return result, output.read_text(), calls.read_text().splitlines()
+
+    def test_a_manual_run_always_runs_the_gate(self):
+        result, output, calls = self.decide('workflow_dispatch', ref='refs/heads/feature', gh_fails=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(output, 'run=true\n')
+        self.assertEqual(calls, [])
+
+    def test_a_queue_entry_runs_the_gate_when_its_own_pull_request_has_the_label(self):
+        result, output, calls = self.decide('merge_group', labels='documentation\nfull-gate\n')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(output, 'run=true\n')
+        # The entry's ref names its own pull request; the label is read when the entry runs.
+        self.assertEqual(calls, ["api repos/example/forgetmenote/pulls/63 --jq .labels[].name"])
+
+    def test_a_queue_entry_without_the_label_succeeds_at_once(self):
+        for labels in ('', 'documentation\n', 'full-gate-later\nnot-full-gate\n', 'Full-Gate\n'):
+            with self.subTest(labels=labels):
+                result, output, _ = self.decide('merge_group', labels=labels)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(output, 'run=false\n')
+
+    def test_a_queue_entry_fails_when_its_pull_request_cannot_be_read(self):
+        result, output, _ = self.decide('merge_group', labels='full-gate\n', gh_fails=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(output, '')
+
+    def test_an_unrecognised_ref_or_event_fails_instead_of_passing(self):
+        sha = '1802893ecaaf4e433c682c65976add8f9114bcd7'
+        for event, ref in (
+                ('merge_group', 'refs/heads/next'),
+                ('merge_group', f'refs/heads/gh-readonly-queue/next/pr--{sha}'),
+                ('merge_group', f'refs/heads/gh-readonly-queue/next/pr-63-{sha}\nrefs/heads/next'),
+                ('pull_request', self.QUEUE_REF),
+                ('push', 'refs/heads/next'),
+                ('', self.QUEUE_REF)):
+            with self.subTest(event=event, ref=ref):
+                result, output, calls = self.decide(event, ref=ref, labels='full-gate\n')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(output, '')
+                self.assertEqual(calls, [])
+
+
 class ScorecardWorkflowTests(unittest.TestCase):
     def test_scorecard_publishes_from_the_default_branch_and_writes_nothing_else(self):
         value, triggers = workflow('scorecard.yml')
@@ -111,70 +216,31 @@ class ScorecardWorkflowTests(unittest.TestCase):
         self.assertIs(checkout['with']['persist-credentials'], False)
 
 
+class NotifyDeploymentsWorkflowTests(unittest.TestCase):
+    def test_main_hands_deployments_the_revision_and_github_publishes_no_image(self):
+        value, triggers = workflow('notify-deployments.yml')
+        self.assertEqual(set(triggers), {'push'})
+        self.assertEqual(triggers['push']['branches'], ['main'])
+        job = value['jobs']['dispatch']
+        self.assertEqual(job['environment'], 'deployments')
+        run = job['steps'][0]['run']
+        # A deployment repository builds and verifies its own image from this revision.
+        self.assertIn('gh workflow run release.yml', run)
+        self.assertIn('-f revision="$GITHUB_SHA"', run)
+        self.assertNotIn('image', run)
+        # Self-hosters build from source: no workflow pushes or attests an image.
+        for path in sorted((ROOT / '.github/workflows').glob('*.yml')):
+            with self.subTest(workflow=path.name):
+                text = path.read_text()
+                self.assertNotRegex(text, r'packages:\s*write')
+                self.assertNotIn('attestations:', text)
+
+
 class DependabotTests(unittest.TestCase):
     def test_only_actions_get_version_updates_and_they_wait_two_weeks(self):
         value = yaml.safe_load((ROOT / '.github/dependabot.yml').read_text())
         self.assertEqual([update['package-ecosystem'] for update in value['updates']], ['github-actions'])
         self.assertGreaterEqual(value['updates'][0]['cooldown']['default-days'], 14)
-
-
-class PublishWorkflowTests(unittest.TestCase):
-    def setUp(self):
-        self.value, self.triggers = workflow('publish.yml')
-        self.jobs = self.value['jobs']
-
-    def test_each_main_release_verifies_publishes_and_deploys_in_order(self):
-        self.assertEqual(set(self.triggers), {'push'})
-        self.assertEqual(self.triggers['push']['branches'], ['main'])
-        self.assertEqual(set(self.jobs), {'verify', 'publish', 'deploy'})
-        self.assertEqual(self.jobs['publish']['needs'], 'verify')
-        self.assertEqual(self.jobs['deploy']['needs'], 'publish')
-        self.assertIs(self.value['concurrency']['cancel-in-progress'], False)
-        # Publication replaced the old notification: one dispatch per release.
-        self.assertFalse((ROOT / '.github/workflows/notify-deployments.yml').exists())
-
-    def test_the_gate_holds_no_registry_or_signing_credentials(self):
-        self.assertEqual(self.value['permissions'], {'contents': 'read'})
-        verify = self.jobs['verify']
-        self.assertNotIn('permissions', verify)
-        self.assertNotIn('environment', verify)
-        steps = yaml.safe_dump(verify['steps'])
-        self.assertNotIn('secrets.', steps)
-        self.assertNotIn('github.token', steps)
-        gate = next(step for step in verify['steps'] if 'release_image.py' in step.get('run', ''))
-        self.assertIn('--verify-only --since-published', gate['run'])
-        self.assertEqual(gate['env'], {'FMN_IMAGE_CACHE': 'gha'})
-
-    def test_failed_gate_uploads_its_logs_reports_and_traces(self):
-        assert_failed_gate_uploads_its_evidence(self, self.jobs['verify']['steps'])
-
-    def test_publication_signs_only_what_the_gate_verified_and_runs_no_project_checks(self):
-        publish = self.jobs['publish']
-        self.assertEqual(publish['permissions'], {'contents': 'read', 'packages': 'write', 'id-token': 'write',
-                                                  'attestations': 'write'})
-        actions = [step['uses'].split('@')[0] for step in publish['steps'] if 'uses' in step]
-        self.assertEqual(actions, ['actions/checkout', 'actions/setup-python', 'actions/download-artifact',
-                                   'actions/download-artifact', 'actions/attest-build-provenance', 'actions/attest'])
-        runs = ' '.join(step.get('run', '') for step in publish['steps'])
-        for tool in ('make ', 'npm ', 'npx ', 'go ', 'pip '):
-            self.assertNotIn(tool, runs)
-        step = next(step for step in publish['steps'] if step.get('id') == 'publish')
-        self.assertIn('release_image.py --publish-verified', step['run'])
-        self.assertEqual(step['env'], {'GH_TOKEN': '${{ github.token }}'})
-        for name in ('attest-build-provenance', 'attest'):
-            attest = next(s for s in publish['steps'] if s.get('uses', '').startswith('actions/' + name + '@'))
-            self.assertEqual(attest['with']['subject-digest'], '${{ steps.publish.outputs.digest }}')
-        summary = next(s for s in publish['steps'] if s.get('uses', '').startswith('actions/attest@'))
-        self.assertTrue(summary['with']['predicate-path'].endswith('/verification-summary.json'))
-
-    def test_deployment_receives_the_pinned_public_digest(self):
-        deploy = self.jobs['deploy']
-        self.assertEqual(deploy['environment'], 'deployments')
-        self.assertNotIn('permissions', deploy)
-        runs = [step['run'] for step in deploy['steps']]
-        self.assertIn('imagetools inspect "$IMAGE@$DIGEST"', runs[0])
-        self.assertIn('-f image="$IMAGE@$DIGEST"', runs[1])
-        self.assertEqual(deploy['env']['DIGEST'], '${{ needs.publish.outputs.digest }}')
 
 
 if __name__ == '__main__':

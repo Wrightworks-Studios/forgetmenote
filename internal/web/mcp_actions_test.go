@@ -305,6 +305,9 @@ func TestMCPActionParityInventory(t *testing.T) {
 		"GET /api/repository": "repository_source_status", "GET /api/repository/tree": "repository_source_tree", "GET /api/repository/file": "repository_source_file", "GET /api/repository/changes": "repository_source_changes", "POST /api/repository/refresh": "refresh_repository_source", "POST /api/repository/capture": "retain_repository_citation",
 		// Repository sharing consent and connection management require Owner access.
 		"POST /api/repository/connect": "interactive repository setup", "GET /api/repository/choices": "interactive repository setup", "POST /api/repository/select": "interactive repository setup", "POST /api/repository/control": "interactive repository setup",
+		"POST /api/judgments/jobs": "interactive personal review", "GET /api/judgments/jobs": "interactive personal review", "GET /api/judgments/jobs/{job}": "interactive personal review",
+		"POST /api/judgments/jobs/{job}/continue": "interactive personal review", "POST /api/judgments/jobs/{job}/cancel": "interactive personal review",
+		// The former /api/jev paths serve the same judgments routes for one release.
 		"POST /api/jev/jobs": "interactive personal review", "GET /api/jev/jobs": "interactive personal review", "GET /api/jev/jobs/{job}": "interactive personal review",
 		"POST /api/jev/jobs/{job}/continue": "interactive personal review", "POST /api/jev/jobs/{job}/cancel": "interactive personal review",
 		"GET /api/notifications": "interactive personal review", "POST /api/notifications/read": "interactive personal review",
@@ -323,14 +326,17 @@ func TestMCPActionParityInventory(t *testing.T) {
 		"POST /api/writing/outline": "document_outline", "POST /api/writing/terms": "find_term_mentions",
 		"POST /api/projects/repository/connect": "interactive repository setup", "GET /api/projects/repository/choices": "interactive repository setup", "POST /api/projects/repository/finish": "interactive repository setup",
 		"POST /api/sources/jobs": "prepare_source", "GET /api/sources/jobs/{job}": "source_job", "POST /api/sources/jobs/{job}/cancel": "cancel_source_job", "POST /api/sources/jobs/{job}/resume": "resume_source_job",
-		"GET /api/people": "find_workspace_people", "GET /api/sources/formats": "source_formats", "POST /api/sources/preview": "archive_source", "POST /api/sources/import": "archive_source", "GET /api/sources/verify": "verify_source",
+		"GET /api/people": "find_workspace_people", "GET /api/sources/formats": "source_formats", "POST /api/sources/preview": "archive_source", "POST /api/sources/import": "archive_source", "GET /api/sources/verify": "verify_source", "GET /api/sources/awaiting-text": "list_sources_awaiting_text", "POST /api/sources/chat-text": "interactive source upload",
 		// Private account consent and capture/review orchestration are explicit
 		// browser interactions. Their note operations still use the shared
 		// workspace methods; an MCP client cannot silently enable remote use.
+		"GET /api/judgments/settings": "interactive personal review", "POST /api/judgments/settings": "interactive personal review",
 		"GET /api/jev/settings": "interactive personal review", "POST /api/jev/settings": "interactive personal review",
 		// Organizer grants must originate in the browser and remain bound to the
 		// selected policy; ordinary MCP proposal confirmation remains unchanged.
-		"GET /api/jev/organization": "interactive personal review", "POST /api/jev/organization": "interactive personal review",
+		"GET /api/judgments/organization": "interactive personal review", "POST /api/judgments/organization": "interactive personal review",
+		"POST /api/judgments/jobs/{job}/organization/{action}": "interactive personal review",
+		"GET /api/jev/organization":                            "interactive personal review", "POST /api/jev/organization": "interactive personal review",
 		"POST /api/jev/jobs/{job}/organization/{action}": "interactive personal review",
 		"GET /api/chat/{chat}/runs/{run}/citations":      "interactive personal review", "POST /api/chat/{chat}/runs/{run}/citations": "interactive personal review",
 		"GET /api/quicknotes": "interactive private capture", "POST /api/quicknotes": "interactive private capture",
@@ -376,7 +382,7 @@ func TestMCPActionParityInventory(t *testing.T) {
 			name, ok := parity[route]
 			if !ok {
 				t.Errorf("new HTTP action needs MCP parity or explicit exception: %s", route)
-			} else if name != "interactive password provisioning" && name != "interactive private chat" && name != "interactive personal review" && name != "interactive private capture" && name != "interactive repository setup" && name != "interactive sandboxed view" && name != "interactive purge confirmation" && !tools[name] {
+			} else if name != "interactive password provisioning" && name != "interactive private chat" && name != "interactive personal review" && name != "interactive private capture" && name != "interactive repository setup" && name != "interactive sandboxed view" && name != "interactive purge confirmation" && name != "interactive source upload" && !tools[name] {
 				t.Errorf("%s maps to missing tool %s", route, name)
 			}
 			return true

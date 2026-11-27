@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Server) personalMessagePolicy(c messaging.Client, d messaging.Address) messaging.Client {
-	if d.Client != "slack" || !d.Direct || d.Shared || s.personalConnections == nil || c.Disabled || d.Workspace != c.Workspace {
+	if d.Client != "slack" || !d.Direct || d.Shared || s.personalConnections == nil || c.Disabled || d.Workspace != c.Workspace || !s.modules.Enabled("personal") {
 		return c
 	}
 	account := s.personalConnections.LinkedOwner("slack", c.Workspace, d.User)

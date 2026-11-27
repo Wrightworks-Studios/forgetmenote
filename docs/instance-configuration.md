@@ -68,13 +68,14 @@ modules that depend on them:
 ```
 
 An unknown name fails before the application opens, and so does a module left
-on while one it needs is off; that error names both modules.
+on while one it needs is off; that error names both modules. Every module can
+be turned off, and with all of them off the instance runs its notebooks alone.
+[Feature modules](modules.md) describes what each module covers and what
+turning it off removes and keeps.
 
-Turning modules off is not supported yet. Each module's wiring lands
-separately, and until it has, startup refuses an `off` list that names the
-module, so that no module runs while its operator believes it is off. The
-setting is read once at startup, before recovery; changing it means restarting
-every gateway. It has no legacy environment variable. The startup log and
+The setting is read once at startup, before recovery; changing it means
+restarting every gateway, and a configuration reload with a different set is
+refused. It has no legacy environment variable. The startup log and
 Administration's instance status list each module and whether it is on.
 
 Configured providers do not enable AI processing or grant notebook access.

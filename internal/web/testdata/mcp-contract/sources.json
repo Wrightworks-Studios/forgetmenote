@@ -9,17 +9,15 @@
     "result": {
       "formats": [
         {
-          "describeImages": true,
-          "description": "Local Poppler text and English Tesseract OCR with physical page anchors. Tables, equations and reading order need verification; hosted OCR is explicit.",
+          "agentExtracts": "scanned or image-only pages: when a PDF has them, upload your own text of the whole document",
+          "description": "Local Poppler text layer with physical page anchors; scanned regions, figures and images are a connected agent's to read. Tables, equations and reading order need verification.",
           "extensions": [
             ".pdf"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/pdf",
-          "name": "PDF",
-          "transcription": false
+          "name": "PDF"
         },
         {
           "description": "Static page text and headings; no scripts or linked assets.",
@@ -27,356 +25,292 @@
             ".html",
             ".htm"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "text/html",
-          "name": "Webpage",
-          "transcription": false
+          "name": "Webpage"
         },
         {
           "description": "UTF-8 or BOM-marked UTF-16 text.",
           "extensions": [
             ".txt"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "text/plain",
-          "name": "Text",
-          "transcription": false
+          "name": "Text"
         },
         {
           "description": "Main document paragraphs, headings, and tables; no pagination or embedded objects.",
           "extensions": [
             ".docx"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "name": "Word",
-          "transcription": false
+          "name": "Word"
         },
         {
           "description": "Chapter text in spine order; no DRM decryption.",
           "extensions": [
             ".epub"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/epub+zip",
-          "name": "EPUB",
-          "transcription": false
+          "name": "EPUB"
         },
         {
           "description": "Sheets and stored cell values, including hidden content; formulas are never calculated.",
           "extensions": [
             ".xlsx"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "name": "Excel",
-          "transcription": false
+          "name": "Excel"
         },
         {
           "description": "Comma-delimited records, including quoted multiline fields.",
           "extensions": [
             ".csv"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "text/csv",
-          "name": "CSV",
-          "transcription": false
+          "name": "CSV"
         },
         {
           "description": "Tab-delimited records.",
           "extensions": [
             ".tsv"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "text/tab-separated-values",
-          "name": "TSV",
-          "transcription": false
+          "name": "TSV"
         },
         {
-          "describeImages": true,
-          "description": "English OCR with page anchors; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".png"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "image/png",
-          "name": "PNG",
-          "transcription": false
+          "name": "PNG"
         },
         {
-          "describeImages": true,
-          "description": "English OCR with page anchors; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".jpg",
             ".jpeg"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "image/jpeg",
-          "name": "JPEG",
-          "transcription": false
+          "name": "JPEG"
         },
         {
-          "describeImages": true,
-          "description": "English OCR for each frame; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".tiff",
             ".tif"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "image/tiff",
-          "name": "TIFF",
-          "transcription": false
+          "name": "TIFF"
         },
         {
-          "describeImages": true,
-          "description": "English OCR with page anchors; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".webp"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "image/webp",
-          "name": "WebP",
-          "transcription": false
+          "name": "WebP"
         },
         {
-          "describeImages": true,
-          "description": "English OCR with page anchors; OCR may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".bmp"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "image/bmp",
-          "name": "Bitmap",
-          "transcription": false
+          "name": "Bitmap"
         },
         {
-          "describeImages": true,
-          "description": "Slide text and tables; animations, notes, and embedded media are not transcribed.",
+          "description": "Slide text and tables; animations, notes, images and embedded media are not read.",
           "extensions": [
             ".pptx"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          "name": "PowerPoint",
-          "transcription": false
+          "name": "PowerPoint"
         },
         {
           "description": "Message headers and body; attachment names only.",
           "extensions": [
             ".eml"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "message/rfc822",
-          "name": "Email",
-          "transcription": false
+          "name": "Email"
         },
         {
           "description": "Message headers and body; attachment names only.",
           "extensions": [
             ".msg"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/vnd.ms-outlook",
-          "name": "Outlook message",
-          "transcription": false
+          "name": "Outlook message"
         },
         {
           "description": "Document text and tables; original layout is not retained.",
           "extensions": [
             ".odt"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.text",
-          "name": "OpenDocument text",
-          "transcription": false
+          "name": "OpenDocument text"
         },
         {
           "description": "Stored cell values; formulas are not recalculated.",
           "extensions": [
             ".ods"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.spreadsheet",
-          "name": "OpenDocument spreadsheet",
-          "transcription": false
+          "name": "OpenDocument spreadsheet"
         },
         {
           "description": "Slide text and tables; embedded media are not transcribed.",
           "extensions": [
             ".odp"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "server",
           "maxBytes": 67108864,
           "mime": "application/vnd.oasis.opendocument.presentation",
-          "name": "OpenDocument presentation",
-          "transcription": false
+          "name": "OpenDocument presentation"
         },
         {
-          "description": "Document text and tables; complex layout may be omitted.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".pages"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "application/vnd.apple.pages",
-          "name": "Pages",
-          "transcription": false
+          "name": "Pages"
         },
         {
-          "description": "Slide text and tables; animations and embedded media are not transcribed.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".key"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "application/vnd.apple.keynote",
-          "name": "Keynote",
-          "transcription": false
+          "name": "Keynote"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".wav"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "audio/wav",
-          "name": "WAV",
-          "transcription": false
+          "name": "WAV"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".mp3"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "audio/mpeg",
-          "name": "MP3",
-          "transcription": false
+          "name": "MP3"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".m4a"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "audio/mp4",
-          "name": "M4A",
-          "transcription": false
+          "name": "M4A"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".aac"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "audio/aac",
-          "name": "AAC",
-          "transcription": false
+          "name": "AAC"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".ogg"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "audio/ogg",
-          "name": "Ogg",
-          "transcription": false
+          "name": "Ogg"
         },
         {
-          "description": "Explicit hosted transcription with time segments; up to 5 minutes. Transcripts may contain errors.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".flac"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "audio/flac",
-          "name": "FLAC",
-          "transcription": false
+          "name": "FLAC"
         },
         {
-          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".mp4"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "video/mp4",
-          "name": "MP4",
-          "transcription": false
+          "name": "MP4"
         },
         {
-          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".mov"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "video/quicktime",
-          "name": "QuickTime",
-          "transcription": false
+          "name": "QuickTime"
         },
         {
-          "description": "Explicit hosted audio transcription; up to 5 minutes. Video frames are not analyzed.",
+          "description": "Stored as the original; a connected agent reads it and adds its text.",
           "extensions": [
             ".avi"
           ],
-          "externalOCR": false,
-          "hostedDescriptions": false,
+          "extractedBy": "agent",
           "maxBytes": 67108864,
           "mime": "video/x-msvideo",
-          "name": "AVI",
-          "transcription": false
+          "name": "AVI"
         }
       ]
     }
@@ -538,5 +472,153 @@
       "project": "contract"
     },
     "error": "note is not an archived source"
+  },
+  {
+    "step": "archive a page without text",
+    "tool": "archive_source",
+    "as": "admin",
+    "arguments": {
+      "data": "PHA+PC9wPg==",
+      "filename": "notice.html",
+      "project": "contract-scratch",
+      "title": "Harbour notice"
+    },
+    "result": {
+      "content": "---\ntitle: \"Harbour notice\"\nkind: archived-source\nstatus: unreviewed\nsource_id: \"ID3\"\nsource_url: \"\"\nsource_final_url: \"\"\nsource_captured_at: \"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"\nsource_imported_by: \"ID2\"\nsource_method: \"uploaded\"\nsource_original: \"assets/sources/ID3/HASH1.html\"\nsource_sha256: \"HASH1\"\nsource_mime: \"text/html\"\nsource_extractor: \"ForgetMeNote Webpage text v1\"\nsource_extraction: \"no-text\"\nsource_warning: \"No readable text found. Single-page HTML capture; scripts, linked assets, and interactive content are not captured. Completeness has not been verified.\"\nsource_text_sha256: \"HASH2\"\n---\n\n# Harbour notice\n\n[Original file](/assets/sources/ID3/HASH1.html)\n\n## Extracted content\n\n\n",
+      "html": "<h1 id=\"h-harbour-notice\">Harbour notice</h1>\n<p><a href=\"/assets/sources/ID3/HASH1.html\" rel=\"nofollow\">Original file</a></p>\n<h2 id=\"h-extracted-content\">Extracted content</h2>\n",
+      "metadata": {
+        "kind": "archived-source",
+        "source": {
+          "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+          "extraction": "no-text",
+          "extractor": "ForgetMeNote Webpage text v1",
+          "finalURL": "",
+          "id": "ID3",
+          "importedBy": "ID2",
+          "method": "uploaded",
+          "mime": "text/html",
+          "original": "assets/sources/ID3/HASH1.html",
+          "sha256": "HASH1",
+          "textSHA256": "HASH2",
+          "url": "",
+          "warning": "No readable text found. Single-page HTML capture; scripts, linked assets, and interactive content are not captured. Completeness has not been verified."
+        },
+        "status": "unreviewed",
+        "tags": [],
+        "title": "Harbour notice"
+      },
+      "path": "sources/ID3.md",
+      "revision": "REV3",
+      "title": "Harbour notice",
+      "version": "REV3"
+    }
+  },
+  {
+    "step": "list the sources awaiting text",
+    "tool": "list_sources_awaiting_text",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-scratch"
+    },
+    "result": {
+      "revision": "REV3",
+      "sources": [
+        {
+          "extraction": "no-text",
+          "format": "Webpage",
+          "mime": "text/html",
+          "original": "assets/sources/ID3/HASH1.html",
+          "path": "sources/ID3.md",
+          "revision": "REV3",
+          "title": "Harbour notice",
+          "warning": "No readable text found. Single-page HTML capture; scripts, linked assets, and interactive content are not captured. Completeness has not been verified."
+        }
+      ]
+    }
+  },
+  {
+    "step": "give the page an agent's text",
+    "tool": "archive_source",
+    "as": "admin",
+    "arguments": {
+      "data": "PHA+PC9wPg==",
+      "extractor": "Contract agent; contract-model",
+      "filename": "notice.html",
+      "path": "sources/ID3.md",
+      "project": "contract-scratch",
+      "revision": "REV3",
+      "text": {
+        "sections": [
+          {
+            "number": 1,
+            "text": "No whaling within the harbour.",
+            "title": "Notice"
+          }
+        ],
+        "unit": "page"
+      }
+    },
+    "result": {
+      "content": "---\ntitle: \"Harbour notice\"\nkind: archived-source\nstatus: unreviewed\nsource_id: \"ID3\"\nsource_url: \"\"\nsource_final_url: \"\"\nsource_captured_at: \"<TIME YYYY-MM-DDThh:mm:ss.fZ>\"\nsource_imported_by: \"ID2\"\nsource_method: \"uploaded\"\nsource_original: \"assets/sources/ID3/HASH1.html\"\nsource_sha256: \"HASH1\"\nsource_mime: \"text/html\"\nsource_extractor: \"Contract agent; contract-model\"\nsource_extraction: \"client-supplied\"\nsource_warning: \"Text supplied by the uploading client and not verified by the server against the original. Check quotations and figures against the original.\"\nsource_text_sha256: \"HASH3\"\n---\n\n# Harbour notice\n\n[Original file](/assets/sources/ID3/HASH1.html)\n\n## Extracted content\n\n## Page 1 — Notice\n\nNo whaling within the harbour.\n\n",
+      "html": "<h1 id=\"h-harbour-notice\">Harbour notice</h1>\n<p><a href=\"/assets/sources/ID3/HASH1.html\" rel=\"nofollow\">Original file</a></p>\n<h2 id=\"h-extracted-content\">Extracted content</h2>\n<h2 id=\"h-page-1--notice\">Page 1 — Notice</h2>\n<p>No whaling within the harbour.</p>\n",
+      "metadata": {
+        "kind": "archived-source",
+        "source": {
+          "capturedAt": "<TIME YYYY-MM-DDThh:mm:ss.fZ>",
+          "extraction": "client-supplied",
+          "extractor": "Contract agent; contract-model",
+          "finalURL": "",
+          "id": "ID3",
+          "importedBy": "ID2",
+          "method": "uploaded",
+          "mime": "text/html",
+          "original": "assets/sources/ID3/HASH1.html",
+          "sha256": "HASH1",
+          "textSHA256": "HASH3",
+          "url": "",
+          "warning": "Text supplied by the uploading client and not verified by the server against the original. Check quotations and figures against the original."
+        },
+        "status": "unreviewed",
+        "tags": [],
+        "title": "Harbour notice"
+      },
+      "path": "sources/ID3.md",
+      "revision": "REV4",
+      "title": "Harbour notice",
+      "version": "REV4"
+    }
+  },
+  {
+    "step": "no source awaits text",
+    "tool": "list_sources_awaiting_text",
+    "as": "admin",
+    "arguments": {
+      "project": "contract-scratch"
+    },
+    "result": {
+      "revision": "REV4",
+      "sources": []
+    }
+  },
+  {
+    "step": "agent text needs the original",
+    "tool": "archive_source",
+    "as": "admin",
+    "arguments": {
+      "extractor": "Contract agent; contract-model",
+      "filename": "notice.png",
+      "project": "contract-scratch",
+      "text": {
+        "sections": [
+          {
+            "number": 1,
+            "text": "No whaling within the harbour.",
+            "title": "Notice"
+          }
+        ],
+        "unit": "page"
+      }
+    },
+    "error": "text needs the original it was extracted from: send the file as data"
   }
 ]

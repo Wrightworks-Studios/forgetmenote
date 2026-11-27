@@ -502,3 +502,26 @@ func TestPersonalCollectionObservesDataWatchesOnce(t *testing.T) {
 		t.Fatalf("write operation watched: calls=%d %v", calls, err)
 	}
 }
+
+// With no data connections, as when an instance turns the data-connections
+// module off, a person's saved watches have nothing to read. The rest of
+// their assistant goes on and the watches stay saved.
+func TestPersonalCollectionSkipsWatchesWithoutDataConnections(t *testing.T) {
+	app, settings := personalCollectionFixture(t, "operations")
+	app.dataConnections = nil
+	settings.Watches = []catalog.AssistantWatch{{Connection: "metrics", Operation: "read", Arguments: json.RawMessage(`{}`)}}
+	settings, err := app.catalog.SaveAssistant("alice", settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := newPersonalCollection(t, app, settings)
+	if err = c.collect(); err != nil {
+		t.Fatal("a saved watch stops the assistant:", err)
+	}
+	if len(c.state.Pending) != 0 || len(c.run.Receipts) != 0 {
+		t.Fatalf("a watch ran without data connections: pending=%d receipts=%d", len(c.state.Pending), len(c.run.Receipts))
+	}
+	if stored, err := app.catalog.Assistant("alice"); err != nil || len(stored.Watches) != 1 {
+		t.Fatalf("the saved watch is gone: %+v %v", stored.Watches, err)
+	}
+}

@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"encoding/json"
 	"errors"
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/jsonfile"
@@ -68,21 +69,20 @@ type ResearchConfig struct {
 	MaxSearches int    `json:"maxSearches"`
 	MaxFetches  int    `json:"maxFetches"`
 }
-type SourceConfig struct {
-	Connection         string `json:"connection"`
-	Model              string `json:"model,omitempty"`
-	TranscriptionModel string `json:"transcriptionModel,omitempty"`
-}
 type Config struct {
-	WebsiteCapture    *WebsiteCaptureConfig `json:"websiteCapture,omitempty"`
-	Sources           *SourceConfig         `json:"sources,omitempty"`
-	Jev               *decision.Config      `json:"jev,omitempty"`
-	Connections       []Connection          `json:"connections"`
-	DefaultConnection string                `json:"defaultConnection"`
-	LocalOnly         bool                  `json:"localOnly"`
-	EmbeddingsLocal   bool                  `json:"embeddingsLocal"`
-	Limits            Limits                `json:"limits"`
-	Research          *ResearchConfig       `json:"research,omitempty"`
+	WebsiteCapture *WebsiteCaptureConfig `json:"websiteCapture,omitempty"`
+	// RetiredSources is the hosted source processing (connection, vision and
+	// transcription models) of earlier releases. Sources no longer call a
+	// model, so a configuration written for those releases loads with it
+	// unchecked and unused.
+	RetiredSources    json.RawMessage  `json:"sources,omitempty"`
+	Judgments         *decision.Config `json:"jev,omitempty"`
+	Connections       []Connection     `json:"connections"`
+	DefaultConnection string           `json:"defaultConnection"`
+	LocalOnly         bool             `json:"localOnly"`
+	EmbeddingsLocal   bool             `json:"embeddingsLocal"`
+	Limits            Limits           `json:"limits"`
+	Research          *ResearchConfig  `json:"research,omitempty"`
 }
 
 var configID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
@@ -237,7 +237,7 @@ func (c *Config) Validate() error {
 	if c == nil {
 		return errors.New("missing chat configuration")
 	}
-	if err := c.Jev.Validate(c.LocalOnly); err != nil {
+	if err := c.Judgments.Validate(c.LocalOnly); err != nil {
 		return err
 	}
 	var err error
@@ -267,32 +267,6 @@ func (c *Config) Validate() error {
 	}
 	if !ids[c.DefaultConnection] {
 		return errors.New("default chat connection is unknown")
-	}
-	if source := c.Sources; source != nil {
-		var selected *Connection
-		for i := range c.Connections {
-			if c.Connections[i].ID == source.Connection {
-				selected = &c.Connections[i]
-			}
-		}
-		if selected == nil || selected.Format == "messages" {
-			return errors.New("source processing requires an explicit OpenAI-compatible connection")
-		}
-		if source.Model == "" && source.TranscriptionModel == "" {
-			return errors.New("source processing requires an explicit vision or transcription model")
-		}
-		if source.Model != "" {
-			allowed := false
-			for _, model := range selected.Models {
-				allowed = allowed || model == source.Model
-			}
-			if selected.Format != "responses" || !selected.Capabilities.Images || !allowed {
-				return errors.New("source vision requires an allowed Responses image model")
-			}
-		}
-		if len(source.TranscriptionModel) > 128 || strings.ContainsAny(source.TranscriptionModel, "\r\n\x00") || strings.TrimSpace(source.TranscriptionModel) != source.TranscriptionModel {
-			return errors.New("invalid source transcription model")
-		}
 	}
 	if c.WebsiteCapture != nil {
 		if c.LocalOnly {

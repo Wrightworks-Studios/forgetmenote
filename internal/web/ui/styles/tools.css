@@ -90,7 +90,7 @@ body.writing-open #writing-open { display: none; }
   order: -1; accent-color: var(--accent);
 }
 :is(dialog, [popover]) label > span { min-width: 0; }
-:is(dialog, [popover]) :is(.actions, .knowledge-actions, .jev-actions) { gap: 10px; flex-wrap: wrap; }
+:is(dialog, [popover]) :is(.actions, .knowledge-actions, .judgments-actions) { gap: 10px; flex-wrap: wrap; }
 :is(dialog, [popover]) summary { cursor: pointer; line-height: 1.5; overflow-wrap: anywhere; }
 .settings-form fieldset { border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 12px 0 16px; margin: 8px 0; }
 .settings-form legend { font-weight: 600; padding: 0 6px; }

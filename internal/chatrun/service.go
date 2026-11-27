@@ -2,7 +2,7 @@
 // and executes the model's tool calls, approvals and other controls, deletion,
 // the rounds of a run, fitting each model request to its connection, the
 // evidence and provenance of tool results, review workflows, research, the
-// run's terminal state and the Jev citation check of an answer. Web keeps
+// run's terminal state and the judgment citation check of an answer. Web keeps
 // every authorization check, the chat guard and the action dispatcher, and the
 // engine reaches them through Hooks.
 package chatrun
@@ -47,9 +47,9 @@ type Hooks struct {
 	CheckDataCitations func(ctx context.Context, citations []chat.Citation) error
 	// CheckSourceScope checks a repository source notebook the run cites.
 	CheckSourceScope func(ctx context.Context, project string) error
-	// JevConfigured and JevAuthorized decide whether a run may ask Jev.
-	JevConfigured func() (*decision.Service, bool)
-	JevAuthorized func(ctx context.Context, user, project, feature string, expected *decision.Service) error
+	// JudgmentsConfigured and JudgmentsAuthorized decide whether a run may ask the judge.
+	JudgmentsConfigured func() (*decision.Service, bool)
+	JudgmentsAuthorized func(ctx context.Context, user, project, feature string, expected *decision.Service) error
 	// PersonalConsentStamp is the person's current consent to personal
 	// assistant context; PersonalContext reads that context for a run.
 	PersonalConsentStamp func(user string) string
@@ -63,7 +63,7 @@ type Hooks struct {
 
 	// AcquireEngine lends a notebook's knowledge engine; InstructionsAt reads
 	// its instructions at a revision; RetrieveScoped searches within the
-	// run's scope; DecisionPreferences are a person's Jev preferences;
+	// run's scope; DecisionPreferences are a person's judgment preferences;
 	// AcquireSourceWork admits research source work.
 	AcquireEngine       func(ctx context.Context, store *workspace.Store) (*knowledge.Engine, func(), error)
 	InstructionsAt      func(ctx context.Context, store *workspace.Store, revision string) (map[string]any, error)
@@ -85,7 +85,7 @@ type Hooks struct {
 	ResolveCorpus         func(ctx context.Context, store *workspace.Store, requested, inherited *chat.Corpus, legacy bool) (*chat.Corpus, error)
 	// ActionCatalog lists the registered actions for the chat page.
 	ActionCatalog func() []map[string]any
-	// Citations returns the citation check sidecars, which Jev opens after
+	// Citations returns the citation check sidecars, which judgments open after
 	// the engine starts.
 	Citations func() *citationchecks.Runtime
 
@@ -116,7 +116,7 @@ func New(c *catalog.Catalog, db *pg.DB, hooks Hooks) (*Service, error) {
 	h := hooks
 	if c == nil || db == nil || h.Chat == nil || h.Origin == nil || h.DataConnections == nil || h.Repositories == nil ||
 		h.CheckRun == nil || h.ClientAccess == nil || h.ToolStore == nil || h.CheckDataCitations == nil || h.CheckSourceScope == nil ||
-		h.JevConfigured == nil || h.JevAuthorized == nil || h.PersonalConsentStamp == nil || h.PersonalContext == nil || h.RecordPersonalInteraction == nil ||
+		h.JudgmentsConfigured == nil || h.JudgmentsAuthorized == nil || h.PersonalConsentStamp == nil || h.PersonalContext == nil || h.RecordPersonalInteraction == nil ||
 		h.ActionTool == nil || h.ChatTools == nil ||
 		h.AcquireEngine == nil || h.InstructionsAt == nil || h.RetrieveScoped == nil || h.DecisionPreferences == nil || h.AcquireSourceWork == nil ||
 		h.Interactive == nil || h.Authenticated == nil || h.RunAuth == nil || h.RunContext == nil ||

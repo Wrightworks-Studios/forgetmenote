@@ -51,7 +51,7 @@ test('quick capture is available without selecting a destination or enabling AI'
 });
 
 async function mockQuicknotes(page, {lostAck = false, previousApproval = false} = {}) {
-  await page.route('**/api/jev/settings', route =>
+  await page.route('**/api/judgments/settings', route =>
     route.fulfill({
       json: {available: true, localOnly: false, settings: {consent: false, rerank: false, citations: false}}
     })

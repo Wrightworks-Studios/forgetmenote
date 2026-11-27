@@ -33,23 +33,26 @@ func (s *Server) ConfigureAIConfig(cfg *chat.Config, judge *decision.Config) err
 }
 func (s *Server) chatConfigurationHooks() chat.ConfigurationHooks {
 	hooks := chat.ConfigurationHooks{Installed: func(previous, current *decision.Service, localOnly bool) error {
-		if previous != nil && s.jev != nil {
-			if err := s.jev.InvalidateOrganizationJobs(); err != nil {
+		if previous != nil && s.judgments != nil {
+			if err := s.judgments.InvalidateOrganizationJobs(); err != nil {
 				return err
 			}
 		}
 		if s.quicknotes != nil {
-			s.quicknotes.ConfigureJev(current, localOnly)
+			s.quicknotes.ConfigureJudgments(current, localOnly)
 		}
 		return s.refreshChatEmbeddingPolicy()
-	}}
-	if s.jev != nil {
-		hooks.Guard = s.jev.OrganizationGuard
+	}, WithoutJudgments: !s.modules.Enabled("judgments")}
+	if s.judgments != nil {
+		hooks.Guard = s.judgments.OrganizationGuard
 	}
 	return hooks
 }
-func (s *Server) chatRoutes() {
+
+// chatRoutes adds the conversation routes. With chat off none is added, and
+// /api/chat/ answers 404 like any unknown path.
+func (s *Server) chatRoutes(register routeRegistrar) {
 	// Chat lifecycle authorization historically precedes method/path rejection.
 	s.routes.RejectPrefix("/api/chat/", webcore.MethodRoles{Write: "read"})
-	s.chatrun.Register(s.mux, s.handleProject)
+	s.chatrun.Register(register.project, register.global)
 }

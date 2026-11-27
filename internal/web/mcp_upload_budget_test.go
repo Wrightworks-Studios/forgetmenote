@@ -77,7 +77,7 @@ func TestMCPSourceUploadsUseConfiguredBudget(t *testing.T) {
 }
 
 func TestMCPOperatorUploadLimitsRemainBounded(t *testing.T) {
-	for _, key := range []string{"FMN_LIMIT_FILE_BYTES", "FMN_LIMIT_SOURCE_BYTES", "FMN_LIMIT_BUNDLE_BYTES"} {
+	for _, key := range []string{"FMN_LIMIT_FILE_BYTES", "FMN_LIMIT_SOURCE_BYTES", "FMN_LIMIT_SOURCE_TEXT_BYTES", "FMN_LIMIT_BUNDLE_BYTES"} {
 		t.Setenv(key, "4096")
 	}
 	for _, legacy := range []bool{false, true} {

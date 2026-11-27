@@ -303,7 +303,7 @@ func odfResult(p *documentPackage, extension string) (documentResult, error) {
 	}
 	return result, nil
 }
-func nativeStructured(ctxOptions Options, extension string, p *documentPackage) (string, string, string, error) {
+func nativeStructured(extension string, p *documentPackage) (string, string, string, error) {
 	var result documentResult
 	var err error
 	if extension == ".pptx" {

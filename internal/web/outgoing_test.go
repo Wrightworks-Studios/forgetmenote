@@ -349,15 +349,15 @@ func TestPausedInstanceGrantsNoBackupLease(t *testing.T) {
 	}
 }
 
-// Jev reviews are paid background work. A paused copy starts none and does
+// judgment reviews are paid background work. A paused copy starts none and does
 // not resume one copied from the live instance.
-func TestPausedInstanceRunsNoJevReview(t *testing.T) {
+func TestPausedInstanceRunsNoJudgmentReview(t *testing.T) {
 	var paused atomic.Bool
 	var calls atomic.Int32
 	app := reviewFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		if paused.Load() {
 			calls.Add(1)
-			t.Errorf("paused instance called Jev: %s %s", r.Method, r.URL.Path)
+			t.Errorf("paused instance called the judge: %s %s", r.Method, r.URL.Path)
 		}
 		http.Error(w, "synthetic outage", 503)
 	})
@@ -370,34 +370,21 @@ func TestPausedInstanceRunsNoJevReview(t *testing.T) {
 		t.Fatal(err)
 	}
 	paused.Store(true)
-	if w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs/"+copied+"/continue", `{}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
+	if w := proxyCall(app, "alice", "POST", "/p/default/api/judgments/jobs/"+copied+"/continue", `{}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
 		t.Fatalf("paused review resume: %d %s", w.Code, w.Body)
 	}
-	if w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs", `{"kind":"consistency","operationId":"rehearsal"}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
+	if w := proxyCall(app, "alice", "POST", "/p/default/api/judgments/jobs", `{"kind":"consistency","operationId":"rehearsal"}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
 		t.Fatalf("paused review start: %d %s", w.Code, w.Body)
 	}
 	if calls.Load() != 0 {
-		t.Fatalf("Jev called %d times", calls.Load())
+		t.Fatalf("the judge called %d times", calls.Load())
 	}
 }
 
-// Hosted extraction sends an upload to a paid vision provider in the
-// background. A paused copy refuses it at admission; local extraction runs.
-func TestPausedInstanceRefusesHostedExtraction(t *testing.T) {
-	outside, calls := outsideWorld(t)
-	app, _ := hostedSourceFixture(t, outside.Config.Handler.ServeHTTP)
-	if err := app.ConfigureOutgoing("paused"); err != nil {
-		t.Fatal(err)
-	}
-	raw, err := os.ReadFile("../sources/testdata/reference.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, _ := json.Marshal(map[string]any{"filename": "image.png", "data": base64.StdEncoding.EncodeToString(raw), "externalOCR": true})
-	if w := call(app, "POST", "/api/sources/jobs", string(body), testToken); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
-		t.Fatalf("paused hosted extraction: %d %s", w.Code, w.Body)
-	}
-	body, _ = json.Marshal(map[string]any{"filename": "notes.txt", "data": base64.StdEncoding.EncodeToString([]byte("Local rehearsal text"))})
+// Local extraction is no outgoing work, so a paused copy still runs it.
+func TestPausedInstanceExtractsLocally(t *testing.T) {
+	app := pausedFixture(t)
+	body, _ := json.Marshal(map[string]any{"filename": "notes.txt", "data": base64.StdEncoding.EncodeToString([]byte("Local rehearsal text"))})
 	w := call(app, "POST", "/api/sources/jobs", string(body), testToken)
 	var out sourceJobOutput
 	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil {
@@ -406,9 +393,27 @@ func TestPausedInstanceRefusesHostedExtraction(t *testing.T) {
 	if done := sourceJobUntilFinished(t, app, out.Job.ID); done.Prepared == nil || !strings.Contains(done.Prepared.Preview, "Local rehearsal text") {
 		t.Fatalf("paused local extraction result: %+v", done)
 	}
-	if calls.Load() != 0 {
-		t.Fatalf("provider called %d times", calls.Load())
+}
+
+func sourceJobUntilFinished(t *testing.T, app *Server, id string) sourceJobOutput {
+	t.Helper()
+	until := time.Now().Add(5 * time.Second)
+	for time.Now().Before(until) {
+		response := call(app, "GET", "/api/sources/jobs/"+id, "", testToken)
+		if response.Code != 200 {
+			t.Fatal(response.Code, response.Body.String())
+		}
+		var out sourceJobOutput
+		if err := json.Unmarshal(response.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if out.Job.State != "running" && out.Job.State != "queued" {
+			return out
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
+	t.Fatal("source job did not finish")
+	return sourceJobOutput{}
 }
 
 // Embedding documents is paid background work; a paused copy keeps the

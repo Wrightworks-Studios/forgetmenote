@@ -89,7 +89,7 @@ services:
       # - ./secrets/repository-client-secret:/run/secrets/repository-client-secret:ro
       # - ./secrets/repository-webhook-secret:/run/secrets/repository-webhook-secret:ro
       # - ./secrets/chat.json:/run/secrets/chat.json:ro
-      # Optional Jev without chat; see docs/jev.md.
+      # Optional judgments without chat; see docs/judgments.md.
       # - ./secrets/jev.json:/run/secrets/jev.json:ro
       # - ./secrets/typesafe-api-key:/run/secrets/typesafe-api-key:ro
       # Optional data/automation configuration and credentials; see deploy/integrations/README.md.

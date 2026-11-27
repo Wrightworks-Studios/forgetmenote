@@ -15,18 +15,22 @@ var ErrManagedAI = errors.New("AI features are managed in Administration → AI 
 // AISettings is the instance policy. Notebook indexes retain only derived
 // configuration and progress; credentials remain in operator-mounted files.
 type AISettings struct {
-	Revision            uint64 `json:"revision"`
-	Embeddings          bool   `json:"embeddings"`
-	Model               string `json:"model"`
-	Dimensions          int    `json:"dimensions"`
-	MapClassification   bool   `json:"mapClassification"`
-	Rerank              bool   `json:"rerank"`
-	Citations           bool   `json:"citations"`
-	Reviews             bool   `json:"reviews"`
-	Writing             bool   `json:"writing"`
-	SourceOCR           bool   `json:"sourceOCR"`
-	SourceDescriptions  bool   `json:"sourceDescriptions"`
-	SourceTranscription bool   `json:"sourceTranscription"`
+	Revision          uint64 `json:"revision"`
+	Embeddings        bool   `json:"embeddings"`
+	Model             string `json:"model"`
+	Dimensions        int    `json:"dimensions"`
+	MapClassification bool   `json:"mapClassification"`
+	Rerank            bool   `json:"rerank"`
+	Citations         bool   `json:"citations"`
+	Reviews           bool   `json:"reviews"`
+	Writing           bool   `json:"writing"`
+	// UploadReading lets the instance's chat model read an image archived
+	// in the browser and store its text with the source. It is its own
+	// opt-in: AI writing does not imply it, and the hosted OCR and
+	// description switches of earlier releases do not carry over to it.
+	UploadReading bool `json:"uploadReading"`
+	// Policy an earlier release stored for hosted source OCR, descriptions
+	// and transcription, which were removed, is ignored when it is read.
 }
 
 func (c *Catalog) AISettings() (AISettings, bool) {

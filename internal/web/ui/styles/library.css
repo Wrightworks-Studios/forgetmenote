@@ -120,8 +120,6 @@ body:not(.search-active) #main:has(> #folder-browser:not([hidden])) > header #ch
 #new-folder-options button[aria-selected="true"], #new-folder-options button:hover {background:var(--hover);}
 #new-folder-options p {padding:8px;margin:0;}
 #archive-inputs, #archive-preview {display:grid;gap:12px;}
-#archive-describe-field {display:flex;align-items:center;gap:8px;min-height:44px;margin:0;cursor:pointer;}
-#archive-describe {width:16px;height:16px;flex-shrink:0;margin:0;accent-color:var(--accent);}
 #archive-preview-text {max-height:280px;overflow:auto;overflow-wrap:anywhere;padding:16px;background:var(--bg);font-family:inherit;font-size: var(--text-body);line-height:1.6;}
 #archive-warning, #archive-error {overflow-wrap:anywhere;}
 #archive-error {color:var(--danger);}

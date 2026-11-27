@@ -173,10 +173,15 @@ func (c *personalCollector) planConnection(ctx context.Context, connection conne
 }
 
 // observeWatches runs each configured read-only data watch and observes its
-// result directly.
+// result directly. Without data connections, none configured or the module
+// off, there is nothing to watch: the watches stay saved and are skipped.
 func (c *personalCollector) observeWatches(ctx context.Context) error {
+	connections := c.s.hooks.DataConnections()
+	if connections == nil {
+		return nil
+	}
 	for _, watch := range c.settings.Watches {
-		op, ok := c.s.hooks.DataConnections().ConfiguredOperation(watch.Connection, watch.Operation)
+		op, ok := connections.ConfiguredOperation(watch.Connection, watch.Operation)
 		if !ok || !op.ReadOnly {
 			return errors.New("personal data watches require an allowed read-only operation")
 		}

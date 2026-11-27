@@ -56,6 +56,7 @@ var policies = map[string]Policy{
 	"ai_settings":                  {},
 	"set_ai_settings":              {},
 	"chat_clients":                 {},
+	"chat_client_directory":        {},
 	"set_chat_clients":             {},
 	"set_instance_name":            {},
 	"set_instance_branding":        {},
@@ -146,6 +147,7 @@ var policies = map[string]Policy{
 	"read_live_note":                    {Chat: true, Read: true, Replay: true},
 	"read_note":                         {Chat: true, Read: true, Replay: true},
 	"read_project_changes":              {Chat: true, Read: true, Replay: true},
+	"list_sources_awaiting_text":        {Read: true, Replay: true}, // Excluded from embedded chat, which cannot read originals.
 	"read_source_original":              {Read: true, Replay: true}, // Deliberately excluded from embedded chat.
 	"resolve_comment":                   {Chat: true, Edit: true},
 	"restore_note":                      {Chat: true, Control: true},

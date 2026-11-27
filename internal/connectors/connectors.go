@@ -445,8 +445,12 @@ func (m *Manager) CheckArguments(id, name string, args map[string]any) error {
 			return errors.New("arguments exceed the connection's configured maxBytes")
 		}
 		schema := r.arguments[name]
-		if schema == nil || args == nil || schema.Validate(map[string]any(args)) != nil {
+		if schema == nil || args == nil {
 			return errors.New("arguments do not match operation schema")
+		}
+		// The validator's error names the argument it refused.
+		if err := schema.Validate(map[string]any(args)); err != nil {
+			return fmt.Errorf("arguments do not match operation schema: %w", err)
 		}
 		return nil
 	}
@@ -714,7 +718,11 @@ func (m *Manager) Close() {
 
 // Learning is opt-in private retention. Never capture a reflection of this
 // connection's injected credential, even when it occurs in an ordinary argument.
+// Without data connections nothing is safe to capture.
 func (m *Manager) LearningInputSafe(id, raw string) bool {
+	if m == nil {
+		return false
+	}
 	m.mu.Lock()
 	r, ok := m.connections[id]
 	m.mu.Unlock()

@@ -36,6 +36,9 @@ func (s *slackService) EventMember(raw json.RawMessage) (messaging.Member, bool,
 func (s *slackService) Members(ctx context.Context) ([]messaging.Member, error) {
 	return s.transport().Members(ctx)
 }
+func (s *slackService) Directory(ctx context.Context) messaging.Directory {
+	return s.transport().Directory(ctx)
+}
 func (s *slackService) ChannelMembers(ctx context.Context, channel string) ([]string, error) {
 	return s.transport().ChannelMembers(ctx, channel)
 }

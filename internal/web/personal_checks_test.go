@@ -33,8 +33,8 @@ type personalRunOptions struct {
 	setup func(app *Server, policy *catalog.AssistantPolicy)
 	// model runs inside each model call, with its request body.
 	model func(app *Server, body []byte)
-	// jev runs inside each Jev request, with its request body.
-	jev func(app *Server, body []byte)
+	// judgments runs inside each judgment request, with its request body.
+	judgments func(app *Server, body []byte)
 	// google runs before each Google response, with the request path.
 	google func(app *Server, path string)
 	// replied, once set, adds a reply to the mail thread.
@@ -42,7 +42,7 @@ type personalRunOptions struct {
 }
 
 // personalRunFixture connects alice's Google account, which has one mail
-// thread. Jev selects the thread and the model drafts a reply to it.
+// thread. the judge selects the thread and the model drafts a reply to it.
 func personalRunFixture(t *testing.T, o personalRunOptions) (*Server, automation.Spec) {
 	t.Helper()
 	if o.replied == nil {
@@ -56,10 +56,10 @@ func personalRunFixture(t *testing.T, o personalRunOptions) (*Server, automation
 		}
 		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"role": "assistant", "content": `{"title":"Reply about the launch plan","summary":"A colleague needs the launch plan.","reply":"I will follow up.","due":"","report":"Source is the connected email thread."}`}, "finish_reason": "stop"}}})
 	})
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		if o.jev != nil {
-			o.jev(app, body)
+		if o.judgments != nil {
+			o.judgments(app, body)
 		}
 		var in struct {
 			Questions map[string]any `json:"questions"`
@@ -194,7 +194,7 @@ func TestPersonalCollectionStopsReadingWhenTheInstanceIsPaused(t *testing.T) {
 
 // The assistant reads a person's responsibilities with that person's own
 // access. A people page in a directory notebook they cannot read reaches
-// neither Jev nor the model.
+// neither the judge nor the model.
 func TestPersonalAssistantDoesNotReadAnUnreadableDirectory(t *testing.T) {
 	const marker = "DIRECTORY_ONLY_RESPONSIBILITY"
 	var mu sync.Mutex
@@ -204,7 +204,7 @@ func TestPersonalAssistantDoesNotReadAnUnreadableDirectory(t *testing.T) {
 		requests = append(requests, body)
 		mu.Unlock()
 	}
-	app, spec := personalRunFixture(t, personalRunOptions{model: record, jev: record, setup: func(app *Server, policy *catalog.AssistantPolicy) {
+	app, spec := personalRunFixture(t, personalRunOptions{model: record, judgments: record, setup: func(app *Server, policy *catalog.AssistantPolicy) {
 		if err := app.catalog.Create(catalog.Bootstrap, "directory", "Directory"); err != nil {
 			t.Fatal(err)
 		}
@@ -230,11 +230,11 @@ func TestPersonalAssistantDoesNotReadAnUnreadableDirectory(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	if len(requests) < 2 {
-		t.Fatalf("the run asked Jev and the model %d times, want both", len(requests))
+		t.Fatalf("the run asked the judge and the model %d times, want both", len(requests))
 	}
 	for _, body := range requests {
 		if bytes.Contains(body, []byte(marker)) {
-			t.Fatal("a people page alice cannot read reached Jev or the model")
+			t.Fatal("a people page alice cannot read reached the judge or the model")
 		}
 	}
 }

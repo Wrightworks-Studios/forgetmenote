@@ -12,7 +12,7 @@
     </dialog>
     <dialog id="account-dialog">
       <div class="dialog-title"><h2>Your settings</h2><button data-close="account-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
-      <nav class="category-navigation" data-settings-categories aria-label="Your settings categories"><button class="quiet" data-settings-category="appearance">Appearance</button><button class="quiet" data-settings-category="account">Account</button><button class="quiet" data-settings-category="connections">AI connections</button></nav>
+      <nav class="category-navigation" data-settings-categories aria-label="Your settings categories"><button class="quiet" data-settings-category="appearance">Appearance</button><button class="quiet" data-settings-category="account">Account</button><button class="quiet" data-settings-category="connections">AI connections</button><button class="quiet" data-settings-category="credentials">API credentials</button></nav>
       <section data-settings-panel="appearance">
       <h3>Appearance</h3>
       <fieldset id="theme" class="theme-options">
@@ -68,17 +68,46 @@
       </details>
       </section>
       <section data-settings-panel="connections">
-      <button id="jev-settings-open" class="quiet">Evidence checks</button>
+      <button id="judgments-settings-open" class="quiet">Evidence checks</button>
       <section id="ai-connection">
       <h3>Connect your AI</h3>
       <a href="/account/connect">Choose your client and connect</a>
 
       </section>
       </section>
+      <section data-settings-panel="credentials">
+      <h3>Your API credentials</h3>
+      <p class="small">A credential lets a script or AI client act as you through the API or MCP, within the notebooks and permission you choose, until it expires or you revoke it.</p>
+      <div id="credential-list"></div>
+      <details id="credential-create" class="settings-details">
+      <summary>New credential</summary>
+      <form id="credential-form" class="settings-form">
+        <label for="credential-name">Name</label><input id="credential-name" required maxlength="100" autocomplete="off" />
+        <label class="check-row"><input id="credential-all" type="checkbox" /><span>All your notebooks, including ones shared with you later</span></label>
+        <label for="credential-projects">Notebooks</label><select id="credential-projects" multiple size="4" required></select>
+        <label for="credential-permission">Permission</label><select id="credential-permission"><option value="read">Read</option><option value="write">Read and write</option><option value="manage">Read, write and manage settings</option></select>
+        <div id="credential-data" hidden>
+          <label for="credential-data-scope">Data access</label><select id="credential-data-scope"><option value="">None</option><option value="read">Read</option><option value="write">Read and write</option></select>
+          <label for="credential-connections">Connections</label><select id="credential-connections" multiple size="3" disabled></select>
+        </div>
+        <label for="credential-audience">Use with</label><select id="credential-audience"><option value="api mcp">API and MCP</option><option value="api">API only</option><option value="mcp">MCP only</option></select>
+        <label for="credential-days">Expires in days</label><input id="credential-days" type="number" min="1" max="365" value="30" required />
+        <button type="submit" class="primary">Create credential</button>
+      </form>
+      </details>
+      <p id="credential-status" role="status"></p>
+      </section>
       <p id="account-status" role="status"></p>
+    </dialog>
+    <dialog id="credential-secret-dialog" aria-labelledby="credential-secret-title">
+      <div class="dialog-title"><h2 id="credential-secret-title">Copy your new credential</h2></div>
+      <p>This is the only time its secret is shown. Store it where your client keeps secrets: it cannot be shown again, and anyone who has it acts as you within its limits.</p>
+      <div id="credential-secret-field"></div>
+      <div class="actions"><button id="credential-secret-copy" type="button" class="quiet">Copy</button><button id="credential-secret-done" type="button" class="primary">Done</button></div>
+      <p id="credential-secret-status" role="status"></p>
     </dialog>
     <dialog id="knowledge-dialog" aria-labelledby="knowledge-title">
       <div class="dialog-title"><h2 id="knowledge-title">Knowledge</h2><button data-close="knowledge-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
-      <nav id="review-sections" class="category-navigation" aria-label="Review sections" hidden><button class="quiet" data-review-section="findings">Findings</button><button class="quiet" data-review-section="proposals">Proposed changes</button><button class="quiet" id="jev-review-open" data-review-section="checks">Notebook checks</button><button class="quiet" data-review-section="activity">Activity</button></nav>
+      <nav id="review-sections" class="category-navigation" aria-label="Review sections" hidden><button class="quiet" data-review-section="findings">Findings</button><button class="quiet" data-review-section="proposals">Proposed changes</button><button class="quiet" id="judgments-review-open" data-review-section="checks">Notebook checks</button><button class="quiet" data-review-section="activity">Activity</button></nav>
       <p id="knowledge-error" role="alert" hidden></p><div id="knowledge-body"></div><div id="review-checks" hidden></div>
     </dialog>{{end}}

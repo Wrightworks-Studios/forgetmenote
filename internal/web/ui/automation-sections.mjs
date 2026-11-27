@@ -212,14 +212,14 @@ function checkEditor(ctx,saved,kind,refresh){
     }};
 }
 
-export function automationSections({manage,operations,connections,notebooks}){
+export function automationSections({manage,operations,connections,notebooks,moduleOn=()=>true}){
   const element=node('div',undefined,'automation-sections');
   const cache=new Map();
   let parts=[],chat=null;
   const ctx={get connections(){return connections();},operations(id){if(!cache.has(id))cache.set(id,operations(id).catch(error=>{cache.delete(id);throw error;}));return cache.get(id);}};
   // Slack channels the chat-client policy already configures; none when Slack
   // is not set up or cannot be read.
-  const slack=()=>chat??=manage('chat_clients').then(data=>data.config?.clients?.slack||{},()=>({}));
+  const slack=()=>chat??=moduleOn('messaging')?manage('chat_clients').then(data=>data.config?.clients?.slack||{},()=>({})):Promise.resolve({});
 
   function calls(draft,{min,max}){
     const box=part(max===1?'Data call':'Data calls','Calls run read-only operations of the connections checked under Data connections.');
@@ -270,7 +270,10 @@ export function automationSections({manage,operations,connections,notebooks}){
       if(saved||Object.keys(value).length)draft.alert=value;else delete draft.alert;
     }};
   }
+  // Slack notices need messaging: with it off they are offered only to an
+  // automation that already sends them, so they can be removed.
   function notices(draft){
+    if(!moduleOn('messaging')&&!draft.notifySlackUser&&!draft.notifyChannel)return null;
     const box=part('Slack notices','Send results to one person, or to a shared channel the Slack policy approves for this notebook and service account.');
     const user=textInput('Slack user ID',draft.notifySlackUser,'U0123ABCD'),saved=draft.notifySlackUser;
     const channel=laterChoice('Shared Slack channel',draft.notifyChannel,slack().then(client=>Object.entries(client.broadcasts||{}).map(([id,b])=>[id,`${id} · ${b.project}${b.audienceApproved?'':' · audience not approved'}`])),{placeholder:'None',missing:value=>`${value} (not a configured shared channel)`});
@@ -360,7 +363,7 @@ export function automationSections({manage,operations,connections,notebooks}){
   }
   function trigger(draft){
     const saved=isObject(draft.trigger)?draft.trigger:{},box=part('Source event','Runs after the source changes and then stays quiet, or after the longest wait.');
-    const kind=choiceSelect('Event',eventKinds);chooseOption(kind,saved.kind||'repository.updated',value=>value);
+    const kind=choiceSelect('Event',eventKinds.filter(([value])=>value!=='slack.knowledge'||moduleOn('messaging')||saved.kind===value));chooseOption(kind,saved.kind||'repository.updated',value=>value);
     const project=choiceSelect('Notebook to watch',notebooks(),{placeholder:'Choose a notebook'});chooseOption(project,saved.project||'');
     const projectWrap=labelled('Notebook to watch',project);
     const channel=laterChoice('Knowledge channel',saved.channel,slack().then(client=>Object.entries(client.knowledgeChannels||{}).map(([id,notebook])=>[id,`${id} · ${notebook}`])),{placeholder:'Choose a channel'});
@@ -392,6 +395,7 @@ export function automationSections({manage,operations,connections,notebooks}){
       if(['monitor','native','script'].includes(kind))parts.push(alerts(draft));
       if(['digest','monitor','script'].includes(kind))parts.push(notices(draft));
       if(event)parts.push(trigger(draft));
+      parts=parts.filter(Boolean);
       element.replaceChildren(...parts.map(p=>p.element));element.hidden=!parts.length;
       api.disable(readOnly);api.sync(draft);
     },

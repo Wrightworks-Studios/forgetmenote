@@ -4,12 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"forgetmenote/internal/decision"
+	"log/slog"
 )
 
 // Hooks connect cross-owner policy updates to a single configuration lifetime.
 type ConfigurationHooks struct {
 	Guard     func() func()
 	Installed func(previous, current *decision.Service, localOnly bool) error
+	// WithoutJudgments installs no judge: the instance turns the judgments
+	// module off, so a decision configuration is neither read nor used.
+	WithoutJudgments bool
 }
 
 func (r *Runtime) Configure(data, chatPath, decisionPath string, hooks ConfigurationHooks) error {
@@ -22,7 +26,7 @@ func (r *Runtime) Configure(data, chatPath, decisionPath string, hooks Configura
 			return fmt.Errorf("CHAT_CONFIG_FILE: %w", err)
 		}
 	}
-	if decisionPath != "" {
+	if decisionPath != "" && !hooks.WithoutJudgments {
 		judge, err = decision.LoadConfig(decisionPath)
 		if err != nil {
 			return fmt.Errorf("DECISION_CONFIG_FILE: %w", err)
@@ -43,12 +47,15 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 			return err
 		}
 		localOnly = cfg.LocalOnly
-		if cfg.Jev != nil {
+		if cfg.Judgments != nil {
 			if judgeConfig != nil {
 				return errors.New("configure decisions in DECISION_CONFIG_FILE or CHAT_CONFIG_FILE, not both")
 			}
-			judgeConfig = cfg.Jev
+			judgeConfig = cfg.Judgments
 		}
+	}
+	if hooks.WithoutJudgments {
+		judgeConfig = nil
 	}
 	if err := judgeConfig.Validate(localOnly); err != nil {
 		return err
@@ -82,24 +89,27 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 		}
 	}
 	var judge *decision.Service
-	ledger := r.JevLedger
+	ledger := r.JudgmentLedger
 	openedLedger := false
-	if judgeConfig != nil && judgeConfig.Enabled || cfg != nil && cfg.Sources != nil {
-		if ledger == nil {
-			ledger, err = decision.OpenLedger(r.db)
-			if err != nil {
-				return err
-			}
-			openedLedger = true
+	if cfg != nil && len(cfg.RetiredSources) > 0 {
+		slog.Warn("chat configuration: sources configured hosted source processing, which was removed; the block is ignored and can be deleted")
+	}
+	// Judgments journal their paid calls, and so does the chat's reading of
+	// an uploaded image, which needs a connection that reads images.
+	if ledger == nil && (judgeConfig != nil && judgeConfig.Enabled || readsImages(cfg)) {
+		ledger, err = decision.OpenLedger(r.db)
+		if err != nil {
+			return err
 		}
-		if judgeConfig != nil && judgeConfig.Enabled {
-			judge, err = decision.New(*judgeConfig, ledger, localOnly)
-			if err != nil {
-				if openedLedger {
-					ledger.Close()
-				}
-				return err
+		openedLedger = true
+	}
+	if judgeConfig != nil && judgeConfig.Enabled {
+		judge, err = decision.New(*judgeConfig, ledger, localOnly)
+		if err != nil {
+			if openedLedger {
+				ledger.Close()
 			}
+			return err
 		}
 	}
 	if hooks.Guard != nil {
@@ -125,9 +135,9 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 			return err
 		}
 	}
-	oldJudge := r.Jev
-	r.Jev = judge
-	r.JevLedger = ledger
+	oldJudge := r.Judgments
+	r.Judgments = judge
+	r.JudgmentLedger = ledger
 	r.Config = cfg
 	r.Providers = providers
 	r.Research = research
@@ -138,4 +148,16 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 		return hooks.Installed(oldJudge, judge, localOnly)
 	}
 	return nil
+}
+
+func readsImages(cfg *Config) bool {
+	if cfg == nil {
+		return false
+	}
+	for _, connection := range cfg.Connections {
+		if connection.Capabilities.Images {
+			return true
+		}
+	}
+	return false
 }

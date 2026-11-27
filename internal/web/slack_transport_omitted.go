@@ -22,6 +22,9 @@ func (s *slackService) EventMember(json.RawMessage) (messaging.Member, bool, err
 func (s *slackService) Members(context.Context) ([]messaging.Member, error) {
 	return nil, integrations.Check("slack")
 }
+func (s *slackService) Directory(context.Context) messaging.Directory {
+	return messaging.Unlisted(integrations.Check("slack").Error())
+}
 func (s *slackService) ChannelMembers(context.Context, string) ([]string, error) {
 	return nil, integrations.Check("slack")
 }

@@ -1,6 +1,6 @@
 // Package personal runs each employee's personal assistant in the background:
 // it collects new mail, Slack messages, calendar events and data watches from
-// their connections, asks Jev which need attention, drafts suggestions in
+// their connections, asks the judge which need attention, drafts suggestions in
 // their assistant notebook, keeps their profile memory current, and tells them
 // in Slack.
 //
@@ -51,8 +51,8 @@ type Hooks struct {
 	CheckAutomationEvidence func(ctx context.Context, r *automation.Run, upstream bool) error
 	AutomationCall          func(ctx context.Context, r *automation.Run, call automation.Call) (connectors.Result, error)
 
-	// JevConfigured returns Jev and whether it runs locally.
-	JevConfigured func() (*decision.Service, bool)
+	// JudgmentsConfigured returns the judge and whether it runs locally.
+	JudgmentsConfigured func() (*decision.Service, bool)
 
 	// Values web replaces after startup: personal and data connections, the
 	// origin, and the mounted Slack app's workspace, transport and member
@@ -77,7 +77,7 @@ func New(c *catalog.Catalog, automations *automation.Runtime, chats *messaginght
 	if c == nil || automations == nil || chats == nil ||
 		h.Context == nil || h.ClientAccess == nil || h.Evidence == nil || h.Current == nil || h.CheckSources == nil || h.DiscardUnavailable == nil || h.MailboxDraft == nil ||
 		h.CheckAutomationAuth == nil || h.AutomationAnswer == nil || h.CheckAutomationEvidence == nil || h.AutomationCall == nil ||
-		h.JevConfigured == nil || h.PersonalConnections == nil || h.DataConnections == nil || h.Origin == nil || h.Slack == nil {
+		h.JudgmentsConfigured == nil || h.PersonalConnections == nil || h.DataConnections == nil || h.Origin == nil || h.Slack == nil {
 		return nil, errors.New("the personal assistant requires the catalog, automations, messaging and every shared check")
 	}
 	return &Service{catalog: c, automations: automations, messaging: chats, hooks: hooks}, nil

@@ -4,7 +4,7 @@ A notebook is the existing project: one Git repository, one membership list, and
 
 ## Instance administration
 
-Admins open **Administration → People** to search accounts, choose a person, and see their notebook access. They can set a display name, grant or revoke instance Admin authority, allow notebook creation, disable an account, or revoke its browser and AI sessions. Display names are labels only; stable internal IDs still determine identity and access. Duplicate names remain distinguishable by their IDs.
+Admins open **Administration → People** to search accounts, choose a person, and see their notebook access. They can set a display name, grant or revoke instance Admin authority, allow notebook creation, disable an account, revoke its browser and AI sessions or any one of its API credentials, or link an identity provider's sign-in identity to it. Display names are labels only; stable internal IDs still determine identity and access. Duplicate names remain distinguishable by their IDs.
 
 **Can create notebooks** is a separate, default-off account permission. Admins always have this ability. Giving someone ownership of an existing notebook does not silently grant creation access; an Admin can explicitly enable it. Revoking creation access leaves existing memberships intact. Disabled users cannot create or access notebooks, even if a creation grant remains stored.
 

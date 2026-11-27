@@ -1,10 +1,10 @@
 {{$brand := brand}}
 <!doctype html>
 <html lang="en"><head>{{template "brand-icons" $brand}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your assistant · {{$brand.Name}}</title><link rel="stylesheet" href="{{asset "/static/style.css"}}"><script type="module" src="{{asset "/static/assistant.mjs"}}"></script></head>
-<body class="connect-page assistant-page"><main>
+<body class="connect-page assistant-page"{{if not .Personal}} data-personal-off{{end}}><main>
 <header class="dialog-title"><div><p class="eyebrow">{{$brand.Name}}</p><h1>Your assistant</h1></div><a class="button quiet" href="/">Notebooks</a></header>
 <p id="assistant-message" role="status" aria-live="polite">Loading…</p>
-<section id="assistant-setup"><h2>Your assistant</h2>
+<section id="assistant-setup"{{if not .Personal}} hidden{{end}}><h2>Your assistant</h2>
 <form id="assistant-preferences"><fieldset class="assistant-controls">
 <label><input id="assistant-enabled" type="checkbox">Enable my assistant</label>
 <label><input id="assistant-consent" type="checkbox">Allow the configured AI services to process my selected sources</label>
@@ -13,10 +13,10 @@
 <label><input id="assistant-notifications" type="checkbox">Send private Slack reminders</label>
 <label><input id="assistant-mailbox-drafts" type="checkbox">Save proposed email replies as Gmail drafts</label>
 <label>Exclude notebooks<select id="assistant-exclusions" multiple aria-label="Excluded notebooks"></select></label>
-<details id="assistant-watch-section"><summary>Data watches</summary><p class="small">Each watch runs one read-only operation on a data connection you can use whenever your assistant checks for new items, and your assistant looks at what changed.</p><div id="assistant-watches"></div></details>
+<details id="assistant-watch-section"{{if not .DataConnections}} hidden{{end}}><summary>Data watches</summary><p class="small">Each watch runs one read-only operation on a data connection you can use whenever your assistant checks for new items, and your assistant looks at what changed.</p><div id="assistant-watches"></div></details>
 <div class="actions"><button type="submit" class="primary">Save preferences</button><a id="assistant-notebook" class="button quiet" hidden>Open assistant notebook</a></div>
 </fieldset></form></section>
-<section id="memory-setup"><h2>Memory</h2><p class="small">Agents you connect, such as Claude Code over MCP, and {{$brand.Name}} in direct messages linked to your account keep memory for you in private notebooks. Memory is on unless you turn it off; then agents save only what you ask them to remember, and direct messages leave it alone. To link Slack, send <code>link</code> to {{$brand.Name}} in a Slack direct message.</p>
+<section id="memory-setup"{{if not .Memory}} hidden{{end}}><h2>Memory</h2><p class="small">Agents you connect, such as Claude Code over MCP, and {{$brand.Name}} in direct messages linked to your account keep memory for you in private notebooks. Memory is on unless you turn it off; then agents save only what you ask them to remember, and direct messages leave it alone. To link Slack, send <code>link</code> to {{$brand.Name}} in a Slack direct message.</p>
 <form id="memory-preferences"><fieldset class="assistant-controls">
 <label><input id="assistant-memory" type="checkbox">Let my assistant and connected agents remember what they learn from our work</label>
 <div class="actions"><button type="submit">Save memory setting</button><a id="memory-notebook" class="button quiet" hidden>Open memory</a></div>
@@ -26,11 +26,11 @@
 <label><input id="assistant-replies" type="checkbox">List messages waiting on my reply in my morning reminder</label>
 <div class="actions"><button type="submit">Save reply reminders</button></div>
 </fieldset></form></section>
-<section><h2>Connected accounts</h2><p class="small">Connect your own accounts. You choose what the assistant monitors. Drafts are suggestions; sending needs your approval.</p><div id="assistant-connections" class="assistant-grid"></div></section>
-<section><div class="dialog-title"><h2>Suggestions</h2><button id="assistant-refresh" class="quiet" type="button">Refresh</button></div><div id="assistant-drafts"></div></section>
-<details><summary>Memory and preferences</summary><div id="assistant-memories"></div></details>
-<details><summary>Recent activity</summary><div id="assistant-recovery"></div><div id="assistant-runs"></div></details>
-{{if .Admin}}<details id="assistant-admin"><summary>Administration</summary><form id="assistant-policy"><fieldset class="assistant-controls">
+<section{{if not .Personal}} hidden{{end}}><h2>Connected accounts</h2><p class="small">Connect your own accounts. You choose what the assistant monitors. Drafts are suggestions; sending needs your approval.</p><div id="assistant-connections" class="assistant-grid"></div></section>
+<section{{if not .Personal}} hidden{{end}}><div class="dialog-title"><h2>Suggestions</h2><button id="assistant-refresh" class="quiet" type="button">Refresh</button></div><div id="assistant-drafts"></div></section>
+<details{{if not .Personal}} hidden{{end}}><summary>Memory and preferences</summary><div id="assistant-memories"></div></details>
+<details{{if not .Personal}} hidden{{end}}><summary>Recent activity</summary><div id="assistant-recovery"></div><div id="assistant-runs"></div></details>
+{{if and .Admin .Personal}}<details id="assistant-admin"><summary>Administration</summary><form id="assistant-policy"><fieldset class="assistant-controls">
 <label><input id="assistant-policy-enabled" type="checkbox">Offer personal assistants on this instance</label>
 <div class="assistant-grid"><label>AI connection<input id="assistant-connection" autocomplete="off"></label><label>Model<input id="assistant-model" placeholder="gpt-6-luna" autocomplete="off"></label><label>Routine reasoning<select id="assistant-effort"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="max">Max</option></select></label><label>Poll interval (seconds)<input id="assistant-interval" type="number" min="60" value="300"></label><label>Items per poll<input id="assistant-batch" type="number" min="1" value="12"></label><label>Initial lookback (hours)<input id="assistant-lookback" type="number" min="1" value="48"></label></div>
 <label>Responsibilities notebook ID<input id="assistant-directory" autocomplete="off"></label><button type="submit">Save assistant policy</button>

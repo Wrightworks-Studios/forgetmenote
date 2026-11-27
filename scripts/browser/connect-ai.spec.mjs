@@ -72,7 +72,7 @@ test('administrator provisions an ordinary work notebook; employee setup and dow
       const downloadPromise = user.waitForEvent('download');
       await user.locator('[data-client=' + client + '] [data-download]').click();
       const download = await downloadPromise;
-      expect(download.suggestedFilename()).toMatch(new RegExp('forgetmenote-[a-f0-9]{16}-' + client + '-0.3.4.zip'));
+      expect(download.suggestedFilename()).toMatch(new RegExp('forgetmenote-[a-f0-9]{16}-' + client + '-0.3.5.zip'));
       await download.saveAs(info.outputPath(client + '.zip'));
     }
     await user.route('**/account/connect/download/claude', route =>

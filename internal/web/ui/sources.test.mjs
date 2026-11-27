@@ -24,7 +24,7 @@ test('upload and URL capture keep their inputs separate and submit only the acti
  const previousReader=globalThis.FileReader;globalThis.FileReader=class{readAsDataURL(){this.result='data:text/plain;base64,QW1iZXI=';this.onload();}};
  const sent=[];
  try {
- const sources=initSources({api:async(path)=>path.endsWith('/notes') ? [{path:'research/reference.md'},{path:'notes/start.md'}] : [{extensions:['.png'],mime:'image/png',describeImages:true,hostedDescriptions:true,externalOCR:true,maxBytes:20*1024*1024},{extensions:['.txt'],maxBytes:20*1024*1024}],post:async(path,input)=>{sent.push(input);throw new Error('preview stopped by fixture');},getProject:()=>({id:'test'}),getNote:()=>null,getFolder:()=> 'research',canEdit:()=>true,dirty:()=>false});
+ const sources=initSources({api:async(path)=>path.endsWith('/notes') ? [{path:'research/reference.md'},{path:'notes/start.md'}] : [{extensions:['.png'],mime:'image/png',extractedBy:'agent',maxBytes:20*1024*1024},{extensions:['.txt'],extractedBy:'server',maxBytes:20*1024*1024}],post:async(path,input)=>{sent.push(input);throw new Error('preview stopped by fixture');},getProject:()=>({id:'test'}),getNote:()=>null,getFolder:()=> 'research',canEdit:()=>true,dirty:()=>false});
  await sources.open();
  assert.equal(element('archive-folder').value,'research');
  assert.deepEqual(element('archive-folder').children.map(option=>option.value),['','notes','research']);
@@ -41,20 +41,13 @@ test('upload and URL capture keep their inputs separate and submit only the acti
  element('archive-url').value='https://example.org/capture';
  await element('archive-form').onsubmit({preventDefault(){}});
  assert.deepEqual(sent,[{folder:'research',url:'https://example.org/capture'}]);
+ // An image is stored for a connected agent to read; nothing asks to upload it elsewhere.
  element('archive-url').value='https://example.org/image.png';element('archive-url').oninput();
- assert.equal(element('archive-describe-field').hidden,false);
- assert.equal(element('archive-describe').checked,false,'image descriptions require opt-in');
- element('archive-describe').checked=true;element('archive-describe').onchange();
  await element('archive-form').onsubmit({preventDefault(){}});
- assert.deepEqual(sent[1],{folder:'research',url:'https://example.org/image.png',describeImages:true});
- element('archive-describe').checked=false;element('archive-ocr').checked=true;element('archive-ocr').onchange();
- element('archive-first-page').value='2';element('archive-last-page').value='3';
- await element('archive-form').onsubmit({preventDefault(){}});
- assert.deepEqual(sent[2],{folder:'research',url:'https://example.org/image.png',externalOCR:true,firstPage:2,lastPage:3});
- element('archive-first-page').value='';element('archive-last-page').value='';
+ assert.deepEqual(sent[1],{folder:'research',url:'https://example.org/image.png'});
  element('archive-url').value='https://example.org/note.txt';element('archive-url').oninput();
- assert.equal(element('archive-describe-field').hidden,true);
- assert.equal(element('archive-describe').checked,false,'unsupported format clears consent option');
+ await element('archive-form').onsubmit({preventDefault(){}});
+ assert.deepEqual(sent[2],{folder:'research',url:'https://example.org/note.txt'});
 
  element('archive-fetch').checked=false;element('archive-upload').checked=true;
  element('archive-upload').onchange();
@@ -105,6 +98,17 @@ test('source audit details stay collapsed while warnings and verification proble
  response=new Error('offline');await sources.render(note);nodes=all(panel);
  assert.match(panel.children[0].textContent,/Verification unavailable/);
  assert.ok(nodes.some(n=>n.role==='status' && !n.hidden && /Could not verify/.test(n.textContent)));
+ response={originalState:'Original checksum matches', originalStatus: 'match',textState:'Extracted text checksum matches', textStatus: 'match'};
+ await sources.render({...note,editable:true});nodes=all(panel);
+ assert.ok(nodes.some(n=>n.textContent==='Update source'));
+ // Without the sources module the note keeps its provenance and original,
+ // and is neither updated nor verified.
+ let verified=0;const off=initSources({api:async()=>{verified++;return response;},getProject:()=>({id:'test'}),available:()=>false});
+ await off.render({...note,editable:true});nodes=all(panel);
+ assert.equal(verified,0);
+ assert.ok(nodes.some(n=>n.textContent==='The sources module is turned off on this instance, so this capture is not verified.'));
+ assert.equal(nodes.some(n=>n.textContent==='Update source'),false);
+ assert.ok(nodes.some(n=>n.textContent==='Download original'));
  }finally{Object.assign(globalThis,old);}
 });
 
@@ -120,11 +124,47 @@ test('durable source preview saves by job ID without resending or re-extracting 
  try {
   const sources=initSources({api:async path=>path.endsWith('/notes')?[]:path.endsWith('/formats')?[{extensions:['.txt'],maxBytes:64*1024*1024}]:{job:{id,state:'ready',pages:0},prepared:{capture:{title:'Evidence',record:{warning:'Original retained'}},html:'<p>Amber evidence</p>'}},post:async(path,input)=>{sent.push({path,input});return path.endsWith('/jobs')?{job:{id,state:'queued',pages:0}}:{path:'sources/evidence.md',revision,metadata:{title:'Evidence'}};},getProject:()=>({id:'test'}),getNote:()=>null,canEdit:()=>true,dirty:()=>false,refresh:async()=>{}});
   await sources.open();element('archive-file').files=[{name:'evidence.txt',size:5}];
-  assert.equal(element('archive-formats').textContent,'Documents, email, audio, and video · Up to 64 MiB','a build without image formats does not offer them');
+  assert.equal(element('archive-formats').textContent,'Documents, images, email, audio, and video · Up to 64 MiB','every build stores images, audio and video for an agent to read');
   await element('archive-form').onsubmit({preventDefault(){}});
   assert.equal(element('archive-save').hidden,false);assert.match(element('archive-job-status').textContent,/Ready/);
   await element('archive-save').onclick();
   assert.equal(sent.length,2);assert.equal(sent[0].input.data,'QW1iZXI=');assert.equal(sent[1].input.job,id);
   assert.equal(sent[1].input.data,undefined);assert.equal(sent[1].input.prepared,undefined);assert.equal(remembered.size,0);
+ } finally {Object.assign(globalThis,previous);}
+});
+
+test('an upload stored without text is read by the chat, or the dialog says why it waits', async()=>{
+ const {initSources,awaitsChat}=await import('./sources.mjs');
+ const elements=new Map();
+ const element=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:false,disabled:false,checked:false,files:[],textContent:'',replaceChildren(){},querySelectorAll(){return [];},addEventListener(){},dataset:{},classList:{toggle(){}},setAttribute(name,value){this[name]=value;},showModal(){this.open=true;}});return elements.get(id);};
+ const previous={document:globalThis.document,Option:globalThis.Option,FileReader:globalThis.FileReader,localStorage:globalThis.localStorage};
+ globalThis.document={getElementById:element};globalThis.Option=class{};
+ globalThis.FileReader=class {readAsDataURL(){this.result='data:image/png;base64,iVBORw==';this.onload();}};
+ globalThis.localStorage={getItem:()=>null,setItem(){},removeItem(){}};
+ const id='a'.repeat(32),read='b'.repeat(40);
+ const stored={path:'sources/notice.md',revision,metadata:{title:'Notice',source:{method:'uploaded',extraction:'original-only'}}};
+ let sent=[],chat={note:{path:'sources/notice.md',revision:read,metadata:{title:'Notice',source:{method:'uploaded',extraction:'client-supplied'}}}},refreshed=0;
+ try {
+  const sources=initSources({api:async path=>path.endsWith('/notes')?[]:path.endsWith('/formats')?[{extensions:['.png'],maxBytes:64*1024*1024}]:{job:{id,state:'ready',pages:0},prepared:{capture:{title:'Notice',record:{warning:'Stored as the original'}},html:''}},post:async(path,input)=>{sent.push({path,input});return path.endsWith('/jobs')?{job:{id,state:'queued',pages:0}}:path.endsWith('/import')?stored:chat;},getProject:()=>({id:'test'}),getNote:()=>null,canEdit:()=>true,dirty:()=>false,refresh:async()=>{refreshed++;}});
+  const archive=async()=>{sent=[];await sources.open();element('archive-file').files=[{name:'notice.png',size:5}];await element('archive-form').onsubmit({preventDefault(){}});await element('archive-save').onclick();};
+  await archive();
+  assert.deepEqual(sent.map(call=>call.path),['/p/test/api/sources/jobs','/p/test/api/sources/import','/p/test/api/sources/chat-text']);
+  assert.deepEqual(sent[2].input,{path:'sources/notice.md',revision},'the chat reads the stored revision');
+  assert.match(element('archive-result').textContent,new RegExp(`fmn-rev=${read}`),'the citation pins the revision with the text');
+  assert.match(element('archive-chat-status').textContent,/^The chat read this upload/);
+  assert.equal(element('archive-chat-status').hidden,false);
+  assert.equal(element('archive-copy').disabled,false);assert.equal(refreshed,2);
+  // When the chat does not read it, the uploader is told why.
+  chat={waiting:'The chat reads PNG and JPEG images only. A connected agent can add its text (list_sources_awaiting_text).'};
+  await archive();
+  assert.equal(element('archive-chat-status').textContent,'Stored without text. '+chat.waiting);
+  assert.match(element('archive-result').textContent,new RegExp(`fmn-rev=${revision}`));
+  chat=Promise.reject(new Error('Forbidden'));chat.catch(()=>{});
+  await archive();
+  assert.equal(element('archive-chat-status').textContent,'Stored without text. The chat did not read it: Forbidden');
+  // A source the server read, or one it fetched, goes to no chat.
+  assert.equal(awaitsChat({metadata:{source:{method:'uploaded',extraction:'extracted'}}}),false);
+  assert.equal(awaitsChat({metadata:{source:{method:'fetched',extraction:'original-only'}}}),false);
+  assert.equal(awaitsChat({metadata:{source:{method:'uploaded',extraction:'partial'}}}),true);
  } finally {Object.assign(globalThis,previous);}
 });

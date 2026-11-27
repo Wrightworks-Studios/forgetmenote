@@ -22,7 +22,7 @@ func automaticUndoFixture(t *testing.T) (*Service, *catalog.Catalog, string, *de
 	routeTarget(t, c)
 	calls := new(atomic.Int32)
 	judge := testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_000") })
-	s.ConfigureJev(judge, false)
+	s.ConfigureJudgments(judge, false)
 	settings, err := s.Settings("alice")
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +107,7 @@ func TestAutomaticUndoStaysInInboxAcrossSettingsAndRestart(t *testing.T) {
 	}
 	defer reopened.Close()
 	stopScanWorker(t, reopened)
-	reopened.ConfigureJev(judge, false)
+	reopened.ConfigureJudgments(judge, false)
 	assertUndoHeld(t, reopened, c, capture.ID, calls)
 	filed, err := reopened.Sort(context.Background(), "alice", capture.ID)
 	if err != nil || filed.Status != "filed" || calls.Load() != 2 {
@@ -212,7 +212,7 @@ func TestInterruptedUndoRecoveryKeepsRoutingHold(t *testing.T) {
 	}
 	defer reopened.Close()
 	stopScanWorker(t, reopened)
-	reopened.ConfigureJev(judge, false)
+	reopened.ConfigureJudgments(judge, false)
 	// The first scan reconciles the durable Undo, subsequent scans must honor its
 	// recovered hold and must not buy another judgment or republish the note.
 	assertUndoHeld(t, reopened, reopenedCatalog, capture.ID, calls)

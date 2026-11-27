@@ -37,8 +37,8 @@ func maxChunks() int { return maxIndexBytes() }
 type IndexConfig struct {
 	Embeddings         bool     `json:"embeddings"`
 	ExternalProcessing bool     `json:"externalProcessing"`
-	Jev                bool     `json:"jev"`
-	MapJev             bool     `json:"mapJev,omitempty"`
+	Judgments          bool     `json:"jev"`
+	MapJudgments       bool     `json:"mapJev,omitempty"`
 	Model              string   `json:"model"`
 	Dimensions         int      `json:"dimensions"`
 	Include            []string `json:"include,omitempty"`
@@ -54,7 +54,7 @@ func (c IndexConfig) id() string {
 	return hash(b)
 }
 func (c IndexConfig) validate() error {
-	if (c.Embeddings || c.Jev || c.MapJev) && !c.ExternalProcessing {
+	if (c.Embeddings || c.Judgments || c.MapJudgments) && !c.ExternalProcessing {
 		return errors.New("source external-processing permission is required")
 	}
 	if c.Embeddings && (strings.TrimSpace(c.Model) == "" || len(c.Model) > 200 || c.Dimensions < 1 || c.Dimensions > 4096) {
@@ -494,7 +494,7 @@ func (m *Manager) ConfigureIndex(project, actor string, generation uint64, confi
 		return s, ErrConflict
 	}
 	mapActor := ""
-	if config.MapJev {
+	if config.MapJudgments {
 		mapActor = actor
 	}
 	if m.indexPolicy != nil {

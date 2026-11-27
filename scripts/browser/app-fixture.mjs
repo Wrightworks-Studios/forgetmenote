@@ -58,7 +58,9 @@ export async function withClipboard(action) {
 
 // A real Go app with a private workspace and database; provider HTTP fixtures
 // stay in the specs. Outside Playwright the app starts a cluster of its own.
-export async function startApp({name, account, chatConfig, env = {}}) {
+// `modulesOff` names the feature modules the instance turns off; they are read
+// from an instance.json, which then names the database too.
+export async function startApp({name, account, chatConfig, env = {}, modulesOff}) {
   const dir = await mkdtemp(join(tmpdir(), name));
   const database = `app_${process.pid}_${++apps}`;
   let cluster,
@@ -242,6 +244,18 @@ export async function startApp({name, account, chatConfig, env = {}}) {
       stdio: ['ignore', 'ignore', 'pipe'],
       timeout: 30000
     });
+    if (modulesOff) {
+      appEnv.INSTANCE_CONFIG_FILE = join(dir, 'instance.json');
+      await writeFile(
+        appEnv.INSTANCE_CONFIG_FILE,
+        JSON.stringify({
+          version: 1,
+          server: {database: {urlFile: appEnv.DATABASE_URL_FILE}},
+          modules: {off: modulesOff}
+        })
+      );
+      appEnv.DATABASE_URL_FILE = '';
+    }
     origin = 'http://localhost:' + (await appPort());
     await launch();
     await api('/account/setup', account);

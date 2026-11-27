@@ -28,22 +28,21 @@ func (s *Server) mcpHandler() http.Handler {
 	s.wikiTools(server)
 	s.credentialTools(server)
 	s.organizationTools(server)
-	s.personalAssistantTools(server)
-	s.agentMemoryTools(server)
-	s.taskTools(server)
-	s.personalConnectionTools(server)
-	s.personalUITools(server)
-	s.personalRecoveryTools(server)
-	s.connectionTools(server)
-	s.dataConnectionTools(server)
-	s.automationTools(server)
+	s.accountAssistantTools(server)
+	if s.gitHubConnections() {
+		s.connectionTools(server)
+	}
+	s.effectResolutionTools(server)
+	s.recipeTools(server)
 	s.authorityTools(server)
 	s.collaborationTools(server)
 	s.trashTools(server)
 	s.commentTools(server)
 	s.purgeTools(server)
-	s.sourceTools(server)
-	s.repositoryTools(server)
+	s.documentTools(server)
+	s.notebookLinkTools(server)
+	// The tools of the feature modules this instance runs.
+	s.moduleTools(server)
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 	addAction(s, server, &mcp.Tool{Name: "list_projects", Description: "List only the projects this user can access and their Read, Comment, Edit, or Owner role.", Annotations: readOnly}, func(ctx context.Context, in struct{}) ([]catalog.Project, error) {
 		return s.clientProjects(ctx, subject(ctx)), nil

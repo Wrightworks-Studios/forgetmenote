@@ -28,19 +28,25 @@ func instanceFile(t *testing.T, dir, address, modules string) string {
 	return file
 }
 
-// Until module wiring lands, a gateway configured to turn modules off does
-// not start, rather than run modules the operator meant to be off.
+// A gateway whose modules.off turns a module off but leaves on a module that
+// requires it does not start, rather than run that module without it.
 func TestModulesOffStopsStartup(t *testing.T) {
-	t.Setenv("INSTANCE_CONFIG_FILE", instanceFile(t, t.TempDir(), "127.0.0.1:0", `{"off":["personal","messaging","tasks"]}`))
-	if err := runArguments(nil); err == nil || !strings.Contains(err.Error(), "turning modules off is not supported yet") {
-		t.Fatalf("startup accepted modules off: %v", err)
+	t.Setenv("INSTANCE_CONFIG_FILE", instanceFile(t, t.TempDir(), "127.0.0.1:0", `{"off":["automations"]}`))
+	if err := runArguments(nil); err == nil || !strings.Contains(err.Error(), `module "tasks" requires "automations"`) {
+		t.Fatalf("startup accepted a broken modules.off: %v", err)
 	}
 }
 
 // A gateway with an absent or empty modules section starts as before, runs
-// every module and logs that set once.
+// every module and logs that set once. One that turns wired modules off starts
+// without them and logs that.
 func TestEveryModuleRunsAndIsLoggedWithoutModulesOff(t *testing.T) {
-	for _, section := range []string{"", `{"off":[]}`} {
+	const every = "ForgetMeNote modules: on: chat, automations, judgments, data-connections, sources, repositories, tasks, messaging, personal, memory, managed-backups; off: none"
+	for section, line := range map[string]string{
+		"":                                every,
+		`{"off":[]}`:                      every,
+		`{"off":["sources","judgments"]}`: "ForgetMeNote modules: on: chat, automations, data-connections, repositories, tasks, messaging, personal, memory, managed-backups; off: judgments, sources",
+	} {
 		dir := t.TempDir()
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -83,7 +89,6 @@ func TestEveryModuleRunsAndIsLoggedWithoutModulesOff(t *testing.T) {
 		if !healthy || err != nil {
 			t.Fatalf("section %q: gateway did not start and stop: %v %s", section, err, logs())
 		}
-		const line = "ForgetMeNote modules: on: chat, automations, judgments, data-connections, sources, repositories, tasks, messaging, personal, memory, managed-backups; off: none"
 		if strings.Count(logs(), line) != 1 {
 			t.Fatalf("section %q: startup log does not show the modules once: %s", section, logs())
 		}

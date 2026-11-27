@@ -76,7 +76,7 @@ def main():
                 for code, body in responses:
                     if code == 200:
                         record=json.loads(body)['capture']['record']
-                        assert record['extraction']=='extracted' and 'Tesseract' in record['extractor'],record
+                        assert record['extraction']=='extracted' and 'Poppler' in record['extractor'],record
                         assert 'Verify against the retained original' in record['warning'],record
                         assert 'Budget proof' in json.loads(body)['preview']
             outcomes.append((filename,len(data),results))

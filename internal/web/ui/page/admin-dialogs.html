@@ -1,7 +1,7 @@
 {{/* Administration, notebook creation and video dialogs. Rendered in place by index.html. */}}
 {{define "index-admin-dialogs"}}{{$brand := brand}}<dialog id="admin-dialog" aria-labelledby="admin-title">
       <div class="dialog-title"><h2 id="admin-title">Administration</h2><button data-close="admin-dialog" class="quiet close-control" data-icon="close" aria-label="Close"></button></div>
-      <nav class="category-navigation" data-settings-categories aria-label="Administration categories"><button class="quiet" data-settings-category="people">People</button><button class="quiet" data-settings-category="groups">Groups</button><button class="quiet" data-settings-category="ai">AI features</button><button class="quiet" data-settings-category="connections">Connections</button><button class="quiet" data-settings-category="chat-clients">Chat clients</button><button class="quiet" data-settings-category="tasks">Task queues</button><button class="quiet" data-settings-category="automation">Automation</button><button class="quiet" data-settings-category="activity">Activity</button><button class="quiet" data-settings-category="instance">Instance</button></nav>
+      <nav class="category-navigation" data-settings-categories aria-label="Administration categories"><button class="quiet" data-settings-category="people">People</button><button class="quiet" data-settings-category="groups">Groups</button><button class="quiet" data-settings-category="ai">AI features</button><button class="quiet" data-settings-category="connections">Connections</button><button class="quiet" data-settings-category="repositories">Repositories</button><button class="quiet" data-settings-category="chat-clients">Chat clients</button><button class="quiet" data-settings-category="tasks">Task queues</button><button class="quiet" data-settings-category="automation">Automation</button><button class="quiet" data-settings-category="activity">Activity</button><button class="quiet" data-settings-category="instance">Instance</button></nav>
       <section data-settings-panel="chat-clients" hidden><div id="chat-clients-panel"></div></section>
       <section data-settings-panel="tasks" hidden><div id="task-queues-panel"></div></section>
       <section data-settings-panel="ai" hidden>
@@ -21,10 +21,10 @@
           <fieldset><legend>Checks and automation</legend>
             <label class="check-row"><input id="instance-ai-citations" type="checkbox" /><span>Check answer citations</span></label>
             <label class="check-row"><input id="instance-ai-reviews" type="checkbox" /><span>Notebook reviews and automatic checks</span></label>
-            <label class="check-row"><input id="instance-ai-sourceOCR" type="checkbox"/><span>Let people send a source for hosted text recognition (OCR)</span></label>
-            <label class="check-row"><input id="instance-ai-sourceDescriptions" type="checkbox"/><span>Let people send a source for hosted figure descriptions</span></label>
-            <label class="check-row"><input id="instance-ai-sourceTranscription" type="checkbox"/><span>Let people send a source for hosted audio transcription</span></label>
             <label class="check-row"><input id="instance-ai-writing" type="checkbox" /><span>Allow organization, writing and profile automations</span></label>
+          </fieldset>
+          <fieldset><legend>Archived sources</legend>
+            <label class="check-row"><input id="instance-ai-uploadReading" type="checkbox" /><span>The chat reads images uploaded as sources</span></label>
           </fieldset>
           <div class="actions"><button type="submit" class="primary">Save AI settings</button><button id="instance-ai-refresh" type="button" class="quiet">Refresh status</button></div>
         </form>
@@ -58,6 +58,14 @@
                 <button type="submit">Create work notebook</button>
               </form>
             </details>
+            <details id="external-identity-bind" hidden><summary>Link a sign-in identity</summary>
+              <form id="external-identity-form" class="settings-form">
+                <label for="external-identity-issuer">Issuer</label><input id="external-identity-issuer" required maxlength="1024" autocomplete="off" spellcheck="false" placeholder="https://id.example.com">
+                <label for="external-identity-subject">Subject</label><input id="external-identity-subject" required maxlength="1024" autocomplete="off" spellcheck="false">
+                <p class="small">The identity provider's stable subject for this person, never an email address. Once linked, signing in with that identity signs in to this account.</p>
+                <button type="submit">Link identity</button>
+              </form>
+            </details>
             <details id="local-reset" hidden><summary>Reset local password</summary>
               <form id="local-reset-form"><input id="local-reset-user" type="hidden" />
                 <button type="submit">Create password reset link</button>
@@ -86,9 +94,25 @@
       <section data-settings-panel="automation" hidden><h3>Automation accounts</h3>
         <form id="service-create-form"><label for="service-name">Name</label><input id="service-name" required maxlength="120"><label for="service-steward">Steward</label><select id="service-steward" required></select><button>Create account</button></form>
         <div id="service-list"></div><div id="service-details"></div>
-        <h3>Automations</h3><div id="integration-jobs"></div>
+        <div id="automation-jobs"><h3>Automations</h3><div id="integration-jobs"></div></div>
       </section>
       <section data-settings-panel="connections" hidden><h3>Data connections</h3><div id="integration-connections"></div></section>
+      <section data-settings-panel="repositories" hidden><h3>Repository notebooks</h3>
+        <p class="small">Import a GitHub repository that this instance's Sources App is already installed on as a read-only notebook, without a GitHub sign-in. People who create notebooks connect a repository from Create notebook → GitHub repository instead.</p>
+        <p id="repository-import-app" class="small"></p>
+        <form id="repository-import-form" class="settings-form">
+          <label for="repository-import-name">Notebook name</label><input id="repository-import-name" required maxlength="120">
+          <label for="repository-import-id">Notebook ID</label><input id="repository-import-id" required pattern="[a-z0-9][a-z0-9-]{0,63}" maxlength="64">
+          <label for="repository-import-installation">Installation ID</label><input id="repository-import-installation" type="number" min="1" step="1" required>
+          <label for="repository-import-repository">Repository ID</label><input id="repository-import-repository" type="number" min="1" step="1" required>
+          <p class="small">GitHub's numeric IDs for the App's installation and the repository. The server checks the App's current access to the repository before it creates the notebook; repeating an interrupted import with the same IDs resumes it.</p>
+          <label><input id="repository-import-share" type="checkbox" required> Share source files with this notebook's members</label>
+          <label><input id="repository-import-external" type="checkbox"> Allow external processing of source files</label>
+          <p class="small">External processing lets the configured embeddings and AI providers read the source. The notebook's Sources settings change it later.</p>
+          <button type="submit" class="primary">Import repository</button>
+        </form>
+        <p id="repository-import-status" role="status"></p>
+      </section>
       <section data-settings-panel="activity" hidden><div class="actions settings-heading"><h3>Activity</h3><button id="activity-export" class="quiet" type="button">Export JSON</button></div><div id="activity-list"></div><button id="activity-more" class="quiet" type="button">Show more</button></section>
       <section data-settings-panel="instance" hidden><h3>Instance</h3>
         <form id="instance-form">

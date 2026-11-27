@@ -46,7 +46,7 @@ func (f *sourceFixture) buyIndex(t *testing.T) (embedded, classified *int) {
 	})
 	ctx := t.Context()
 	s, _ := f.m.Status("alpha")
-	if _, err := f.m.ConfigureIndex("alpha", "owner", s.Generation, IndexConfig{Embeddings: true, ExternalProcessing: true, MapJev: true, Model: "fixture", Dimensions: 2}); err != nil {
+	if _, err := f.m.ConfigureIndex("alpha", "owner", s.Generation, IndexConfig{Embeddings: true, ExternalProcessing: true, MapJudgments: true, Model: "fixture", Dimensions: 2}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.m.Refresh(ctx, "alpha"); err != nil {

@@ -91,9 +91,10 @@ cases; omitted cases are never reported as passed.
 Missing/nonancestor baselines, unknown paths, shared fixtures, security, storage,
 authority and dependency changes select full regression. Full mode retains all
 Go race tests, every browser case, all nine container boundaries (the ninth, `smoke-cluster`, runs two gateways on Postgres and an S3 stand-in, with no owner), the source and
-decision matrices, and backup-worker tests. It runs only on explicit request, locally
-or as a manual GitHub Check; publishing a routine feature change does not force full
-regression.
+decision matrices, and backup-worker tests. It runs only on explicit request, locally,
+as a manual GitHub Check or for a merge queue entry labelled
+[`full-gate`](#pr-feedback-and-complete-regression); publishing a routine feature
+change does not force full regression.
 Format, vet, frontend/fixture and operator tests retain their exact input receipts.
 Unchanged successful checks are reused without rerunning them.
 
@@ -183,7 +184,7 @@ One table classifies every path for PR feedback, releases and deployment:
 `path_class` in `deploy/production/verification_plan.py` names image inputs
 (`IMAGE_SOURCES`, which the Dockerfile copies as an allowlist), tests and fixtures
 (which `.dockerignore` drops from the image), documents (exactly
-`publish.yml`'s `paths-ignore`) and release tooling. Committed Go
+`notify-deployments.yml`'s `paths-ignore`) and release tooling. Committed Go
 embedding adds runtime inputs per commit. A path no table names, or Go
 implementation outside the image sources, counts as a runtime input until it is
 reviewed. Operator tests check the table against those three files and require
@@ -195,12 +196,12 @@ trace before an explicit `--retry-failed`. There are no automatic retries or
 weakened assertions. A later pass alone does not establish that an intermittent
 bug is fixed. Keep synthetic credentials/data and browser traces private. The one
 exception is a failed gate on a GitHub runner, whose evidence the
-[Check](#pr-feedback-and-complete-regression) and [Publish](#published-images) jobs upload.
+[Check](#pr-feedback-and-complete-regression) job uploads.
 
 ## Performance targets and known bottlenecks
 
 Targets are focused verification under five minutes and a complete warm-cache
-release gate within 10–15 minutes. Cold compiler, dependency, browser, OCR model
+release gate within 10–15 minutes. Cold compiler, dependency, browser
 or base-image downloads must be reported separately. Do not remove race,
 persistence, restoration, authorization or concurrency checks to meet a deadline.
 Record actual wall time, resource limits, original failures and bottlenecks from
@@ -271,16 +272,42 @@ baseline means all race tests, including the entire web package.
 GitHub Check uses this tier for pull requests. Its manual full
 runs execute `release_image.py --verify-only --mode full` on a standard runner,
 with npm downloads, Playwright browsers and image layers (`FMN_IMAGE_CACHE=gha`)
-in the Actions cache. The gate prints only the last 16,000 characters of a failed
-check's log, so a failed full run uploads the candidate's check logs
-(`REVISION/*.log`), browser reports, `verification.json` and `browser-*-results/`
-traces and screenshots as its `gate-failure-ATTEMPT` artifact, kept for seven days.
+in the Actions cache. A failed `go test -json` check prints each test that failed
+or never finished (as at a `-timeout` panic) with its own output, then the output of
+failed builds and packages outside their tests, such as build errors and panics or
+races after the tests. Any other failed check prints the last 16,000 characters of
+its log. The full logs stay on the runner, so a failed full run uploads the
+candidate's check logs (`REVISION/*.log`), browser reports, `verification.json` and
+`browser-*-results/` traces and screenshots as its `gate-failure-ATTEMPT` artifact,
+kept for seven days.
 Anyone signed in to GitHub can read a public repository's artifacts. These hold only
 synthetic test data, and `release_image.py` keeps the Actions runtime variables
 (`ACTIONS_*`, with the cache token) from every command but the image build, because a
 test may record its environment: the trace of a browser launched with one does.
+
+Label a pull request `full-gate` when its change selects full regression:
+security, storage, authority, dependencies, shared infrastructure (workflows,
+release and verification tooling, shared fixtures) or anything the selection does
+not know. Its merge queue entry then runs the complete regression as the `full`
+check on the queue's combined commit, `next` plus every entry ahead of it.
+`next` requires `full` as well as `fast`, so with auto-merge on the pull request
+merges once both pass and nobody needs to watch the run. An entry without the
+label passes `full` within seconds, beside `fast`; a pull request run skips it.
+The label is read when the queue builds the entry, so add it before the pull
+request joins the queue, or remove it from the queue and add it back. Only the
+labelled pull request's own entry runs the gate: the queue merges only entries
+that pass their own checks ("Only merge non-failing pull requests"), so the
+entries behind it keep the fast tier but wait for it, and a failed gate removes
+it and rebuilds every entry behind it. The gate takes 35–49 minutes of the
+queue's 90-minute check timeout and holds one of its five concurrent builds, so
+label only the changes that need it. A manual run (`gh workflow run check.yml
+--ref BRANCH`) still runs the gate on a branch, for example to reproduce a
+failure before queuing again.
+
 Pushes to `main` and `next` and a weekly schedule run only
-the advisory scan; a push to `main` also [publishes an image](#published-images). Publication
+the advisory scan. No workflow here builds an image to publish: self-hosters build
+from source, and a deployment repository builds, verifies and publishes its own
+([releasing](../deploy/production/releasing.md#github-actions-release)). Publication
 uses `--since DEPLOYED_REVISION --mode auto` by default. An automatic full plan keeps
 every Go, web and browser test. Of the slow container scenarios (source, jev, oidc,
 totp) it runs only those whose inputs changed. Image or dependency changes keep
@@ -296,10 +323,9 @@ On other hosts only those live watcher cases skip; portable once, managed push,
 revocation and independent restore tests still run. The complete release gate
 retains its Linux container backup checks.
 
-Source tests drive the real Poppler, Tesseract and FFmpeg on the host. Hosted image
-descriptions in `internal/web` fail without Tesseract; other cases skip when a tool
-is missing. GitHub's full job installs Ubuntu's packages, and `smoke-source` repeats
-the whole matrix with the image's pinned versions.
+Source tests drive the real Poppler `pdftotext` on the host and skip when it is
+missing. GitHub's full job installs Ubuntu's package, and `smoke-source` repeats the
+whole matrix with the image's pinned version.
 
 Docker smokes must not rely on Docker Desktop hiding differences from a Linux host.
 The gate runs under umask 077 and containers run as another user, so a bind mount
@@ -315,48 +341,8 @@ smoke in a Docker-in-Docker container limited with `docker update --cpuset-cpus=
 process at `http://127.0.0.1:8080/healthz` and opens no application state. An operator
 may select a different endpoint with `-url`. Redirects, oversized responses and
 non-`ok` bodies fail without disclosing upstream diagnostics. Docker uses this
-probe instead of an additional wget package. Existing parser package versions,
-base-image digests and OCR content hashes remain pinned.
-
-## Published images
-
-Each release merged to `main` runs [Publish](../.github/workflows/publish.yml) and,
-unless it changes no runtime file, publishes `ghcr.io/wrightworks-studios/forgetmenote`
-as `main-COMMIT`:
-
-1. The `verify` job runs the release gate on a standard runner with
-   `--since-published`: against the newest earlier `main` commit whose image the
-   registry serves without a sign-in. Without one, as for the first publication or a
-   package that is not public, the gate runs completely. This job holds no registry
-   or signing credentials, although npm packages and every test run in it. A failed
-   gate uploads the same `gate-failure-ATTEMPT` artifact as Check's full job.
-2. The `publish` job loads the exact image the gate checked and runs only
-   `release_image.py --publish-verified`, which refuses a record that is incomplete,
-   names another revision or has a failed check, and never replaces a different image
-   under the same tag. It then signs two attestations for the pushed digest: SLSA build
-   provenance and a verification summary.
-3. The `deploy` job checks that anyone can pull the image, then starts a deployment
-   repository's Release with the revision and the pinned digest. GitHub creates a new
-   package as private; make it public in its settings and re-run this job.
-
-The verification summary's predicate type is this section's URL,
-`https://github.com/Wrightworks-Studios/forgetmenote/blob/main/docs/verification.md#published-images`.
-It holds `source_revision`, `image_id`, `complete`, `expected_checks`, each expected
-check's `status`, `exit_code`, `elapsed_seconds` and `reused`, the plan's `mode`,
-`reason` and `baseline`, and `record_sha256`. That last field is the SHA-256 of the complete
-verification record, with its commands, inputs and runner paths, which the run keeps
-for 90 days as its `verification` artifact. A deployment can check both attestations:
-
-```sh
-gh attestation verify oci://ghcr.io/wrightworks-studios/forgetmenote@sha256:DIGEST \
-  --repo Wrightworks-Studios/forgetmenote \
-  --signer-workflow Wrightworks-Studios/forgetmenote/.github/workflows/publish.yml \
-  --source-ref refs/heads/main --source-digest COMMIT --deny-self-hosted-runners
-```
-
-Add `--predicate-type` with the URL above and `--format json` to read the summary.
-Deploy by digest: GHCR tags can be moved. The image is `linux/amd64`, built with the
-default user and group IDs, 1000:1000, and every [optional integration](integrations.md).
+probe instead of an additional wget package. Existing parser package versions
+and base-image digests remain pinned.
 
 ## Reproducible runtime dependencies
 
@@ -371,10 +357,9 @@ See [Debian snapshots](https://snapshot.debian.org/) and
 [apt source configuration](https://manpages.debian.org/testing/apt/sources.list.5.en.html).
 
 For an update, choose a reviewed snapshot timestamp, verify all explicit parser
-versions are available in both the iWork and runtime stages, update the snapshot
+versions are available in the runtime stage, update the snapshot
 and package pins together, and run the full image gate. Never fall back silently
-to a moving mirror or disable signature checks. OCR data retains its separate
-revision and SHA-256 pin. Python operator requirements have one owner at
+to a moving mirror or disable signature checks. Python operator requirements have one owner at
 `deploy/requirements.txt`; the runtime uses standard-library helpers.
 
 Integration adapters remain in the single Go executable. They do not start

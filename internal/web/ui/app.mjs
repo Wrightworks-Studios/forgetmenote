@@ -1,10 +1,10 @@
 import {initSettingsPages,closeSettingsPage} from './settings-pages.mjs';
 import {feedback,confirmAction,dismissConfirmation} from './feedback.mjs';
-import {createApplicationState,requestSequence} from './state.mjs';
+import {createApplicationState,requestSequence,moduleOn} from './state.mjs';
 import {icon,setLabel} from './icons.mjs';
 import {initSearch,searchToURL} from './search.mjs';
 import {initQuicknotes} from './quicknotes.mjs';
-import {initJev} from './jev.mjs';
+import {initJudgments} from './judgments.mjs';
 import {initRetrievalSettings} from './retrieval-settings.mjs';
 import {pendingContainer} from './containers.mjs';
 import {paced} from './paced.mjs';
@@ -314,10 +314,14 @@ function noteAssetURL(href) {
   return link && !link.external && !link.project ? assetURL(project.id,link.path) : null;
 }
 function canEdit(p = project) { return p?.kind!=="repository" && ["edit", "owner"].includes(p?.role); }
+// Whether the instance runs the sources module, which imports sources.
+function sourcesOn() { return moduleOn(user,'sources'); }
 function canCreate() { return canEdit() && !project?.protectedInbox && (current !== null || browsingFolder !== null || inboxVisible); }
 function updateCreationControls() {
   $("search-open").disabled=!project || (!current && browsingFolder===null && !inboxVisible && $("source-document").hidden && $("source-browser").hidden);
   for (const button of document.querySelectorAll("#new-note, #create-source, #first-note, #first-source, #empty-source")) button.disabled = !canCreate();
+  // Set only on a change: a mutation observer runs these controls again.
+  for (const id of ["create-source","first-source","create-source-tab"]) if ($(id).hidden === sourcesOn()) $(id).hidden = !sourcesOn();
   $("notebook-outline").hidden=!project || ($("folder-browser").hidden && $("source-browser").hidden);
   $("note-context-toggle").disabled=!current;
   $("note-creation").hidden=!canCreate();
@@ -848,6 +852,7 @@ function syncMobileNavigation(){
   if(id==="browse-root")button.textContent=project?.kind==="repository"?"Files":"Notes";
   const disabled=source.disabled || source.hidden;
   if(button.disabled!==disabled)button.disabled=disabled;
+  if(id==="create-source"&&button.hidden===sourcesOn())button.hidden=!sourcesOn();
   if(["browse-root","search-open","inbox-open","review-open"].includes(id))button.setAttribute("aria-current",(id==="search-open"?search.isOpen:id==="inbox-open"?inboxVisible || project?.protectedInbox:id==="browse-root"?!search.isOpen && !inboxVisible && !project?.protectedInbox:false)?"page":"false");
  }
 }
@@ -941,7 +946,7 @@ const trash=initTrash({api,post,getProject:appState.notebook,canManage,notice,
  afterMove:async paths=>{if(paths.includes(current?.path)){$('properties-dialog').close();clearDisplayedNote();saving=false;await openFolder('')}else if(paths.length>1 && browsingFolder!==null){saving=false;await openFolder(browsingFolder,false)}},
  refresh:()=>refreshNotebook({invalidate:true})
 });
-const sourceBrowser = initSources({api,post,notice,getProject:appState.notebook,getNote:appState.note,getFolder:()=>browsingFolder ?? current?.path.split("/").slice(0,-1).join("/") ?? "",present:creation.showSource,onBusy:creation.setSourceBusy,canEdit,dirty,openNote,refresh:()=>refreshNotebook(),insertCitation:text=>{
+const sourceBrowser = initSources({api,post,notice,available:sourcesOn,getProject:appState.notebook,getNote:appState.note,getFolder:()=>browsingFolder ?? current?.path.split("/").slice(0,-1).join("/") ?? "",present:creation.showSource,onBusy:creation.setSourceBusy,canEdit,dirty,openNote,refresh:()=>refreshNotebook(),insertCitation:text=>{
  if(!current?.editable || saving)return;
  noteEditor.setRangeText('\n\n'+text+'\n\n',noteEditor.selectionStart,noteEditor.selectionEnd,'end');remember();setMode(true);countWords();preview();noteEditor.focus();
 }});
@@ -953,19 +958,19 @@ const chat = initChat({api,post,getProject:appState.notebook,getUser:appState.ac
  canEdit,canManage,openCitation:(path,revision,heading)=>knowledge.openCitation(path,revision,heading),
  openDocument:ref=>ref.origin==='repository'?documents.open(ref):openNotebookReference(ref),
  openReview:()=>$("review-open").click(),openSource:url=>sourceBrowser.open({url}),
- openJevSettings:()=>jev.openSettings(),
- mountCitationChecks:(host,scope)=>jev.mountCitationChecks(host,scope),
+ openJudgmentSettings:()=>judgments.openSettings(),
+ mountCitationChecks:(host,scope)=>judgments.mountCitationChecks(host,scope),
 
  onOpen:()=>{if(sidebarBeforeChat===null)sidebarBeforeChat=layout.snapshot();if(smallScreen.matches)layout.closeMobile();layout.update();},
  onClose:()=>{if(sidebarBeforeChat){layout.restore(sidebarBeforeChat);sidebarBeforeChat=null;layout.update();}}
 });
-const jev = initJev({api,post,getUser:appState.account,getProject:appState.notebook,getProjects:()=>projects,
- openReview:async(id,finding,section="findings")=>{jev.leaveChecks();if(project?.id!==id)await chooseProject(projects.find(p=>p.id===id));if(project?.id===id)await knowledge.openReview(finding,section);},
+const judgments = initJudgments({api,post,getUser:appState.account,getProject:appState.notebook,getProjects:()=>projects,
+ openReview:async(id,finding,section="findings")=>{judgments.leaveChecks();if(project?.id!==id)await chooseProject(projects.find(p=>p.id===id));if(project?.id===id)await knowledge.openReview(finding,section);},
  prepareChat:async(id,text)=>{if(project?.id!==id)await chooseProject(projects.find(p=>p.id===id));if(project?.id===id)await chat.prepareMessage(text);}
 });
 for(const button of document.querySelectorAll('[data-review-section]'))button.onclick=()=>{
-  if(button.dataset.reviewSection==='checks'){knowledge.suspendReview();jev.openChecks();}
-  else {jev.leaveChecks();knowledge.openReview(undefined,button.dataset.reviewSection);}
+  if(button.dataset.reviewSection==='checks'){knowledge.suspendReview();judgments.openChecks();}
+  else {judgments.leaveChecks();knowledge.openReview(undefined,button.dataset.reviewSection);}
 };
 async function openCaptureNote(capture) {
   if(saving || !user)return;
@@ -984,12 +989,12 @@ async function openCaptureNote(capture) {
     await selection;
   } catch(error) {if(active())throw error;}
 }
-const quicknotes=initQuicknotes({api,post,getUser:appState.account,getDraftStorage:()=>browserDrafts,onCapture:()=>{jev.refreshNotifications();},openInbox,openCaptureNote});
-const settings = initSettings({api, post, notice, remember});
+const quicknotes=initQuicknotes({api,post,getUser:appState.account,getDraftStorage:()=>browserDrafts,onCapture:()=>{judgments.refreshNotifications();},openInbox,openCaptureNote});
+const settings = initSettings({api, post, notice, remember, getUser:appState.account, getProjects:()=>projects});
 const retrievalSettings=initRetrievalSettings({api,post,getProject:appState.notebook,getUser:appState.account,onChange:()=>{search.cancel();if(project)search.refresh($("search").value).catch(error=>notice(error.message))}});
 const documents=initDocuments({api,post,getContext,notice,openNote,currentNotebook,beginNavigation,retainForNavigation,clearDisplayedNote,updateRoute,state,updateCreationControls,layout,
  chooseNotebook:id=>chooseProject(projects.find(p=>p.id===id)),ownsNavigation:request=>request===openID,navigationSignal:()=>navigationRequests.signal(),
- setCollection:value=>{appState.update({collection:value});renderCollections();}});
+ setCollection:value=>{appState.update({collection:value});renderCollections();},repositoriesOn:()=>moduleOn(user,'repositories')});
 const writing=initWriting({editor:noteEditor,api,post,notice,openDocument:documents.open,getProject:appState.notebook,
  getDocument:()=>current?{project:project.id,path:current.path,revision:current.revision,origin:'notes',local:true,content:noteEditor.value,editable:current.editable,editing}:documents.current?{project:project.id,path:documents.current.path,revision:documents.current.revision,sourceID:documents.current.source,origin:'repository',local:false,content:documents.current.content,partial:documents.current.more||(documents.current.startLine||1)>1}:null,
  canFix:()=>!!current?.editable&&editing&&!saving&&!composing,
@@ -1003,7 +1008,8 @@ const search=initSearch({api,post,retrievalSettings,notice,renderCollections,ope
   onStateChange:snapshot=>publishSearchRoute(snapshot),
   onVisibilityChange:syncMobileNavigation,
   openCitation:(...args)=>knowledge.openCitation(...args),openTrash:id=>trash.open(id),
-  openSource:(...args)=>repositories.file(...args),addSource:()=>sourceBrowser.open(),
+  openSource:(...args)=>repositories.file(...args),addSource:()=>sourceBrowser.open(),sourcesOn,
+  repositoriesOn:()=>moduleOn(user,'repositories'),judgmentsOn:()=>moduleOn(user,'judgments'),
 });
 function publishSearchRoute(snapshot,push=false){
  const query=searchToURL(new URLSearchParams(location.search),snapshot);
@@ -1012,7 +1018,7 @@ function publishSearchRoute(snapshot,push=false){
 const backups=initBackups({api,post,getProject:appState.notebook,getUser:appState.account,remember});
 const authority=initAuthority({api,post,getProject:appState.notebook,getUser:appState.account,remember});
 const administration = initAdministration({openWikiSettings:wiki.openSettings,openAuthoritySettings:authority.open,openBackupSettings:backups.open,api, post, notice, openRepositorySettings:repositories.open, openRetrievalSettings:retrievalSettings.openSettings, getUser: () => user, getProject: () => project, reloadProjects, selectProject: async id => chooseProject(projects.find(p => p.id === id))});
-appState.subscribe((next,previous)=>{if(next.account!==previous.account)administration.checkAuthority();});
+appState.subscribe((next,previous)=>{if(next.account!==previous.account){administration.checkAuthority();settings.checkAuthority();}});
 settingsPages=initSettingsPages({
  onLeave:name=>{if(name==='administration')administration.closed();},
  getContext,
@@ -1170,7 +1176,7 @@ async function reloadProjects() {
   if (project && next) {
     fileActions.close();
     appState.update({notebook:next});
-    chat.setProject();jev.projectChanged();quicknotes.userChanged();
+    chat.setProject();judgments.projectChanged();quicknotes.userChanged();
     $("project-select").value = project.id;
     updateIdentity();
     updateCreationControls();
@@ -1183,6 +1189,8 @@ function updateIdentity() {
   const name = user.displayName || user.username || (user.id === "@local-admin" ? "Recovery administrator" : "Account");
   $("identity").textContent = name + ' · ' + role;
   $("account-name").textContent = name;
+  // The assistant page holds the personal assistant and agent memory.
+  document.querySelector('#account-actions a[href="/account/assistant"]').hidden = !moduleOn(user,'personal') && !moduleOn(user,'memory');
   $("account-initial").textContent = [...name.trim()][0]?.toLocaleUpperCase() || "A";
 }
 function renderProjects() {
@@ -1226,7 +1234,7 @@ async function chooseProject(next, note, folder = null, nextCollection = "notes"
   appState.update({notebook:next});
   wiki.projectChanged(next);
   appState.update({collection:["notes","drafts","archives"].includes(nextCollection)?nextCollection:"notes"});search.reset(collection);renderCollections();
-  chat.setProject();jev.projectChanged();quicknotes.userChanged();
+  chat.setProject();judgments.projectChanged();quicknotes.userChanged();
   knowledge.projectChanged();
   repositories.projectChanged();
   backups.projectChanged();

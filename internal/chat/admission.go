@@ -15,7 +15,7 @@ type Configuration struct {
 	Config         *Config
 	Providers      map[string]*Provider
 	Research       *Research
-	Jev            *decision.Service
+	Judgments      *decision.Service
 	Ledger         *decision.Ledger
 	Closed         bool
 	PrepareSource  func(context.Context, string, string, []byte) (workspace.SourceCapture, error)
@@ -27,7 +27,7 @@ var ErrRunActive = errors.New("run is still active")
 func (r *Runtime) Snapshot() Configuration {
 	r.Mu.Lock()
 	defer r.Mu.Unlock()
-	return Configuration{r.WebsiteCapture, r.Config, maps.Clone(r.Providers), r.Research, r.Jev, r.JevLedger, r.Closed, r.PrepareSource, r.SearchResearch}
+	return Configuration{r.WebsiteCapture, r.Config, maps.Clone(r.Providers), r.Research, r.Judgments, r.JudgmentLedger, r.Closed, r.PrepareSource, r.SearchResearch}
 }
 func (r *Runtime) Cancel(id string) {
 	r.Mu.Lock()

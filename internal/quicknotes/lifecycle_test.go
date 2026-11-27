@@ -23,7 +23,7 @@ func TestOpenDoesNotProcessConfiguredInboxBeforeStart(t *testing.T) {
 	defer s.Close()
 	routeTarget(t, c)
 	called := make(chan struct{}, 8)
-	s.ConfigureJev(testJudge(t, func(w http.ResponseWriter, r *http.Request) {
+	s.ConfigureJudgments(testJudge(t, func(w http.ResponseWriter, r *http.Request) {
 		called <- struct{}{}
 		routeReply(w, r, "destination_000")
 	}), false)
@@ -37,7 +37,7 @@ func TestOpenDoesNotProcessConfiguredInboxBeforeStart(t *testing.T) {
 	}
 	select {
 	case <-called:
-		t.Fatal("Open or ConfigureJev processed content before explicit startup")
+		t.Fatal("Open or ConfigureJudgments processed content before explicit startup")
 	case <-time.After(2 * time.Second):
 	}
 	if err := s.Start(); err != nil {

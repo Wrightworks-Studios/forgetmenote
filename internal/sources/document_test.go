@@ -10,7 +10,7 @@ func TestNativeDocumentPackagesRejectTraversalAndDTD(t *testing.T) {
 		{"../outside": "unsafe"},
 		{"content.xml": `<!DOCTYPE document [<!ENTITY external SYSTEM "file:///etc/passwd">]><document>&external;</document>`},
 	} {
-		for _, ext := range []string{"pptx", "odt", "ods", "odp", "pages", "key"} {
+		for _, ext := range []string{"pptx", "odt", "ods", "odp"} {
 			if _, err := Prepare(context.Background(), "unsafe."+ext, "", packageBytes(t, parts)); err == nil {
 				t.Fatal("unsafe package accepted", ext)
 			}

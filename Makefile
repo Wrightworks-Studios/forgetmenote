@@ -7,7 +7,7 @@ SMOKE_IMAGE ?= forgetmenote:poc
 BACKUP_TEST_COMMAND ?= $(PYTHON) -m unittest discover -s deploy/git-backup
 export SMOKE_IMAGE
 # Leaves out every optional integration (docs/integrations.md).
-CORE_TAGS := fmn_omit_postgres,fmn_omit_redshift,fmn_omit_outlook,fmn_omit_iwork,fmn_omit_ocr,fmn_omit_slack
+CORE_TAGS := fmn_omit_postgres,fmn_omit_redshift,fmn_omit_outlook,fmn_omit_slack
 # The web cases that reach those integrations' owners.
 CORE_WEB_TESTS := Source|Hosted|Format|DataConnection|Integration|MCPContract|Slack|Personal|Messag
 

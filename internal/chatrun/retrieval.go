@@ -33,7 +33,7 @@ func (s *Service) Retrieve(ctx context.Context, id string, run chat.Run, engine 
 		s.chatRetrievalDiagnostic(id, run, connection, result.RetrievalResult, err, initial, queries, time.Since(started))
 	}()
 	if scope := chat.RunScopeFrom(ctx); scope != nil {
-		judge, localOnly := s.hooks.JevConfigured()
+		judge, localOnly := s.hooks.JudgmentsConfigured()
 		if judge != nil && !localOnly {
 			prefs, prefErr := s.hooks.DecisionPreferences(scope.Owner)
 			if prefErr != nil {
@@ -45,13 +45,13 @@ func (s *Service) Retrieve(ctx context.Context, id string, run chat.Run, engine 
 					return result, accountErr
 				}
 				auth, hasAuth := chat.RunAuthFrom(ctx)
-				query.Jev = &knowledge.JevRanking{Service: judge, Scope: decision.Scope{Actor: account.ID, Notebook: scope.Project, Feature: "rerank", Run: run.ID, Chat: id, Operation: "retrieval"}, Check: func(checkCtx context.Context) error {
+				query.Judgments = &knowledge.JudgmentRanking{Service: judge, Scope: decision.Scope{Actor: account.ID, Notebook: scope.Project, Feature: "rerank", Run: run.ID, Chat: id, Operation: "retrieval"}, Check: func(checkCtx context.Context) error {
 					if hasAuth {
 						if err := s.hooks.CheckRun(auth); err != nil {
 							return err
 						}
 					}
-					if err := s.hooks.JevAuthorized(checkCtx, scope.Owner, scope.Project, "rerank", judge); err != nil {
+					if err := s.hooks.JudgmentsAuthorized(checkCtx, scope.Owner, scope.Project, "rerank", judge); err != nil {
 						return err
 					}
 					store, err := s.catalog.Access(scope.Owner, scope.Project, "read")

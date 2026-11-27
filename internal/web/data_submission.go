@@ -58,7 +58,9 @@ func (s *Server) dataSubmit(ctx context.Context, in dataCall, raw json.RawMessag
 	}
 	return result, nil
 }
-func (s *Server) dataEffectTools(server *mcp.Server) {
+
+// automationEffectTools inspect the effects an installed automation retains.
+func (s *Server) automationEffectTools(server *mcp.Server) {
 	addManagementTool(s, server, "automation_effects", "Inspect private cross-run analysis receipts for an installed automation.", true, func(ctx context.Context, in struct {
 		ID string `json:"id"`
 	}) ([]automation.Effect, error) {
@@ -72,15 +74,12 @@ func (s *Server) dataEffectTools(server *mcp.Server) {
 		}
 		return nil, errors.New("automation not found")
 	})
+}
 
-	addManagementTool(s, server, "data_connection_effects", "Inspect durable write outcomes. An unknown outcome blocks further writes to this connection until an administrator reconciles it.", true, func(ctx context.Context, in struct {
-		Connection string `json:"connection"`
-	}) ([]automation.Effect, error) {
-		if !s.catalog.IsAdmin(subject(ctx)) {
-			return nil, workspace.ErrForbidden
-		}
-		return s.automations.Queue.Effects("connector:" + in.Connection)
-	})
+// effectResolutionTools resolve the effects that automations, data
+// connections and personal connections retain. They run in the core, since an
+// unknown outcome of any of them must be reconcilable whichever modules run.
+func (s *Server) effectResolutionTools(server *mcp.Server) {
 	addManagementTool(s, server, "resolve_automation_effect", "Record a manually verified provider outcome with evidence. A negative search is not proof of non-submission. Resolution never repeats an action.", false, func(ctx context.Context, in struct {
 		ID       string `json:"id"`
 		State    string `json:"state"`

@@ -44,7 +44,7 @@ func TestRepositoryMapClassificationReusesUnchangedInputs(t *testing.T) {
 	ctx := context.Background()
 	s, _ := f.m.Status("alpha")
 	cfg := s.IndexConfig
-	cfg.ExternalProcessing, cfg.MapJev = true, true
+	cfg.ExternalProcessing, cfg.MapJudgments = true, true
 	if _, err := f.m.ConfigureIndex("alpha", "owner", s.Generation, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestRepositoryMapRejectsCancelledClassification(t *testing.T) {
 	ctx := context.Background()
 	s, _ := f.m.Status("alpha")
 	cfg := s.IndexConfig
-	cfg.ExternalProcessing, cfg.MapJev = true, true
+	cfg.ExternalProcessing, cfg.MapJudgments = true, true
 	if _, err := f.m.ConfigureIndex("alpha", "owner", s.Generation, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestRepositoryMapRejectsCancelledClassification(t *testing.T) {
 		t.Fatal("classification did not start")
 	}
 	s, _ = f.m.Status("alpha")
-	cfg.MapJev = false
+	cfg.MapJudgments = false
 	if _, err := f.m.ConfigureIndex("alpha", "owner", s.Generation, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +339,7 @@ func TestRepositoryMapProviderFailureKeepsLocalNavigation(t *testing.T) {
 	f := mapFixture(t)
 	s, _ := f.m.Status("alpha")
 	cfg := s.IndexConfig
-	cfg.ExternalProcessing, cfg.MapJev = true, true
+	cfg.ExternalProcessing, cfg.MapJudgments = true, true
 	if _, err := f.m.ConfigureIndex("alpha", "owner", s.Generation, cfg); err != nil {
 		t.Fatal(err)
 	}

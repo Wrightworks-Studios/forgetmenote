@@ -26,8 +26,24 @@ func (s *Server) chatClientStatus(actor string) (map[string]any, error) {
 	sort.Strings(available)
 	return map[string]any{"config": config, "available": available, "eventURL": s.origin + "/integrations/slack/events", "interactionURL": s.origin + "/integrations/slack/interactions", "commandURL": s.origin + "/integrations/slack/commands"}, nil
 }
+
+// chatClientDirectory lists the mounted Slack app's channels and people for
+// choosing them by name in the chat client settings. Without a Slack app there
+// is nothing to list, and the settings take typed IDs.
+func (s *Server) chatClientDirectory(ctx context.Context) (messaging.Directory, error) {
+	if !s.catalog.IsAdmin(subject(ctx)) {
+		return messaging.Directory{}, workspace.ErrForbidden
+	}
+	if s.slack == nil {
+		return messaging.Unlisted("no Slack app is set up"), nil
+	}
+	return s.slack.Directory(ctx), nil
+}
 func (s *Server) messagingTools(server *mcp.Server) {
 	addManagementTool(s, server, "chat_clients", "Inspect external chat client policy and configured transports. Admin only; credentials are never returned.", true, func(ctx context.Context, _ struct{}) (map[string]any, error) { return s.chatClientStatus(subject(ctx)) })
+	addManagementTool(s, server, "chat_client_directory", "List the Slack channels and people the mounted Slack app can see, by ID and name only, for choosing them in chat client settings. Admin only; never returns credentials or addresses. A list Slack refuses, such as for a missing channels:read, groups:read or users:read scope, is left out with its reason under unlisted.", true, func(ctx context.Context, _ struct{}) (messaging.Directory, error) {
+		return s.chatClientDirectory(ctx)
+	})
 	addManagementTool(s, server, "set_chat_clients", "Configure linked accounts, conversation scopes, files and shared audiences for external chat clients. Admin only; requires the current revision.", false, func(ctx context.Context, in struct {
 		Config catalog.ChatClients `json:"config"`
 	}) (map[string]any, error) {

@@ -1,6 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createApplicationState,requestSequence,poll} from './state.mjs';
+import {createApplicationState,requestSequence,poll,moduleOn} from './state.mjs';
+
+test('an account names the modules the instance turns off',()=>{
+ assert.equal(moduleOn(null,'judgments'),true);assert.equal(moduleOn({id:'alice'},'judgments'),true);
+ assert.equal(moduleOn({modulesOff:[]},'sources'),true);
+ assert.equal(moduleOn({modulesOff:['sources']},'sources'),false);assert.equal(moduleOn({modulesOff:['sources']},'judgments'),true);
+});
 
 test('application selection changes atomically and unsubscribes without dropping drafts',()=>{
  const note={path:'A.md'},state=createApplicationState({notebook:null,account:null,note,collection:'notes'}),seen=[];

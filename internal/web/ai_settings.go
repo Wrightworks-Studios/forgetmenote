@@ -36,16 +36,15 @@ func (s *Server) instanceAITools(server *mcp.Server) {
 			return nil, workspace.ErrConflict
 		}
 		endpoint := s.indexes.Endpoint()
-		judge, localOnly := s.jevConfigured()
-		vision, transcription := s.sourceProviderAvailability()
-		if (in.Config.SourceOCR || in.Config.SourceDescriptions) && !vision || in.Config.SourceTranscription && !transcription {
-			return nil, fmt.Errorf("%w: configure an allowed hosted source processor first", catalog.ErrLocalInput)
-		}
+		judge, localOnly := s.judgmentsConfigured()
 		if in.Config.Embeddings && (endpoint == nil || s.chatEmbeddingPolicy(endpoint) == nil) {
 			return nil, fmt.Errorf("%w: an allowed embedding provider must be configured first", catalog.ErrLocalInput)
 		}
 		if (in.Config.Rerank || in.Config.MapClassification || in.Config.Citations || in.Config.Reviews) && (judge == nil || localOnly) {
 			return nil, fmt.Errorf("%w: an allowed decision provider must be configured first", catalog.ErrLocalInput)
+		}
+		if in.Config.UploadReading && !s.chatReadsImages() {
+			return nil, fmt.Errorf("%w: a chat connection that reads images must be configured first", catalog.ErrLocalInput)
 		}
 		if in.Config.Embeddings && !in.Rebuild {
 			if managed && current.Model != "" && (current.Model != in.Config.Model || current.Dimensions != in.Config.Dimensions) {
@@ -98,8 +97,7 @@ func (s *Server) instanceAIStatus(ctx context.Context, actor string) (map[string
 	config, managed := s.catalog.AISettings()
 	endpoint := s.indexes.Endpoint()
 	embeddings := endpoint != nil && s.chatEmbeddingPolicy(endpoint) != nil
-	judge, localOnly := s.jevConfigured()
-	sourceVision, sourceTranscription := s.sourceProviderAvailability()
+	judge, localOnly := s.judgmentsConfigured()
 	notebooks := []map[string]any{}
 	for _, project := range s.catalog.List(actor) {
 		if project.ProtectedInbox != "" {
@@ -123,7 +121,7 @@ func (s *Server) instanceAIStatus(ctx context.Context, actor string) (map[string
 		}
 		notebooks = append(notebooks, row)
 	}
-	return map[string]any{"config": config, "managed": managed, "providers": map[string]any{"embeddings": embeddings, "decisions": judge != nil, "localOnly": localOnly, "sourceVision": sourceVision, "sourceTranscription": sourceTranscription}, "notebooks": notebooks}, nil
+	return map[string]any{"config": config, "managed": managed, "providers": map[string]any{"embeddings": embeddings, "decisions": judge != nil, "localOnly": localOnly, "images": s.chatReadsImages()}, "notebooks": notebooks}, nil
 }
 
 func (s *Server) syncInstanceAI(ctx context.Context) {
@@ -144,7 +142,7 @@ func (s *Server) syncInstanceAI(ctx context.Context) {
 		if store, err := s.catalog.Access(catalog.Bootstrap, project.ID, "read"); err == nil {
 			_ = s.indexes.Register(ctx, store)
 			if policy.Reviews && project.Ordinary() {
-				_ = s.jev.PrepareInstanceReview(ctx, project.ID)
+				_ = s.judgments.PrepareInstanceReview(ctx, project.ID)
 			}
 		}
 	}
@@ -156,13 +154,13 @@ func (s *Server) sourceIndexPolicy(state reposource.State) (reposource.IndexConf
 	if !managed {
 		return config, state.MapActor
 	}
-	config.Embeddings, config.Jev, config.MapJev = settings.Embeddings, settings.Rerank, settings.MapClassification
+	config.Embeddings, config.Judgments, config.MapJudgments = settings.Embeddings, settings.Rerank, settings.MapClassification
 	config.ExternalProcessing = settings.Embeddings || settings.Rerank || settings.MapClassification || settings.Citations || settings.Reviews || settings.Writing
 	if settings.Embeddings {
 		config.Model, config.Dimensions = settings.Model, settings.Dimensions
 	}
 	actor := ""
-	if config.MapJev {
+	if config.MapJudgments {
 		actor = catalog.Bootstrap
 	}
 	return config, actor

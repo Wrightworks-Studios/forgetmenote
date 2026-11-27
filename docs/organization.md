@@ -60,7 +60,7 @@ turns between bounded batches.
 
 ## Privacy and verification
 
-The operator must configure Jev and the triggering account must allow remote
+The operator must configure judgments and the triggering account must allow remote
 processing in **Evidence check preferences**. Local-only mode prevents inference.
 There is no fallback to another provider. Eligible committed note bodies and
 selected destination context are sent to TypeSafe. Opening the panel, listing
@@ -88,11 +88,11 @@ pinned. Attachments stay in place. These conservative checks can leave genuine
 duplicates as suggestions.
 
 Complete verification is limited to 24 KiB per note and 48 KiB of combined evidence,
-and must fit the operator's Jev limits (64 KiB/32 questions by default, with
+and must fit the operator's judgment limits (64 KiB/32 questions by default, with
 32 KiB for shared state plus any one question). Inputs are never silently truncated. Larger or uncertain
 cases become suggestions. Vocabularies are limited to 100 tags and divided into
 bounded independent judgments; there can be up to 32 approved destinations.
-Thresholds are explicit in `internal/jev/organizer_runner.go`: tags 0.95 with
+Thresholds are explicit in `internal/judgments/organizer_runner.go`: tags 0.95 with
 no-match below 0.05, links 0.95, moves 0.98 and duplicates 0.995. Choice actions also
 require confidence at least 0.9 and a margin of 0.5. These are conservative initial
 policy values, not calibrated correctness probabilities.
@@ -136,7 +136,7 @@ answers and reconciles existing commit receipts. If the outcome of a paid reques
 is unknown, continuing explicitly records a new retry; automatic startup does not
 silently repeat it. Organizer commits update only the affected baseline paths,
 so unchanged notebooks settle without recurring inference. Completed activity
-uses paged Jev result records, not the interactive proposal queue. Existing limits
+uses paged judgment result records, not the interactive proposal queue. Existing limits
 remain: at most 2,000 retained job records, 4 MiB per sidecar record, a 3 MiB job
 planning envelope, and 1 MiB serialized before/after data for an action. Capacity
 errors require a smaller scope or operator recovery; unrelated history is not
@@ -144,14 +144,14 @@ deleted to make room. No token quotas were added.
 
 ## Storage and rollback
 
-Organization extends the existing version-2 Jev job and version-1 settings records
+Organization extends the existing version-2 judgment job and version-1 settings records
 with optional typed organization fields. Old records remain readable and never
 enable new automatic behavior. Settings, baselines, suppression, jobs, results and
-Undo intents are Jev records in the instance database; content and operation
+Undo intents are judgment records in the instance database; content and operation
 receipts live in each notebook's ordinary history. The catalog records
 per-project access epochs.
 
-A complete stopped-instance backup must preserve the database (catalog, Jev
+A complete stopped-instance backup must preserve the database (catalog, judgments
 records, notebook revisions with their discussions and Trash, and live
 documents), the blob store and the data directory. A notebook Git bundle preserves content
 and commit receipts but cannot reconstruct the activity/policy/suppression state.

@@ -17,7 +17,8 @@ type recipeEntry struct {
 // Called only after notebook/content authorization. Readers see states, never
 // another connector's rows, error bodies or the private repair prompt.
 func (s *Server) recipeHealth(project, path, hash string) (*recipeCheckHealth, error) {
-	if s.automations == nil {
+	// With automations off no check runs, so a recipe reports no health.
+	if s.automations == nil || !s.modules.Enabled("automations") {
 		return nil, nil
 	}
 	var health *recipeCheckHealth

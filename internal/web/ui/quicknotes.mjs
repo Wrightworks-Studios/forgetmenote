@@ -1,17 +1,17 @@
 import {openDialog,dialogShell} from './overlay.mjs';
 import {feedback} from './feedback.mjs';
-import {poll} from './state.mjs';
+import {poll,moduleOn} from './state.mjs';
 import {element as el,actionButton,routeLink,keepTyped} from './dom.mjs';
 
 function destinationKey(destination){return JSON.stringify([destination.project,destination.folder || '']);}
 function approvalKey(destination){return JSON.stringify([destination.project,destination.folder || '',!!destination.shared]);}
 export function captureURL(capture){return '/?'+new URLSearchParams({project:capture.project,note:capture.path});}
 export function initQuicknotes({api,post,getUser,getDraftStorage,onCapture=()=>{},openInbox=()=>{},openCaptureNote}) {
- const opener=document.getElementById('quicknotes-open'),count=document.getElementById('count-inbox'),dialog=dialogShell('Quick note',{id:'quicknotes-dialog',className:'jev-dialog quicknotes-dialog'});
- const error=el('p',undefined,'jev-error');error.hidden=true;error.setAttribute('role','alert');const status=el('p',undefined,'small');status.setAttribute('role','status');
+ const opener=document.getElementById('quicknotes-open'),count=document.getElementById('count-inbox'),dialog=dialogShell('Quick note',{id:'quicknotes-dialog',className:'judgments-dialog quicknotes-dialog'});
+ const error=el('p',undefined,'judgments-error');error.hidden=true;error.setAttribute('role','alert');const status=el('p',undefined,'small');status.setAttribute('role','status');
  const form=el('form'),label=el('label','Quick note'),input=keepTyped(el('textarea'));input.id='quicknotes-text';input.rows=6;input.maxLength=65536;input.setAttribute('aria-label','Quick note');label.append(input);
  const save=el('button','Save to Inbox','primary');save.type='submit';const recovered=el('div',undefined,'quicknotes-recovery');form.append(label,save,recovered);
- const toolbar=el('div',undefined,'jev-actions'),body=el('div'),recent=el('div');dialog.append(error,status,form);const inbox=document.getElementById('inbox-content'),inboxError=el('p',undefined,'jev-error');inboxError.setAttribute('role','alert');inboxError.hidden=true;const inboxStatus=el('p',undefined,'small');inboxStatus.setAttribute('role','status');inbox.append(inboxError,inboxStatus,toolbar,body,recent);function report(message){status.textContent=message;inboxStatus.textContent=message;}const visible=()=>!document.getElementById('inbox-view').hidden || dialog.open;
+ const toolbar=el('div',undefined,'judgments-actions'),body=el('div'),recent=el('div');dialog.append(error,status,form);const inbox=document.getElementById('inbox-content'),inboxError=el('p',undefined,'judgments-error');inboxError.setAttribute('role','alert');inboxError.hidden=true;const inboxStatus=el('p',undefined,'small');inboxStatus.setAttribute('role','status');inbox.append(inboxError,inboxStatus,toolbar,body,recent);function report(message){status.textContent=message;inboxStatus.textContent=message;}const visible=()=>!document.getElementById('inbox-view').hidden || dialog.open;
  let returnFocus=document.getElementById('create-toggle');
  let account='',generation=0,controller=new AbortController(),draft={content:'',revision:'',operationId:''},busy=false,view=0,refreshID=0,destinations=[],settings=null,recentSignature='',timer=null;
  function scope(){return account+'/quicknotes/capture';}
@@ -59,9 +59,9 @@ export function initQuicknotes({api,post,getUser,getDraftStorage,onCapture=()=>{
   for(const capture of data.captures || [])recent.append(captureCard(capture));
  }
  function captureCard(capture){
-  const card=el('article',undefined,'jev-card');card.dataset.capture=capture.id;card.append(el('h4',capture.title || capture.path?.split('/').at(-1) || 'Quick note'),el('p',capture.status.replaceAll('_',' '),'small'));
+  const card=el('article',undefined,'judgments-card');card.dataset.capture=capture.id;card.append(el('h4',capture.title || capture.path?.split('/').at(-1) || 'Quick note'),el('p',capture.status.replaceAll('_',' '),'small'));
   if(capture.excerpt)card.append(el('p',capture.excerpt));if(capture.error)card.append(el('p',capture.error,'small'));
-  const actions=el('div',undefined,'jev-actions'),link=el('a','Open note','button quiet');link.href=captureURL(capture);routeLink(link,()=>openCaptureNote?.(capture).catch(fail));actions.append(link);
+  const actions=el('div',undefined,'judgments-actions'),link=el('a','Open note','button quiet');link.href=captureURL(capture);routeLink(link,()=>openCaptureNote?.(capture).catch(fail));actions.append(link);
   if(capture.suggestion){const destination=capture.suggestion.destination || capture.suggestion;card.append(el('p','Suggested: '+(destination.name || destination.project)+(destination.folder?' / '+destination.folder:''),'small'));if(destination.project)actions.append(button('Review suggested destination',()=>chooseDestination(capture,destination)));}
   if(['inbox','suggested'].includes(capture.status)){actions.append(button('Choose destination',()=>chooseDestination(capture)));actions.append(button('Suggest destination',async(current)=>{await post('/api/quicknotes/sort',{id:capture.id},options());if(current())await refresh();}));}
   if(capture.canUndo)actions.append(button('Undo filing',async(current)=>{await post('/api/quicknotes/undo',{id:capture.id},options());if(current()){report('Returned to your private Inbox.');await refresh();}}));
@@ -77,18 +77,18 @@ export function initQuicknotes({api,post,getUser,getDraftStorage,onCapture=()=>{
  }
  function destinationLabel(destination){return (destination.name || destination.project)+(destination.folder?' / '+destination.folder:' / root')+(destination.shared?' · shared':'');}
  async function openSettings(){
-  const t=token(),version=++view;body.replaceChildren(el('p','Loading preferences…'));const [saved,available,policy]=await Promise.all([api('/api/quicknotes/settings',options()),api('/api/quicknotes/destinations',options()),api('/api/jev/settings',options())]);if(!valid(t)||version!==view||!visible())return;settings=saved;destinations=available.destinations || [];
+  const t=token(),version=++view;body.replaceChildren(el('p','Loading preferences…'));const [saved,available,policy]=await Promise.all([api('/api/quicknotes/settings',options()),api('/api/quicknotes/destinations',options()),moduleOn(getUser(),'judgments')?api('/api/judgments/settings',options()):{available:false,off:true}]);if(!valid(t)||version!==view||!visible())return;settings=saved;destinations=available.destinations || [];
   const section=el('section');section.append(el('h3','Quicknotes preferences'));const label=el('label','Sorting mode'),mode=el('select');mode.setAttribute('aria-label','Sorting mode');for(const [value,text] of [['manual','Manual'],['suggest','Suggest destinations'],['automatic','File automatically to approved destinations']]){const option=el('option',text);option.value=value;mode.append(option);}mode.value=settings.mode;label.append(mode);section.append(label);
   const consent=check('Allow TypeSafe to read saved Quicknotes for sorting',settings.cloudConsent),notify=check('Notify me when a destination is chosen',settings.notifyDestination);
   const remoteDisabled=!policy.available || policy.localOnly;const updateConsent=()=>{consent.input.disabled=remoteDisabled&&!consent.input.checked;};consent.input.onchange=updateConsent;updateConsent();for(const option of mode.options)if(option.value!=='manual')option.disabled=remoteDisabled;
-  if(remoteDisabled)section.append(el('p',policy.localOnly?'Remote sorting is disabled by local-only policy.':'Remote sorting is unavailable.','small'));
+  if(remoteDisabled)section.append(el('p',policy.off?'Remote sorting needs the judgments module, which is turned off on this instance.':policy.localOnly?'Remote sorting is disabled by local-only policy.':'Remote sorting is unavailable.','small'));
   section.append(consent.row,notify.row);
   const approved=new Set((settings.approvedDestinations || []).map(approvalKey)),choices=el('fieldset');choices.append(el('legend','Approved automatic destinations'));
   for(const destination of destinations){const control=check(destinationLabel(destination),approved.has(approvalKey(destination)));control.input.onchange=()=>control.input.checked?approved.add(approvalKey(destination)):approved.delete(approvalKey(destination));choices.append(control.row);}
   const warning=el('p','Notes filed in shared destinations are visible to their members.','small');section.append(choices,warning);
   section.append(button('Save Quicknotes preferences',async(current)=>{const chosen=destinations.filter(destination=>approved.has(approvalKey(destination))).map(({project,folder,shared})=>({project,folder:folder || '',shared:!!shared}));if(mode.value==='automatic'&&remoteDisabled)throw Error('Remote sorting is unavailable. Choose Manual to save these preferences.');if(mode.value==='automatic'&&(!consent.input.checked||!chosen.length))throw Error('Automatic filing requires remote sorting consent and at least one approved destination.');const next=await post('/api/quicknotes/settings',{mode:mode.value,cloudConsent:consent.input.checked,notifyDestination:notify.input.checked,approvedDestinations:chosen,generation:settings.generation},options());if(current()&&version===view){settings=next;body.replaceChildren();report('Quicknotes preferences saved.');}}),button('Close preferences',()=>{view++;body.replaceChildren();}));body.replaceChildren(section);
  }
- function check(text,checked){const row=el('label',undefined,'jev-check'),input=el('input');input.type='checkbox';input.checked=!!checked;row.append(input,document.createTextNode(text));return {row,input};}
+ function check(text,checked){const row=el('label',undefined,'judgments-check'),input=el('input');input.type='checkbox';input.checked=!!checked;row.append(input,document.createTextNode(text));return {row,input};}
  toolbar.append(button('Refresh captures',refresh),button('Preferences',openSettings));
  function openCapture(trigger){returnFocus=trigger;error.hidden=true;report('');body.replaceChildren();view++;restore();if(!dialog.open)openDialog(dialog);input.focus();refresh().catch(fail);}
  opener.onclick=()=>openCapture(document.getElementById('create-toggle'));

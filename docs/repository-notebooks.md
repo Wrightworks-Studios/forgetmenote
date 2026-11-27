@@ -1,6 +1,7 @@
 # Repository-connected notebooks
 
 Instance administrators can import an already-authorized Sources App repository
+in **Administration → Repositories**, shown while the repositories module runs, or
 through `POST /api/v1/actions/import_repository` (or
 `forgetmenote action import_repository --file import.json`):
 
@@ -100,7 +101,7 @@ endpoint and chosen model/dimensions; no model or provider service is installed.
 Search reranking judges relevance on at most twelve excerpts, in batches of at
 most eight. Decision features do not generate documentation or citation coordinates.
 
-Changed blobs are deterministically chunked; unchanged payload hashes reuse compatible vectors, including after restart. A question uses at most one embedding per compatible configuration (up to four configurations in a retrieval attempt). Background batches contain at most 32 payloads and yield to foreground demand at batch boundaries. Failed or unsavable batches stop until source settings are saved again. Request/payload-byte/chunk counters are available; payload bytes exclude transport prefixes and are not token or dollar estimates. Once pending work is complete, an unchanged refresh makes no document-embedding, Jev or large-model calls.
+Changed blobs are deterministically chunked; unchanged payload hashes reuse compatible vectors, including after restart. A question uses at most one embedding per compatible configuration (up to four configurations in a retrieval attempt). Background batches contain at most 32 payloads and yield to foreground demand at batch boundaries. Failed or unsavable batches stop until source settings are saved again. Request/payload-byte/chunk counters are available; payload bytes exclude transport prefixes and are not token or dollar estimates. Once pending work is complete, an unchanged refresh makes no document-embedding, judgment or large-model calls.
 
 For the Ollama model `embeddinggemma` (including tagged versions), the transport applies Google's [retrieval query and document prefixes](https://ai.google.dev/gemma/docs/embeddinggemma/model_card#prompt-instructions). This preprocessing is part of the derived vector identity, so older unprefixed vectors rebuild instead of mixing with new queries. Original excerpts and citations are unchanged. Other model names retain their existing input format.
 
@@ -122,7 +123,7 @@ Read the map with `repository_source_map` or `GET /p/NOTEBOOK/api/repository/map
 configured decision provider under current instance policy and existing execution
 limits. It classifies only files without a known structural role, using up to 1,400 source bytes, the path and symbols per file. First enablement processes the currently unclassified files; later runs reuse the decisions. Batches contain at most eight files and shrink to fit the configured request limit. A small fixed choice set includes an explicit “other” answer. Low-confidence and “other” results are cached as abstentions, without a human review queue. The relevance/confidence thresholds are provisional navigation filters, not calibrated guarantees of correctness.
 
-Classifications are cached by file inputs and classifier/model version, including after restart; only affected entries are purchased again. The existing Jev ledger reserves each batch under a stable identity so an uncertain request is not silently charged twice. Settings changes, pause and lost authority prevent stale results from publishing. A provider failure leaves deterministic navigation and source search available; processing resumes on the next changed source revision or settings save. If that batch was already purchased but its result is unavailable, its entries cache an explicit `unavailable` decision, retain their local roles and allow subsequent batches to proceed. Unknown usage stays in the ledger. Status reports map entries, cached decisions (including abstentions and unavailable results), and a separate classification error. Inferred labels are map-search hints; they do not replace original source text or trigger embedding rebuilds. There are no background large-model calls or generated map descriptions.
+Classifications are cached by file inputs and classifier/model version, including after restart; only affected entries are purchased again. The existing judgments ledger reserves each batch under a stable identity so an uncertain request is not silently charged twice. Settings changes, pause and lost authority prevent stale results from publishing. A provider failure leaves deterministic navigation and source search available; processing resumes on the next changed source revision or settings save. If that batch was already purchased but its result is unavailable, its entries cache an explicit `unavailable` decision, retain their local roles and allow subsequent batches to proceed. Unknown usage stays in the ledger. Status reports map entries, cached decisions (including abstentions and unavailable results), and a separate classification error. Inferred labels are map-search hints; they do not replace original source text or trigger embedding rebuilds. There are no background large-model calls or generated map descriptions.
 
 ## Ask about repositories
 
@@ -144,7 +145,7 @@ Gateway `/data/repository-sources/NOTEBOOK/SOURCE/` contains `source.git`, `inde
 
 The source Git cache, derived search index and incomplete staging directories are reconstructible. Evidence, provenance and connection/consent state are durable data. Validate an independent restore before removing caches; runtime access still requires current notebook and GitHub installation authority. Rebuilding removed vectors can incur embedding charges when processing remains enabled.
 
-After optional map classification purchases work, the shared Jev ledger contains
+After optional map classification purchases work, the shared judgments ledger contains
 `repository-map` receipts. Older releases that do not recognize this feature cannot
 open that ledger. Keep a stopped-instance backup before upgrading and use a
 compatible image for forward repair; do not delete receipts to make an older image start.
@@ -165,6 +166,6 @@ New notebook offers Blank, Connect GitHub repository, and Import bundle. The Git
 
 Repository files now open in the main reader: sanitized Markdown, syntax-highlighted read-only text, progressive line ranges, pinned relative links/images, and copyable citations. A refresh reports a newer revision without replacing the open document. Source files cannot be edited, renamed, deleted, or changed through collaboration/MCP.
 
-`search_notebooks`, `list_documents`, `read_document`, and `notebook_map` share notebook/origin/revision references. Cross-notebook chat explicitly selects additional notes and repositories; tools cannot widen that selection. Maps for ordinary notes contain bounded titles, headings, tags, links and backlinks, derived deterministically from visible committed content. Structural refresh performs no AI calls. Optional embeddings and Jev stay opt-in. Meaning search reports missing vectors without silently substituting keyword matches.
+`search_notebooks`, `list_documents`, `read_document`, and `notebook_map` share notebook/origin/revision references. Cross-notebook chat explicitly selects additional notes and repositories; tools cannot widen that selection. Maps for ordinary notes contain bounded titles, headings, tags, links and backlinks, derived deterministically from visible committed content. Structural refresh performs no AI calls. Optional embeddings and judgments stay opt-in. Meaning search reports missing vectors without silently substituting keyword matches.
 
 For operator registration, manifests, and separate read-only Sources versus writable Backups Apps, see [GitHub configuration](managed-backups.md). New catalog state refuses older binaries after repository notebook creation; migration preserves a pre-upgrade catalog snapshot. Full-instance backups remain necessary before upgrades.

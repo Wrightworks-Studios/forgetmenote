@@ -9,7 +9,7 @@ import (
 	"forgetmenote/internal/outgoing"
 )
 
-// Routing captures in the background is paid Jev work, so a paused copy files
+// Routing captures in the background is paid judgment work, so a paused copy files
 // nothing on its own; a person's explicit Sort still runs, as chat does.
 func TestPausedRoutingLeavesCapturesInInbox(t *testing.T) {
 	s, c, _ := fixture(t)
@@ -18,7 +18,7 @@ func TestPausedRoutingLeavesCapturesInInbox(t *testing.T) {
 	judge := testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_000") })
 	s.Outgoing = &outgoing.Mode{}
 	s.Outgoing.Pause()
-	s.ConfigureJev(judge, false)
+	s.ConfigureJudgments(judge, false)
 	available, _ := s.Destinations(context.Background(), "alice")
 	settings, _ := s.Settings("alice")
 	settings.Mode = "automatic"

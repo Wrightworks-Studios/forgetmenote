@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/modules"
 	"forgetmenote/internal/pg/pgtest"
 	"forgetmenote/internal/workspace"
 )
@@ -20,6 +21,12 @@ const testToken = "test-only-0123456789abcdefghijklmnopqrstuvwxyz"
 
 func fixture(t testing.TB) (*Server, *workspace.Store) {
 	t.Helper()
+	return fixtureWithModules(t, modules.Set{})
+}
+
+// fixtureWithModules is fixture for an instance that runs the modules in set.
+func fixtureWithModules(t testing.TB, set modules.Set) (*Server, *workspace.Store) {
+	t.Helper()
 	dir := t.TempDir()
 	projects, err := catalog.Open(dir, nil, pgtest.Dir(t, dir))
 	if err != nil {
@@ -27,7 +34,7 @@ func fixture(t testing.TB) (*Server, *workspace.Store) {
 	}
 	t.Cleanup(func() { projects.Close() })
 	store, _ := projects.Access(catalog.Bootstrap, "default", "edit")
-	app, err := New(projects, pgtest.Org(t), dir, "http://localhost", testToken)
+	app, err := NewWithBlobs(projects, pgtest.Org(t), nil, set, dir, "http://localhost", testToken)
 	if err != nil {
 		t.Fatal(err)
 	}

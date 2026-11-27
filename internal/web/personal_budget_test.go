@@ -19,7 +19,7 @@ func TestPersonalBatchBudgetAppliesToItemsWithinProviderPages(t *testing.T) {
 		calls.Add(1)
 		w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"{\"title\":\"Prepare for meeting\",\"summary\":\"Review the agenda\"}"},"finish_reason":"stop"}]}`))
 	})
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
 			Questions map[string]any `json:"questions"`
 		}
@@ -72,7 +72,7 @@ func TestPersonalBatchBudgetAppliesToItemsWithinProviderPages(t *testing.T) {
 		t.Fatal(err)
 	}
 	if calls.Load() != 1 || questions.Load() != 1 || len(state.Pending) != 2 {
-		t.Fatalf("batch limit exceeded or remaining work lost: Luna=%d Jev=%d pending=%d", calls.Load(), questions.Load(), len(state.Pending))
+		t.Fatalf("batch limit exceeded or remaining work lost: Luna=%d judge=%d pending=%d", calls.Load(), questions.Load(), len(state.Pending))
 	}
 	for completed := 2; completed <= 3; completed++ {
 		if err = app.automationrun.RunAutomation(t.Context(), &automation.Run{Spec: spec}, func() error { return nil }); err != nil {
@@ -83,7 +83,7 @@ func TestPersonalBatchBudgetAppliesToItemsWithinProviderPages(t *testing.T) {
 			t.Fatal(err)
 		}
 		if calls.Load() != int32(completed) || questions.Load() != int32(completed) || len(state.Pending) != 3-completed {
-			t.Fatalf("queued work did not drain within budget: Luna=%d Jev=%d pending=%d", calls.Load(), questions.Load(), len(state.Pending))
+			t.Fatalf("queued work did not drain within budget: Luna=%d judge=%d pending=%d", calls.Load(), questions.Load(), len(state.Pending))
 		}
 	}
 }

@@ -7,7 +7,7 @@ Repository connections and refresh checkpoints live in the instance database, an
 Private AI conversations, stream events, provider continuation, review coverage, action receipts and usage are `chat_conversations` rows in the instance database, outside notebook Git. Include the database in every full stopped-instance backup. A notebook bundle does not preserve chat. Operator configuration and mounted provider secrets are separately backed-up deployment assets; see [chat storage and recovery](chat.md#storage-recovery-and-backup).
 
 
-Jev settings, review jobs, citation checks, notification state and usage, and
+Judgment settings, review jobs, citation checks, notification state and usage, and
 Quicknotes settings and workflow references, are rows of the instance database
 ([Postgres status](postgres.md#status)). Capture transfer reservations and
 receipts are each notebook's operation receipts there too. The catalog also
@@ -214,9 +214,9 @@ an older snapshot over newer accepted work. Verify the exact image/configuration
 release; the application format alone does not establish deployment compatibility.
 
 Organization policies, consent generations, baselines, suppression, paged activity
-and Undo intents are Jev records in the database. Preserve them with the catalog's
+and Undo intents are judgment records in the database. Preserve them with the catalog's
 access epochs and each notebook's commit receipts, Trash and discussions, which a
-complete backup holds together. The independent Jev Docker
+complete backup holds together. The independent judgments Docker
 restore verifies an applying duplicate cleanup and its later Undo without new
 inference. New optional sidecar fields are rejected by older strict decoders;
 [organization rollback guidance](organization.md#storage-and-rollback) requires a

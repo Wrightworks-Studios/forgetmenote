@@ -92,7 +92,7 @@ type record struct {
 }
 type Service struct {
 	// Outgoing is installed before Start. While paused, the routing duty sends
-	// no capture to Jev; recovery and explicit sorting continue.
+	// no capture to judgments; recovery and explicit sorting continue.
 	Outgoing        *outgoing.Mode
 	lifecycleMu     sync.Mutex
 	started, closed bool

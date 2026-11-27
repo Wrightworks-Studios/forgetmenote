@@ -13,12 +13,12 @@ test('a purge plan says that commit authors keep the text it erases', () => {
 
 test('an Owner who is not an Admin is told only of their own records, and that other people’s are redacted too', () => {
   const others = 'Other people’s records that quote it are redacted too; only an instance Admin is told how many.';
-  assert.deepEqual(derivedLines({chats: 2, jevRecords: 1}), ['2 private chat transcripts, 1 Jev record that quoted it will be redacted by the system, without anyone reading them.']);
-  assert.deepEqual(derivedLines({}), ['No chat transcript, proposal or Jev record quotes it.']);
+  assert.deepEqual(derivedLines({chats: 2, jevRecords: 1}), ['2 private chat transcripts, 1 judgment record that quoted it will be redacted by the system, without anyone reading them.']);
+  assert.deepEqual(derivedLines({}), ['No chat transcript, proposal or judgment record quotes it.']);
   assert.deepEqual(derivedLines({chats: 1, own: true, others}), ['Of your own records, 1 private chat transcript quoted it and will be redacted by the system, without anyone reading them.', others]);
-  assert.deepEqual(derivedLines({own: true, others}), ['None of your own chat transcripts, proposals or Jev records quotes it.', others]);
-  assert.deepEqual(derivedLines({chats: 1, own: true, others}, true), ['Of your own records, 1 chat transcript, 0 proposals and 0 Jev records redacted.', others]);
-  assert.deepEqual(derivedLines({chats: 3, proposals: 1}, true), ['3 chat transcripts, 1 proposal and 0 Jev records redacted.']);
+  assert.deepEqual(derivedLines({own: true, others}), ['None of your own chat transcripts, proposals or judgment records quotes it.', others]);
+  assert.deepEqual(derivedLines({chats: 1, own: true, others}, true), ['Of your own records, 1 chat transcript, 0 proposals and 0 judgment records redacted.', others]);
+  assert.deepEqual(derivedLines({chats: 3, proposals: 1}, true), ['3 chat transcripts, 1 proposal and 0 judgment records redacted.']);
   assert.deepEqual(derivedLines({withheld: true, others: 'Only the person who ran it is told how many.'}, true), ['Only the person who ran it is told how many.']);
   assert.deepEqual(derivedLines({withheld: true}, true), []);
 });

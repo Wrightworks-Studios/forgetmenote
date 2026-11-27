@@ -1,8 +1,10 @@
 name: Check
 # Pull requests and the merge queue run the fast tier, a manual run the complete
-# regression. Pushes to main and next and the weekly schedule run only the
-# advisory scan (SECURITY.md). The queue tests each pull request on top of the
-# ones ahead of it, so next never needs a branch updated by hand.
+# regression. A merge queue entry whose pull request has the full-gate label runs
+# the complete regression too (docs/verification.md). Pushes to main and next and
+# the weekly schedule run only the advisory scan (SECURITY.md). The queue tests
+# each pull request on top of the ones ahead of it, so next never needs a branch
+# updated by hand.
 on:
   pull_request:
   merge_group:
@@ -23,13 +25,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
@@ -42,18 +44,18 @@ jobs:
       BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
       JOBS: '2'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       # Tests start their own cluster with the host's initdb, postgres and psql,
@@ -63,47 +65,71 @@ jobs:
           ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1 >> "$GITHUB_PATH"
       - run: make setup-deps
       - run: make check-fast
+  # next can require full. A pull request run skips it, which GitHub reports as
+  # Success, so the gate runs on the queue's combined commit instead. Entries
+  # without the label succeed in seconds, beside fast. The decision is a step here,
+  # not a job full needs: a job whose `needs` failed is skipped, and would pass.
   full:
-    if: github.event_name == 'workflow_dispatch'
-    # The complete regression on a standard 2-core runner takes about 45 minutes.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group'
+    # The complete regression on a standard 2-core runner takes 35-49 minutes. The
+    # queue drops an entry whose checks report nothing in 90, so a stuck gate fails
+    # first, uploading its logs.
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 80
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - id: gate
+        run: .github/scripts/full-gate-needed.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       # Playwright's browser downloads, keyed by the browsers and the locked Playwright version.
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       # The Actions cache backend for image layers needs a docker-container builder
       # and the cache service token in run steps; FMN_IMAGE_CACHE selects it below.
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-      - uses: crazy-max/ghaction-github-runtime@3cb05d89e1f492524af3d41a1c98c83bc3025124 # v3.1.0
+      - if: steps.gate.outputs.run == 'true'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - if: steps.gate.outputs.run == 'true'
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
       # Tests start their own cluster with the host's initdb, postgres and psql,
       # which Ubuntu's package keeps off PATH. Source tests drive the real parsers
       # on the host; smoke-source repeats them with the image's pinned versions.
-      - run: |
-          .github/scripts/apt-install.sh openssl inotify-tools postgresql ffmpeg poppler-utils tesseract-ocr
+      - if: steps.gate.outputs.run == 'true'
+        run: |
+          .github/scripts/apt-install.sh openssl inotify-tools postgresql poppler-utils
           ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1 >> "$GITHUB_PATH"
-      - run: make setup-deps setup-browser
-      - run: python deploy/production/release_image.py --verify-only --mode full --jobs 2
+      - if: steps.gate.outputs.run == 'true'
+        run: make setup-deps setup-browser
+      - if: steps.gate.outputs.run == 'true'
+        run: python deploy/production/release_image.py --verify-only --mode full --jobs 2
+        timeout-minutes: 65
         env:
           FMN_IMAGE_CACHE: gha
-      # The gate prints only the end of a failed check's log. Its full logs, browser
-      # report and traces hold synthetic test data; the Actions runtime token reaches
-      # only the image build (release_image.py), and anyone signed in can read this.
+      # The gate prints only a failed check's failing Go tests or the end of its log.
+      # Its full logs, browser report and traces hold synthetic test data; the Actions
+      # runtime token reaches only the image build (release_image.py), and anyone
+      # signed in can read this.
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

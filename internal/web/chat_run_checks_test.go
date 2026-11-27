@@ -274,18 +274,18 @@ func TestChatResearchSourceRevokedDuringTheFetchIsNotRecorded(t *testing.T) {
 	}
 }
 
-// A session revoked while Jev judges a citation keeps the judgment out of the
+// A session revoked while the judge judges a citation keeps the judgment out of the
 // check: each judgment rechecks the run's access before it is saved.
-func TestJevCitationJudgmentRevokedDuringTheCallIsNotSaved(t *testing.T) {
+func TestJudgmentCitationJudgmentRevokedDuringTheCallIsNotSaved(t *testing.T) {
 	app := chatFixture(t)
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		if err := app.catalog.Revoke(catalog.Bootstrap, "alice"); err != nil {
 			t.Error(err)
 		}
 		syntheticCitationAnswer(w, r)
 	})
 	c, path := citationConversation(t, app, "Every batch requires cooling before packing. [Process](SOURCE)")
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true,"rerank":true,"citations":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true,"rerank":true,"citations":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	if w := proxyCall(app, "alice", "POST", path, `{}`); w.Code != 200 {
@@ -316,15 +316,15 @@ func TestJevCitationJudgmentRevokedDuringTheCallIsNotSaved(t *testing.T) {
 }
 
 // rerankingRunner is a chat run fixture whose initial retrieval and passage
-// search are ranked by a synthetic Jev. jev runs inside each Jev call before
+// search are ranked by a synthetic judge. judgments runs inside each judgment call before
 // it answers; model answers each model request.
-func rerankingRunner(t *testing.T, jev func(), model http.HandlerFunc) (*Server, chat.Conversation, *atomic.Int32) {
+func rerankingRunner(t *testing.T, judgments func(), model http.HandlerFunc) (*Server, chat.Conversation, *atomic.Int32) {
 	t.Helper()
 	app, c := runnerFixture(t, model)
-	var jevCalls atomic.Int32
-	score := scoreMaintenanceFirst(&jevCalls)
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
-		jev()
+	var judgmentCalls atomic.Int32
+	score := scoreMaintenanceFirst(&judgmentCalls)
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
+		judgments()
 		score(w, r)
 	})
 	store, err := app.catalog.Access(catalog.Bootstrap, "default", "edit")
@@ -339,18 +339,18 @@ func rerankingRunner(t *testing.T, jev func(), model http.HandlerFunc) (*Server,
 			t.Fatal(err)
 		}
 	}
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true,"rerank":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	return app, c, &jevCalls
+	return app, c, &judgmentCalls
 }
 
-// A session revoked while Jev ranks a run's initial evidence stops the run
+// A session revoked while the judge ranks a run's initial evidence stops the run
 // before the model sees that evidence.
-func TestChatInitialEvidenceRevokedDuringTheJevRankingIsNotSent(t *testing.T) {
+func TestChatInitialEvidenceRevokedDuringTheJudgmentRankingIsNotSent(t *testing.T) {
 	var server atomic.Pointer[Server]
 	var models atomic.Int32
-	app, c, jevCalls := rerankingRunner(t, func() {
+	app, c, judgmentCalls := rerankingRunner(t, func() {
 		if err := server.Load().catalog.Revoke(catalog.Bootstrap, "alice"); err != nil {
 			t.Error(err)
 		}
@@ -364,8 +364,8 @@ func TestChatInitialEvidenceRevokedDuringTheJevRankingIsNotSent(t *testing.T) {
 		t.Fatalf("turn: %d %s", w.Code, w.Body)
 	}
 	got := waitChatRun(t, app, c.ID)
-	if jevCalls.Load() == 0 {
-		t.Fatal("the initial evidence was not ranked by Jev")
+	if judgmentCalls.Load() == 0 {
+		t.Fatal("the initial evidence was not ranked by the judge")
 	}
 	if models.Load() != 0 {
 		t.Fatalf("model received evidence ranked after revocation (run %s)", got.Runs[len(got.Runs)-1].State)
@@ -549,12 +549,12 @@ func TestChatToolCallRevokedDuringTheModelCallDoesNotRun(t *testing.T) {
 	})
 }
 
-// A session revoked while Jev ranks a passage search keeps the ranked passages
+// A session revoked while the judge ranks a passage search keeps the ranked passages
 // out of the run.
-func TestChatPassageSearchRevokedDuringTheJevRankingIsNotRecorded(t *testing.T) {
+func TestChatPassageSearchRevokedDuringTheJudgmentRankingIsNotRecorded(t *testing.T) {
 	var server atomic.Pointer[Server]
 	var armed atomic.Bool
-	app, c, jevCalls := rerankingRunner(t, func() {
+	app, c, judgmentCalls := rerankingRunner(t, func() {
 		if armed.Load() {
 			if err := server.Load().catalog.Revoke(catalog.Bootstrap, "alice"); err != nil {
 				t.Error(err)
@@ -569,8 +569,8 @@ func TestChatPassageSearchRevokedDuringTheJevRankingIsNotRecorded(t *testing.T) 
 		t.Fatalf("turn: %d %s", w.Code, w.Body)
 	}
 	got := waitChatRun(t, app, c.ID)
-	if jevCalls.Load() == 0 {
-		t.Fatal("the passage search was not ranked by Jev")
+	if judgmentCalls.Load() == 0 {
+		t.Fatal("the passage search was not ranked by the judge")
 	}
 	if recordedText(got, "CERULEAN") {
 		t.Fatal("passages ranked after revocation were recorded")
@@ -802,7 +802,7 @@ func countingModel(calls *atomic.Int32) http.HandlerFunc {
 
 // A session revoked while a turn's request is still being read never starts
 // the run: the turn checks the run's access once it has the whole request,
-// before the model or Jev sees anything.
+// before the model or the judge sees anything.
 func TestChatTurnRevokedWhileItsRequestIsReadDoesNotStart(t *testing.T) {
 	start := func(t *testing.T, app *Server, c chat.Conversation) chat.Conversation {
 		t.Helper()
@@ -824,11 +824,11 @@ func TestChatTurnRevokedWhileItsRequestIsReadDoesNotStart(t *testing.T) {
 			t.Fatalf("run started after revocation: %d runs, %d model calls", len(got.Runs), calls.Load())
 		}
 	})
-	t.Run("Jev ranking", func(t *testing.T) {
+	t.Run("judgment ranking", func(t *testing.T) {
 		var calls atomic.Int32
-		app, c, jevCalls := rerankingRunner(t, func() {}, countingModel(&calls))
-		if got := start(t, app, c); len(got.Runs) != 0 || jevCalls.Load() != 0 || calls.Load() != 0 {
-			t.Fatalf("run started after revocation: %d runs, %d Jev calls, %d model calls", len(got.Runs), jevCalls.Load(), calls.Load())
+		app, c, judgmentCalls := rerankingRunner(t, func() {}, countingModel(&calls))
+		if got := start(t, app, c); len(got.Runs) != 0 || judgmentCalls.Load() != 0 || calls.Load() != 0 {
+			t.Fatalf("run started after revocation: %d runs, %d judgment calls, %d model calls", len(got.Runs), judgmentCalls.Load(), calls.Load())
 		}
 	})
 }

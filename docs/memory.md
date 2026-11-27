@@ -156,8 +156,8 @@ Memory stays current in four ways:
   `confirm_memory` `changed` when the new one updates it, or retires the new one
   with `wrong` when it only repeats it. Embedding the file's items there also
   prepares them for later searches.
-- **Jev review.** When you have consented to Jev and the instance allows reviews,
-  `remember` asks Jev whether each observation replaces an existing item under the
+- **Judgment review.** When you have consented to judgments and the instance allows reviews,
+  `remember` asks for a judgment of whether each observation replaces an existing item under the
   same heading, and retires that item only on a confident answer. Usage is
   accounted to the personal assistant. The result's `review` is `checked`,
   `skipped` or `failed`; the item is saved either way. A failed review adds
@@ -201,7 +201,7 @@ and can remember items from the conversation. A DM is yours when it runs as you,
 because the Slack configuration maps your Slack user to your account or your
 assistant answers your DMs through your connected Slack account, or when you
 linked it. Items remembered there carry the client in their metadata line
-(`via: slack`), and recall returns it as `via`; Jev reviews them as yours, as it
+(`via: slack`), and recall returns it as `via`; judgments review them as yours, as it
 does for connected agents. Channels, shared conversations and unlinked DMs never
 see personal memory. With the Memory setting off, direct messages neither read
 nor write it. A conversation that used memory is marked as carrying personal
