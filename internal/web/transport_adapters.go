@@ -63,6 +63,12 @@ func notebookJSON[I, O any](s *Server, pattern, role string, op func(context.Con
 	s.handleProject(pattern, role, notebookJSONHandler(s, pattern, role, op))
 }
 
+// notebookJSONRoute is notebookJSON for a module's routes, which register
+// through the module's routeRegistrar.
+func notebookJSONRoute[I, O any](s *Server, r routeRegistrar, pattern, role string, op func(context.Context, *workspace.Store, I) (O, error)) {
+	r.project(pattern, role, notebookJSONHandler(s, pattern, role, op))
+}
+
 // notebookJSONHandler is notebookJSON's handler, for a route that prepares
 // the request's context first.
 func notebookJSONHandler[I, O any](s *Server, pattern, role string, op func(context.Context, *workspace.Store, I) (O, error)) http.HandlerFunc {

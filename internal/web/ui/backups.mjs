@@ -1,4 +1,4 @@
-import {poll} from './state.mjs';
+import {poll,moduleOn} from './state.mjs';
 import {notebookPath} from './request.mjs';
 import {$,busy,isBusy} from './dom.mjs';
 export function initBackups({api,post,getProject,getUser,remember}) {
@@ -7,7 +7,7 @@ export function initBackups({api,post,getProject,getUser,remember}) {
  const panel=$('managed-backup');
  const query=new URLSearchParams(location.search);
  let connecting=query.get('backup')==='connect'?query.get('project'):null;
- const permitted=()=>getProject()?.kind!=='repository'&&(getUser()?.admin||getProject()?.role==='owner');
+ const permitted=()=>moduleOn(getUser(),'managed-backups')&&getProject()?.kind!=='repository'&&(getUser()?.admin||getProject()?.role==='owner');
  function reset(){version++;timer?.stop();state=null;$('managed-backup').hidden=true;}
  function render(next){
   state=next;

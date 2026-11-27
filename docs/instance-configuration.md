@@ -70,31 +70,44 @@ modules that depend on them:
 An unknown name fails before the application opens, and so does a module left
 on while one it needs is off; that error names both modules.
 
-Three modules can be turned off so far: `judgments`, `data-connections` and
-`sources`. Each other module's wiring lands separately, and until it has,
-startup refuses an `off` list that names the module, so that no module runs
-while its operator believes it is off. An instance that turns a module off:
+Five modules can be turned off so far: `judgments`, `data-connections`,
+`sources`, `repositories` and `managed-backups`. Each other module's wiring
+lands separately, and until it has, startup refuses an `off` list that names
+the module, so that no module runs while its operator believes it is off. An
+instance that turns a module off:
 
 - offers none of its tools: they are absent from MCP and `/api/v1/actions`,
-  and its routes answer 404;
+  and its routes answer 404. That includes the endpoints that authenticate
+  their own callers: with `repositories` off, the GitHub webhook, and with
+  `managed-backups` off, the backup worker protocol. The GitHub App connection
+  flow the two share runs while either does;
 - runs none of its workers and takes none of its leases. With `sources` off,
   nothing could resume a source job, so startup retires the jobs left from
   when the module ran and removes their files at once, however young, rather
   than keep uploads for the rest of their 24 hours. A job another gateway that
   still runs the module holds is left to it;
 - reads none of its settings: with `judgments` off, `ai.decisions` and chat's
-  judgment settings are ignored, and with `data-connections` off,
-  `integrations.data`. Their credentials stay where the operator put them,
-  unread;
+  judgment settings are ignored, with `data-connections` off,
+  `integrations.data`, with `repositories` off, `integrations.repository`,
+  and with `managed-backups` off, `integrations.backups`. Their credentials
+  and worker secrets stay where the operator put them, unread;
 - keeps its data. Migrations still run, its records and files stay, account
   deletion and purge still reach them, and turning the module on again finds
   them as they were. Archived sources stay readable notes with their originals;
-  they are neither updated nor verified while `sources` is off.
+  they are neither updated nor verified while `sources` is off. Repository
+  notebooks stay listed, but their files cannot be read or refreshed while
+  `repositories` is off, and connected backups receive nothing while
+  `managed-backups` is off. Disabling a person still pauses the repository
+  sources they connected, so re-enabling them never restarts one, and their
+  offboarding report still lists their repository and backup connections.
 
 What other features ask of an off module answers that it is not available:
 chat installs no judge and search offers no judgment ranking, and a person's
 saved data watches are skipped and kept, so their assistant goes on without
-them and they cannot be changed until data connections are on again. The
+them and they cannot be changed until data connections are on again. A
+notebook authority handoff needs its repository source and, to GitHub, its
+managed backup, so it cannot start while either module is off, and a gateway
+does not start while a handoff is pending and a module it needs is off. The
 browser leaves out the module's controls, and Administration's AI settings and
 instance status say it is off.
 

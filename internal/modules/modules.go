@@ -37,12 +37,12 @@ var all = []Module{
 	{Name: "judgments", Title: "Judgments", wired: true},
 	{Name: "data-connections", Title: "Data connections", Integrations: []string{"postgres", "redshift"}, wired: true},
 	{Name: "sources", Title: "Archived sources", Integrations: []string{"ocr", "iwork", "outlook"}, wired: true},
-	{Name: "repositories", Title: "Repository notebooks"},
+	{Name: "repositories", Title: "Repository notebooks", wired: true},
 	{Name: "tasks", Title: "Task queues", Requires: []string{"automations"}},
 	{Name: "messaging", Title: "Slack messaging", Requires: []string{"automations", "tasks", "memory", "chat"}, Integrations: []string{"slack"}},
 	{Name: "personal", Title: "Personal assistants", Requires: []string{"automations", "messaging"}},
 	{Name: "memory", Title: "Agent memory"},
-	{Name: "managed-backups", Title: "Managed backups"},
+	{Name: "managed-backups", Title: "Managed backups", wired: true},
 }
 
 // All returns every module in the registry's order.
