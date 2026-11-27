@@ -44,7 +44,7 @@ func TestHistoryScanCancellationDoesNotBecomeCatalogueFailure(t *testing.T) {
 				defer cancel()
 				result := make(chan error, 1)
 				go func() { _, err := e.PendingScope(requestCtx, 32, "history"); result <- err }()
-				waiting()
+				waiting(1)
 				want := context.DeadlineExceeded
 				if !timeout {
 					want = context.Canceled

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"forgetmenote/internal/blob"
 	"forgetmenote/internal/gitexport"
@@ -104,10 +103,10 @@ func importedNotebook(t *testing.T, build func(git func(args ...string) string, 
 }
 
 // holdRevisionReads makes every read of the notes store's revisions wait, as
-// a stalled database would, until release runs or the test ends; waiting
-// returns once a read waits. It locks the table for every org, so it suits
+// a stalled database would, until release runs or the test ends; waiting is
+// pgtest.WaitingFor this hold. It locks the table for every org, so it suits
 // only tests that do not run in parallel.
-func holdRevisionReads(t testing.TB, db *pg.DB) (waiting func(), release func()) {
+func holdRevisionReads(t testing.TB, db *pg.DB) (waiting func(n int) int, release func()) {
 	t.Helper()
 	ctx := context.Background()
 	hold, err := db.Pool.Begin(ctx)
@@ -120,15 +119,7 @@ func holdRevisionReads(t testing.TB, db *pg.DB) (waiting func(), release func())
 	if _, err = hold.Exec(ctx, "LOCK TABLE revisions IN ACCESS EXCLUSIVE MODE"); err != nil {
 		t.Fatal(err)
 	}
-	waiting = func() {
-		t.Helper()
-		for deadline := time.Now().Add(10 * time.Second); pgtest.LockWaiters(t, db) == 0; time.Sleep(5 * time.Millisecond) {
-			if time.Now().After(deadline) {
-				t.Fatal("nothing read the held revisions")
-			}
-		}
-	}
-	return waiting, release
+	return pgtest.WaitingFor(t, db, pgtest.Backend(t, hold)), release
 }
 
 // vectorSetVersion is the stored version of the engine's vector set, 0 when

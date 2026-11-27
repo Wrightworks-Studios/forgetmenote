@@ -75,7 +75,7 @@ func restoreDuringWrite(t *testing.T, s *Store, entry string, write func() strin
 	ctx := context.Background()
 	db := testEnv(t, s).db
 	head := headOf(t, s)
-	release := holdReads(t, db, "live_updates")
+	waiting, release := holdReads(t, db, "live_updates")
 	type outcome struct {
 		result TrashResult
 		err    error
@@ -85,7 +85,7 @@ func restoreDuringWrite(t *testing.T, s *Store, entry string, write func() strin
 		result, err := s.RestoreTrash(ctx, entry, "", head, "owner")
 		done <- outcome{result, err}
 	}()
-	waitLockWaiters(t, db, 1)
+	waiting(1)
 	waitHeard(t, s, write())
 	release()
 	o := <-done

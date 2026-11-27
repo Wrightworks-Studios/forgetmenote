@@ -88,7 +88,7 @@ func TestAuthorityRecordsAndLiveUpdatesSeeEachOther(t *testing.T) {
 	// The record waits for the update, or, unfenced, is stored before it.
 	var err error
 	settled := false
-	for deadline := time.Now().Add(10 * time.Second); !settled && pgtest.LockWaiters(t, e.db) < 2; time.Sleep(5 * time.Millisecond) {
+	for deadline := time.Now().Add(10 * time.Second); !settled && waiting(0) < 2; time.Sleep(5 * time.Millisecond) {
 		select {
 		case err = <-stored:
 			settled = true
@@ -138,7 +138,7 @@ func TestLiveUpdateWaitingForAnAuthorityRecordReadsIt(t *testing.T) {
 	// The update waits for the record, or, unfenced, is stored before it.
 	var err error
 	settled := false
-	for deadline := time.Now().Add(10 * time.Second); !settled && pgtest.LockWaiters(t, e.db) < 2; time.Sleep(5 * time.Millisecond) {
+	for deadline := time.Now().Add(10 * time.Second); !settled && waiting(0) < 2; time.Sleep(5 * time.Millisecond) {
 		select {
 		case err = <-appended:
 			settled = true

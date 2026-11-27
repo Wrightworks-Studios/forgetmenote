@@ -125,7 +125,7 @@ func TestForgottenConversationStaysForgottenDuringAnotherGatewaysSave(t *testing
 	forgot := make(chan error, 1)
 	go func() { forgot <- forgetting.ForgetConversation("user", "chat") }()
 	// The removal either completes at once or waits for the save.
-	for deadline := time.Now().Add(10 * time.Second); len(forgot) == 0 && pgtest.LockWaiters(t, db) < 2; time.Sleep(10 * time.Millisecond) {
+	for deadline := time.Now().Add(10 * time.Second); len(forgot) == 0 && waiting(0) < 2; time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatal("the removal neither finished nor waited")
 		}

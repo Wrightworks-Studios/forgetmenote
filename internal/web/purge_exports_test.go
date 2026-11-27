@@ -130,7 +130,8 @@ func TestPurgeRefusedByTheWorkspaceLeavesExportsInProgress(t *testing.T) {
 		code, _, body := executePurgeHTTP(app, plan, "Leaked key")
 		done <- answer{code, body}
 	}()
-	for deadline := time.Now().Add(10 * time.Second); pgtest.LockWaiters(t, app.db) == 0; time.Sleep(10 * time.Millisecond) {
+	waiting := pgtest.WaitingFor(t, app.db, pgtest.ExclusiveHolder(t, app.db, purgehttp.RunKey("default")))
+	for deadline := time.Now().Add(10 * time.Second); waiting(0) == 0; time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(deadline) {
 			running()
 			t.Fatal("the purge never waited for its lock")

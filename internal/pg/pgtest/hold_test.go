@@ -33,11 +33,7 @@ func TestHoldWritesCountsOnlyTheStatementsItHolds(t *testing.T) {
 		_, err := db.Pool.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", unrelatedKey)
 		unrelated <- err
 	}()
-	for deadline := time.Now().Add(10 * time.Second); LockWaiters(t, db) == 0; time.Sleep(5 * time.Millisecond) {
-		if time.Now().After(deadline) {
-			t.Fatal("the unrelated statement never waited")
-		}
-	}
+	WaitingFor(t, db, Backend(t, other))(1)
 
 	waiting, release := HoldWrites(t, db, table)
 	// A write, held, in a transaction that first takes a lock of the row's.
@@ -78,6 +74,57 @@ func TestHoldWritesCountsOnlyTheStatementsItHolds(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := <-behind; err != nil {
+		t.Fatal(err)
+	}
+	other.Rollback(ctx)
+	if err := <-unrelated; err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A test counts the statements its own lock keeps waiting, found by the key
+// it holds with Exclusive, and not a statement waiting for another test's lock.
+func TestWaitingForCountsOnlyTheHoldersWaiters(t *testing.T) {
+	ctx := context.Background()
+	db := Org(t)
+	key := identifier("waiting_for_", db, "key")
+	other, err := db.Pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer other.Rollback(ctx)
+	if _, err := other.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", key+" other"); err != nil {
+		t.Fatal(err)
+	}
+	unrelated := make(chan error, 1)
+	go func() {
+		_, err := db.Pool.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", key+" other")
+		unrelated <- err
+	}()
+	WaitingFor(t, db, Backend(t, other))(1)
+
+	release, err := db.Exclusive(ctx, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	waiting := WaitingFor(t, db, ExclusiveHolder(t, db, key))
+	if n := waiting(0); n != 0 {
+		t.Fatalf("%d statements counted for a lock nothing waits for", n)
+	}
+	second := make(chan error, 1)
+	go func() {
+		release, err := db.Exclusive(ctx, key)
+		if err == nil {
+			release()
+		}
+		second <- err
+	}()
+	if n := waiting(1); n != 1 {
+		t.Fatalf("%d statements counted for one waiting for the key", n)
+	}
+	release()
+	if err := <-second; err != nil {
 		t.Fatal(err)
 	}
 	other.Rollback(ctx)
