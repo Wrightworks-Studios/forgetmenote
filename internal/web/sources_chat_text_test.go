@@ -31,7 +31,7 @@ func (v *chatVision) body(i int) string {
 
 // chatTextFixture is an instance whose chat connection can read images when
 // images is true, with alice a reader of the default notebook and the
-// instance AI policy turning AI writing on.
+// instance AI policy letting the chat read uploaded images.
 func chatTextFixture(t *testing.T, images bool) (*Server, *chatVision) {
 	t.Helper()
 	return chatTextInstance(t, images, true)
@@ -68,7 +68,7 @@ func chatTextInstance(t *testing.T, images, adopt bool) (*Server, *chatVision) {
 		t.Fatal(err)
 	}
 	if adopt {
-		if _, err := app.catalog.SetAISettings(catalog.Bootstrap, catalog.AISettings{Writing: true}); err != nil {
+		if _, err := app.catalog.SetAISettings(catalog.Bootstrap, catalog.AISettings{UploadReading: true}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -176,15 +176,15 @@ func TestChatSourceTextRefusalsContactNoProvider(t *testing.T) {
 	}
 	png := sourceFixture(t, "reference.png")
 
-	t.Run("AI writing is off", func(t *testing.T) {
+	t.Run("AI writing is on and the chat's reading of uploads off", func(t *testing.T) {
 		app, vision := chatTextFixture(t, true)
 		note := uploadSource(t, app, "default", "notice.png", png)
 		policy, _ := app.catalog.AISettings()
-		policy.Writing = false
+		policy.Writing, policy.UploadReading = true, false
 		if _, err := app.catalog.SetAISettings(catalog.Bootstrap, policy); err != nil {
 			t.Fatal(err)
 		}
-		waiting(t, app, vision, "default", note, "AI writing")
+		waiting(t, app, vision, "default", note, "does not let the chat read uploaded images")
 	})
 	t.Run("formats the chat cannot read", func(t *testing.T) {
 		app, vision := chatTextFixture(t, true)
@@ -239,7 +239,7 @@ func TestChatSourceTextRefusalsContactNoProvider(t *testing.T) {
 	})
 	t.Run("no adopted AI policy", func(t *testing.T) {
 		app, vision := chatTextInstance(t, true, false)
-		waiting(t, app, vision, "default", uploadSource(t, app, "default", "notice.png", png), "AI writing")
+		waiting(t, app, vision, "default", uploadSource(t, app, "default", "notice.png", png), "does not let the chat read uploaded images")
 	})
 }
 
@@ -254,5 +254,39 @@ func nobodyPaid(t *testing.T, app *Server, vision *chatVision) {
 		if records, err := ledger.Records(); err != nil || len(records) != 0 {
 			t.Fatalf("paid steps: %+v %v", records, err)
 		}
+	}
+}
+
+// The chat's reading of uploads is its own switch in the instance AI policy,
+// off until an admin turns it on, and only when a chat connection reads
+// images.
+func TestUploadReadingIsItsOwnInstanceAISwitch(t *testing.T) {
+	setting := func(app *Server, body string) *httptest.ResponseRecorder {
+		return apiCall(app, "POST", "/api/organization/action/set_ai_settings", body, testToken)
+	}
+	app, vision := chatTextInstance(t, false, false)
+	status := apiCall(app, "POST", "/api/organization/action/ai_settings", `{}`, testToken)
+	if !strings.Contains(status.Body.String(), `"uploadReading":false`) || !strings.Contains(status.Body.String(), `"images":false`) {
+		t.Fatalf("status: %s", status.Body.String())
+	}
+	if w := setting(app, `{"config":{"revision":0,"writing":true,"uploadReading":true}}`); w.Code != 400 || !strings.Contains(w.Body.String(), "reads images") {
+		t.Fatalf("turned on without a connection that reads images: %d %s", w.Code, w.Body.String())
+	}
+	// AI writing alone leaves it off.
+	if w := setting(app, `{"config":{"revision":0,"writing":true}}`); w.Code != 200 || !strings.Contains(w.Body.String(), `"uploadReading":false`) {
+		t.Fatalf("writing: %d %s", w.Code, w.Body.String())
+	}
+	nobodyPaid(t, app, vision)
+
+	app, vision = chatTextInstance(t, true, false)
+	if status := apiCall(app, "POST", "/api/organization/action/ai_settings", `{}`, testToken); !strings.Contains(status.Body.String(), `"images":true`) {
+		t.Fatalf("status: %s", status.Body.String())
+	}
+	if w := setting(app, `{"config":{"revision":0,"uploadReading":true}}`); w.Code != 200 || !strings.Contains(w.Body.String(), `"uploadReading":true`) {
+		t.Fatalf("upload reading: %d %s", w.Code, w.Body.String())
+	}
+	note := uploadSource(t, app, "default", "notice.png", sourceFixture(t, "reference.png"))
+	if out := chatText(t, notebookCall(app, "POST", "/api/sources/chat-text", `{"path":"`+note.Path+`","revision":"`+note.Revision+`"}`)); out.Note == nil || vision.calls.Load() != 1 {
+		t.Fatalf("the chat did not read the image: %+v", out)
 	}
 }

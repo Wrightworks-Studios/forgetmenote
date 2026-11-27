@@ -49,7 +49,7 @@ const agentCanAdd = " A connected agent can add its text (list_sources_awaiting_
 
 const (
 	chatTextFormat      sourceChatWaiting = "The chat reads PNG and JPEG images only." + agentCanAdd
-	chatTextPolicy      sourceChatWaiting = "The instance AI policy does not turn AI writing on (Administration → AI features), so the chat does not read uploads." + agentCanAdd
+	chatTextPolicy      sourceChatWaiting = "The instance AI policy does not let the chat read uploaded images (Administration → AI features)." + agentCanAdd
 	chatTextPaused      sourceChatWaiting = "Outgoing actions are paused on this instance, so the chat does not read uploads." + agentCanAdd
 	chatTextUnavailable sourceChatWaiting = "This instance has no chat model configured." + agentCanAdd
 	chatTextChanged     sourceChatWaiting = "The instance's chat configuration changed while the chat read this upload." + agentCanAdd
@@ -238,7 +238,7 @@ func (s *Server) sourceChatText(ctx context.Context, project string, in sourceCh
 
 // admitSourceChat runs the checks of a hosted AI call for the chat's reading
 // of an upload: the caller's session, credential and edit role, a running
-// instance, the adopted AI policy with AI writing on, a chat connection that
+// instance, the adopted AI policy letting the chat read uploads, a chat connection that
 // reads images and that the caller may use, and a private Inbox's consent.
 // With expected set, the configuration and connection must be unchanged.
 func (s *Server) admitSourceChat(ctx context.Context, scope sources.JobScope, expected *chat.Config, connectionID string) (sourceChatAdmission, error) {
@@ -259,7 +259,8 @@ func (s *Server) admitSourceChat(ctx context.Context, scope sources.JobScope, ex
 		}
 		return out, err
 	}
-	if policy, managed := s.catalog.AISettings(); !managed || !policy.Writing {
+	// Its own opt-in: AI writing does not imply it.
+	if policy, managed := s.catalog.AISettings(); !managed || !policy.UploadReading {
 		return out, chatTextPolicy
 	}
 	snapshot := s.chat.Snapshot()
@@ -272,13 +273,10 @@ func (s *Server) admitSourceChat(ctx context.Context, scope sources.JobScope, ex
 	out.config, out.ledger = snapshot.Config, snapshot.Ledger
 	// The default connection reads uploads when it can; otherwise the first
 	// configured connection that reads images.
-	candidates := slices.Clone(snapshot.Config.Connections)
-	slices.SortStableFunc(candidates, func(a, b chat.Connection) int {
-		return boolOrder(b.ID == snapshot.Config.DefaultConnection) - boolOrder(a.ID == snapshot.Config.DefaultConnection)
-	})
+	candidates := imageConnections(snapshot)
 	reason := chatTextNoImages
 	for _, candidate := range candidates {
-		if !candidate.Capabilities.Images || candidate.Format == "messages" || snapshot.Config.LocalOnly && !candidate.Local || snapshot.Providers[candidate.ID] == nil || connectionID != "" && candidate.ID != connectionID {
+		if connectionID != "" && candidate.ID != connectionID {
 			continue
 		}
 		if grant, ok := credentialFrom(ctx); ok && !slices.Contains(grant.Grant.Connections, candidate.ID) {
@@ -306,6 +304,28 @@ func (s *Server) admitSourceChat(ctx context.Context, scope sources.JobScope, ex
 	}
 	return out, nil
 }
+
+// imageConnections lists the configured chat connections that can read an
+// image, the default connection first.
+func imageConnections(snapshot chat.Configuration) []chat.Connection {
+	if snapshot.Config == nil || snapshot.Closed {
+		return nil
+	}
+	var out []chat.Connection
+	for _, candidate := range snapshot.Config.Connections {
+		if candidate.Capabilities.Images && candidate.Format != "messages" && (!snapshot.Config.LocalOnly || candidate.Local) && snapshot.Providers[candidate.ID] != nil {
+			out = append(out, candidate)
+		}
+	}
+	slices.SortStableFunc(out, func(a, b chat.Connection) int {
+		return boolOrder(b.ID == snapshot.Config.DefaultConnection) - boolOrder(a.ID == snapshot.Config.DefaultConnection)
+	})
+	return out
+}
+
+// chatReadsImages says whether the chat could read an uploaded image, which
+// Administration's switch for it requires.
+func (s *Server) chatReadsImages() bool { return len(imageConnections(s.chat.Snapshot())) > 0 }
 
 func boolOrder(b bool) int {
 	if b {

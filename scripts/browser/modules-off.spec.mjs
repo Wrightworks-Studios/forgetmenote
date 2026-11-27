@@ -49,8 +49,11 @@ test('an instance that turns modules off leaves out their entry points and says 
   expect(rows['Repository sources']).toBe('Not configured');
 
   await page.locator('#admin-dialog [data-settings-category=ai]').click();
-  // Sources have no AI features: connected agents extract what the server does not.
+  // The chat's reading of uploads, the sources module's one AI feature, says the module is off.
   await expect(page.locator('#instance-ai-sourceOCR')).toHaveCount(0);
+  await expect(page.locator('#instance-ai-uploadReading-hint')).toHaveText(
+    'The sources module is turned off on this instance.'
+  );
   await expect(page.locator('#instance-ai-rerank-hint')).toHaveText(
     'The judgments module is turned off on this instance.'
   );

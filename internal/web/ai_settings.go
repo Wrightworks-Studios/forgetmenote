@@ -43,6 +43,9 @@ func (s *Server) instanceAITools(server *mcp.Server) {
 		if (in.Config.Rerank || in.Config.MapClassification || in.Config.Citations || in.Config.Reviews) && (judge == nil || localOnly) {
 			return nil, fmt.Errorf("%w: an allowed decision provider must be configured first", catalog.ErrLocalInput)
 		}
+		if in.Config.UploadReading && !s.chatReadsImages() {
+			return nil, fmt.Errorf("%w: a chat connection that reads images must be configured first", catalog.ErrLocalInput)
+		}
 		if in.Config.Embeddings && !in.Rebuild {
 			if managed && current.Model != "" && (current.Model != in.Config.Model || current.Dimensions != in.Config.Dimensions) {
 				return nil, fmt.Errorf("%w: confirm rebuilding embeddings when changing the model or dimensions", catalog.ErrLocalInput)
@@ -118,7 +121,7 @@ func (s *Server) instanceAIStatus(ctx context.Context, actor string) (map[string
 		}
 		notebooks = append(notebooks, row)
 	}
-	return map[string]any{"config": config, "managed": managed, "providers": map[string]any{"embeddings": embeddings, "decisions": judge != nil, "localOnly": localOnly}, "notebooks": notebooks}, nil
+	return map[string]any{"config": config, "managed": managed, "providers": map[string]any{"embeddings": embeddings, "decisions": judge != nil, "localOnly": localOnly, "images": s.chatReadsImages()}, "notebooks": notebooks}, nil
 }
 
 func (s *Server) syncInstanceAI(ctx context.Context) {

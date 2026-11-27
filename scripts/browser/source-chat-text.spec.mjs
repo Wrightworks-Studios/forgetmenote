@@ -70,17 +70,28 @@ test('the chat reads an uploaded image, and the archive dialog says why it does 
   const awaiting = async () =>
     (await app.api('/p/default/api/sources/awaiting-text')).sources.map(source => source.title);
 
-  // Until the instance AI policy turns AI writing on, the upload waits for a
+  // AI writing on does not let the chat read uploads: the upload waits for a
   // connected agent and the dialog says why. Nothing reaches the provider.
+  await app.api('/api/organization/action/set_ai_settings', {config: {revision: 0, writing: true}});
   await archive('closed-notice.png');
   await expect(page.locator('#archive-chat-status')).toHaveText(
-    /^Stored without text\. The instance AI policy does not turn AI writing on/
+    /^Stored without text\. The instance AI policy does not let the chat read uploaded images/
   );
   expect(requests).toHaveLength(0);
   expect(await awaiting()).toEqual(['closed-notice.png']);
-  await page.locator('#creation-close').click();
 
-  await app.api('/api/organization/action/set_ai_settings', {config: {revision: 0, writing: true}});
+  // An admin turns on the switch of its own in Administration → AI features.
+  await page.goto(app.origin + '/?project=default&page=administration&category=ai');
+  const uploads = page.locator('#instance-ai-uploadReading');
+  await expect(uploads).toBeEnabled();
+  await expect(uploads).not.toBeChecked();
+  await expect(page.locator('#instance-ai-writing')).toBeChecked();
+  await uploads.check();
+  await page.getByRole('button', {name: 'Save AI settings', exact: true}).click();
+  await expect(page.locator('#instance-ai-status')).toHaveText('AI settings saved for all notebooks.');
+  expect((await app.api('/api/organization/action/ai_settings', {})).config.uploadReading).toBe(true);
+  await page.goto(app.origin + '/?project=default');
+  await expect(page.locator('#new-note')).toBeEnabled();
   await archive('notice.png');
   await expect(page.locator('#archive-chat-status')).toHaveText(/^The chat read this upload/);
   expect(requests).toHaveLength(1);

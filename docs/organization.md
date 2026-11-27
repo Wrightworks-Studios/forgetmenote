@@ -35,7 +35,7 @@ editing those other Notes. Occupied destinations are never replaced.
 
 ## Automatic organization
 
-Shared permission is controlled by **Administration → AI features → Allow organization, writing and profile automations, and the chat's reading of uploaded images**. Existing API-configured automatic organization policies remain independent of consistency checks and Quicknotes sorting. The browser no longer offers a per-notebook automatic settings form. See [instance AI controls](ai-features.md) for legacy migration. It starts off after upgrade. Enabling it records a
+Shared permission is controlled by **Administration → AI features → Allow organization, writing and profile automations**. Existing API-configured automatic organization policies remain independent of consistency checks and Quicknotes sorting. The browser no longer offers a per-notebook automatic settings form. See [instance AI controls](ai-features.md) for legacy migration. It starts off after upgrade. Enabling it records a
 baseline of current Notes; it does not backfill them. After subsequent committed
 changes settle for two minutes, the existing scheduler checks the changed Notes.
 The scheduler polls every 30 seconds and advances at most four actions per batch.

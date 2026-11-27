@@ -89,3 +89,20 @@ func TestConnectionGrantPreservesAdoptedAIPolicyAcrossRestart(t *testing.T) {
 		t.Fatalf("connection grant lost: %+v, %v", grant, err)
 	}
 }
+
+// A policy an earlier release stored with hosted source OCR and descriptions
+// on loads without them, and they do not turn on the chat's reading of
+// uploaded images: that needs a fresh, explicit opt-in.
+func TestEarlierHostedSourcePolicyDoesNotTurnOnUploadReading(t *testing.T) {
+	dir := t.TempDir()
+	storeCatalog(t, testDB(t, dir), `{"version":10,"data":{"users":{},"projects":{},"ai":{"revision":3,"model":"text-embedding-3-small","dimensions":1536,"writing":true,"sourceOCR":true,"sourceDescriptions":true,"sourceTranscription":true}}}`)
+	c, err := Open(dir, nil, testDB(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	got, managed := c.AISettings()
+	if !managed || got.Revision != 3 || !got.Writing || got.UploadReading {
+		t.Fatalf("policy: %+v managed=%v", got, managed)
+	}
+}
