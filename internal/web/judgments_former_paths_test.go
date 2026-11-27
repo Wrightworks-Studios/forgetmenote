@@ -82,14 +82,19 @@ func TestJudgmentsFormerJevPathsServeTheSameRoutes(t *testing.T) {
 	both("bob", "POST", "/p/default/api/judgments/jobs/"+job.ID+"/cancel", `{}`, 403)
 	both("bob", "POST", "/p/default/api/judgments/jobs/"+job.ID+"/continue", `{}`, 403)
 	both("bob", "POST", "/p/default/api/judgments/jobs/"+job.ID+"/organization/dismiss", `{}`, 403)
-	// A completed review can be cancelled, not continued, and has no
-	// organization to dismiss: each handler answers both paths alike, where an
-	// unregistered path would get the mux's "404 page not found".
-	for control, status := range map[string]int{"/cancel": 200, "/continue": 409, "/organization/dismiss": 404} {
-		path := "/p/default/api/judgments/jobs/" + job.ID + control
+	// A completed review can be cancelled; a cancelled one cannot be
+	// continued, and a review has no organization to dismiss. Each handler
+	// answers both paths alike, where an unregistered path would get the mux's
+	// "404 page not found". The order matters: continuing a review that is not
+	// cancelled starts it again.
+	for _, step := range []struct {
+		control string
+		status  int
+	}{{"/cancel", 200}, {"/continue", 409}, {"/organization/dismiss", 404}} {
+		path := "/p/default/api/judgments/jobs/" + job.ID + step.control
 		w, old := proxyCall(app, "alice", "POST", path, `{}`), proxyCall(app, "alice", "POST", former(path), `{}`)
-		if w.Code != status || old.Code != status || strings.Contains(w.Body.String()+old.Body.String(), "page not found") {
-			t.Fatalf("POST %s: %d %s; former path %d %s; want %d from the handler", path, w.Code, w.Body.String(), old.Code, old.Body.String(), status)
+		if w.Code != step.status || old.Code != step.status || strings.Contains(w.Body.String()+old.Body.String(), "page not found") {
+			t.Fatalf("POST %s: %d %s; former path %d %s; want %d from the handler", path, w.Code, w.Body.String(), old.Code, old.Body.String(), step.status)
 		}
 	}
 }
