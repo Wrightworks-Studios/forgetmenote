@@ -117,6 +117,38 @@ func listedTools(t *testing.T, session *mcp.ClientSession) map[string]bool {
 	return names
 }
 
+// guidance is what tells a connected agent which tools to use: the MCP
+// instructions the session was initialized with, each listed tool's
+// description, and every text file of both companion packages the instance
+// offers for download, keyed by where it is.
+func guidance(t *testing.T, app *Server, session *mcp.ClientSession) map[string]string {
+	t.Helper()
+	listed, err := session.ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	texts := map[string]string{"MCP instructions": session.InitializeResult().Instructions}
+	for _, tool := range listed.Tools {
+		texts["the description of "+tool.Name] = tool.Description
+	}
+	companion, err := app.companion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, client := range []string{"claude", "codex"} {
+		files, err := companion.Files(client)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for path, body := range files {
+			if !strings.HasSuffix(path, ".png") {
+				texts["the "+client+" package's "+path] = string(body)
+			}
+		}
+	}
+	return texts
+}
+
 // offWith is the smallest modules.off that turns the module off: the module
 // and every module that requires it, directly or through another, in the
 // registry's order.
@@ -297,6 +329,16 @@ var offModuleChecks = map[string]moduleChecks{
 			time.Sleep(time.Second)
 			if run, err := app.automations.Queue.Get(queued.ID); err != nil || run.State != "queued" {
 				t.Fatalf("the queued run: %+v %v", run, err)
+			}
+			// Recipe notes are notebook content: they are still found, with no
+			// check health while no check runs.
+			store, err := app.catalog.Access(catalog.Bootstrap, "default", "edit")
+			if err != nil {
+				t.Fatal(err)
+			}
+			savePurgeNote(t, store, "notes/revenue.md", "---\ntags: [recipe]\n---\n# Revenue\n\nSum the orders.\n", "")
+			if w := apiCall(app, "POST", "/api/v1/actions/find_recipes", `{"project":"default"}`, testToken); w.Code != 200 || !strings.Contains(w.Body.String(), "notes/revenue.md") || strings.Contains(w.Body.String(), "health") {
+				t.Fatalf("find_recipes: HTTP %d %s", w.Code, w.Body)
 			}
 		},
 	},
@@ -805,8 +847,19 @@ func TestAnOffModuleIsAbsentEverywhere(t *testing.T) {
 			// The MCP client serves the instance at another origin; the
 			// requests below use the instance's own.
 			origin := app.origin
-			listed := listedTools(t, actionClient(t, app, catalog.Bootstrap, moduleScopes))
+			session := actionClient(t, app, catalog.Bootstrap, moduleScopes)
+			listed := listedTools(t, session)
+			texts := guidance(t, app, session)
 			app.origin = origin
+			// Nothing that guides an agent names a tool the instance does
+			// not offer.
+			for where, text := range texts {
+				for name := range removable {
+					if regexp.MustCompile(`\b` + regexp.QuoteMeta(name) + `\b`).MatchString(text) {
+						t.Errorf("%s names %s", where, name)
+					}
+				}
+			}
 			for _, name := range actions {
 				if _, ok := app.actions[name]; ok || listed[name] {
 					t.Errorf("%s is still offered: registered=%v listed=%v", name, ok, listed[name])

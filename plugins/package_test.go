@@ -397,3 +397,39 @@ func readMap(t *testing.T, path string) map[string]any {
 	}
 	return v
 }
+
+// The workspace skill marks the paragraphs that guide agents to one module's
+// tools. For an instance that turns a module off, its paragraphs leave the MCP
+// instructions and the packaged skill, and the Claude package leaves out the
+// memory hook while memory is off. No mark reaches an agent either way.
+func TestPackagesFollowTheModulesAnInstanceRuns(t *testing.T) {
+	every := InstructionsFor(nil)
+	if every != Instructions() || strings.Contains(every, moduleMark) {
+		t.Fatal("the instructions for every module keep a module mark")
+	}
+	for module, tool := range map[string]string{"personal": "assistant_context", "memory": "recall_memory", "repositories": "search_repository_sources", "data-connections": "call_data_operation", "sources": "archive_source"} {
+		off := func(name string) bool { return name != module }
+		if !strings.Contains(every, tool) || strings.Contains(InstructionsFor(off), tool) {
+			t.Errorf("%s: the instructions name %s with every module on: %v, and with %s off: %v", module, tool, strings.Contains(every, tool), module, !strings.Contains(InstructionsFor(off), tool))
+		}
+		if !strings.Contains(InstructionsFor(off), "save_note") {
+			t.Errorf("%s: the core guidance left with the module", module)
+		}
+	}
+	in, err := New("https://notes.example.com", "Notes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.Enabled = func(name string) bool { return name != "memory" }
+	files, err := in.Files("claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := files["hooks/memory.sh"]; ok || files["hooks/hooks.json"] != nil {
+		t.Fatal("the Claude package hooks memory with memory off")
+	}
+	skill := string(files["skills/workspace/SKILL.md"])
+	if strings.Contains(skill, "recall_memory") || strings.Contains(skill, moduleMark) || !strings.HasPrefix(skill, "---\nname: forgetmenote-workspace\n") || strings.Contains(string(files["README.md"]), "memory.sh") {
+		t.Fatalf("the packaged skill with memory off:\n%s", skill)
+	}
+}
