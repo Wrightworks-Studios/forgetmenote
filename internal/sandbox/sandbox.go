@@ -150,9 +150,6 @@ func Main(args []string, stderr io.Writer) int {
 	if self, err := os.Executable(); err == nil {
 		read = append(read, rule{path: filepath.Dir(self)})
 	}
-	if data := os.Getenv("TESSDATA_PREFIX"); filepath.IsAbs(data) {
-		read = append(read, rule{path: data})
-	}
 	for _, path := range policy.Read {
 		read = append(read, rule{path: path, required: true})
 	}

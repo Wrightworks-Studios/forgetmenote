@@ -112,15 +112,9 @@ test('source import retains original and searchable text through the browser', a
   await page.goto(origin + '/?project=default');
   await clickNewNote(page);
   await page.getByRole('tab', {name: 'Import source', exact: true}).click();
-  await expect(page.locator('#archive-describe-field')).toBeHidden();
   await page
     .locator('#archive-file')
     .setInputFiles({name: 'figure.png', mimeType: 'image/png', buffer: Buffer.from('selection fixture')});
-  // This instance has no hosted source connection or adopted source consent.
-  for (const id of ['describe', 'ocr', 'transcribe']) {
-    await expect(page.locator('#archive-' + id + '-field')).toBeHidden();
-    await expect(page.locator('#archive-' + id)).not.toBeChecked();
-  }
   await expect(page.locator('#archive-formats')).toContainText('64 MiB');
   await page.screenshot({path: test.info().outputPath('source-options-desktop.png')});
   const viewport = page.viewportSize();
@@ -130,8 +124,6 @@ test('source import retains original and searchable text through the browser', a
   await page
     .locator('#archive-file')
     .setInputFiles({name: 'proof.csv', mimeType: 'text/csv', buffer: Buffer.from('name,value\nmeasurement,42\n')});
-  await expect(page.locator('#archive-describe-field')).toBeHidden();
-  await expect(page.locator('#archive-describe')).not.toBeChecked();
   const submissions = [];
   page.on('request', request => {
     if (request.method() === 'POST' && request.url().endsWith('/api/sources/jobs'))

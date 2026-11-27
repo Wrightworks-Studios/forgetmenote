@@ -25,14 +25,6 @@ func offeredSource(filename string) bool {
 	return false
 }
 
-// requireLocalOCR skips a case whose source needs local OCR.
-func requireLocalOCR(t *testing.T) {
-	t.Helper()
-	if err := integrations.Check("ocr"); err != nil {
-		t.Skip(err)
-	}
-}
-
 // requireSlack skips a case that configures a Slack app.
 func requireSlack(t *testing.T) {
 	t.Helper()

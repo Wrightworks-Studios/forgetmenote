@@ -51,8 +51,26 @@ type JobInput struct {
 	Path     string  `json:"path,omitempty"`
 	Folder   *string `json:"folder,omitempty"`
 	URL      string  `json:"url,omitempty"`
-	Options  Options `json:"options"`
+	// Retired is empty for every job this release admits. A manifest an
+	// earlier release wrote may name hosted processing there; such a job
+	// opens with the rest but never runs again.
+	Retired RetiredOptions `json:"options"`
 }
+
+// RetiredOptions are the hosted OCR, figure descriptions and transcription a
+// source job could ask for before they were removed, and the pages they
+// covered. Jobs expire within 24 hours, so a manifest naming them remains only
+// briefly after an upgrade.
+type RetiredOptions struct {
+	DescribeImages bool `json:"describeImages,omitempty"`
+	ExternalOCR    bool `json:"externalOCR,omitempty"`
+	Transcribe     bool `json:"transcribe,omitempty"`
+	FirstPage      int  `json:"firstPage,omitempty"`
+	LastPage       int  `json:"lastPage,omitempty"`
+}
+
+var errRetiredHosted = errors.New("this job asked for hosted source processing, which was removed; archive the original again, and a connected agent can add its text")
+
 type JobStatus struct {
 	ID            string    `json:"id"`
 	State         string    `json:"state"`
@@ -117,7 +135,6 @@ type Jobs struct {
 	wake      chan struct{}
 	closed    bool
 	authorize func(context.Context, JobScope) error
-	hosted    func(context.Context, JobScope, JobInput, string, func() error) (*Hosted, error)
 
 	// The janitor removes retired jobs' objects apart from the worker.
 	retired     chan struct{}
@@ -381,19 +398,17 @@ func (m *Jobs) Submit(ctx context.Context, scope JobScope, input JobInput, data 
 	if !workspace.SourceURL(input.URL) {
 		return JobStatus{}, ValidateURL(input.URL)
 	}
-	if input.Options.FirstPage < 0 || input.Options.LastPage < 0 || input.Options.FirstPage > 10000 || input.Options.LastPage > 10000 || input.Options.FirstPage > 0 && (input.Options.LastPage < input.Options.FirstPage || input.Options.LastPage-input.Options.FirstPage+1 > 8) || input.Options.FirstPage == 0 && input.Options.LastPage != 0 || (input.Options.FirstPage != 0 || input.Options.LastPage != 0) && !input.Options.external() || len(input.Path) > 512 {
-		return JobStatus{}, rejection("invalid source selection or path budget")
+	if input.Retired != (RetiredOptions{}) {
+		return JobStatus{}, rejection(errRetiredHosted.Error())
+	}
+	if len(input.Path) > 512 {
+		return JobStatus{}, rejection("source path exceeds its budget")
 	}
 	if len(data) == 0 {
 		if err := ValidateURL(input.URL); err != nil {
 			return JobStatus{}, err
 		}
 	}
-	// Only serializable user options cross the durable boundary.
-	input.Options.hosted = nil
-	input.Options.completedPages = nil
-	input.Options.pageDone = nil
-	input.Options.pageStart = nil
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed {
@@ -594,8 +609,9 @@ func (m *Jobs) Resume(ctx context.Context, scope JobScope, id string) (JobStatus
 	if m.closed {
 		return JobStatus{}, errors.New("source processing is stopping")
 	}
-	if job.ResumeBlocked {
-		return JobStatus{}, errors.New("this job attempted a paid upload; start a new explicit attempt instead of resuming")
+	// ResumeBlocked marks a job an earlier release ran a paid hosted upload for.
+	if job.ResumeBlocked || job.Input.Retired != (RetiredOptions{}) {
+		return JobStatus{}, errRetiredHosted
 	}
 	if job.State != "canceled" && job.State != "interrupted" && job.State != "failed" {
 		return JobStatus{}, errors.New("only interrupted, canceled or failed local jobs can be resumed")
@@ -878,35 +894,10 @@ func (m *Jobs) process(ctx context.Context, job sourceJob) (capture workspace.So
 	if workspace.ContentHash(raw) != job.Hash {
 		return workspace.SourceCapture{}, errors.New("source original checksum mismatch")
 	}
-	options := job.Input.Options
-	if options.external() {
-		m.mu.Lock()
-		factory := m.hosted
-		m.mu.Unlock()
-		if factory == nil {
-			return workspace.SourceCapture{}, errors.New("hosted source processing is not configured")
-		}
-		hosted, err := factory(ctx, job.Scope, job.Input, job.ID, func() error {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			if err := m.authorize(ctx, job.Scope); err != nil {
-				return err
-			}
-			m.mu.Lock()
-			defer m.mu.Unlock()
-			live, err := m.running(&job)
-			if err != nil {
-				return err
-			}
-			live.ResumeBlocked = true
-			return m.persist(live)
-		})
-		if err != nil {
-			return workspace.SourceCapture{}, err
-		}
-		options.hosted = hosted
+	if job.Input.Retired != (RetiredOptions{}) {
+		return workspace.SourceCapture{}, errRetiredHosted
 	}
+	var options Options
 	options.pageStart = func(number int) error {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -990,12 +981,4 @@ func (m *Jobs) process(ctx context.Context, job sourceJob) (capture workspace.So
 		capture.Record.FinalURL = job.FinalURL
 	}
 	return capture, nil
-}
-
-// SetHosted installs the application's policy boundary before admitting source
-// requests. The factory creates one concrete client per explicit source job.
-func (m *Jobs) SetHosted(factory func(context.Context, JobScope, JobInput, string, func() error) (*Hosted, error)) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.hosted = factory
 }
