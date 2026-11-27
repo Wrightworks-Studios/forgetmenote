@@ -185,7 +185,7 @@ func TestExportMadeBeforeAPurgeEnds(t *testing.T) {
 
 	// The export makes its bundle, then waits to record it while the purge
 	// begins, which waits for it and ends it.
-	_, release := pgtest.HoldWrites(t, app.db, "exports")
+	waiting, release := pgtest.HoldWrites(t, app.db, "exports")
 	type result struct {
 		chunk binaryChunk
 		err   error
@@ -196,9 +196,7 @@ func TestExportMadeBeforeAPurgeEnds(t *testing.T) {
 		began <- result{chunk, err}
 	}()
 	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(10 * time.Millisecond) {
-		var held int
-		app.db.Pool.QueryRow(ctx, `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE 'INSERT INTO exports%'`).Scan(&held)
-		if held == 1 {
+		if waiting(0) > 0 {
 			break
 		}
 		if time.Now().After(deadline) {

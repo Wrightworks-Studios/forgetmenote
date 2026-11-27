@@ -133,7 +133,7 @@ func TestCanceledAcquireStopsPolicySynchronization(t *testing.T) {
 	}
 	indexes := NewIndexes(db, projects, nil)
 	defer indexes.Close()
-	release := holdTableReads(t, db, "file_versions")
+	waiting, release := holdTableReads(t, db, "file_versions")
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan error, 1)
@@ -144,7 +144,7 @@ func TestCanceledAcquireStopsPolicySynchronization(t *testing.T) {
 		}
 		done <- err
 	}()
-	for deadline := time.Now().Add(3 * time.Second); pgtest.LockWaiters(t, db) == 0; time.Sleep(5 * time.Millisecond) {
+	for deadline := time.Now().Add(3 * time.Second); waiting(0) == 0; time.Sleep(5 * time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatal("policy synchronization did not read the notebook")
 		}
@@ -163,9 +163,10 @@ func TestCanceledAcquireStopsPolicySynchronization(t *testing.T) {
 }
 
 // holdTableReads makes every read of table wait, as a stalled database
-// would, until the returned function runs or the test ends. It locks the
-// table for every org, so it suits only tests that do not run in parallel.
-func holdTableReads(t *testing.T, db *pg.DB, table string) func() {
+// would, until release runs or the test ends; waiting is pgtest.WaitingFor
+// this hold. It locks the table for every org, so it suits only tests that do
+// not run in parallel.
+func holdTableReads(t *testing.T, db *pg.DB, table string) (waiting func(n int) int, release func()) {
 	t.Helper()
 	ctx := context.Background()
 	hold, err := db.Pool.Begin(ctx)
@@ -173,10 +174,10 @@ func holdTableReads(t *testing.T, db *pg.DB, table string) func() {
 		t.Fatal(err)
 	}
 	var once sync.Once
-	release := func() { once.Do(func() { hold.Rollback(ctx) }) }
+	release = func() { once.Do(func() { hold.Rollback(ctx) }) }
 	t.Cleanup(release)
 	if _, err = hold.Exec(ctx, "LOCK TABLE "+pgx.Identifier{table}.Sanitize()+" IN ACCESS EXCLUSIVE MODE"); err != nil {
 		t.Fatal(err)
 	}
-	return release
+	return pgtest.WaitingFor(t, db, pgtest.Backend(t, hold)), release
 }

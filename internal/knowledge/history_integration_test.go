@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"forgetmenote/internal/pg/pgtest"
 )
 
 func completedHistorySearch(t *testing.T, e *Engine, text string) HybridResult {
@@ -151,10 +149,10 @@ func TestHistorySubmissionRejectsModelChangedDuringHistoryRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(e.Close)
-	_, release := holdRevisionReads(t, e.db)
+	waiting, release := holdRevisionReads(t, e.db)
 	submitted := make(chan error, 1)
 	go func() { _, err := e.Submit(ctx, submission); submitted <- err }()
-	for pgtest.LockWaiters(t, e.db) == 0 {
+	for waiting(0) == 0 {
 		select {
 		case err := <-submitted:
 			t.Fatalf("submission failed before model-change boundary: %v", err)

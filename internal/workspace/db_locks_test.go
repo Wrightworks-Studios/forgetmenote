@@ -176,13 +176,13 @@ func TestDatabaseSaveRefusesALockHeardAfterItsCheck(t *testing.T) {
 	waitHeard(t, saving, doc.Revision)
 	// The saving gateway checks the rules at doc.Revision, then waits on
 	// the notebook's authority record, which every write reads next.
-	release := holdReads(t, db, "notebook_authority")
+	waiting, release := holdReads(t, db, "notebook_authority")
 	saved := make(chan error, 1)
 	go func() {
 		_, err := saving.Save(ctx, doc.Path, []byte("revised"), doc.Revision, "writer")
 		saved <- err
 	}()
-	waitLockWaiters(t, db, 1)
+	waiting(1)
 	locked := commitFixture(t, s, fixture(locksPath, "{\n  \"version\": 1,\n  \"paths\": [\n    \"notes\"\n  ]\n}\n"))
 	waitHeard(t, saving, locked)
 	release()
@@ -249,9 +249,10 @@ func waitHeard(t *testing.T, s *Store, head string) {
 }
 
 // holdReads makes every statement that reads table in db's database wait,
-// as a stalled disk would, until the returned function runs or the test
-// ends. The workspace tests run one at a time, so no other test waits.
-func holdReads(t *testing.T, db *pg.DB, table string) func() {
+// as a stalled disk would, until release runs or the test ends; waiting is
+// pgtest.WaitingFor this hold. The workspace tests run one at a time, so no
+// other test's statement reads the held table.
+func holdReads(t *testing.T, db *pg.DB, table string) (waiting func(n int) int, release func()) {
 	t.Helper()
 	ctx := context.Background()
 	hold, err := db.Pool.Begin(ctx)
@@ -259,20 +260,10 @@ func holdReads(t *testing.T, db *pg.DB, table string) func() {
 		t.Fatal(err)
 	}
 	var once sync.Once
-	release := func() { once.Do(func() { hold.Rollback(ctx) }) }
+	release = func() { once.Do(func() { hold.Rollback(ctx) }) }
 	t.Cleanup(release)
 	if _, err := hold.Exec(ctx, "LOCK TABLE "+table+" IN ACCESS EXCLUSIVE MODE"); err != nil {
 		t.Fatal(err)
 	}
-	return release
-}
-
-// waitLockWaiters waits until n statements of db's database wait for a lock.
-func waitLockWaiters(t *testing.T, db *pg.DB, n int) {
-	t.Helper()
-	for deadline := time.Now().Add(10 * time.Second); pgtest.LockWaiters(t, db) < n; time.Sleep(5 * time.Millisecond) {
-		if time.Now().After(deadline) {
-			t.Fatalf("fewer than %d statements wait for a lock", n)
-		}
-	}
+	return pgtest.WaitingFor(t, db, pgtest.Backend(t, hold)), release
 }

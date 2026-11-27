@@ -183,11 +183,9 @@ func identifier(prefix string, db *pg.DB, label string) string {
 
 // HoldWrites makes every insert and update of table's rows in db's org wait,
 // as a stalled disk would, until release runs or the test ends; reads and
-// deletes go on. waiting returns once n statements wait for this hold, held
-// writes and the statements waiting behind them. It counts only them: the
-// tests of a binary share a database, so another test's lock wait must not
-// stand in for a held write.
-func HoldWrites(t testing.TB, db *pg.DB, table string) (waiting func(n int), release func()) {
+// deletes go on. waiting is WaitingFor this hold: it counts the held writes
+// and the statements waiting behind them, and no other test's lock wait.
+func HoldWrites(t testing.TB, db *pg.DB, table string) (waiting func(n int) int, release func()) {
 	t.Helper()
 	name := identifier(fmt.Sprintf("pgtest_hold_%d_", count.Add(1)), db, table)
 	ctx := context.Background()
@@ -206,32 +204,64 @@ func HoldWrites(t testing.TB, db *pg.DB, table string) (waiting func(n int), rel
 	if _, err = hold.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", name); err != nil {
 		t.Fatal(err)
 	}
-	var holder int32
-	if err = hold.QueryRow(ctx, "SELECT pg_backend_pid()").Scan(&holder); err != nil {
-		t.Fatal(err)
-	}
+	holder := Backend(t, hold)
 	if _, err = db.Pool.Exec(ctx, "CREATE FUNCTION "+name+"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock_shared(hashtext('"+name+"')); RETURN NEW; END $$"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = db.Pool.Exec(ctx, "CREATE TRIGGER "+name+" BEFORE INSERT OR UPDATE ON "+table+" FOR EACH ROW WHEN (NEW.org = '"+db.Org+"') EXECUTE FUNCTION "+name+"()"); err != nil {
 		t.Fatal(err)
 	}
-	waiting = func(n int) {
+	return WaitingFor(t, db, holder), release
+}
+
+// Backend returns the backend process of tx, whose locks a test holds, for
+// WaitingFor.
+func Backend(t testing.TB, tx pgx.Tx) int32 {
+	t.Helper()
+	var pid int32
+	if err := tx.QueryRow(context.Background(), "SELECT pg_backend_pid()").Scan(&pid); err != nil {
+		t.Fatal(err)
+	}
+	return pid
+}
+
+// ExclusiveHolder returns the backend that holds key in db's org as
+// pg.DB.Exclusive takes it, for WaitingFor.
+func ExclusiveHolder(t testing.TB, db *pg.DB, key string) int32 {
+	t.Helper()
+	var pid int32
+	err := db.Pool.QueryRow(context.Background(), `SELECT pid FROM pg_locks
+		WHERE locktype = 'advisory' AND objsubid = 1 AND mode = 'ExclusiveLock' AND granted
+		AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+		AND (classid::bigint << 32 | objid::bigint) = hashtextextended($1 || ' ' || $2, 0)`, key, db.Org).Scan(&pid)
+	if err != nil {
+		t.Fatalf("no backend holds %q: %v", key, err)
+	}
+	return pid
+}
+
+// WaitingFor returns a function that waits until at least n statements wait
+// for the backend holder, directly or behind another statement that does, and
+// returns how many do; with n 0 it counts without waiting. It counts no other
+// lock wait: the tests of a binary share a database, and binaries may share a
+// server, so another test's waiting statement must not stand in for one this
+// test holds.
+func WaitingFor(t testing.TB, db *pg.DB, holder int32) func(n int) int {
+	return func(n int) int {
 		t.Helper()
 		for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
 			var waiters int
-			if err := db.Pool.QueryRow(ctx, heldStatements, holder).Scan(&waiters); err != nil {
+			if err := db.Pool.QueryRow(context.Background(), heldStatements, holder).Scan(&waiters); err != nil {
 				t.Fatal(err)
 			}
 			if waiters >= n {
-				return
+				return waiters
 			}
 			if time.Now().After(deadline) {
-				t.Fatalf("%d statements wait for the held writes, not %d", waiters, n)
+				t.Fatalf("%d statements wait for backend %d, not %d", waiters, holder, n)
 			}
 		}
 	}
-	return waiting, release
 }
 
 // heldStatements counts the statements that wait for the backend $1, directly
@@ -241,16 +271,6 @@ const heldStatements = `WITH RECURSIVE held(pid) AS (
 	UNION
 	SELECT waiter.pid FROM pg_stat_activity waiter, held WHERE held.pid = ANY(pg_blocking_pids(waiter.pid))
 ) SELECT count(*) FROM held`
-
-// LockWaiters counts the statements of db's database that wait for a lock.
-func LockWaiters(t testing.TB, db *pg.DB) int {
-	t.Helper()
-	var n int
-	if err := db.Pool.QueryRow(context.Background(), `SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`).Scan(&n); err != nil {
-		t.Fatal(err)
-	}
-	return n
-}
 
 func failWrites(t testing.TB, db *pg.DB, table, label, condition string) func() {
 	t.Helper()

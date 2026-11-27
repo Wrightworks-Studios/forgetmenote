@@ -44,8 +44,8 @@ func running(fn func() error) <-chan error {
 }
 
 // settledOrWaiting waits until done has fn's result, which it returns, or
-// until n statements of s's database wait for a lock.
-func settledOrWaiting(t *testing.T, s *Store, done <-chan error, n int) (err error, settled bool) {
+// until waiting counts n statements held.
+func settledOrWaiting(t *testing.T, waiting func(n int) int, done <-chan error, n int) (err error, settled bool) {
 	t.Helper()
 	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(5 * time.Millisecond) {
 		select {
@@ -53,7 +53,7 @@ func settledOrWaiting(t *testing.T, s *Store, done <-chan error, n int) (err err
 			return err, true
 		default:
 		}
-		if pgtest.LockWaiters(t, testEnv(t, s).db) >= n {
+		if waiting(0) >= n {
 			return nil, false
 		}
 	}
@@ -95,7 +95,7 @@ func TestLiveUpdateCheckedBeforeAHandoffIsRefusedByItsPreparation(t *testing.T) 
 		_, err := b.LiveApply(tab.answer(ctx), in)
 		return err
 	})
-	err, settled := settledOrWaiting(t, a, typed, 2)
+	err, settled := settledOrWaiting(t, waiting, typed, 2)
 	release()
 	if !settled {
 		err = <-typed
@@ -137,7 +137,7 @@ func TestLiveUpdateStoredWhileAHandoffIsPreparedRefusesTheHandoff(t *testing.T) 
 		_, err := a.PrepareAuthority(ctx, AuthorityRequest{ID: filingHandoff, Generation: 1, From: "forgetmenote", To: "github", Revision: head})
 		return err
 	})
-	perr, settled := settledOrWaiting(t, a, prepared, 2)
+	perr, settled := settledOrWaiting(t, waiting, prepared, 2)
 	release()
 	if !settled {
 		perr = <-prepared
