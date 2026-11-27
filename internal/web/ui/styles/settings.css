@@ -41,6 +41,11 @@ body.settings-page-open :is(#main,#sidebar,#mobile-navigation,#chat-panel,#comme
 .settings-details > summary { cursor: pointer; font-weight: 500; }
 .settings-details[open] > summary { margin-bottom: 16px; }
 #account-user, #oidc-identities { overflow-wrap: anywhere; }
+/* Your API credentials: one line per credential, and a new one's secret once. */
+#credential-list .person-row { grid-template-columns: minmax(0, 1fr) auto; overflow-wrap: anywhere; }
+#credential-form > button[type=submit] { margin-top: 16px; }
+#credential-secret-value { font-family: var(--font-mono, monospace); }
+#credential-secret-dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 #settings-dialog form, #setup-form, #password-form { display: grid; gap: 8px; }
 #project-members { border-bottom: 1px solid var(--border); margin-bottom: 20px; padding-bottom: 16px; }
 #member-list { display: grid; margin-top: 16px; }

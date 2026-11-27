@@ -990,7 +990,7 @@ async function openCaptureNote(capture) {
   } catch(error) {if(active())throw error;}
 }
 const quicknotes=initQuicknotes({api,post,getUser:appState.account,getDraftStorage:()=>browserDrafts,onCapture:()=>{judgments.refreshNotifications();},openInbox,openCaptureNote});
-const settings = initSettings({api, post, notice, remember});
+const settings = initSettings({api, post, notice, remember, getUser:appState.account, getProjects:()=>projects});
 const retrievalSettings=initRetrievalSettings({api,post,getProject:appState.notebook,getUser:appState.account,onChange:()=>{search.cancel();if(project)search.refresh($("search").value).catch(error=>notice(error.message))}});
 const documents=initDocuments({api,post,getContext,notice,openNote,currentNotebook,beginNavigation,retainForNavigation,clearDisplayedNote,updateRoute,state,updateCreationControls,layout,
  chooseNotebook:id=>chooseProject(projects.find(p=>p.id===id)),ownsNavigation:request=>request===openID,navigationSignal:()=>navigationRequests.signal(),
@@ -1018,7 +1018,7 @@ function publishSearchRoute(snapshot,push=false){
 const backups=initBackups({api,post,getProject:appState.notebook,getUser:appState.account,remember});
 const authority=initAuthority({api,post,getProject:appState.notebook,getUser:appState.account,remember});
 const administration = initAdministration({openWikiSettings:wiki.openSettings,openAuthoritySettings:authority.open,openBackupSettings:backups.open,api, post, notice, openRepositorySettings:repositories.open, openRetrievalSettings:retrievalSettings.openSettings, getUser: () => user, getProject: () => project, reloadProjects, selectProject: async id => chooseProject(projects.find(p => p.id === id))});
-appState.subscribe((next,previous)=>{if(next.account!==previous.account)administration.checkAuthority();});
+appState.subscribe((next,previous)=>{if(next.account!==previous.account){administration.checkAuthority();settings.checkAuthority();}});
 settingsPages=initSettingsPages({
  onLeave:name=>{if(name==='administration')administration.closed();},
  getContext,

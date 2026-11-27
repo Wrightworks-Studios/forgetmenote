@@ -31,6 +31,13 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
   await call('provision_work_notebook',{user:selectedPerson,id:$('work-notebook-id').value,name:$('work-notebook-name').value});
   if(!await refresh())return;feedback($('admin-status'),'Work notebook ready. No instance privileges were added.',{level:'success'});
  });
+ // Links an identity provider's issuer and subject to the selected person with
+ // bind_external_identity; the server refuses one already linked to someone else.
+ $('external-identity-form').onsubmit=act(async refresh=>{
+  const user=selectedPerson;if(!user)throw Error('Select a person first.');
+  await call('bind_external_identity',{issuer:$('external-identity-issuer').value.trim(),subject:$('external-identity-subject').value.trim(),user});
+  if(!await refresh())return;feedback($('admin-status'),'Sign-in identity linked.',{level:'success'});
+ });
  function secret(value,account){if(getUser()?.id!==account||!getUser()?.admin)return;secretAccount=account;$('organization-secret-value').value=value;$('organization-secret').hidden=false;$('organization-secret-value').focus();$('organization-secret-value').select();}
  function clearSecret(){secretAccount=undefined;$('organization-secret-value').value='';$('organization-secret').hidden=true;}
  $('organization-secret-close').onclick=clearSecret;
@@ -114,7 +121,8 @@ export function initOrganization({post,getProject,getUser,refresh:reload,openNot
  async function person(id){
   $('work-notebook-form').reset();$('work-notebook-provision').open=false;
   const selected=directory.users.find(user=>user.id===id);
-  $('work-notebook-provision').hidden=!selected||selected.disabled||selected.kind==='service'||id==='@local-admin';
+  $('work-notebook-provision').hidden=$('external-identity-bind').hidden=!selected||selected.disabled||selected.kind==='service'||id==='@local-admin';
+  $('external-identity-form').reset();$('external-identity-bind').open=false;
   selectedPerson=id;const version=++personVersion;$('user-offboarding').replaceChildren();
   const data=await call('offboarding_status',{user:id});if(version!==personVersion||selectedPerson!==id)return;
   const box=$('user-offboarding'),account=data.account;

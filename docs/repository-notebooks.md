@@ -1,6 +1,7 @@
 # Repository-connected notebooks
 
 Instance administrators can import an already-authorized Sources App repository
+in **Administration → Repositories**, shown while the repositories module runs, or
 through `POST /api/v1/actions/import_repository` (or
 `forgetmenote action import_repository --file import.json`):
 

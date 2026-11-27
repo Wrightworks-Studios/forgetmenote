@@ -3,8 +3,9 @@ import {initTheme} from './theme.mjs';
 import {openDialog} from './overlay.mjs';
 import {$,busy} from './dom.mjs';
 import {feedback} from './feedback.mjs';
+import {initCredentials} from './credentials.mjs';
 
-export function initSettings({api, post, notice, remember}) {
+export function initSettings({api, post, notice, remember, getUser, getProjects}) {
   for (const nav of document.querySelectorAll('[data-settings-categories]')) {
     const dialog=nav.closest('dialog'), buttons=[...nav.querySelectorAll('button')];
     const choose=button=>{
@@ -63,10 +64,15 @@ export function initSettings({api, post, notice, remember}) {
     $("github-attribution-enabled").checked = !!account.github?.attribution;
     $("github-email").required = !!account.github?.attribution;
   }
+  let accountActive=()=>false;
+  const credentials=initCredentials({post,getUser,getProjects,getActive:()=>accountActive});
+  const credentialsCategory=document.querySelector('#account-dialog [data-settings-category=credentials]');
+  credentialsCategory.addEventListener('click',()=>credentials.open());
   async function openAccount() {
-    const page=prepareSettingsPage($('account-dialog'));
+    const page=prepareSettingsPage($('account-dialog'));accountActive=page.active;
     try {
       const account=await api('/account');if(!page.active())return;renderAccount(account);$("account-status").textContent='';page.show();
+      if(credentialsCategory.getAttribute('aria-pressed')==='true')await credentials.open();
     } catch(e){if(page.active())notice(e.message);}
   }
   $("account-open").onclick=openAccount;
@@ -117,7 +123,7 @@ export function initSettings({api, post, notice, remember}) {
       window.location.assign('/');
     }, {controls: event.submitter, report: $("setup-status")});
   };
-  return {openAccount,
+  return {openAccount,checkAuthority:credentials.checkAuthority,
     update(user) { $("setup-open").hidden = !user.setupAvailable; },
     initialize(user) {
       $("setup-open").hidden = !user.setupAvailable;
