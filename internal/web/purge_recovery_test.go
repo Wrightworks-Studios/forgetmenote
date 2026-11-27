@@ -15,6 +15,7 @@ import (
 	"forgetmenote/internal/notestore"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/pg/pgtest"
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -57,7 +58,7 @@ func TestPurgeThatStoppedAfterItsRewriteIsListedAndFinished(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.db.BeginFlow(ctx, purgeFlowKind("default"), "plan", "admin", []byte(`{"scope":{"text":"`+secret+`"}}`), time.Hour, pg.FlowBound{Limit: 64}); err != nil {
+	if err := app.db.BeginFlow(ctx, purgehttp.FlowKind("default"), "plan", "admin", []byte(`{"scope":{"text":"`+secret+`"}}`), time.Hour, pg.FlowBound{Limit: 64}); err != nil {
 		t.Fatal(err)
 	}
 	// The purge rewrites the history, and its gateway stops before anything
@@ -70,18 +71,18 @@ func TestPurgeThatStoppedAfterItsRewriteIsListedAndFinished(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	listed := func() purgeReceipt {
+	listed := func() purgehttp.Receipt {
 		t.Helper()
 		w := call(app, "GET", "/api/purge", "", testToken)
 		var out struct {
-			Receipts []purgeReceipt `json:"receipts"`
+			Receipts []purgehttp.Receipt `json:"receipts"`
 		}
 		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil || len(out.Receipts) != 1 {
 			t.Fatalf("receipts: HTTP %d %s", w.Code, w.Body)
 		}
 		return out.Receipts[0]
 	}
-	says := func(r purgeReceipt, text string) bool {
+	says := func(r purgehttp.Receipt, text string) bool {
 		return slices.ContainsFunc(r.Warnings, func(w string) bool { return strings.Contains(w, text) })
 	}
 	unfinished := listed()
@@ -91,11 +92,11 @@ func TestPurgeThatStoppedAfterItsRewriteIsListedAndFinished(t *testing.T) {
 	}
 
 	// While a gateway holds the purge's lock, the purge is running there.
-	running, err := app.db.Exclusive(ctx, purgeRunKey("default"))
+	running, err := app.db.Exclusive(ctx, purgehttp.RunKey("default"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	app.finishStoppedPurges(ctx)
+	app.purge.FinishStopped(ctx)
 	running()
 	if r := listed(); !r.Unfinished {
 		t.Fatalf("a starting gateway finished a purge that runs elsewhere: %+v", r)
@@ -142,7 +143,7 @@ func TestPurgeThatStoppedAfterItsRewriteIsListedAndFinished(t *testing.T) {
 	// stopped keeps its own receipt.
 	finished := interrupted
 	finished.Interrupted, finished.Warnings = false, nil
-	if err := app.keepPurgeReceipt(ctx, finished); err != nil {
+	if err := app.purge.KeepReceipt(ctx, finished); err != nil {
 		t.Fatal(err)
 	}
 	if r := listed(); r.Interrupted || r.Unfinished || len(r.Warnings) > 0 {
@@ -158,11 +159,11 @@ func TestPurgeThatStoppedAfterItsRewriteIsListedAndFinished(t *testing.T) {
 func TestPurgeWhoseReceiptTheDatabaseRefusedKeepsItLater(t *testing.T) {
 	app, store := instanceFixture(t)
 	ctx := context.Background()
-	listed := func(purge string) purgeReceipt {
+	listed := func(purge string) purgehttp.Receipt {
 		t.Helper()
 		w := call(app, "GET", "/api/purge", "", testToken)
 		var out struct {
-			Receipts []purgeReceipt `json:"receipts"`
+			Receipts []purgehttp.Receipt `json:"receipts"`
 		}
 		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil {
 			t.Fatalf("receipts: HTTP %d %s", w.Code, w.Body)
@@ -173,18 +174,18 @@ func TestPurgeWhoseReceiptTheDatabaseRefusedKeepsItLater(t *testing.T) {
 			}
 		}
 		t.Fatalf("purge %s is not listed: %s", purge, w.Body)
-		return purgeReceipt{}
+		return purgehttp.Receipt{}
 	}
-	finished := func(r purgeReceipt) bool {
+	finished := func(r purgehttp.Receipt) bool {
 		return !r.Unfinished && !r.Interrupted && len(r.Warnings) == 0 && r.Derived.JevRecords == 1
 	}
 	for i, other := range []bool{false, true} {
 		secret := webPurgeSecret()
 		savePurgeNote(t, store, fmt.Sprintf("notes/keys-%d.md", i), "# Keys\n\nThe key is "+secret+".\n", "")
-		if err := app.jevState.records.Write(fmt.Sprintf("jobs/%064d.json", i), map[string]any{"version": 2, "project": "default", "message": "Checked " + secret}); err != nil {
+		if err := app.jev.Records().Write(fmt.Sprintf("jobs/%064d.json", i), map[string]any{"version": 2, "project": "default", "message": "Checked " + secret}); err != nil {
 			t.Fatal(err)
 		}
-		restore := pgtest.FailWrites(t, app.db, purgeReceiptKind)
+		restore := pgtest.FailWrites(t, app.db, purgehttp.ReceiptKind)
 		plan := preparePurgeHTTP(t, app, workspace.PurgeScope{Kind: workspace.PurgeText, Text: secret})
 		code, receipt, body := executePurgeHTTP(app, plan, "Leaked key")
 		if code != 200 || len(receipt.Warnings) != 1 || !strings.Contains(receipt.Warnings[0], "once it can") {
@@ -198,23 +199,23 @@ func TestPurgeWhoseReceiptTheDatabaseRefusedKeepsItLater(t *testing.T) {
 			// Another gateway started meanwhile and took the purge for
 			// stopped; this one keeps the receipt on its periodic sweep.
 			for _, p := range mustStoppedPurges(t, app) {
-				interrupted := recordedPurgeReceipt(p)
-				interrupted.Interrupted, interrupted.Warnings = true, stoppedPurgeWarnings(p)
-				if err := app.keepPurgeReceipt(ctx, interrupted); err != nil {
+				interrupted := purgehttp.RecordedReceipt(p)
+				interrupted.Interrupted, interrupted.Warnings = true, purgehttp.StoppedWarnings(p)
+				if err := app.purge.KeepReceipt(ctx, interrupted); err != nil {
 					t.Fatal(err)
 				}
 			}
 			app.sweepFlows()
 		} else {
-			app.finishStoppedPurges(ctx)
+			app.purge.FinishStopped(ctx)
 		}
 		if r := listed(receipt.Purge); !finished(r) {
 			t.Fatalf("the purge's receipt, kept later: %+v", r)
 		}
-		if entries, err := os.ReadDir(app.purgeReceiptSpool()); err != nil || len(entries) != 0 {
+		if entries, err := os.ReadDir(app.purge.ReceiptSpool()); err != nil || len(entries) != 0 {
 			t.Fatalf("receipts left to keep: %v %v", entries, err)
 		}
-		app.finishStoppedPurges(ctx)
+		app.purge.FinishStopped(ctx)
 		if r := listed(receipt.Purge); !finished(r) {
 			t.Fatalf("the purge's receipt after a gateway started: %+v", r)
 		}
@@ -223,7 +224,7 @@ func TestPurgeWhoseReceiptTheDatabaseRefusedKeepsItLater(t *testing.T) {
 
 func mustStoppedPurges(t *testing.T, app *Server) []notestore.RecordedPurge {
 	t.Helper()
-	stopped, err := app.stoppedPurges(context.Background(), "default")
+	stopped, err := app.purge.StoppedPurges(context.Background(), "default")
 	if err != nil || len(stopped) != 1 {
 		t.Fatalf("stopped purges: %+v %v", stopped, err)
 	}
@@ -237,20 +238,20 @@ func mustStoppedPurges(t *testing.T, app *Server) []notestore.RecordedPurge {
 func TestSpooledPurgeReceiptWaitsWhileTheStoredOneIsInterrupted(t *testing.T) {
 	app, _ := fixture(t)
 	ctx := context.Background()
-	receipt := purgeReceipt{Purge: "purge-spooled", Notebook: "default", Actor: "owner", Reason: "Leaked key", Created: time.Now().UTC().Format(time.RFC3339), Kind: "text", Exposure: purgeExposure}
+	receipt := purgehttp.Receipt{Purge: "purge-spooled", Notebook: "default", Actor: "owner", Reason: "Leaked key", Created: time.Now().UTC().Format(time.RFC3339), Kind: "text", Exposure: purgehttp.Exposure}
 	interrupted := receipt
 	interrupted.Interrupted, interrupted.Warnings = true, []string{"This purge stopped after it rewrote the notebook, before it finished."}
-	if err := app.keepPurgeReceipt(ctx, interrupted); err != nil {
+	if err := app.purge.KeepReceipt(ctx, interrupted); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.spoolPurgeReceipt(receipt); err != nil {
+	if err := app.purge.SpoolReceipt(receipt); err != nil {
 		t.Fatal(err)
 	}
-	spooled := app.spooledPurgeReceiptPath(receipt.Notebook, receipt.Purge)
-	stored := func() purgeReceipt {
+	spooled := app.purge.SpooledReceiptPath(receipt.Notebook, receipt.Purge)
+	stored := func() purgehttp.Receipt {
 		t.Helper()
-		_, raw, err := app.db.ReadDocument(ctx, app.db.Pool, purgeReceiptKind, receipt.Notebook+"/"+receipt.Purge, -1)
-		var kept purgeReceipt
+		_, raw, err := app.db.ReadDocument(ctx, app.db.Pool, purgehttp.ReceiptKind, receipt.Notebook+"/"+receipt.Purge, -1)
+		var kept purgehttp.Receipt
 		if err != nil || json.Unmarshal(raw, &kept) != nil {
 			t.Fatal(string(raw), err)
 		}
@@ -268,10 +269,10 @@ func TestSpooledPurgeReceiptWaitsWhileTheStoredOneIsInterrupted(t *testing.T) {
 		}
 	}
 	t.Cleanup(drop)
-	if _, err := app.db.Pool.Exec(ctx, "CREATE TRIGGER "+name+" BEFORE UPDATE ON documents FOR EACH ROW WHEN (NEW.org = '"+app.db.Org+"' AND NEW.kind = '"+purgeReceiptKind+"') EXECUTE FUNCTION "+name+"()"); err != nil {
+	if _, err := app.db.Pool.Exec(ctx, "CREATE TRIGGER "+name+" BEFORE UPDATE ON documents FOR EACH ROW WHEN (NEW.org = '"+app.db.Org+"' AND NEW.kind = '"+purgehttp.ReceiptKind+"') EXECUTE FUNCTION "+name+"()"); err != nil {
 		t.Fatal(err)
 	}
-	if waiting := app.keepSpooledPurgeReceipts(ctx); !waiting["default/purge-spooled"] {
+	if waiting := app.purge.KeepSpooledReceipts(ctx); !waiting["default/purge-spooled"] {
 		t.Errorf("a receipt the database did not take is not waiting: %v", waiting)
 	}
 	if _, err := os.Stat(spooled); err != nil {
@@ -282,7 +283,7 @@ func TestSpooledPurgeReceiptWaitsWhileTheStoredOneIsInterrupted(t *testing.T) {
 	}
 
 	drop()
-	if waiting := app.keepSpooledPurgeReceipts(ctx); len(waiting) != 0 {
+	if waiting := app.purge.KeepSpooledReceipts(ctx); len(waiting) != 0 {
 		t.Errorf("receipts still waiting: %v", waiting)
 	}
 	if _, err := os.Stat(spooled); !os.IsNotExist(err) {

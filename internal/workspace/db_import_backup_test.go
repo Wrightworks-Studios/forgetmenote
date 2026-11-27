@@ -318,16 +318,20 @@ func TestFailedImportRemovesItsExport(t *testing.T) {
 	defer upload.Close()
 	failed := make(chan error, 1)
 	go func() { failed <- ImportBundleDB(ctx, notes, "restored", t.TempDir(), upload) }()
+	// The import stores the bundle's commits one at a time, so the notebook
+	// exists at its first commit before it reaches the bundle's head.
+	want := bundleHead(t, bad)
 	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(10 * time.Millisecond) {
-		if _, err := notes.Notebook("restored").Head(ctx); err == nil {
+		head, err := notes.Notebook("restored").Head(ctx)
+		if err == nil && head.Commit.String() == want {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("the import stored nothing")
+			t.Fatalf("the import stored %v, not the bundle's head %s: %v", head, want, err)
 		}
 	}
-	if head, err := exporter.Sync(ctx, "restored"); err != nil || head.Commit.String() != bundleHead(t, bad) {
-		t.Fatalf("the export is at %v, the bundle at %s: %v", head, bundleHead(t, bad), err)
+	if head, err := exporter.Sync(ctx, "restored"); err != nil || head.Commit.String() != want {
+		t.Fatalf("the export is at %v, the bundle at %s: %v", head, want, err)
 	}
 	release()
 	if err := <-failed; err == nil || !strings.Contains(err.Error(), "invalid Trash entry") {

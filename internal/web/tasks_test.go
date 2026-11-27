@@ -18,6 +18,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/taskqueue"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -110,7 +111,7 @@ func TestTaskQueuesAreADropBoxThroughMCP(t *testing.T) {
 	clients := taskClients(t, app, "alice", "bob", "carol")
 	alice, bob, carol := clients[0], clients[1], clients[2]
 
-	added := decodeTask[taskView](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Review the Q4 pricing deck", "due": "2026-12-01"}, false))
+	added := decodeTask[taskqueue.View](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Review the Q4 pricing deck", "due": "2026-12-01"}, false))
 	if added.Owner.SlackUser != "UALICE" || added.Requester.SlackUser != "UBOB" || !added.Requester.You || added.Revision == "" {
 		t.Fatalf("added = %+v", added)
 	}
@@ -119,20 +120,20 @@ func TestTaskQueuesAreADropBoxThroughMCP(t *testing.T) {
 	if len(posts) != 1 || !strings.Contains(posts[0]["text"].(string), "Review the Q4 pricing deck") {
 		t.Fatalf("owner notices = %v", f.replies)
 	}
-	if buttons := postButtons(posts[0]); len(buttons) != 1 || buttons[0]["action_id"] != taskDoneAction {
+	if buttons := postButtons(posts[0]); len(buttons) != 1 || buttons[0]["action_id"] != taskqueue.DoneAction {
 		t.Fatalf("the notice offers %v", buttons)
 	}
 
-	mine := decodeTask[taskList](t, actionCall(t, alice, "list_tasks", map[string]any{}, false))
+	mine := decodeTask[taskqueue.List](t, actionCall(t, alice, "list_tasks", map[string]any{}, false))
 	if len(mine.Mine) != 1 || mine.Mine[0].ID != added.ID || len(mine.Filed) != 0 {
 		t.Fatalf("alice's queue = %+v", mine)
 	}
-	filed := decodeTask[taskList](t, actionCall(t, bob, "list_tasks", map[string]any{}, false))
+	filed := decodeTask[taskqueue.List](t, actionCall(t, bob, "list_tasks", map[string]any{}, false))
 	if len(filed.Mine) != 0 || len(filed.Filed) != 1 || filed.Filed[0].ID != added.ID {
 		t.Fatalf("bob's filed tasks = %+v", filed)
 	}
 	// Someone else sees nothing and changes nothing.
-	if other := decodeTask[taskList](t, actionCall(t, carol, "list_tasks", map[string]any{}, false)); len(other.Mine)+len(other.Filed) != 0 {
+	if other := decodeTask[taskqueue.List](t, actionCall(t, carol, "list_tasks", map[string]any{}, false)); len(other.Mine)+len(other.Filed) != 0 {
 		t.Fatalf("carol sees %+v", other)
 	}
 	actionCall(t, carol, "update_task", map[string]any{"id": added.ID, "revision": added.Revision, "outcome": "done"}, true)
@@ -142,7 +143,7 @@ func TestTaskQueuesAreADropBoxThroughMCP(t *testing.T) {
 	actionCall(t, bob, "update_task", map[string]any{"id": added.ID, "revision": added.Revision, "outcome": "done"}, true)
 	// The requester edits; an edit from a stale revision is refused.
 	text := "Review the Q4 pricing deck and the appendix"
-	edited := decodeTask[taskResult](t, actionCall(t, bob, "update_task", map[string]any{"id": added.ID, "revision": added.Revision, "text": text}, false))
+	edited := decodeTask[taskqueue.Result](t, actionCall(t, bob, "update_task", map[string]any{"id": added.ID, "revision": added.Revision, "text": text}, false))
 	if edited.Task == nil || edited.Task.Text != text || edited.Task.Revision == added.Revision {
 		t.Fatalf("edit = %+v", edited)
 	}
@@ -150,14 +151,14 @@ func TestTaskQueuesAreADropBoxThroughMCP(t *testing.T) {
 	actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": edited.Task.Revision, "outcome": "not_applicable"}, true)
 
 	// The owner closes it; the requester hears, and the task leaves the queue.
-	closed := decodeTask[taskResult](t, actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": edited.Task.Revision, "outcome": "done"}, false))
+	closed := decodeTask[taskqueue.Result](t, actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": edited.Task.Revision, "outcome": "done"}, false))
 	if closed.Closed != "done" || closed.Task != nil {
 		t.Fatalf("close = %+v", closed)
 	}
 	if posts = f.postsTo("UBOB"); len(posts) != 1 || !strings.Contains(posts[0]["text"].(string), "marked your task done") {
 		t.Fatalf("requester notices = %v", f.replies)
 	}
-	if mine = decodeTask[taskList](t, actionCall(t, alice, "list_tasks", map[string]any{}, false)); len(mine.Mine) != 0 {
+	if mine = decodeTask[taskqueue.List](t, actionCall(t, alice, "list_tasks", map[string]any{}, false)); len(mine.Mine) != 0 {
 		t.Fatalf("a closed task stayed: %+v", mine)
 	}
 	for _, client := range []string{"alice", "bob"} {
@@ -165,7 +166,7 @@ func TestTaskQueuesAreADropBoxThroughMCP(t *testing.T) {
 		if client == "bob" {
 			session = bob
 		}
-		history := decodeTask[[]taskHistoryEntry](t, actionCall(t, session, "task_history", map[string]any{"id": added.ID}, false))
+		history := decodeTask[[]taskqueue.HistoryEntry](t, actionCall(t, session, "task_history", map[string]any{"id": added.ID}, false))
 		if len(history) != 3 || !strings.HasPrefix(history[0].Change, "done by ") || !strings.HasPrefix(history[1].Change, "changed text by ") || !strings.HasPrefix(history[2].Change, "added to ") {
 			t.Fatalf("%s reads history %+v", client, history)
 		}
@@ -176,9 +177,9 @@ func TestTaskQueuesAreADropBoxThroughMCP(t *testing.T) {
 	if _, err := app.catalog.Access(catalog.Bootstrap, catalog.TaskQueuesProject, "edit"); !errors.Is(err, workspace.ErrReadOnly) {
 		t.Fatalf("an admin may edit the task queues: %v", err)
 	}
-	book, err := readTaskBook(t.Context(), store)
-	if err != nil || len(book.queues) != 1 {
-		t.Fatalf("queues = %+v %v", book.queues, err)
+	book, err := taskqueue.ReadBook(t.Context(), store)
+	if err != nil || len(book.Queues) != 1 {
+		t.Fatalf("queues = %+v %v", book.Queues, err)
 	}
 }
 
@@ -187,28 +188,28 @@ func TestRecurringTasksMoveToTheirNextDate(t *testing.T) {
 	alice := actionClient(t, f.app, "alice", "notes:read notes:write")
 	actionCall(t, alice, "add_task", map[string]any{"text": "Email the Acme client", "every": "quarterly"}, true)
 	actionCall(t, alice, "add_task", map[string]any{"text": "Email the Acme client", "due": "2026-01-31", "lead": 10}, true)
-	added := decodeTask[taskView](t, actionCall(t, alice, "add_task", map[string]any{"text": "Email the Acme client", "due": "2026-01-31", "every": "quarterly", "priority": "high", "lead": 10}, false))
+	added := decodeTask[taskqueue.View](t, actionCall(t, alice, "add_task", map[string]any{"text": "Email the Acme client", "due": "2026-01-31", "every": "quarterly", "priority": "high", "lead": 10}, false))
 	if added.Every == nil || added.Priority != "high" || added.Lead != 10 || len(added.NextDates) != 2 || added.NextDates[0] != "2026-01-31" || added.NextDates[1] != "2026-04-30" {
 		t.Fatalf("added = %+v", added)
 	}
 	if len(f.postsTo("UALICE")) != 0 {
 		t.Fatal("a task you gave yourself sent you a message")
 	}
-	done := decodeTask[taskResult](t, actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": added.Revision, "outcome": "done"}, false))
+	done := decodeTask[taskqueue.Result](t, actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": added.Revision, "outcome": "done"}, false))
 	if done.Occurrence == nil || done.Task == nil || done.Task.Due != done.Occurrence.Next || done.Occurrence.Missed == 0 || done.Closed != "" {
 		t.Fatalf("closing an occurrence = %+v", done)
 	}
 	// Stopping the series needs a reason and keeps the task.
 	actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": done.Task.Revision, "every": ""}, true)
-	shorter := decodeTask[taskResult](t, actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": done.Task.Revision, "lead": 3}, false))
+	shorter := decodeTask[taskqueue.Result](t, actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": done.Task.Revision, "lead": 3}, false))
 	if shorter.Task == nil || shorter.Task.Lead != 3 {
 		t.Fatalf("lead change = %+v", shorter)
 	}
-	stopped := decodeTask[taskResult](t, actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": shorter.Task.Revision, "every": "", "reason": "Acme signed a yearly contract"}, false))
+	stopped := decodeTask[taskqueue.Result](t, actionCall(t, alice, "update_task", map[string]any{"id": added.ID, "revision": shorter.Task.Revision, "every": "", "reason": "Acme signed a yearly contract"}, false))
 	if stopped.Task == nil || stopped.Task.Every != nil || stopped.Task.Lead != 0 {
 		t.Fatalf("stop = %+v", stopped)
 	}
-	history := decodeTask[[]taskHistoryEntry](t, actionCall(t, alice, "task_history", map[string]any{"id": added.ID}, false))
+	history := decodeTask[[]taskqueue.HistoryEntry](t, actionCall(t, alice, "task_history", map[string]any{"id": added.ID}, false))
 	if len(history) != 4 || !strings.Contains(history[1].Change, "lead time") || !strings.Contains(history[2].Change, "done for ") || !strings.Contains(history[2].Change, "next "+done.Occurrence.Next) {
 		t.Fatalf("history = %+v", history)
 	}
@@ -219,10 +220,10 @@ func (f *slackLinkFixture) memberDM(t *testing.T, user, id, text string) string 
 	t.Helper()
 	before := len(f.replies)
 	d := messaging.Address{Client: "slack", Workspace: "T123", Channel: "D" + user, Thread: id, Message: id, User: user, Direct: true}
-	if err := f.app.enqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
+	if err := f.app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
 		t.Fatal(err)
 	}
-	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); err != nil || !ran || len(f.replies) <= before {
+	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); err != nil || !ran || len(f.replies) <= before {
 		t.Fatalf("the DM %q was not answered: %v %v %v", text, ran, err, f.replies[before:])
 	}
 	for _, reply := range f.replies[before:] {
@@ -275,7 +276,7 @@ func (f *slackLinkFixture) press(t *testing.T, user, message string, button map[
 func TestSlackMembersGiveAndCloseTasksWithoutTheModel(t *testing.T) {
 	f := newTaskFixture(t)
 	for _, text := range []string{"tasks for next week are piling up", "task alice send the deck", "can you task <@UALICE> with it?"} {
-		if taskCommand(text) {
+		if taskqueue.Command(text) {
 			t.Errorf("%q was taken as a task command", text)
 		}
 	}
@@ -293,7 +294,7 @@ func TestSlackMembersGiveAndCloseTasksWithoutTheModel(t *testing.T) {
 	}
 	f.memberDM(t, "UALICE", "1.3", "tasks")
 	list := f.posts[len(f.posts)-1]
-	if buttons := postButtons(list); len(buttons) != 1 || buttons[0]["action_id"] != taskDoneAction {
+	if buttons := postButtons(list); len(buttons) != 1 || buttons[0]["action_id"] != taskqueue.DoneAction {
 		t.Fatalf("alice's list offers %v", buttons)
 	}
 
@@ -331,16 +332,16 @@ func TestAddTaskGivesEachPersonTheirOwnCopy(t *testing.T) {
 	actionCall(t, bob, "add_task", map[string]any{"people": []string{"<@UALICE>", "nobody"}, "text": "Count the stock"}, true)
 	actionCall(t, bob, "add_task", map[string]any{"person": "carol", "people": []string{"<@UALICE>"}, "text": "Count the stock"}, true)
 	crowd := []string{}
-	for range taskPeopleLimit + 1 {
+	for range taskqueue.PeopleLimit + 1 {
 		crowd = append(crowd, "carol")
 	}
 	actionCall(t, bob, "add_task", map[string]any{"people": crowd, "text": "Count the stock"}, true)
-	if mine := decodeTask[taskList](t, actionCall(t, alice, "list_tasks", map[string]any{}, false)); len(mine.Mine) != 0 {
+	if mine := decodeTask[taskqueue.List](t, actionCall(t, alice, "list_tasks", map[string]any{}, false)); len(mine.Mine) != 0 {
 		t.Fatalf("a refused request filed %+v", mine.Mine)
 	}
 
 	// Each person named once gets their own copy, in the order named.
-	added := decodeTask[taskAdded](t, actionCall(t, bob, "add_task", map[string]any{"people": []string{"<@UALICE>", "carol", "UALICE"}, "text": "Count the stock", "due": "2026-12-01"}, false))
+	added := decodeTask[taskqueue.Added](t, actionCall(t, bob, "add_task", map[string]any{"people": []string{"<@UALICE>", "carol", "UALICE"}, "text": "Count the stock", "due": "2026-12-01"}, false))
 	if len(added.Tasks) != 2 || added.ID != added.Tasks[0].ID || added.Tasks[0].ID == added.Tasks[1].ID {
 		t.Fatalf("added = %+v", added)
 	}
@@ -352,16 +353,16 @@ func TestAddTaskGivesEachPersonTheirOwnCopy(t *testing.T) {
 	}
 
 	// Each owner sees and closes only their own; the requester follows both.
-	first := decodeTask[taskList](t, actionCall(t, alice, "list_tasks", map[string]any{}, false))
-	second := decodeTask[taskList](t, actionCall(t, carol, "list_tasks", map[string]any{}, false))
+	first := decodeTask[taskqueue.List](t, actionCall(t, alice, "list_tasks", map[string]any{}, false))
+	second := decodeTask[taskqueue.List](t, actionCall(t, carol, "list_tasks", map[string]any{}, false))
 	if len(first.Mine) != 1 || first.Mine[0].ID != added.Tasks[0].ID || len(second.Mine) != 1 || second.Mine[0].ID != added.Tasks[1].ID {
 		t.Fatalf("alice has %+v, carol has %+v", first.Mine, second.Mine)
 	}
 	actionCall(t, alice, "update_task", map[string]any{"id": first.Mine[0].ID, "revision": first.Mine[0].Revision, "outcome": "done"}, false)
-	if filed := decodeTask[taskList](t, actionCall(t, bob, "list_tasks", map[string]any{}, false)); len(filed.Filed) != 1 || filed.Filed[0].ID != added.Tasks[1].ID {
+	if filed := decodeTask[taskqueue.List](t, actionCall(t, bob, "list_tasks", map[string]any{}, false)); len(filed.Filed) != 1 || filed.Filed[0].ID != added.Tasks[1].ID {
 		t.Fatalf("after alice closed hers, bob follows %+v", filed.Filed)
 	}
-	history := decodeTask[[]taskHistoryEntry](t, actionCall(t, carol, "task_history", map[string]any{"id": added.Tasks[1].ID}, false))
+	history := decodeTask[[]taskqueue.HistoryEntry](t, actionCall(t, carol, "task_history", map[string]any{"id": added.Tasks[1].ID}, false))
 	if len(history) != 1 || !strings.HasPrefix(history[0].Change, "added to "+added.Tasks[1].Owner.ID+" by ") {
 		t.Fatalf("carol's copy has history %+v", history)
 	}
@@ -375,7 +376,7 @@ func TestSlackMembersGiveOneTaskToSeveralPeople(t *testing.T) {
 		"task <@UALICE> and review the deck":                                 {"<@UALICE>", "and review the deck", ""},
 		"task me meet the vendor":                                            {"me", "meet the vendor", ""},
 	} {
-		people, task, due, ok := taskAddParts(text)
+		people, task, due, ok := taskqueue.AddParts(text)
 		if got := append(people, task, due); !ok || !slices.Equal(got, want) {
 			t.Errorf("%q reads as %q", text, got)
 		}

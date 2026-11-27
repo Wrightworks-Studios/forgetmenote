@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"forgetmenote/internal/pg/pgtest"
 	"forgetmenote/internal/workspace"
+	"strings"
 	"testing"
 )
 
@@ -84,5 +85,18 @@ func TestDefinitionsRefuseDamagedState(t *testing.T) {
 	}
 	if _, err := OpenDefinitions(db); err == nil {
 		t.Fatal("opened definitions without jobs")
+	}
+}
+
+// The repository-refresh native task is removed: a configured job could never
+// pass its owner check, and repository notebooks refresh on their own. A job
+// that still names it is refused with a message saying so.
+func TestRemovedRepositoryRefreshTaskIsRefusedByName(t *testing.T) {
+	spec := Spec{ID: "refresh", Kind: "native", Actor: "robot", Project: "default", Native: &NativeTask{Task: "repository-refresh"}}
+	if err := spec.Validate(); err == nil || !strings.Contains(err.Error(), "repository notebooks refresh on their own") {
+		t.Fatal("removed task:", err)
+	}
+	if err := (Config{Version: 1, Jobs: []Spec{spec}}).Validate(); err == nil || !strings.Contains(err.Error(), "repository notebooks refresh on their own") {
+		t.Fatal("configured job naming the removed task:", err)
 	}
 }

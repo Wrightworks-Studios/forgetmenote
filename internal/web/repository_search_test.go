@@ -38,13 +38,13 @@ func TestSourceRetrievalRejectsUnknownCorpus(t *testing.T) {
 
 func TestSourceSearchChatScopeCannotExpand(t *testing.T) {
 	app, _ := fixture(t)
-	scope := &chatRunScope{Project: "default", Run: chat.Run{Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude", SourceProjects: []string{"allowed"}}}}}
-	ctx := context.WithValue(context.Background(), chatScopeKey{}, scope)
-	if err := app.checkSourceChatScope(ctx, "default"); !errors.Is(err, errOutsideChatCorpus) {
+	scope := &chat.RunScope{Project: "default", Run: chat.Run{Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude", SourceProjects: []string{"allowed"}}}}}
+	ctx := chat.WithScope(context.Background(), scope)
+	if err := app.checkSourceChatScope(ctx, "default"); !errors.Is(err, chat.ErrOutsideCorpus) {
 		t.Fatalf("current notebook was not selected for source: %v", err)
 	}
 	raw := json.RawMessage(`{"projects":["outside"],"query":"password"}`)
-	if _, err := scopeChatActionArguments(ctx, "search_repository_sources", raw); !errors.Is(err, errOutsideChatCorpus) {
+	if _, err := scopeChatActionArguments(ctx, "search_repository_sources", raw); !errors.Is(err, chat.ErrOutsideCorpus) {
 		t.Fatalf("model widened run source scope: %v", err)
 	}
 }
@@ -52,7 +52,7 @@ func TestSourceSearchChatScopeCannotExpand(t *testing.T) {
 func TestChatRepositoryActionsBindOnlySelectedNotebooks(t *testing.T) {
 	app, _ := fixture(t)
 	corpus := &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude", SourceProjects: []string{"allowed"}}
-	ctx := context.WithValue(t.Context(), chatScopeKey{}, &chatRunScope{Project: "default", Run: chat.Run{Options: chat.Options{Corpus: corpus}}})
+	ctx := chat.WithScope(t.Context(), &chat.RunScope{Project: "default", Run: chat.Run{Options: chat.Options{Corpus: corpus}}})
 	for _, name := range []string{"repository_source_status", "repository_source_tree", "repository_source_map", "repository_source_file", "search_repository_sources"} {
 		t.Run(name, func(t *testing.T) {
 			args := map[string]any{"project": "allowed"}
@@ -76,7 +76,7 @@ func TestChatRepositoryActionsBindOnlySelectedNotebooks(t *testing.T) {
 				args["project"] = "outside"
 			}
 			raw, _ = json.Marshal(args)
-			if _, err = scopeChatActionArguments(ctx, name, raw); !errors.Is(err, errOutsideChatCorpus) {
+			if _, err = scopeChatActionArguments(ctx, name, raw); !errors.Is(err, chat.ErrOutsideCorpus) {
 				t.Fatalf("model widened source scope: %v", err)
 			}
 		})

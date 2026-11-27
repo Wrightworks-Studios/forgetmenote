@@ -7,6 +7,7 @@ import (
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,7 +33,7 @@ func TestMessagingRecoversNewArtifactReceiptFromCommittedConversation(t *testing
 	}
 	resultRaw, _ := json.Marshal(fresh)
 	artifactRaw, _ := json.Marshal(a)
-	owner, binding := messageConversation(app.slack.policy(), b, d, "alice")
+	owner, binding := messaginghttp.MessageConversation(app.slack.policy(), b, d, "alice")
 	c, err := app.chat.Store.OpenBound(owner, "default", binding, chat.Options{Mode: "ask", Connection: "local", Model: "synthetic"})
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +46,7 @@ func TestMessagingRecoversNewArtifactReceiptFromCommittedConversation(t *testing
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.runAutomation(t.Context(), &r, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &r, func() error { return nil }); err != nil {
 		t.Fatal("committed export did not recover", err)
 	}
 	if len(transport.replies) != 1 || len(transport.replies[0].Artifacts) != 1 || transport.replies[0].Artifacts[0].Receipt != "fresh" {
@@ -116,10 +117,10 @@ func TestMessagingExportsSourceResultsAndReusesThemOnFollowup(t *testing.T) {
 	var first automation.Run
 	for i, prompt := range []string{"Export the query as CSV.", "Now export the same result as a workbook."} {
 		event := messaging.Event{ID: prompt, Text: prompt, Address: messaging.Address{Client: "fixture", Workspace: "team", Channel: "dm", User: "user", Direct: true}}
-		if err := app.enqueueMessage(t.Context(), event); err != nil {
+		if err := app.messaging.EnqueueMessage(t.Context(), event); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+		if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 			t.Fatal(err)
 		}
 		if len(transport.replies) != i+1 || len(transport.replies[i].Artifacts) != 1 {
@@ -144,12 +145,12 @@ func TestMessagingExportsSourceResultsAndReusesThemOnFollowup(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, raw := range []string{`{"receipt":"forged","format":"csv"}`, `{"receipt":"` + receipt + `","format":"csv","rows":[[999]]}`} {
-		if _, err := app.messageArtifact(ctx, &first, json.RawMessage(raw)); err == nil {
+		if _, err := app.messaging.MessageArtifact(ctx, &first, json.RawMessage(raw)); err == nil {
 			t.Fatal("accepted fabricated export", raw)
 		}
 	}
 	first.ChatResults[0].Receipt.Complete = false
-	if _, err := app.messageArtifact(ctx, &first, json.RawMessage(`{"receipt":"`+receipt+`","format":"csv"}`)); err == nil {
+	if _, err := app.messaging.MessageArtifact(ctx, &first, json.RawMessage(`{"receipt":"`+receipt+`","format":"csv"}`)); err == nil {
 		t.Fatal("exported incomplete result")
 	}
 	first.ChatResults[0].Receipt.Complete = true
@@ -161,7 +162,7 @@ func TestMessagingExportsSourceResultsAndReusesThemOnFollowup(t *testing.T) {
 	if _, err := app.catalog.SetConnectionAccess(catalog.Bootstrap, grant); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.messageArtifact(ctx, &first, json.RawMessage(`{"receipt":"`+receipt+`","format":"csv"}`)); err == nil {
+	if _, err := app.messaging.MessageArtifact(ctx, &first, json.RawMessage(`{"receipt":"`+receipt+`","format":"csv"}`)); err == nil {
 		t.Fatal("export survived source permission revocation")
 	}
 }
@@ -186,7 +187,7 @@ func TestMessageAssistantOffersResultBoundArtifacts(t *testing.T) {
 	defer upstream.Close()
 	app.slack.endpoint = upstream.URL + "/chat.postEphemeral"
 	run := automation.Run{ID: automation.Hash("artifact-tools"), Spec: automation.Spec{ID: "artifact-tools", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", Instruction: "Make a chart from the result", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "D123", SlackUser: "U123", Direct: true}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if !found {

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/taskqueue"
 )
 
 // channelMessage sends a message from a member in a channel thread and
@@ -14,10 +15,10 @@ func (f *slackLinkFixture) channelMessage(t *testing.T, user, channel, thread, i
 	t.Helper()
 	before := len(f.replies)
 	d := messaging.Address{Client: "slack", Workspace: "T123", Channel: channel, Thread: thread, Message: id, User: user}
-	if err := f.app.enqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
+	if err := f.app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
 		t.Fatal(err)
 	}
-	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.runAutomation); err != nil || !ran {
+	if ran, err := f.app.automations.Queue.RunNext(t.Context(), f.app.automationrun.RunAutomation); err != nil || !ran {
 		t.Fatalf("the message %q did not run: %v %v", text, ran, err)
 	}
 	for _, reply := range f.replies[before:] {
@@ -124,7 +125,7 @@ func TestSlashTaskFormAndMessageShortcutLinkAConversation(t *testing.T) {
 	// The message shortcut opens the form with the message linked and its
 	// text, made readable, as the task.
 	shortcut := func(channel string) map[string]any {
-		return map[string]any{"type": "message_action", "callback_id": taskShortcut, "trigger_id": "trigger-shortcut", "team": map[string]any{"id": "T123"},
+		return map[string]any{"type": "message_action", "callback_id": taskqueue.Shortcut, "trigger_id": "trigger-shortcut", "team": map[string]any{"id": "T123"},
 			"user": map[string]any{"id": "UBOB", "team_id": "T123"}, "channel": map[string]any{"id": channel}, "response_url": f.upstream + "/actions/T123/2/hook",
 			"message": map[string]any{"ts": "1700000000.000400", "text": "Can <@UDAN> update <https://example.com/doc|the doc> &amp; tell <#C1|design>?\nThanks"}}
 	}
@@ -132,7 +133,7 @@ func TestSlashTaskFormAndMessageShortcutLinkAConversation(t *testing.T) {
 		t.Fatalf("the shortcut: HTTP %d %q, views %d", w.Code, w.Body, len(f.views))
 	}
 	view := f.views[1]["view"].(map[string]any)
-	if f.views[1]["trigger_id"] != "trigger-shortcut" || view["callback_id"] != taskAddView {
+	if f.views[1]["trigger_id"] != "trigger-shortcut" || view["callback_id"] != taskqueue.AddView {
 		t.Fatalf("the shortcut opened %v", f.views[1])
 	}
 	if _, text := formElement(t, view, "text"); text["initial_value"] != "Can @Dan Ortiz update the doc & tell #design? Thanks" {

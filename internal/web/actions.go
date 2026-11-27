@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"forgetmenote/internal/actions"
 	"reflect"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 
+	"forgetmenote/internal/actions"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/workspace"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -134,7 +136,7 @@ func addAction[I, O any](s *Server, server *mcp.Server, tool *mcp.Tool, fn func(
 	original := fn
 	readOnly := tool.Annotations != nil && tool.Annotations.ReadOnlyHint
 	if readOnly {
-		original = withPurgedRevisions(s, original)
+		original = purgehttp.WithPurgedRevisions(s.toolStore, original)
 	}
 	required := clientActionScope(tool)
 	if len(scope) > 0 {
@@ -243,9 +245,9 @@ func (s *Server) dispatchAction(ctx context.Context, project, name string, args 
 // dispatchActionOutcome is for private receipt recording. Its callers must check
 // current authorization again before disclosing the result or continuing work.
 func (s *Server) dispatchActionOutcome(ctx context.Context, project, name string, args json.RawMessage) (out json.RawMessage, callErr error) {
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		if _, known := s.actions[name]; known {
-			defer func() { chatToolDiagnostic(scope.Run.ID, name, callErr) }()
+			defer func() { chatrun.ToolDiagnostic(scope.Run.ID, name, callErr) }()
 		}
 	}
 	if _, err := s.catalog.Access(subject(ctx), project, "read"); err != nil {

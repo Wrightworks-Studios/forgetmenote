@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"forgetmenote/internal/chat"
 	"log/slog"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 func TestChatFailureHasStructuralDiagnosticsWithoutPrivateContent(t *testing.T) {
@@ -123,7 +125,7 @@ func TestChatPanicPersistsOnePrivateSafeTerminal(t *testing.T) {
 		t.Fatal(err)
 	}
 	func() {
-		defer app.recoverChatRun(runAuth{User: "alice", Project: "default"}, c.ID, run.ID)
+		defer app.chatrun.RecoverRun(chat.RunAuth{User: "alice", Project: "default"}, c.ID, run.ID)
 		panic("PRIVATE_SYNTHETIC_PANIC_NOTE_SECRET")
 	}()
 	response := proxyCall(app, "alice", "GET", "/p/default/api/chat/"+c.ID, "")
@@ -167,7 +169,7 @@ func TestChatFinalAnswerRejectsUnexpectedToolsAndResumeDoesNotExecuteThem(t *tes
 	done := waitChatRun(t, app, c.ID)
 	app.chat.Wait()
 	run := done.Runs[0]
-	if run.State != "failed" || len(run.Operations) != 0 || len(pendingToolCalls(run.Messages)) != 0 || run.Usage.Requests != 1 || run.Usage.InputTokens != 123 {
+	if run.State != "failed" || len(run.Operations) != 0 || len(chatrun.PendingToolCalls(run.Messages)) != 0 || run.Usage.Requests != 1 || run.Usage.InputTokens != 123 {
 		t.Fatalf("unexpected final calls executed or lost authoritative accounting: state=%s operations=%d usage=%+v", run.State, len(run.Operations), run.Usage)
 	}
 	response = proxyCall(app, "alice", "POST", endpoint+"/runs/"+run.ID+"/resume", `{}`)
@@ -199,8 +201,8 @@ func assertChatFailureOutcome(t *testing.T, failure error, state, category strin
 	if err := app.chat.Store.Update("alice", "default", c.ID, func(saved *chat.Conversation) error { saved.Runs = append(saved.Runs, run); return nil }); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
-	app.failChatRun(t.Context(), auth, c.ID, run.ID, failure, chatContextFit{})
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	app.chatrun.FailRun(t.Context(), auth, c.ID, run.ID, failure, chatrun.ContextFit{})
 	response := proxyCall(app, "alice", "GET", "/p/default/api/chat/"+c.ID, "")
 	var public chat.Conversation
 	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &public) != nil || len(public.Runs) != 1 {
@@ -238,16 +240,16 @@ func assertChatFailureOutcome(t *testing.T, failure error, state, category strin
 
 func TestTypedChatFailuresKeepOutcomeWhenProseChanges(t *testing.T) {
 	for _, row := range []struct {
-		reason          chatFailureReason
+		reason          chatrun.FailureReason
 		state, category string
 	}{
-		{chatContextLimit, "failed", "context_limit"},
-		{chatRoundBudget, "interrupted", "round_budget"}, {chatToolBudget, "interrupted", "tool_budget"},
-		{chatResearchBudget, "interrupted", "research_budget"}, {chatAccessRevoked, "failed", "access_revoked"},
+		{chatrun.ContextLimit, "failed", "context_limit"},
+		{chatrun.RoundBudget, "interrupted", "round_budget"}, {chatrun.ToolBudget, "interrupted", "tool_budget"},
+		{chatrun.ResearchBudget, "interrupted", "research_budget"}, {chatrun.AccessRevoked, "failed", "access_revoked"},
 	} {
 		for _, message := range []string{"The saved allowance is exhausted.", "PRIVATE_SYNTHETIC alternate wording."} {
 			t.Run(string(row.reason)+"/"+message, func(t *testing.T) {
-				assertChatFailureOutcome(t, fmt.Errorf("operation: %w", chatFailureError(row.reason, message)), row.state, row.category)
+				assertChatFailureOutcome(t, fmt.Errorf("operation: %w", chatrun.FailureError(row.reason, message)), row.state, row.category)
 			})
 		}
 	}

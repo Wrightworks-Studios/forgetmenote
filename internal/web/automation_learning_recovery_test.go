@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/pg/pgtest"
 	"net/http"
 	"strings"
@@ -44,7 +45,7 @@ func TestLearningConsolidatesRelatedVariantsAcrossBatches(t *testing.T) {
 			}
 			capture("select 7 as count", "Count matching examples")
 			readyLearningQueue(t, app)
-			if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {
+			if ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || !ran {
 				t.Fatal(ran, err)
 			}
 			runs, _ := app.automations.Queue.List()
@@ -61,7 +62,7 @@ func TestLearningConsolidatesRelatedVariantsAcrossBatches(t *testing.T) {
 				if run.State != "queued" {
 					continue
 				}
-				if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+				if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 					t.Fatal(err)
 				}
 				want := 0
@@ -122,7 +123,7 @@ func TestLearningRestartDoesNotOverwriteConcurrentEdit(t *testing.T) {
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
 	ran, err := app.automations.Queue.RunNext(ctx, func(ctx context.Context, run *automation.Run, save func() error) error {
-		return app.runAutomation(ctx, run, func() error {
+		return app.automationrun.RunAutomation(ctx, run, func() error {
 			if err := save(); err != nil {
 				return err
 			}
@@ -154,7 +155,7 @@ func TestLearningRestartDoesNotOverwriteConcurrentEdit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = app.automations.Queue.RunNext(context.Background(), app.runAutomation); err != nil {
+	if _, err = app.automations.Queue.RunNext(context.Background(), app.automationrun.RunAutomation); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := store.Read(context.Background(), target, "")
@@ -172,7 +173,7 @@ func TestLearningUpdatePreservesPriorTemplates(t *testing.T) {
 	app, _ := learningFixture(t, func(w http.ResponseWriter, r *http.Request) { modelCalls++; learningAnswer(w, r) })
 	captureLearningExamples(t, app, "count")
 	readyLearningQueue(t, app)
-	if _, err := app.automations.Queue.RunNext(context.Background(), app.runAutomation); err != nil {
+	if _, err := app.automations.Queue.RunNext(context.Background(), app.automationrun.RunAutomation); err != nil {
 		t.Fatal(err)
 	}
 	store, _ := app.catalog.Access("alice", "default", "read")
@@ -186,21 +187,21 @@ func TestLearningUpdatePreservesPriorTemplates(t *testing.T) {
 		// The same route Jev supplies when a new pattern fits an existing recipe.
 		run.Learning.Decisions = map[string]string{}
 		for _, e := range run.Learning.Events {
-			run.Learning.Decisions[learningGroup(e)] = notes[0].Path
+			run.Learning.Decisions[automationrun.LearningGroup(e)] = notes[0].Path
 		}
-		return app.runAutomation(ctx, run, save)
+		return app.automationrun.RunAutomation(ctx, run, save)
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	after, err := store.Read(context.Background(), notes[0].Path, "")
-	if err != nil || len(profileLearningRecord(after.Content).Shapes) != 2 || strings.Count(string(after.Content), "{{/arguments/sql}}") != 2 || modelCalls != 2 {
+	if err != nil || len(automationrun.ProfileLearningRecord(after.Content).Shapes) != 2 || strings.Count(string(after.Content), "{{/arguments/sql}}") != 2 || modelCalls != 2 {
 		t.Fatalf("old validated template disappeared after update: %s (%v, calls=%d)", after.Content, err, modelCalls)
 	}
 	// Routine successful use of the now-known pattern must not buy another turn.
 	captureLearningExamples(t, app, "total")
 	readyLearningQueue(t, app)
-	if _, err = app.automations.Queue.RunNext(context.Background(), app.runAutomation); err != nil || modelCalls != 2 {
+	if _, err = app.automations.Queue.RunNext(context.Background(), app.automationrun.RunAutomation); err != nil || modelCalls != 2 {
 		t.Fatal("unchanged pattern was reanalyzed", err, modelCalls)
 	}
 }
@@ -212,7 +213,7 @@ func TestLearningPublicationCheckpointReplaysWithoutAnotherCommit(t *testing.T) 
 	readyLearningQueue(t, app)
 	var checkpoint []byte
 	_, err := app.automations.Queue.RunNext(context.Background(), func(ctx context.Context, run *automation.Run, save func() error) error {
-		return app.runAutomation(ctx, run, func() error {
+		return app.automationrun.RunAutomation(ctx, run, func() error {
 			if run.Publication != nil {
 				checkpoint, _ = json.Marshal(run)
 			}
@@ -228,7 +229,7 @@ func TestLearningPublicationCheckpointReplaysWithoutAnotherCommit(t *testing.T) 
 	if err = json.Unmarshal(checkpoint, &restored); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(context.Background(), &restored, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &restored, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := store.Status(context.Background())
@@ -246,7 +247,7 @@ func TestLearningDoesNotReanalyzeAnAlreadyHandledFailure(t *testing.T) {
 	}
 	captureLearningExamples(t, app, "count")
 	readyLearningQueue(t, app)
-	if _, err := app.automations.Queue.RunNext(context.Background(), app.runAutomation); err != nil || modelCalls != 1 {
+	if _, err := app.automations.Queue.RunNext(context.Background(), app.automationrun.RunAutomation); err != nil || modelCalls != 1 {
 		t.Fatal(err, modelCalls)
 	}
 	// Keep the completed batch, including its failed call, in retained evidence.
@@ -254,7 +255,7 @@ func TestLearningDoesNotReanalyzeAnAlreadyHandledFailure(t *testing.T) {
 	runs, _ := app.automations.Queue.List()
 	for _, run := range runs {
 		if run.State == "queued" {
-			if err := app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil {
+			if err := app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 				t.Fatal(err)
 			}
 		}

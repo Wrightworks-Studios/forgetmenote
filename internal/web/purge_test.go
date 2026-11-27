@@ -11,6 +11,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/purgehttp"
 	"forgetmenote/internal/workspace"
 )
 
@@ -42,7 +43,7 @@ type webPurgePlan struct {
 	ExportForcePush    bool                        `json:"exportForcePush"`
 	Blocked            string                      `json:"blocked"`
 	Confirmation       string                      `json:"confirmation"`
-	Derived            purgeDerived                `json:"derived"`
+	Derived            purgehttp.Derived           `json:"derived"`
 	NotebookUnchanged  bool                        `json:"notebookUnchanged"`
 	RecordsUnsearched  bool                        `json:"recordsUnsearched"`
 	Exposure           string                      `json:"exposure"`
@@ -62,10 +63,10 @@ func preparePurgeHTTP(t *testing.T, app *Server, scope workspace.PurgeScope) web
 	return plan
 }
 
-func executePurgeHTTP(app *Server, plan webPurgePlan, reason string) (int, purgeReceipt, string) {
+func executePurgeHTTP(app *Server, plan webPurgePlan, reason string) (int, purgehttp.Receipt, string) {
 	body, _ := json.Marshal(map[string]any{"scope": plan.Scope, "revision": plan.Revision, "confirmation": plan.Confirmation, "reason": reason})
 	w := call(app, "POST", "/api/purge/execute", string(body), testToken)
-	var receipt purgeReceipt
+	var receipt purgehttp.Receipt
 	json.Unmarshal(w.Body.Bytes(), &receipt)
 	return w.Code, receipt, w.Body.String()
 }
@@ -187,7 +188,7 @@ func TestPurgeRoutesNeedAnOwner(t *testing.T) {
 	}
 	body, _ := json.Marshal(map[string]any{"scope": plan.Scope, "revision": plan.Revision, "confirmation": plan.Confirmation, "reason": "Leaked key"})
 	w = proxyCall(app, "keeper", "POST", "/p/default/api/purge/execute", string(body))
-	var receipt purgeReceipt
+	var receipt purgehttp.Receipt
 	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &receipt) != nil || receipt.Actor != "keeper" {
 		t.Fatalf("an owner executes: HTTP %d %s", w.Code, w.Body)
 	}
@@ -278,7 +279,7 @@ func TestPurgePlanCountsOnlyRecordsQuotingWhatTheNotebookHolds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jevState.records.Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "The PIN is 7391"}); err != nil {
+	if err := app.jev.Records().Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "The PIN is 7391"}); err != nil {
 		t.Fatal(err)
 	}
 	prepare := func(scope workspace.PurgeScope) webPurgePlan {
@@ -294,11 +295,11 @@ func TestPurgePlanCountsOnlyRecordsQuotingWhatTheNotebookHolds(t *testing.T) {
 	session := purgeAgents(t, app, "notes:read notes:write notes:manage", "keeper")[0]
 	for _, guess := range []workspace.PurgeScope{{Kind: workspace.PurgeText, Text: "bank PIN is 7391"}, {Kind: workspace.PurgeText, Pattern: `PIN is 7[0-4]`}} {
 		plan := prepare(guess)
-		if !plan.NotebookUnchanged || !plan.RecordsUnsearched || plan.Derived != (purgeDerived{}) {
+		if !plan.NotebookUnchanged || !plan.RecordsUnsearched || plan.Derived != (purgehttp.Derived{}) {
 			t.Errorf("an Owner's plan for %+v reports records outside the notebook: %+v", guess, plan.Derived)
 		}
 		raw := actionCall(t, session, "prepare_purge", map[string]any{"project": "default", "kind": "text", "text": guess.Text, "pattern": guess.Pattern}, false)
-		var out preparePurgeOutput
+		var out purgehttp.AgentPlan
 		if err := json.Unmarshal(raw, &out); err != nil || out.Plan.Derived != nil {
 			t.Errorf("an agent's plan for %+v reports records outside the notebook: %s", guess, raw)
 		}
@@ -307,7 +308,7 @@ func TestPurgePlanCountsOnlyRecordsQuotingWhatTheNotebookHolds(t *testing.T) {
 	// tok-2222, which the notebook never held. The chat is reader's, so the
 	// Owner is told only that other people's records are redacted too.
 	plan := prepare(workspace.PurgeScope{Kind: workspace.PurgeText, Pattern: `tok-\d{4}`})
-	if plan.NotebookUnchanged || plan.RecordsUnsearched || plan.Derived != (purgeDerived{Own: true, Others: purgeOthersRedacted}) {
+	if plan.NotebookUnchanged || plan.RecordsUnsearched || plan.Derived != (purgehttp.Derived{Own: true, Others: purgehttp.OthersRedacted}) {
 		t.Fatalf("a pattern the notebook holds: %+v", plan)
 	}
 	body, _ := json.Marshal(map[string]any{"scope": plan.Scope, "revision": plan.Revision, "confirmation": plan.Confirmation, "reason": "Leaked tokens"})
@@ -427,40 +428,6 @@ func TestPurgeReasonRefusalSaysAWordOnlyTheErasedNoteHoldsIsWhy(t *testing.T) {
 	}
 	if code, _, body := executePurgeHTTP(app, plan, "Cleanup after the audit"); code != 200 {
 		t.Fatalf("execute: HTTP %d %s", code, body)
-	}
-}
-
-// Records outside the notebook are redacted in their values only: keys and
-// the strings that identify or date a record stay, so a pattern such as a
-// four-digit number leaves the record readable.
-func TestPurgeCleanerRedactsContentValuesOnly(t *testing.T) {
-	redactor, err := workspace.NewPurgeRedactor(workspace.PurgeScope{Kind: workspace.PurgeText, Pattern: `\d{4}`})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cleaner := &purgeCleaner{text: &redactor}
-	raw := []byte(`{"id":"c-2024","createdAt":"2026-11-22T10:00:00Z","title":"PIN 7391","notes":{"k-1234":"v 5678"}}`)
-	out, changed, err := cleaner.document(raw)
-	want := `{"createdAt":"2026-11-22T10:00:00Z","id":"c-2024","notes":{"k-1234":"v [purged]"},"title":"PIN [purged]"}`
-	if err != nil || !changed || string(out) != want {
-		t.Fatalf("redacted: %s %v %v", out, changed, err)
-	}
-}
-
-// A revision a purge rewrote is mapped wherever a record holds it, also under
-// the keys that identify a record, which are never redacted.
-func TestPurgeCleanerMapsRevisionsUnderEveryKey(t *testing.T) {
-	old, now := strings.Repeat("a", 40), strings.Repeat("b", 40)
-	redactor, err := workspace.NewPurgeRedactor(workspace.PurgeScope{Kind: workspace.PurgeText, Text: "secret"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cleaner := &purgeCleaner{text: &redactor, remap: func(revision string) (string, bool) { return now, revision == old }}
-	raw := []byte(`{"id":"` + old + `","run":"secret ` + old + `","revision":"` + old + `","citations":[{"kind":"notebook","id":"` + old + `"}]}`)
-	out, changed, err := cleaner.document(raw)
-	want := `{"citations":[{"id":"` + now + `","kind":"notebook"}],"id":"` + now + `","revision":"` + now + `","run":"secret ` + now + `"}`
-	if err != nil || !changed || string(out) != want {
-		t.Fatalf("remapped: %s %v %v", out, changed, err)
 	}
 }
 

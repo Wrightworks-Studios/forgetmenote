@@ -32,6 +32,13 @@ func TestScriptMoondreamCorrectsJSONOnceAndRetainsUsage(t *testing.T) {
 				app, e := scriptFixture(t, "def main(host): return {}", []string{"ai.structured", "ai.images"}, nil, nil)
 				var calls atomic.Int32
 				upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					// Count only this connection's inference calls. Another
+					// process can reach a loopback port, such as a browser
+					// test harness whose app's port this server was given.
+					if r.Method != http.MethodPost || r.URL.Path != "/ai/run/"+model.name || r.Header.Get("Authorization") != "Bearer synthetic-token" {
+						http.NotFound(w, r)
+						return
+					}
 					n := calls.Add(1)
 					answer := scenario.first
 					if n == 2 {
@@ -60,7 +67,7 @@ func TestScriptMoondreamCorrectsJSONOnceAndRetainsUsage(t *testing.T) {
 				}
 				e.run.Spec.AIConnection = "local"
 				var contractErr error
-				e.run.Script.Contract, contractErr = app.scriptContract(e.run.Spec)
+				e.run.Script.Contract, contractErr = app.automationrun.ScriptContract(e.run.Spec)
 				if contractErr != nil {
 					t.Fatal(contractErr)
 				}

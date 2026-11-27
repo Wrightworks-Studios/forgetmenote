@@ -9,6 +9,7 @@ import (
 
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 // An approved chat move that a locked note outside the chat's corpus links
@@ -51,13 +52,13 @@ func TestChatMoveRefusalNamesNoNoteOutsideTheCorpus(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: run.Epoch}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: run.Epoch}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)
 	}
 	args, _ := json.Marshal(map[string]any{"project": "default", "from": "F", "to": "G", "revision": status.Revision})
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "move", Name: "move_notes", Arguments: args}, app.chat.Config.Connections[0]); err != errChatConfirmation {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "move", Name: "move_notes", Arguments: args}, app.chat.Config.Connections[0]); err != chatrun.ErrConfirmation {
 		t.Fatalf("prepare: %v", err)
 	}
 	prepared, err := app.chat.Store.Read("alice", "default", c.ID)

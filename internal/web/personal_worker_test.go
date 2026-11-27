@@ -19,7 +19,9 @@ import (
 
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
+	"forgetmenote/internal/personal"
 )
 
 func connectPersonalFixture(t *testing.T, app *Server, user string, google func(*http.Request) string) {
@@ -34,6 +36,22 @@ func connectPersonalProviderFixture(t *testing.T, app *Server, user, provider st
 // connectPersonalProviderHandler is connectPersonalProviderFixture for a
 // provider fake that also chooses its response status.
 func connectPersonalProviderHandler(t *testing.T, app *Server, user, provider string, handler http.HandlerFunc) {
+	t.Helper()
+	personalProviderFixture(t, app, provider, handler)
+	account, _ := app.catalog.Account(user)
+	target, err := app.personalConnections.Begin(account.ID, provider, "browser", "http://localhost/callback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, _ := url.Parse(target)
+	if _, err = app.personalConnections.Finish(t.Context(), account.ID, provider, "browser", parsed.Query().Get("state"), "synthetic-code", func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// personalProviderFixture opens personal connections to a provider whose OAuth
+// and API requests handler serves.
+func personalProviderFixture(t *testing.T, app *Server, provider string, handler http.HandlerFunc) {
 	t.Helper()
 	googleServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -73,15 +91,6 @@ func connectPersonalProviderHandler(t *testing.T, app *Server, user, provider st
 	}
 	app.personalConnections, err = connectors.OpenPersonalConnections(app.db, config)
 	if err != nil {
-		t.Fatal(err)
-	}
-	account, _ := app.catalog.Account(user)
-	target, err := app.personalConnections.Begin(account.ID, provider, "browser", "http://localhost/callback")
-	if err != nil {
-		t.Fatal(err)
-	}
-	parsed, _ := url.Parse(target)
-	if _, err = app.personalConnections.Finish(t.Context(), account.ID, provider, "browser", parsed.Query().Get("state"), "synthetic-code", func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -170,10 +179,10 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := automation.Run{ID: automation.Hash("personal-one"), Spec: spec, Created: time.Now()}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	_, state, err := app.readPersonalState(spec)
+	_, state, err := app.personal.ReadState(spec)
 	if err != nil || len(state.Drafts) != 1 {
 		t.Fatalf("drafts=%d error=%v", len(state.Drafts), err)
 	}
@@ -189,7 +198,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 	}
 	opened.Store(true)
 	run.ID = automation.Hash("personal-two")
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if model.Load() != 1 || jev.Load() != 1 || writes.Load() != 0 {
@@ -227,7 +236,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 		t.Fatal("restart repeated mailbox write", writes.Load())
 	}
 	run.Spec = spec
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if model.Load() != 1 || jev.Load() != 1 || writes.Load() != 1 {
@@ -237,7 +246,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 	if _, err = app.catalog.SaveAssistant("alice", settings); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(t.Context(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err == nil {
 		t.Fatal("paused assistant continued")
 	}
 }
@@ -294,11 +303,11 @@ func TestPersonalAssistantCanUseMoreThanTenAuthorizedNotebooks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err = app.automationSourceContext(ctx, &automation.Run{Spec: spec})
+	ctx, err = app.automationrun.SourceContext(ctx, &automation.Run{Spec: spec})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(chatScopeFrom(ctx).Run.Options.Corpus.NoteProjects) != 12 {
+	if len(chat.RunScopeFrom(ctx).Run.Options.Corpus.NoteProjects) != 12 {
 		t.Fatal("authorized notebooks omitted")
 	}
 }
@@ -311,7 +320,7 @@ func TestPersonalUIChatCanReadItsDelegatedAccount(t *testing.T) {
 			t.Error(err)
 		}
 		n := calls.Add(1)
-		if n <= 3 && len(personalArray(body["tools"])) > 0 && body["tool_choice"] != "none" {
+		if n <= 3 && len(personal.Array(body["tools"])) > 0 && body["tool_choice"] != "none" {
 			tools, _ := json.Marshal(body["tools"])
 			if !strings.Contains(string(tools), "read_personal_source") || strings.Contains(string(tools), "submit_personal_action") {
 				t.Error("chat must offer personal reads without external submissions")
@@ -364,12 +373,6 @@ func TestPersonalUIChatCanReadItsDelegatedAccount(t *testing.T) {
 		t.Fatalf("personal chat %s: %s (%d calls)", run.State, run.Error, calls.Load())
 	}
 }
-func TestPersonalQuietHours(t *testing.T) {
-	now := time.Date(2026, 10, 9, 5, 0, 0, 0, time.UTC)
-	if !personalQuiet(now, "America/Denver", "22:00", "07:00") || personalQuiet(now, "America/Denver", "08:00", "17:00") {
-		t.Fatal("overnight or timezone quiet hours incorrect")
-	}
-}
 
 func TestPersonalMemoryUsesOnlyDirectInteractionsAndPreservesEdits(t *testing.T) {
 	calls := 0
@@ -394,10 +397,10 @@ func TestPersonalMemoryUsesOnlyDirectInteractionsAndPreservesEdits(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.seedAssistant(ctx, settings); err != nil {
+	if err = app.personal.Seed(ctx, settings); err != nil {
 		t.Fatal(err)
 	}
-	in := personalInteraction{ID: "direct-one", UserText: "Please keep replies brief", Response: "Understood", Source: "private-chat"}
+	in := personal.Interaction{ID: "direct-one", UserText: "Please keep replies brief", Response: "Understood", Source: "private-chat"}
 	if err = app.recordPersonalInteraction(ctx, "bob", in); err == nil {
 		t.Fatal("another user could be selected")
 	}
@@ -405,7 +408,7 @@ func TestPersonalMemoryUsesOnlyDirectInteractionsAndPreservesEdits(t *testing.T)
 		t.Fatal(err)
 	}
 	r := automation.Run{ID: automation.Hash("memory"), Spec: spec}
-	if err = app.maintainPersonalMemory(ctx, &r); err != nil {
+	if err = app.personal.MaintainMemory(ctx, &r); err != nil {
 		t.Fatal(err)
 	}
 	store, _ := app.catalog.Access("alice", settings.Project, "read")
@@ -416,7 +419,7 @@ func TestPersonalMemoryUsesOnlyDirectInteractionsAndPreservesEdits(t *testing.T)
 	if err = app.recordPersonalInteraction(ctx, "alice", in); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.maintainPersonalMemory(ctx, &r); err != nil || calls != 1 {
+	if err = app.personal.MaintainMemory(ctx, &r); err != nil || calls != 1 {
 		t.Fatalf("duplicate interaction repurchased: %d %v", calls, err)
 	}
 }

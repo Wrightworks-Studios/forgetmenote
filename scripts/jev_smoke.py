@@ -8,7 +8,6 @@ import json
 import os
 from pathlib import Path
 import secrets
-import socket
 import subprocess
 import tempfile
 import time
@@ -16,7 +15,8 @@ import urllib.error
 import urllib.parse
 import uuid
 
-from chat_smoke import Browser, run, wait_ready
+from chat_smoke import Browser, run
+from smoke_app import app_port, container_token, wait_app
 from smoke_database import Database
 from smoke_export import wait_exported
 
@@ -88,9 +88,7 @@ def main():
     name = 'forgetmenote-jev-smoke-' + uuid.uuid4().hex[:10]
     provider, restored, network = name + '-provider', name + '-restored', name + '-network'
     volume, restored_volume = name + '-data', name + '-restored-data'
-    with socket.socket() as sock:
-        sock.bind(('127.0.0.1', 0))
-        port = sock.getsockname()[1]
+    port = app_port()
     origin = f'http://localhost:{port}'
     with tempfile.TemporaryDirectory(prefix='forgetmenote-jev-fixture-') as temporary:
         fixture = Path(temporary)
@@ -127,7 +125,7 @@ def main():
                     '-e', 'SSL_CERT_FILE=/run/fixture/tls.crt',
                     '-v', data + ':/data', '-v', str(fixture) + ':/run/fixture:ro', image)
                 assert run('docker', 'inspect', container, '--format', '{{.Image}}') == image
-                wait_ready(origin)
+                wait_app(origin, container_token(container))
 
             db.migrate(image)
             start(name, volume)

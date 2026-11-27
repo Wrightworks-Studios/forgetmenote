@@ -35,7 +35,7 @@ func TestChatRunReportsScopeFailure(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	app.executeChat(ctx, cancel, runAuth{User: "alice", Project: "default", Epoch: run.Epoch}, c.ID, run.ID, connection)
+	app.chatrun.ExecuteChat(ctx, cancel, chat.RunAuth{User: "alice", Project: "default", Epoch: run.Epoch}, c.ID, run.ID, connection)
 	done, err := app.chat.Store.Read("alice", "default", c.ID)
 	if err != nil {
 		t.Fatal(err)

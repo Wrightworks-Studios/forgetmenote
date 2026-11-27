@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"slices"
 
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/search"
@@ -22,14 +24,14 @@ func (s *Server) retrieveScoped(ctx context.Context, in retrievalRequest) (scope
 		repositories = s.repositories
 	}
 	var frozen *search.Frozen
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		frozen = &search.Frozen{Project: scope.Project, Corpus: scope.Run.Options.Corpus, Bind: func(query knowledge.RetrievalQuery) (knowledge.RetrievalQuery, error) {
-			return bindChatRetrieval(scope.Run, query)
+			return chatrun.BindRetrieval(scope.Run, query)
 		}}
 	}
 	out, err := s.corpusSearch.Retrieve(ctx, in, repositories, frozen)
 	if errors.Is(err, search.ErrOutsideCorpus) {
-		err = errOutsideChatCorpus
+		err = chat.ErrOutsideCorpus
 	}
 	return out, err
 }
@@ -154,16 +156,16 @@ func (s *Server) sourceEmbedder(ctx context.Context, c reposource.IndexConfig, t
 	return result, nil
 }
 func (s *Server) checkSourceChatScope(ctx context.Context, project string) error {
-	if scope := chatScopeFrom(ctx); scope != nil {
+	if scope := chat.RunScopeFrom(ctx); scope != nil {
 		if scope.Run.Options.Corpus == nil {
-			return errOutsideChatCorpus
+			return chat.ErrOutsideCorpus
 		}
 		for _, p := range scope.Run.Options.Corpus.SourceProjects {
 			if p == project {
 				return nil
 			}
 		}
-		return errOutsideChatCorpus
+		return chat.ErrOutsideCorpus
 	}
 	return nil
 }

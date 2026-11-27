@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
@@ -175,7 +176,7 @@ type repositoryImport struct {
 
 func (s *Server) importRepository(ctx context.Context, in repositoryImport) (reposource.State, error) {
 	actor := subject(ctx)
-	if !clientGlobal(ctx) || !s.catalog.IsAdmin(actor) || !in.ShareWithNotebook {
+	if !auth.Global(ctx) || !s.catalog.IsAdmin(actor) || !in.ShareWithNotebook {
 		return reposource.State{}, workspace.ErrForbidden
 	}
 	repositories, err := s.repos()

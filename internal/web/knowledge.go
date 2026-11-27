@@ -3,10 +3,11 @@ package web
 import (
 	"context"
 	"errors"
+	"os"
+
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
-	"os"
 )
 
 func (s *Server) acquireEngine(ctx context.Context, store *workspace.Store) (*knowledge.Engine, func(), error) {
@@ -161,13 +162,7 @@ func (s *Server) decideProposal(ctx context.Context, store *workspace.Store, act
 	})
 }
 
-type completionInput struct {
-	Consumer string `json:"consumer"`
-	Previous string `json:"previous"`
-	Revision string `json:"revision"`
-	Summary  string `json:"summary"`
-	Reset    bool   `json:"reset"`
-}
+type completionInput = knowledge.CompletionInput
 
 // Local-only is an operator-wide privacy boundary. A separately configured
 // endpoint remains mounted/configured but is paused until declared local.

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/githubapp"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/reposource"
@@ -46,7 +47,7 @@ func (s *Server) connectionAuthority(ctx context.Context, p githubSetup) error {
 		return workspace.ErrForbidden
 	}
 	if p.Creating {
-		if !clientGlobal(ctx) || !s.catalog.CanCreateProjects(p.Subject) {
+		if !auth.Global(ctx) || !s.catalog.CanCreateProjects(p.Subject) {
 			return workspace.ErrForbidden
 		}
 		return nil

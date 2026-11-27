@@ -176,7 +176,7 @@ func TestCompleteReviewAKnownMutationLostAfterRevocation(t *testing.T) {
 		return result, nil
 	}
 	app.actions["add_comment"] = action
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)
@@ -185,7 +185,7 @@ func TestCompleteReviewAKnownMutationLostAfterRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = app.executeChatTool(ctx, auth, c.ID, runID, call, connection)
+	err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, runID, call, connection)
 	if err == nil {
 		t.Fatal("fixture expected post-call revocation to stop model execution")
 	}
@@ -239,7 +239,7 @@ func TestCompleteReviewAKnownMutationLostAfterRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.executeChatTool(ctx, auth, c.ID, runID, call, connection); err != nil {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, runID, call, connection); err != nil {
 		t.Fatal(err)
 	}
 	after, err := store.Status(t.Context())

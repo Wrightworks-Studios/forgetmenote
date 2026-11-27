@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -76,7 +78,7 @@ func runStatus(r automation.Run) automationRunStatus {
 	if b := r.Learning; b != nil {
 		patterns := map[string]bool{}
 		for _, e := range b.Events {
-			patterns[learningGroup(e)] = true
+			patterns[automationrun.LearningGroup(e)] = true
 		}
 		learning := &learningRunStatus{State: r.State, Observations: len(b.Events), Patterns: len(patterns), Deferred: b.Deferred, Published: b.Published, ReadyAt: b.ReadyAt.Format(time.RFC3339), Expires: b.Expires.Format(time.RFC3339)}
 		if r.State == "completed" {
@@ -96,7 +98,7 @@ func runStatus(r automation.Run) automationRunStatus {
 			}
 		}
 		if b.Summary != "" {
-			learning.Summary = textLimit(strings.TrimSpace(b.Summary), 1400)
+			learning.Summary = chatrun.TextLimit(strings.TrimSpace(b.Summary), 1400)
 		}
 		status.Learning = learning
 	}
@@ -154,7 +156,7 @@ func (s *Server) automationTools(server *mcp.Server) {
 			if in.Spec.Script.Environment == "" {
 				return automation.Definition{}, errors.New("prepare or install this package before saving its definition")
 			}
-			if _, _, err := s.scriptPackage(ctx, in.Spec, true); err != nil {
+			if _, _, err := s.automationrun.ScriptPackage(ctx, in.Spec, true); err != nil {
 				return automation.Definition{}, err
 			}
 		}
@@ -261,7 +263,7 @@ func (s *Server) automationTools(server *mcp.Server) {
 		projectArg
 		Query string `json:"query,omitempty"`
 	}) ([]recipeEntry, error) {
-		ctx, err := s.documentChatScope(ctx, in.Project, "notes", "", "", "")
+		ctx, err := s.chatrun.DocumentScope(ctx, in.Project, "notes", "", "", "")
 		if err != nil {
 			return nil, err
 		}
@@ -300,16 +302,13 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 	if spec.Output != "" || spec.Repair != nil && spec.Recipe != "" || spec.Kind == "recipe" || spec.Kind == "learning" || spec.Kind == "drive-sync" || spec.Native != nil && spec.Native.Task == "profile-compaction" {
 		role = "edit"
 	}
-	if spec.Native != nil && spec.Native.Task == "repository-refresh" {
-		role = "owner"
-	}
 	if spec.Native != nil && spec.Native.Task == "email-pairing" {
 		if _, _, err := s.emailPairing(spec); err != nil {
 			return err
 		}
 	}
 	if spec.Native != nil && spec.Native.Task == "task-reminder" {
-		if _, err := s.taskReminder(spec); err != nil {
+		if _, err := s.tasks.Reminder(spec); err != nil {
 			return err
 		}
 	}
@@ -322,7 +321,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 		}
 	}
 	if spec.Script != nil {
-		_, files, err := s.scriptPackage(ctx, spec, false)
+		_, files, err := s.automationrun.ScriptPackage(ctx, spec, false)
 		if err != nil {
 			return err
 		}
@@ -384,7 +383,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 		}
 	}
 	if spec.UsesAI() {
-		if _, _, _, err := s.automationProvider(spec); err != nil {
+		if _, _, _, err := s.automationrun.Provider(spec); err != nil {
 			return err
 		}
 	}
@@ -395,7 +394,7 @@ func (s *Server) validateAutomationDefinition(ctx context.Context, spec automati
 	}
 
 	if spec.NotifyChannel != "" {
-		policy, _, enabled := s.messageClient("slack")
+		policy, _, enabled := s.messaging.MessageClient("slack")
 		if !enabled {
 			return errors.New("Slack is not configured")
 		}

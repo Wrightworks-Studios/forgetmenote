@@ -533,6 +533,23 @@ func CredentialFrom(ctx context.Context) (CredentialContext, bool) {
 	return grant, ok
 }
 
+// Global reports whether the invocation may reach every notebook its account
+// can: it carries no credential, or one granted all notebooks.
+func Global(ctx context.Context) bool {
+	g, ok := CredentialFrom(ctx)
+	return !ok || g.Grant.AllProjects
+}
+
+type apiKey struct{}
+
+// WithAPI marks an action API invocation or an automation run, which the
+// client checks then apply to and the account's own browser pages refuse.
+// The mark can only be set, never cleared.
+func WithAPI(ctx context.Context) context.Context { return context.WithValue(ctx, apiKey{}, true) }
+
+// API reports whether WithAPI marked the invocation.
+func API(ctx context.Context) bool { api, _ := ctx.Value(apiKey{}).(bool); return api }
+
 // CheckCredential looks up the credential in ctx, if any, and refuses one that
 // is no longer current. Disclosures call it even when admission resolved it.
 func (o *State) CheckCredential(ctx context.Context, projects *catalog.Catalog) error {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/chat"
 	"forgetmenote/internal/decision"
 )
@@ -80,7 +81,7 @@ func TestLearningSuppliesExactOperationArgumentSchema(t *testing.T) {
 	}
 	runs, _ := app.automations.Queue.List()
 	run := runs[0]
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if len(run.Learning.Published) != 1 {
@@ -120,9 +121,9 @@ func TestLearningUsesConfiguredPromptBudget(t *testing.T) {
 			run := runs[0]
 			run.Learning.Decisions = map[string]string{}
 			for _, event := range run.Learning.Events {
-				run.Learning.Decisions[learningGroup(event)] = doc.Path
+				run.Learning.Decisions[automationrun.LearningGroup(event)] = doc.Path
 			}
-			err = app.runAutomation(t.Context(), &run, func() error { return nil })
+			err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil })
 			after, readErr := store.Read(t.Context(), doc.Path, "")
 			if readErr != nil {
 				t.Fatal(readErr)
@@ -133,7 +134,7 @@ func TestLearningUsesConfiguredPromptBudget(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || calls != 1 || len(run.Learning.Published) != 1 || len(profileLearningRecord(after.Content).Shapes) != 1 {
+			if err != nil || calls != 1 || len(run.Learning.Published) != 1 || len(automationrun.ProfileLearningRecord(after.Content).Shapes) != 1 {
 				t.Fatal("larger evidence fitting the configured budget was not replay-checked and published", calls, err, run.Learning.Summary)
 			}
 		})
@@ -194,7 +195,7 @@ func testLearningConsolidation(t *testing.T, repeats int) {
 		t.Fatal(runs, err)
 	}
 	run := runs[0]
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	store, _ := app.catalog.Access("alice", "default", "read")
@@ -209,7 +210,7 @@ func testLearningConsolidation(t *testing.T, repeats int) {
 		t.Fatal("missing concise publication result", runStatus(run).Learning)
 	}
 	doc, err := store.Read(t.Context(), notes[0].Path, "")
-	if err != nil || len(profileLearningRecord(doc.Content).Shapes) != 2 {
+	if err != nil || len(automationrun.ProfileLearningRecord(doc.Content).Shapes) != 2 {
 		t.Fatal("each query variant must retain its own validated template", err)
 	}
 	// The next client can discover the committed recipe through the same MCP
@@ -240,12 +241,12 @@ func TestLearningRevocationAndSensitiveInputs(t *testing.T) {
 	run := runs[0]
 	run.Learning.Prepared = true
 	for _, e := range run.Learning.Events {
-		run.Learning.Fresh = append(run.Learning.Fresh, learningGroup(e))
+		run.Learning.Fresh = append(run.Learning.Fresh, automationrun.LearningGroup(e))
 	}
 	if err = app.revokeCredential("alice", "alice", credential.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err == nil {
 		t.Fatal("revoked credential still authorized learning")
 	}
 	status, _ := json.Marshal(runStatus(run))
@@ -289,7 +290,7 @@ func TestLearningRechecksProfileVisibilityAfterJev(t *testing.T) {
 	captureLearningExamples(t, app, "count")
 	runs, _ := app.automations.Queue.List()
 	run := runs[0]
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err == nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err == nil {
 		t.Fatal("lost source visibility did not stop learning")
 	}
 }
@@ -307,9 +308,9 @@ func TestLearningPreservesConfiguredRecipeContract(t *testing.T) {
 	run := runs[0]
 	run.Learning.Decisions = map[string]string{}
 	for _, e := range run.Learning.Events {
-		run.Learning.Decisions[learningGroup(e)] = doc.Path
+		run.Learning.Decisions[automationrun.LearningGroup(e)] = doc.Path
 	}
-	if err = app.runAutomation(context.Background(), &run, func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := store.Read(context.Background(), doc.Path, "")
@@ -336,7 +337,7 @@ func TestLearningRechecksOAuthAPICredential(t *testing.T) {
 	if err != nil || len(runs) != 1 {
 		t.Fatal(runs, err)
 	}
-	if err = app.runAutomation(context.Background(), &runs[0], func() error { return nil }); err != nil {
+	if err = app.automationrun.RunAutomation(context.Background(), &runs[0], func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 }

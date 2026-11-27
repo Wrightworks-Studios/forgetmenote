@@ -48,6 +48,16 @@ class PlanTests(unittest.TestCase):
         self.assertRegex('jev-integration.spec.mjs organizer real debounce', plan['browser_grep'])
         self.assertNotRegex('unrelated.spec.mjs unknown journey', plan['browser_grep'])
 
+    def test_jev_package_selects_the_decisions_feature_and_the_jev_scenario(self):
+        self.change('internal/jev/jobs.go')
+        plan = self.plan()
+        self.assertEqual(plan['mode'], 'routine')
+        self.assertEqual(plan['features'], ['decisions'])
+        self.assertEqual(plan['containers'], ['core', 'jev'])
+        self.assertEqual(plan['jev_profile'], 'full')
+        self.assertRegex('jev-integration.spec.mjs organizer real debounce', plan['browser_grep'])
+        self.assertIn('jev', verification_plan_module.escalated_containers(['internal/jev/organizer_runner.go']))
+
     def test_unknown_shared_and_security_inputs_escalate_even_with_ui_changes(self):
         for path in ('Dockerfile', 'go.mod', 'internal/catalog/assistant.go', 'internal/web/ui/app.mjs',
                      'internal/web/ui/index.html', 'internal/chat/permissions.go', 'internal/chat/store.go', 'internal/chat/admission.go', 'internal/chat/config.go',
@@ -328,8 +338,8 @@ class PathClassTests(unittest.TestCase):
         for pattern in verification_plan_module.IMAGE_EXCLUDED:
             self.assertIn(pattern, ignored)
 
-    def test_deployment_notification_ignores_exactly_the_documents(self):
-        workflow = (ROOT / '.github/workflows/notify-deployments.yml').read_text()
+    def test_publication_ignores_exactly_the_documents(self):
+        workflow = (ROOT / '.github/workflows/publish.yml').read_text()
         block = re.search(r'^    paths-ignore:\n((?:      - .*\n|      #.*\n)+)', workflow, re.M)
         ignored = re.findall(r"^      - '([^']+)'$", block[1], re.M)
         self.assertEqual(sorted(ignored), sorted(verification_plan_module.DOCUMENTS))

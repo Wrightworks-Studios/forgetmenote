@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/workspace"
 	"net/http"
 	"reflect"
@@ -71,7 +72,7 @@ func testChatGlobalEvidenceBudget(t *testing.T, mode string, legacy bool) {
 		citation := ""
 		groupCitations := map[string]string{}
 		for _, message := range body.Messages {
-			evidence := chatSourceContext{Sources: modelRequestEvidence(message)}
+			evidence := chatrun.SourceContext{Sources: modelRequestEvidence(message)}
 			if len(evidence.Sources) > 0 {
 				for _, source := range evidence.Sources {
 					if source.Hash == "" || source.Revision == "" || source.Hash != workspace.ContentHash([]byte(originals[source.Path])) {
@@ -250,7 +251,7 @@ func modelRequestEvidence(message chat.Message) []chat.Citation {
 		Sources []chat.Citation `json:"sources"`
 	}
 	if message.Role == "tool" {
-		var tool chatSourceContext
+		var tool chatrun.SourceContext
 		if json.Unmarshal([]byte(message.Content), &tool) == nil && (tool.Kind == "note_read" || tool.Kind == "passage_search") {
 			return tool.Sources
 		}

@@ -4,11 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/knowledge"
-	"forgetmenote/internal/reposource"
-	"forgetmenote/internal/workspace"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +12,13 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/reposource"
+	"forgetmenote/internal/workspace"
 )
 
 func TestChatDeniedReadPreservesOtherReadsAndNotebookIdentity(t *testing.T) {
@@ -141,21 +143,21 @@ func TestCrossNotebookCitationRevalidatesPinnedContentAfterUnrelatedSave(t *test
 		t.Fatal(err)
 	}
 	run := chat.Run{Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude", NoteProjects: []string{"other"}}}}
-	content, _ := chatContentScope(run)
+	content, _ := chat.ContentScope(run)
 	ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-	ctx = context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Project: "default", Run: run, Content: content})
+	ctx = chat.WithScope(ctx, &chat.RunScope{Project: "default", Run: run, Content: content})
 	run.Citations = []chat.Citation{{Kind: "notebook", Project: "other", Path: "answer.md", Revision: doc.Revision, Hash: workspace.ContentHash(doc.Content)}}
 	if _, err = store.Save(t.Context(), "unrelated.md", []byte("# Another saved note"), doc.Revision, catalog.Bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.validateChatSources(ctx, run, false); err != nil {
+	if err = app.chatrun.ValidateSources(ctx, run, false); err != nil {
 		t.Fatal("unchanged pinned citation rejected after unrelated save", err)
 	}
 	status, _ := store.Status(t.Context())
 	if _, err = store.Save(t.Context(), "answer.md", []byte("# Changed"), status.Revision, catalog.Bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	if err = app.validateChatSources(ctx, run, false); err == nil {
+	if err = app.chatrun.ValidateSources(ctx, run, false); err == nil {
 		t.Fatal("changed source accepted for current-only answer")
 	}
 }
@@ -268,12 +270,12 @@ func TestUniversalDocumentsHonorSelectedNotebookOrigins(t *testing.T) {
 		t.Fatalf("explicit note selection rejected: %v", err)
 	}
 	run := chat.Run{Options: chat.Options{Corpus: &corpus}}
-	content, err := chatContentScope(run)
+	content, err := chat.ContentScope(run)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-	ctx = context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Project: "default", Run: run, Content: content})
+	ctx = chat.WithScope(ctx, &chat.RunScope{Project: "default", Run: run, Content: content})
 	if _, err = app.readDocument(ctx, documentRequest{documentRef: documentRef{Project: "allowed", Origin: "notes", Path: "note.md"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -298,8 +300,8 @@ func TestUniversalDocumentsHonorSelectedNotebookOrigins(t *testing.T) {
 			t.Fatalf("%s expanded chat scope", name)
 		}
 	}
-	var retrieved chatRetrieval
-	if err = app.appendChatSources(ctx, run, knowledge.RetrievalQuery{Text: "Evidence", LocalOnly: true, Limit: 12, TokenBudget: 3000}, &retrieved); err != nil {
+	var retrieved chatrun.Retrieval
+	if err = app.chatrun.AppendSources(ctx, run, knowledge.RetrievalQuery{Text: "Evidence", LocalOnly: true, Limit: 12, TokenBudget: 3000}, &retrieved); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := json.Marshal(retrieved)

@@ -3,16 +3,18 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/knowledge"
-	"forgetmenote/internal/workspace"
 	"io"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"unicode/utf8"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/knowledge"
+	"forgetmenote/internal/workspace"
 )
 
 func TestReviewR2RankedMultibyteOriginalReachesFinalAnswer(t *testing.T) {
@@ -83,7 +85,7 @@ func testRankedCompleteOriginals(t *testing.T, limit int, originals map[string]s
 				}
 				delete(pending, m.CallID)
 				resultCount++
-				var envelope chatSourceContext
+				var envelope chatrun.SourceContext
 				if json.Unmarshal([]byte(m.Content), &envelope) == nil && envelope.Partial {
 					partial = true
 				}
@@ -207,20 +209,20 @@ func testRankedCompleteOriginals(t *testing.T, limit int, originals map[string]s
 		if limit == 16384 && source.Text != original.Text {
 			t.Fatal("ranked original was shortened despite sufficient context")
 		}
-		if source.Text != original.Text && (!strings.HasPrefix(original.Text, chatExcerptOriginal(source.Text)) || !strings.Contains(source.Text, "[Omitted from model context;")) {
+		if source.Text != original.Text && (!strings.HasPrefix(original.Text, chatrun.ExcerptOriginal(source.Text)) || !strings.Contains(source.Text, "[Omitted from model context;")) {
 			t.Fatal("reduced passage lacks an accurate original prefix and omission notice")
 		}
 	}
 	// Restore all 18 occurrences, including duplicates, to prove the ample case
 	// never needed prefix caps. The smaller context must genuinely need reduction.
-	originalRequest := chat.Request{System: chatSystem, Model: run.Options.Model, MaxOutputTokens: 2048, Messages: append([]chat.Message(nil), run.Messages[:len(run.Messages)-1]...)}
+	originalRequest := chat.Request{System: chatrun.System, Model: run.Options.Model, MaxOutputTokens: 2048, Messages: append([]chat.Message(nil), run.Messages[:len(run.Messages)-1]...)}
 	for i, m := range originalRequest.Messages {
 		if m.Role != "tool" {
 			continue
 		}
 		for _, op := range run.Operations {
 			if op.ToolCallID == m.ToolCallID {
-				var envelope chatSourceContext
+				var envelope chatrun.SourceContext
 				json.Unmarshal([]byte(m.Content), &envelope)
 				if len(envelope.Sources) != len(facts) {
 					t.Fatal("durable native search result lost selected original sources")
@@ -233,7 +235,7 @@ func testRankedCompleteOriginals(t *testing.T, limit int, originals map[string]s
 			}
 		}
 	}
-	originalRequest = finalChatRequest(originalRequest)
+	originalRequest = chatrun.FinalRequest(originalRequest)
 	estimate, err := provider.EstimateRequest(originalRequest)
 	if err != nil {
 		t.Fatal(err)

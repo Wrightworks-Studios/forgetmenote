@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -14,10 +15,25 @@ import (
 	"time"
 
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/sandbox"
 )
+
+// scriptExecution is a script run's host state, which a test keeps to drive
+// the run's host operations directly.
+type scriptExecution struct {
+	ctx  context.Context
+	run  *automation.Run
+	save func() error
+	info automationrun.PackageInfo
+}
+
+// host is the engine's host state for the execution as it is now.
+func (e *scriptExecution) host() *automationrun.ScriptExecution {
+	return automationrun.NewScriptExecution(e.ctx, e.run, e.save, e.info)
+}
 
 func scriptFixture(t *testing.T, code string, caps []string, connections map[string][]string, notebooks map[string]string) (*Server, *scriptExecution) {
 	t.Helper()
@@ -50,7 +66,7 @@ func packageFixtureWith(t *testing.T, m automation.Manifest, files map[string]st
 	if err = app.catalog.Member(catalog.Bootstrap, "default", bot.ID, "edit"); err != nil {
 		t.Fatal(err)
 	}
-	info, _, err := app.automationPackage(t.Context(), bot.ID, packageQuery{Project: "default", Path: "package"}, true)
+	info, _, err := app.automationrun.Package(t.Context(), bot.ID, automationrun.PackageQuery{Project: "default", Path: "package"}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +105,7 @@ func packageFixtureWith(t *testing.T, m automation.Manifest, files map[string]st
 	if err != nil {
 		t.Fatal(err)
 	}
-	contract, err := app.scriptContract(spec)
+	contract, err := app.automationrun.ScriptContract(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +126,7 @@ func hostStep(t *testing.T, app *Server, e *scriptExecution, id, op string, args
 	if err != nil {
 		t.Fatal(err)
 	}
-	return app.scriptStep(e, scriptRequest{Step: id, Operation: op, Arguments: raw})
+	return app.automationrun.ScriptStep(e.host(), automationrun.ScriptRequest{Step: id, Operation: op, Arguments: raw})
 }
 func TestScriptHostPermissionAndCheckpointBoundary(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host): return {}", []string{"checkpoint", "notebooks.read"}, nil, map[string]string{"notes": "read"})
@@ -139,11 +155,11 @@ func TestScriptPackageRejectsChangedRevisionAndExclusions(t *testing.T) {
 	copy := *altered.Script
 	copy.Revision = strings.Repeat("b", 40)
 	altered.Script = &copy
-	if _, _, err := app.scriptPackage(t.Context(), altered, false); err == nil {
+	if _, _, err := app.automationrun.ScriptPackage(t.Context(), altered, false); err == nil {
 		t.Fatal("unavailable commit accepted")
 	}
 	for _, p := range []string{"../package", "/package", "package/../package", "package\\file"} {
-		if _, _, err := app.automationPackage(t.Context(), e.run.Spec.Actor, packageQuery{Project: "default", Path: p}, false); err == nil {
+		if _, _, err := app.automationrun.Package(t.Context(), e.run.Spec.Actor, automationrun.PackageQuery{Project: "default", Path: p}, false); err == nil {
 			t.Fatal("unsafe path", p)
 		}
 	}
@@ -169,8 +185,9 @@ func TestScriptPackageAdministrationRequiresExplicitPinnedInstall(t *testing.T) 
 	if login.Code != 303 {
 		t.Fatal(login.Code, login.Body.String())
 	}
-	for _, action := range []string{"discover_automation_packages", "prepare_automation_package", "install_automation_package", "save_automation"} {
-		w := localRequest(app, "/api/organization/action/"+action, `{}`, login.Result().Cookies()[0])
+	// Discovery names the notebook it searches, which this owner may read.
+	for action, body := range map[string]string{"discover_automation_packages": `{"project":"default"}`, "prepare_automation_package": `{}`, "install_automation_package": `{}`, "save_automation": `{}`} {
+		w := localRequest(app, "/api/organization/action/"+action, body, login.Result().Cookies()[0])
 		if w.Code != 403 {
 			t.Fatalf("notebook owner could %s: HTTP %d %s", action, w.Code, w.Body.String())
 		}
@@ -230,7 +247,7 @@ func TestScriptFailedPreparationKeepsActiveInstallation(t *testing.T) {
 	app, e := packageFixture(t, m, files, broken)
 	admin := recoverySession(t, app)
 	active, _ := app.automations.Definitions.Get(e.run.Spec.ID)
-	info, _, err := app.automationPackage(t.Context(), e.run.Spec.Actor, packageQuery{Project: "default", Path: "broken"}, false)
+	info, _, err := app.automationrun.Package(t.Context(), e.run.Spec.Actor, automationrun.PackageQuery{Project: "default", Path: "broken"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +264,7 @@ func TestScriptFailedPreparationKeepsActiveInstallation(t *testing.T) {
 	if current.Revision != active.Revision || current.Spec.Disabled {
 		t.Fatal("failed preparation replaced or paused active installation")
 	}
-	if err = app.runAutomation(t.Context(), e.run, e.save); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), e.run, e.save); err != nil {
 		t.Fatalf("original installation stopped working: %v", err)
 	}
 }
@@ -285,7 +302,7 @@ func TestScriptSubmissionRechecksPermissionAfterFreshRead(t *testing.T) {
 func TestScriptUnknownOutcomeIsNotRepeated(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host): return {}", []string{"checkpoint", "notebooks.publish"}, nil, map[string]string{"notes": "edit"})
 	e.run.Script.Steps["paid"] = &automation.ScriptStep{State: "started", Effect: true, Operation: "ai.structured", Input: json.RawMessage(`{"prompt":"original"}`)}
-	if err := app.runScript(e.ctx, e.run, e.save); err == nil || !strings.Contains(err.Error(), "unknown outcome") {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err == nil || !strings.Contains(err.Error(), "unknown outcome") {
 		t.Fatal(err)
 	}
 	if _, err := hostStep(t, app, e, "different-id", "notebooks.publish", map[string]any{"notebook": "notes", "path": "unsafe-continuation.md", "content": "must not publish", "revision": ""}); err == nil || !strings.Contains(err.Error(), "unknown outcome") {
@@ -299,16 +316,31 @@ func TestScriptUnknownOutcomeIsNotRepeated(t *testing.T) {
 func TestScriptRunsInServerWithoutExecutor(t *testing.T) {
 	app, e := scriptFixture(t, "def main(host):\n    host.call('state', 'checkpoint.set', state={'direct': True})\n    return {'direct': True}\n", []string{"checkpoint"}, nil, nil)
 	e.run.Script = nil
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if !e.run.Script.Complete || !strings.Contains(e.run.Result, "direct") {
 		t.Fatal("missing direct-process result", e.run.Result)
 	}
 }
+
+var scriptReadOperation = connectors.Operation{Name: "read", ReadOnly: true, Method: "GET", Path: "/case"}
+var scriptSubmitOperation = connectors.Operation{Name: "submit", ReadOnly: false, Method: "POST", Path: "/submit", BodyArgument: "body", InputSchema: json.RawMessage(`{"type":"object","properties":{"body":{"type":"object"}},"required":["body"],"additionalProperties":false}`)}
+
 func bindScriptConnector(t *testing.T, app *Server, e *scriptExecution, endpoint string) {
 	t.Helper()
-	c := connectors.Connection{ID: "fixture-api", Label: "Fixture API", Kind: "http", Endpoint: endpoint, ExternalProcessing: true, Operations: []connectors.Operation{{Name: "read", ReadOnly: true, Method: "GET", Path: "/case"}, {Name: "submit", ReadOnly: false, Method: "POST", Path: "/submit", BodyArgument: "body", InputSchema: json.RawMessage(`{"type":"object","properties":{"body":{"type":"object"}},"required":["body"],"additionalProperties":false}`)}}}
+	bindScriptOperations(t, app, e, endpoint, scriptReadOperation, scriptSubmitOperation)
+}
+
+// bindScriptOperations binds the package's api alias to a connection with
+// operations, each granted to the job and to its actor.
+func bindScriptOperations(t *testing.T, app *Server, e *scriptExecution, endpoint string, operations ...connectors.Operation) {
+	t.Helper()
+	names := []string{}
+	for _, op := range operations {
+		names = append(names, op.Name)
+	}
+	c := connectors.Connection{ID: "fixture-api", Label: "Fixture API", Kind: "http", Endpoint: endpoint, ExternalProcessing: true, Operations: operations}
 	raw, _ := json.Marshal(connectors.Config{Version: 1, Connections: []connectors.Connection{c}})
 	file := filepath.Join(t.TempDir(), "connections.json")
 	os.WriteFile(file, raw, 0600)
@@ -316,18 +348,18 @@ func bindScriptConnector(t *testing.T, app *Server, e *scriptExecution, endpoint
 		t.Fatal(err)
 	}
 	e.run.Spec.Connections = []string{c.ID}
-	e.run.Spec.Operations = map[string][]string{c.ID: {"read", "submit"}}
+	e.run.Spec.Operations = map[string][]string{c.ID: names}
 	e.run.Spec.Script.Connections["api"] = c.ID
 	grant, err := app.catalog.ConnectionAccess(catalog.Bootstrap, c.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant.Users = map[string][]string{e.run.Spec.Actor: {"read", "submit"}}
+	grant.Users = map[string][]string{e.run.Spec.Actor: names}
 	if _, err = app.catalog.SetConnectionAccess(catalog.Bootstrap, grant); err != nil {
 		t.Fatal(err)
 	}
 
-	e.run.Script.Contract, err = app.scriptContract(e.run.Spec)
+	e.run.Script.Contract, err = app.automationrun.ScriptContract(e.run.Spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -430,7 +462,7 @@ func TestScriptInstallationIsSandboxedByDefault(t *testing.T) {
 	writeInstanceProbe(t, app)
 	e.run.Spec.Script.Sandbox = nil
 	e.run.Script = nil
-	err := app.runScript(e.ctx, e.run, e.save)
+	err := app.automationrun.RunScript(e.ctx, e.run, e.save)
 	if sandbox.Available() != nil {
 		if err == nil || !strings.Contains(err.Error(), "Landlock") || !strings.Contains(err.Error(), `"sandbox": false`) || len(e.run.Script.Steps) != 0 {
 			t.Fatalf("default installation was not refused without Landlock, naming the opt-out: %v %+v", err, e.run.Script)
@@ -452,7 +484,7 @@ func TestScriptSandboxOptOutRunsAsServerCode(t *testing.T) {
 	writeInstanceProbe(t, app)
 	e.run.Spec.Script.Sandbox = new(false)
 	e.run.Script = nil
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if !e.run.Script.Complete || !strings.Contains(e.run.Result, "read") {
@@ -474,10 +506,72 @@ def main(host):
     return {'direct': True}
 `, []string{"checkpoint"}, nil, nil)
 	e.run.Script = nil
-	if err := app.runScript(e.ctx, e.run, e.save); err != nil {
+	if err := app.automationrun.RunScript(e.ctx, e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if !e.run.Script.Complete {
 		t.Fatal("missing completion")
+	}
+}
+
+// An installation grants exactly the capabilities its package requests:
+// validation refuses one that withholds a capability the package needs, or
+// grants one it never asked for.
+func TestScriptInstallationGrantsMatchTheCapabilitiesItsPackageRequests(t *testing.T) {
+	app, e := scriptFixture(t, "def main(host): return {}", []string{"checkpoint"}, nil, nil)
+	admin := recoverySession(t, app)
+	validate := func(grants ...string) (int, string) {
+		spec := e.run.Spec
+		script := *spec.Script
+		script.Capabilities = grants
+		spec.Script = &script
+		raw, _ := json.Marshal(map[string]any{"spec": spec})
+		w := localRequest(app, "/api/organization/action/validate_automation", string(raw), admin)
+		return w.Code, w.Body.String()
+	}
+	if code, body := validate("checkpoint"); code != 200 {
+		t.Fatalf("requested grant: HTTP %d %s", code, body)
+	}
+	if code, body := validate(); code == 200 || !strings.Contains(body, "package capability not granted: checkpoint") {
+		t.Errorf("withheld capability: HTTP %d %s", code, body)
+	}
+	if code, body := validate("checkpoint", "web.fetch"); code == 200 || !strings.Contains(body, "grant is not requested by package: web.fetch") {
+		t.Errorf("unrequested grant: HTTP %d %s", code, body)
+	}
+}
+
+// A package's connector call stays within its installation: a call through
+// an alias it never bound, of an operation the package did not request, or of
+// a write through connectors.read is refused before anything reaches the
+// connection.
+func TestScriptConnectorCallsStayWithinThePackagesRequest(t *testing.T) {
+	app, e := scriptFixture(t, "def main(host): return {}", []string{"connectors.read", "connectors.submit"}, map[string][]string{"api": {"read", "submit"}}, nil)
+	requests := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"revision":"one"}`)
+	}))
+	defer upstream.Close()
+	// The job and its actor may also list, which the package never asked for.
+	bindScriptOperations(t, app, e, upstream.URL, scriptReadOperation, connectors.Operation{Name: "list", ReadOnly: true, Method: "GET", Path: "/list"}, scriptSubmitOperation)
+	submission := map[string]any{"body": map[string]string{"submission_id": "stable"}}
+	for _, c := range []struct {
+		step, operation string
+		call            map[string]any
+	}{
+		{"unbound-alias", "connectors.read", map[string]any{"connection": "other", "operation": "read", "arguments": map[string]any{}}},
+		{"unrequested-operation", "connectors.read", map[string]any{"connection": "api", "operation": "list", "arguments": map[string]any{}}},
+		{"write-through-read", "connectors.read", map[string]any{"connection": "api", "operation": "submit", "arguments": submission}},
+	} {
+		if _, err := hostStep(t, app, e, c.step, c.operation, c.call); err == nil {
+			t.Errorf("%s accepted", c.step)
+		}
+	}
+	if requests != 0 {
+		t.Fatalf("refused calls reached the connection %d times", requests)
+	}
+	if _, err := hostStep(t, app, e, "bound-read", "connectors.read", map[string]any{"connection": "api", "operation": "read", "arguments": map[string]any{}}); err != nil || requests != 1 {
+		t.Fatalf("bound read: %v after %d requests", err, requests)
 	}
 }

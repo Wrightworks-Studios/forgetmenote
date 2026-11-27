@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/sources"
 )
 
@@ -51,7 +52,7 @@ func (s *slackService) Context(ctx context.Context, d messaging.Address, b messa
 	return s.transport().Context(ctx, d, b)
 }
 func (s *slackService) Send(ctx context.Context, d messaging.Address, reply messaging.Reply) error {
-	return s.transport().Send(ctx, messageAddress(d), reply)
+	return s.transport().Send(ctx, messaginghttp.MessageAddress(d), reply)
 }
 func (s *slackService) Post(ctx context.Context, channel string, p messaging.Post) (string, error) {
 	return s.transport().Post(ctx, channel, p)

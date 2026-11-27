@@ -3,13 +3,15 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 func TestChatContextReadAndSearchStillReachAnswerAtDefaultLimit(t *testing.T) {
@@ -120,7 +122,7 @@ func testChatContextReadAndSearch(t *testing.T, legacy, repeated bool) {
 			}
 			// Restore the old server's full automatic-evidence JSON. It retained all
 			// pinned metadata in both the original retrieval and raw tool responses.
-			index, prefix, payload, _ := optionalChatSources(current.Messages, false)
+			index, prefix, payload, _ := chatrun.OptionalSources(current.Messages, false)
 			initial := []chat.Citation{}
 			for _, source := range current.Citations {
 				if strings.HasPrefix(source.ID, "source-") {
@@ -130,7 +132,7 @@ func testChatContextReadAndSearch(t *testing.T, legacy, repeated bool) {
 			payload["sources"], _ = json.Marshal(initial)
 			raw, _ := json.Marshal(payload)
 			current.Messages[index].Content = prefix + "\n<untrusted_notebook_context>\n" + string(raw) + "\n</untrusted_notebook_context>"
-			req := chat.Request{Model: current.Options.Model, System: chatSystem, Messages: current.Messages, Tools: app.runTools(*current, app.chat.Config.Connections[0]), MaxOutputTokens: 2048}
+			req := chat.Request{Model: current.Options.Model, System: chatrun.System, Messages: current.Messages, Tools: app.chatrun.RunTools(*current, app.chat.Config.Connections[0]), MaxOutputTokens: 2048}
 			size, estimateErr := app.chat.Snapshot().Providers["local"].EstimateRequest(req)
 			if estimateErr != nil {
 				return estimateErr
@@ -177,7 +179,7 @@ func testChatContextReadAndSearch(t *testing.T, legacy, repeated bool) {
 // Exact deployed representation: read acknowledgements appended pinned metadata;
 // the custom search tool returned clipped raw JSON without a second footer.
 func oldChatSourceRepresentation(op chat.Operation) string {
-	text := textLimit(string(op.Result), 12000)
+	text := chatrun.TextLimit(string(op.Result), 12000)
 	if op.Name == "read_note" && len(op.Citations) > 0 {
 		metadata := append([]chat.Citation(nil), op.Citations...)
 		for i := range metadata {
@@ -195,17 +197,17 @@ func TestChatContextLegacyRepeatedIDsKeepOriginalRevision(t *testing.T) {
 		return chat.Operation{ID: operation, Name: "read_note", ToolCallID: "repeated-read", State: "completed", Result: raw, Citations: []chat.Citation{{ID: "read-" + operation, Path: "notes/synthetic.md", URL: "/notes/synthetic.md?fmn-rev=" + revision, Revision: revision, Kind: "committed"}}}
 	}
 	old, current := makeReceipt("original-revision", "first-operation", "OLD_END"), makeReceipt("later-revision", "second-operation", "NEW_END")
-	if textLimit(string(old.Result), 12000) != textLimit(string(current.Result), 12000) {
+	if chatrun.TextLimit(string(old.Result), 12000) != chatrun.TextLimit(string(current.Result), 12000) {
 		t.Fatal("fixture prefixes do not collide")
 	}
 	call := chat.Message{Role: "assistant", ToolCalls: []chat.ToolCall{{ID: "repeated-read", Name: "read_note", Arguments: json.RawMessage(`{"path":"notes/synthetic.md"}`)}}}
 	req := chat.Request{MaxOutputTokens: 2048, Messages: []chat.Message{{Role: "user", Content: "Compare the two original revisions."}, call, {Role: "tool", ToolCallID: "repeated-read", Content: oldChatSourceRepresentation(old)}, call, {Role: "tool", ToolCallID: "repeated-read", Content: oldChatSourceRepresentation(current)}}}
-	fitted, _, err := fitChatRequest(chat.Run{Operations: []chat.Operation{old, current}}, req, 16384)
+	fitted, _, err := chatrun.FitRequest(chat.Run{Operations: []chat.Operation{old, current}}, req, 16384)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i, revision := range map[int]string{2: "original-revision", 4: "later-revision"} {
-		var got chatSourceContext
+		var got chatrun.SourceContext
 		if json.Unmarshal([]byte(fitted.Messages[i].Content), &got) != nil || len(got.Sources) != 1 || got.Sources[0].Revision != revision {
 			t.Fatalf("tool cycle %d was substituted from another receipt: %s", i, fitted.Messages[i].Content)
 		}
@@ -227,7 +229,7 @@ func TestChatContextAmbiguousLegacySearchDoesNotGuessReceipt(t *testing.T) {
 		t.Fatal("search fixture does not have an ambiguous clipped prefix")
 	}
 	req := chat.Request{MaxOutputTokens: 2048, Messages: []chat.Message{{Role: "assistant", ToolCalls: []chat.ToolCall{{ID: msg.ToolCallID, Name: "search_passages", Arguments: json.RawMessage(`{"text":"synthetic"}`)}}}, msg}}
-	fitted, _, err := fitChatRequest(chat.Run{Operations: []chat.Operation{old, current}}, req, 16384)
+	fitted, _, err := chatrun.FitRequest(chat.Run{Operations: []chat.Operation{old, current}}, req, 16384)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +243,7 @@ func TestChatContextAmbiguousLegacySearchDoesNotGuessReceipt(t *testing.T) {
 func TestChatFitEstimatesFittingRequestOnce(t *testing.T) {
 	request := chat.Request{Model: "synthetic", System: "Synthetic system", MaxOutputTokens: 1000, Messages: []chat.Message{{Role: "user", Content: nativeBudgetUser(t, nativeBudgetSources("fits", 3, 4), "SYNTHETIC_ATTACHMENT")}}}
 	estimates := 0
-	fitted, fit, err := fitChatRequest(chat.Run{}, request, 100000, func(r chat.Request) (int, error) { estimates++; return estimateTokens(r), nil })
+	fitted, fit, err := chatrun.FitRequest(chat.Run{}, request, 100000, func(r chat.Request) (int, error) { estimates++; return chatrun.EstimateTokens(r), nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +254,7 @@ func TestChatFitEstimatesFittingRequestOnce(t *testing.T) {
 	if strings.Contains(content, "synthetic-passage-hash") || !strings.Contains(content, "synthetic-note-hash") || !strings.Contains(content, "SYNTHETIC_ATTACHMENT") {
 		t.Fatal("fitting request lost its model projection: passage checksums stay in the durable record, whole-note guards and attachments reach the model")
 	}
-	if fit.Changed || fit.AfterTokens != estimateTokens(fitted) || fit.BeforeTokens != fit.AfterTokens || fit.SourcesBefore != 3 || fit.SourcesAfter != 3 {
+	if fit.Changed || fit.AfterTokens != chatrun.EstimateTokens(fitted) || fit.BeforeTokens != fit.AfterTokens || fit.SourcesBefore != 3 || fit.SourcesAfter != 3 {
 		t.Fatalf("fitting request reported %+v", fit)
 	}
 }
@@ -260,11 +262,11 @@ func TestChatFitEstimatesFittingRequestOnce(t *testing.T) {
 // Automation sends the fitted request at the size the fit last estimated.
 func TestChatFitReportsEstimateOfReducedRequest(t *testing.T) {
 	request := chat.Request{Model: "synthetic", System: "Synthetic system", MaxOutputTokens: 1000, Messages: []chat.Message{{Role: "user", Content: nativeBudgetUser(t, nativeBudgetSources("reduce", 12, 300), "SYNTHETIC_ATTACHMENT")}}}
-	fitted, fit, err := fitChatRequest(chat.Run{}, request, 8000, func(r chat.Request) (int, error) { return estimateTokens(r), nil })
+	fitted, fit, err := chatrun.FitRequest(chat.Run{}, request, 8000, func(r chat.Request) (int, error) { return chatrun.EstimateTokens(r), nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !fit.Changed || fit.SourcesAfter == 0 || fit.SourcesAfter >= fit.SourcesBefore || fit.BeforeTokens != estimateTokens(request) || fit.AfterTokens != estimateTokens(fitted) || fit.AfterTokens+fitted.MaxOutputTokens > 8000 {
-		t.Fatalf("reduced request reported %+v; request %d, fitted %d", fit, estimateTokens(request), estimateTokens(fitted))
+	if !fit.Changed || fit.SourcesAfter == 0 || fit.SourcesAfter >= fit.SourcesBefore || fit.BeforeTokens != chatrun.EstimateTokens(request) || fit.AfterTokens != chatrun.EstimateTokens(fitted) || fit.AfterTokens+fitted.MaxOutputTokens > 8000 {
+		t.Fatalf("reduced request reported %+v; request %d, fitted %d", fit, chatrun.EstimateTokens(request), chatrun.EstimateTokens(fitted))
 	}
 }

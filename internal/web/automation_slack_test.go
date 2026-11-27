@@ -39,27 +39,27 @@ func TestSharedSlackRequiresApprovedNotebookActorAndSources(t *testing.T) {
 	app.slack.endpoint = server.URL + "/chat.postEphemeral"
 	r := automation.Run{Spec: automation.Spec{Actor: catalog.Bootstrap, Project: "default"}, Answer: "Health report", Receipts: []connectors.Receipt{{Connection: "private"}}}
 	d := automation.Delivery{Channel: "Cshared", Shared: true}
-	if err := app.deliverSlack(t.Context(), &r, func() error { return nil }, d); err == nil || posts != 0 {
+	if err := app.messaging.DeliverSlack(t.Context(), &r, func() error { return nil }, d); err == nil || posts != 0 {
 		t.Fatal("unapproved source broadcast", err)
 	}
 	r.Receipts = nil
 	r.Spec.Connections = []string{"private"}
-	if err := app.deliverSlack(t.Context(), &r, func() error { return nil }, d); err == nil || posts != 0 {
+	if err := app.messaging.DeliverSlack(t.Context(), &r, func() error { return nil }, d); err == nil || posts != 0 {
 		t.Fatal("uncited connection data broadcast", err)
 	}
 	r.Spec.Connections = nil
 	r.Spec.ReadProjects = []string{"private"}
-	if err := app.deliverSlack(t.Context(), &r, func() error { return nil }, d); err == nil || posts != 0 {
+	if err := app.messaging.DeliverSlack(t.Context(), &r, func() error { return nil }, d); err == nil || posts != 0 {
 		t.Fatal("uncited notebook data broadcast", err)
 	}
 	r.Spec.ReadProjects = nil
 	r.Receipts = []connectors.Receipt{{Connection: "metrics"}}
 	r.Receipts[0].Connection = "metrics"
-	if err := app.deliverSlack(t.Context(), &r, func() error { return nil }, d); err != nil || posts != 1 {
+	if err := app.messaging.DeliverSlack(t.Context(), &r, func() error { return nil }, d); err != nil || posts != 1 {
 		t.Fatal(err, posts)
 	}
 	r.DeliveryState = "sending"
-	if err := app.deliverSlack(t.Context(), &r, func() error { return nil }, d); err == nil || posts != 1 {
+	if err := app.messaging.DeliverSlack(t.Context(), &r, func() error { return nil }, d); err == nil || posts != 1 {
 		t.Fatal("ambiguous delivery resent", err)
 	}
 }
@@ -102,7 +102,7 @@ func TestIncidentReplyKeepsReceiptsInRunHistory(t *testing.T) {
 	app, _ := fixture(t)
 	configureSlackFixture(t, app)
 	run := automation.Run{ID: automation.Hash("incident-receipts"), Spec: automation.Spec{ID: "health", Kind: "native"}, Receipts: []connectors.Receipt{{ID: "PRIVATE_EXECUTION_RECEIPT", Connection: "logs", Operation: "read"}}}
-	if err := app.recordAutomationIncident(&run, automation.Incident{Active: true, Severity: "critical", Summary: "Production database connections are failing across core services."}, func() error { return nil }); err != nil {
+	if err := app.automationrun.RecordIncident(&run, automation.Incident{Active: true, Severity: "critical", Summary: "Production database connections are failing across core services."}, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if run.Answer != "Alert: Production database connections are failing across core services." || len(run.Receipts) != 1 || run.Receipts[0].ID != "PRIVATE_EXECUTION_RECEIPT" {

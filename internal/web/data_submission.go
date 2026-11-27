@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -66,7 +67,7 @@ func (s *Server) dataEffectTools(server *mcp.Server) {
 		}
 		for _, spec := range s.automations.Definitions.Specs() {
 			if spec.ID == in.ID {
-				return s.automations.Queue.Effects(scriptAnalysisScope(spec))
+				return s.automations.Queue.Effects(automationrun.AnalysisScope(spec))
 			}
 		}
 		return nil, errors.New("automation not found")

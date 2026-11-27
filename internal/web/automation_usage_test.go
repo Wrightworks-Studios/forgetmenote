@@ -52,7 +52,7 @@ func TestLiveRecipeUsageQueuesBoundedChecksWithoutPersistingInputs(t *testing.T)
 	if strings.Contains(string(raw), "sensitive-runtime-value") || !strings.Contains(string(raw), doc.Revision) {
 		t.Fatal("observation retained arguments or lost provenance")
 	}
-	if _, err = app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil {
+	if _, err = app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil {
 		t.Fatal(err)
 	}
 	q, err := automation.Open(app.db)

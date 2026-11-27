@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"forgetmenote/internal/taskqueue"
 )
 
 // command sends the /task slash command as Slack does: a form signed with the
@@ -69,7 +71,7 @@ func (f *slackLinkFixture) submitTaskForm(t *testing.T, team, user, view string,
 	if form.everyone {
 		values["everyone"] = map[string]any{"everyone": map[string]any{"type": "checkboxes", "selected_options": []any{map[string]any{"value": "everyone"}}}}
 	}
-	return f.submitView(t, team, user, map[string]any{"id": view, "callback_id": taskAddView, "private_metadata": "", "state": map[string]any{"values": values}})
+	return f.submitView(t, team, user, map[string]any{"id": view, "callback_id": taskqueue.AddView, "private_metadata": "", "state": map[string]any{"values": values}})
 }
 
 // submitView submits a modal view as Slack does and returns the answer.
@@ -110,7 +112,7 @@ func TestSlashTaskOpensAFormThatGivesEachPersonACopy(t *testing.T) {
 		t.Fatalf("the form opened with %v", f.views[0])
 	}
 	view := f.views[0]["view"].(map[string]any)
-	if view["type"] != "modal" || view["callback_id"] != taskAddView {
+	if view["type"] != "modal" || view["callback_id"] != taskqueue.AddView {
 		t.Fatalf("the form = %v", view)
 	}
 	_, people := formElement(t, view, "people")
@@ -226,7 +228,7 @@ func TestTaskHelpIsAnsweredWithoutTheModel(t *testing.T) {
 		t.Fatalf("the model was asked %d times", asked)
 	}
 	for _, text := range []string{"tasks for next week are piling up", "task alice send the deck", "task force notes from Monday", "can you task <@UALICE> with it?"} {
-		if taskCommand(text) {
+		if taskqueue.Command(text) {
 			t.Errorf("%q was taken as a task command", text)
 		}
 	}
@@ -258,7 +260,7 @@ func TestTasksCommandShowsTheQueueOnlyToWhoeverAsks(t *testing.T) {
 	f.memberDM(t, "UBOB", "8.1", "task <@UALICE> Send the Denver lease to legal")
 
 	mine := f.commandReply(t, "/tasks", "UALICE", "")
-	if buttons := postButtons(mine); mine["response_type"] != "ephemeral" || !strings.Contains(fmt.Sprint(mine["blocks"]), "Send the Denver lease") || len(buttons) != 1 || buttons[0]["action_id"] != taskDoneAction {
+	if buttons := postButtons(mine); mine["response_type"] != "ephemeral" || !strings.Contains(fmt.Sprint(mine["blocks"]), "Send the Denver lease") || len(buttons) != 1 || buttons[0]["action_id"] != taskqueue.DoneAction {
 		t.Fatalf("alice's list: %v", mine)
 	}
 	if len(f.views) != 0 {

@@ -3,11 +3,13 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
 	"net/http"
 	"strings"
 	"testing"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 func TestShipBCommittedAttachmentInvalidatesAnswer(t *testing.T) {
@@ -82,9 +84,9 @@ func TestShipBReviewComparisonChangeInvalidatesCachedAnalysis(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	conn := app.chat.Config.Connections[0]
-	if _, err = app.prepareChatReview(t.Context(), auth, c.ID, runID, conn); err != nil {
+	if _, err = app.chatrun.PrepareReview(t.Context(), auth, c.ID, runID, conn); err != nil {
 		t.Fatal(err)
 	}
 	saved, err := app.chat.Store.Read("alice", "default", c.ID)
@@ -105,7 +107,7 @@ func TestShipBReviewComparisonChangeInvalidatesCachedAnalysis(t *testing.T) {
 		t.Fatal("fixture did not supply comparison original")
 	}
 	if err = app.chat.Store.Update("alice", "default", c.ID, func(c *chat.Conversation) error {
-		finishChatReviewBatch(c.Run(runID), "A and B agree on budget 90.")
+		chatrun.FinishReviewBatch(c.Run(runID), "A and B agree on budget 90.")
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -113,7 +115,7 @@ func TestShipBReviewComparisonChangeInvalidatesCachedAnalysis(t *testing.T) {
 	if _, err = store.Save(t.Context(), comparison.Path, []byte("# Alphalaunch\nThe alphalaunch budget is now 5, contradicting 90."), comparison.Revision, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = app.prepareChatReview(t.Context(), auth, c.ID, runID, conn); err != nil {
+	if _, err = app.chatrun.PrepareReview(t.Context(), auth, c.ID, runID, conn); err != nil {
 		t.Fatal(err)
 	}
 	saved, err = app.chat.Store.Read("alice", "default", c.ID)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/workspace"
 	"net/http"
 	"strings"
@@ -16,18 +17,18 @@ func TestReviewerRelevantPassageSurvivesReadDedup(t *testing.T) {
 	const fact = "The exact approved schedule target is 2039-11-27, and the exception allowance is 41 days."
 	full := "# Schedule\n" + strings.Repeat("Unrelated introductory context. ", 100) + "\n## Decision\n" + fact
 	cite := chat.Citation{ID: "original", Path: "Schedule.md", URL: "/Schedule.md?fmn-rev=" + strings.Repeat("a", 40), Revision: strings.Repeat("a", 40), Hash: strings.Repeat("b", 64), Kind: "committed", Text: full}
-	read, _ := json.Marshal(chatSourceContext{Kind: "note_read", Sources: []chat.Citation{cite}})
+	read, _ := json.Marshal(chatrun.SourceContext{Kind: "note_read", Sources: []chat.Citation{cite}})
 	cite.ID = "ranked"
 	cite.Text = fact
 	cite.URL += "#decision"
-	search, _ := json.Marshal(chatSourceContext{Kind: "passage_search", Sources: []chat.Citation{cite}})
+	search, _ := json.Marshal(chatrun.SourceContext{Kind: "passage_search", Sources: []chat.Citation{cite}})
 	req := chat.Request{MaxOutputTokens: 2048, Messages: []chat.Message{
 		{Role: "user", Content: "What is the approved target and exception allowance?"},
 		{Role: "assistant", ToolCalls: []chat.ToolCall{{ID: "read", Name: "read_note", Arguments: json.RawMessage(`{}`)}, {ID: "search", Name: "search_passages", Arguments: json.RawMessage(`{}`)}}},
 		{Role: "tool", ToolCallID: "read", Content: string(read)},
 		{Role: "tool", ToolCallID: "search", Content: string(search)},
 	}}
-	fitted, stats, err := fitChatRequest(chat.Run{Options: chat.Options{Mode: "ask"}}, req, 16384)
+	fitted, stats, err := chatrun.FitRequest(chat.Run{Options: chat.Options{Mode: "ask"}}, req, 16384)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func TestChatRankedMiddleAndEndPassagesReachFinalRequest(t *testing.T) {
 							t.Error("fitting orphaned a native result")
 						}
 						delete(pending, message.CallID)
-						var evidence chatSourceContext
+						var evidence chatrun.SourceContext
 						if json.Unmarshal([]byte(message.Content), &evidence) == nil {
 							for _, source := range evidence.Sources {
 								if strings.Contains(source.Text, middle) || strings.Contains(source.Text, ending) {
@@ -168,18 +169,18 @@ func TestRankedFactSurvivesLaterReadPrefixBudgetRetries(t *testing.T) {
 	const fact = "The retained original decision is 2039-11-27 with a 41-day exception allowance."
 	full := strings.Repeat("Introductory context. ", 60) + fact + strings.Repeat(" Additional original tail.", 50)
 	cite := chat.Citation{ID: "broad-read", Kind: "committed", Path: "notes/schedule.md", URL: "/notes/schedule.md?fmn-rev=" + strings.Repeat("a", 40), Revision: strings.Repeat("a", 40), Hash: strings.Repeat("b", 64), Text: full}
-	read, _ := json.Marshal(chatSourceContext{Kind: "note_read", Sources: []chat.Citation{cite}})
+	read, _ := json.Marshal(chatrun.SourceContext{Kind: "note_read", Sources: []chat.Citation{cite}})
 	precise := cite
 	precise.ID = "ranked-match"
 	precise.URL += "#decision"
 	precise.Text = fact
-	search, _ := json.Marshal(chatSourceContext{Kind: "passage_search", Sources: []chat.Citation{precise}})
+	search, _ := json.Marshal(chatrun.SourceContext{Kind: "passage_search", Sources: []chat.Citation{precise}})
 	request := chat.Request{System: strings.Repeat("Mandatory stable instruction. ", 120), MaxOutputTokens: 2048, Messages: []chat.Message{{Role: "user", Content: "What original decision and exception apply?"}, {Role: "assistant", ToolCalls: []chat.ToolCall{{ID: "read", Name: "read_note", Arguments: json.RawMessage(`{}`)}, {ID: "search", Name: "search_passages", Arguments: json.RawMessage(`{}`)}}}, {Role: "tool", ToolCallID: "read", Content: string(read)}, {Role: "tool", ToolCallID: "search", Content: string(search)}}}
-	fitted, fit, err := fitChatRequest(chat.Run{Options: chat.Options{Mode: "ask"}}, request, 4096)
+	fitted, fit, err := chatrun.FitRequest(chat.Run{Options: chat.Options{Mode: "ask"}}, request, 4096)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var broad, ranked chatSourceContext
+	var broad, ranked chatrun.SourceContext
 	json.Unmarshal([]byte(fitted.Messages[2].Content), &broad)
 	json.Unmarshal([]byte(fitted.Messages[3].Content), &ranked)
 	if len(broad.Sources) != 1 || len(broad.Sources[0].Text) >= 1200 || strings.Contains(broad.Sources[0].Text, fact) {

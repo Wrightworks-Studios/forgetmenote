@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
-	"forgetmenote/internal/workspace"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +11,11 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
+	"forgetmenote/internal/workspace"
 )
 
 func TestChatSnapshotIncludesPersistedPartialAnswer(t *testing.T) {
@@ -117,12 +119,12 @@ func TestChatCustomToolRejectsUnknownFields(t *testing.T) {
 		c.Runs = append(c.Runs, run)
 		return nil
 	})
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, e := app.runContext(auth)
 	if e != nil {
 		t.Fatal(e)
 	}
-	e = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "bad", Name: "search_passages", Arguments: json.RawMessage(`{"text":"alpha","endpoint":"https://untrusted.invalid"}`)}, app.chat.Config.Connections[0])
+	e = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "bad", Name: "search_passages", Arguments: json.RawMessage(`{"text":"alpha","endpoint":"https://untrusted.invalid"}`)}, app.chat.Config.Connections[0])
 	if e == nil || !strings.Contains(e.Error(), "argument") {
 		t.Fatalf("unknown custom tool field accepted: %v", e)
 	}
@@ -144,7 +146,7 @@ func TestChatIncompleteReviewCannotAdvanceWorkflow(t *testing.T) {
 		c.Runs = append(c.Runs, run)
 		return nil
 	})
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, e := app.runContext(auth)
 	if e != nil {
 		t.Fatal(e)
@@ -153,7 +155,7 @@ func TestChatIncompleteReviewCannotAdvanceWorkflow(t *testing.T) {
 	if _, _, schemaErr := app.actionArguments("default", "complete_workflow", raw); schemaErr != nil {
 		t.Fatal(schemaErr)
 	}
-	err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "checkpoint", Name: "complete_workflow", Arguments: raw}, app.chat.Config.Connections[0])
+	err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "checkpoint", Name: "complete_workflow", Arguments: raw}, app.chat.Config.Connections[0])
 	if err == nil || !strings.Contains(err.Error(), "incomplete review") {
 		t.Fatalf("incomplete notebook review did not reach the coverage guard: %v", err)
 	}
@@ -226,28 +228,28 @@ func TestChatResearchRequiresBothOptInsAndKeepsDurableLimits(t *testing.T) {
 		c.Runs = append(c.Runs, run)
 		return nil
 	})
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)
 	}
 	connection := app.chat.Config.Connections[0]
 	call := chat.ToolCall{ID: "search", Name: "research_search", Arguments: json.RawMessage(`{"query":"synthetic"}`)}
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, call, connection); err == nil || !strings.Contains(err.Error(), "disabled") {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, call, connection); err == nil || !strings.Contains(err.Error(), "disabled") {
 		t.Fatal("operator-only opt-in authorized research")
 	}
 	app.chat.Store.Update("alice", "default", c.ID, func(c *chat.Conversation) error { c.Run(run.ID).Options.Research = true; return nil })
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, call, connection); err == nil || !strings.Contains(err.Error(), "budget") {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, call, connection); err == nil || !strings.Contains(err.Error(), "budget") {
 		t.Fatalf("durable research limit not enforced: %v", err)
 	}
 	setChatFixtureLocalOnly(t, app, true)
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, call, connection); err == nil || !strings.Contains(err.Error(), "disabled") {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, call, connection); err == nil || !strings.Contains(err.Error(), "disabled") {
 		t.Fatal("local-only mode authorized research")
 	}
 	setChatFixtureLocalOnly(t, app, false)
 	call.Name = "research_fetch"
 	call.Arguments = json.RawMessage(`{"url":"http://127.0.0.1/private"}`)
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, call, connection); err == nil {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, call, connection); err == nil {
 		t.Fatal("research accepted private network source")
 	}
 	got, _ := app.chat.Store.Read("alice", "default", c.ID)
@@ -309,14 +311,14 @@ func TestChatEmptyTrashApprovalBindsExactPreview(t *testing.T) {
 		c.Runs = append(c.Runs, run)
 		return nil
 	})
-	auth := runAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: app.catalog.Epoch("alice")}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)
 	}
 	call := chat.ToolCall{ID: "empty", Name: "empty_trash", Arguments: json.RawMessage(`{"revision":"model-cannot-authorize","confirmation":"model-cannot-approve"}`)}
-	err = app.executeChatTool(ctx, auth, c.ID, run.ID, call, app.chat.Config.Connections[0])
-	if err != errChatConfirmation {
+	err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, call, app.chat.Config.Connections[0])
+	if err != chatrun.ErrConfirmation {
 		t.Fatalf("exact approval was not prepared: %v", err)
 	}
 	prepared, _ := app.chat.Store.Read("alice", "default", c.ID)

@@ -9,8 +9,10 @@ import (
 	"strconv"
 
 	"forgetmenote/internal/attribution"
+	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -118,7 +120,7 @@ func (s *Server) personalConnectionRoutes() {
 			method = "GET"
 		}
 		s.mux.HandleFunc(method+" /account/connections/{provider}/"+action, func(w http.ResponseWriter, r *http.Request) {
-			if api, _ := r.Context().Value(apiContextKey{}).(bool); api {
+			if api := auth.API(r.Context()); api {
 				fail(w, workspace.ErrForbidden)
 				return
 			}
@@ -232,9 +234,9 @@ var accountUIActions = map[string]bool{"submit_personal_action": true, "prepare_
 func (s *Server) accountUIRequest(ctx context.Context) error {
 	_, scoped := ctx.Value(scopeKey{}).(string)
 	_, credential := credentialFrom(ctx)
-	_, automated := ctx.Value(automationKey{}).(automationAuth)
-	api, _ := ctx.Value(apiContextKey{}).(bool)
-	if scoped || credential || automated || api || chatScopeFrom(ctx) != nil || attribution.From(ctx).Source == "mcp" || !s.catalog.Interactive(subject(ctx)) {
+	_, automated := automation.IdentityFrom(ctx)
+	api := auth.API(ctx)
+	if scoped || credential || automated || api || chat.RunScopeFrom(ctx) != nil || attribution.From(ctx).Source == "mcp" || !s.catalog.Interactive(subject(ctx)) {
 		return workspace.ErrForbidden
 	}
 	return nil

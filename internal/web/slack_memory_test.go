@@ -8,7 +8,9 @@ import (
 	"sync"
 	"testing"
 
+	"forgetmenote/internal/agentmemory"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 )
 
 // slackMemoryRequests records what each model request offered and contained.
@@ -59,7 +61,7 @@ func slackMemoryFixture(t *testing.T, requests *slackMemoryRequests, memory bool
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = store.Save(t.Context(), memoryPath, []byte(memoryHeader("")+"\n## Facts\n\n- Alice owns the Denver office rollout.\n"), "", "alice"); err != nil {
+	if _, err = store.Save(t.Context(), agentmemory.Path, []byte(agentmemory.Header("")+"\n## Facts\n\n- Alice owns the Denver office rollout.\n"), "", "alice"); err != nil {
 		t.Fatal(err)
 	}
 	posts := 0
@@ -78,7 +80,7 @@ func TestSlackDirectMessagesUseAndKeepThePersonsMemory(t *testing.T) {
 	requests := &slackMemoryRequests{remember: `{"items":[{"text":"Alice reviews service health every Monday.","kind":"fact"}]}`}
 	app, posts := slackMemoryFixture(t, requests, true)
 	signedSlackMessage(t, app, "EvMemory", "message", "D123", "", "123.456", "What do I usually check on Mondays?")
-	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || *posts != 1 {
+	if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || *posts != 1 {
 		t.Fatal("the DM was not answered", err, *posts)
 	}
 	if len(requests.prompts) != 2 || !strings.Contains(requests.prompts[0], "Alice owns the Denver office rollout.") || !strings.Contains(strings.Join(requests.tools[0], ","), "remember") {
@@ -90,11 +92,11 @@ func TestSlackDirectMessagesUseAndKeepThePersonsMemory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := readMemory(t.Context(), store, "")
+	file, err := agentmemory.Read(t.Context(), store, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var kept *memoryItem
+	var kept *agentmemory.Item
 	for i, item := range file.Items {
 		if item.Text == "Alice reviews service health every Monday." {
 			kept = &file.Items[i]
@@ -103,7 +105,7 @@ func TestSlackDirectMessagesUseAndKeepThePersonsMemory(t *testing.T) {
 	if kept == nil || kept.Via != "slack" || kept.From != "agent" || kept.Pinned {
 		t.Fatalf("the remembered item lost its Slack label: %+v in %+v", kept, file.Items)
 	}
-	doc, _ := store.Read(t.Context(), memoryPath, "")
+	doc, _ := store.Read(t.Context(), agentmemory.Path, "")
 	if !strings.Contains(string(doc.Content), "· via: slack") {
 		t.Fatalf("the notebook does not show where the item came from:\n%s", doc.Content)
 	}
@@ -116,7 +118,7 @@ func TestSlackDirectMessagesUseAndKeepThePersonsMemory(t *testing.T) {
 	for _, c := range conversations {
 		if c.Title == "Slack conversation" {
 			conversation, err := app.chat.Store.Read("alice", "default", c.ID)
-			marked = err == nil && chatPersonalContext(conversation)
+			marked = err == nil && chat.PersonalContext(conversation)
 		}
 	}
 	if !marked {
@@ -137,7 +139,7 @@ func TestSlackMemoryStaysOutOfChannelsAndOffAccounts(t *testing.T) {
 			requests := &slackMemoryRequests{}
 			app, posts := slackMemoryFixture(t, requests, send.memory)
 			signedSlackMessage(t, app, "EvNoMemory", send.kind, send.channel, "", "123.456", "<@UBOT> What do I usually check on Mondays?")
-			if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || *posts != 1 {
+			if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || *posts != 1 {
 				t.Fatal("the message was not answered", err, *posts)
 			}
 			if len(requests.prompts) != 1 || strings.Contains(requests.prompts[0], "Denver office rollout") || strings.Contains(strings.Join(requests.tools[0], ","), "remember") {

@@ -1,9 +1,10 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
+	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,7 +33,7 @@ func TestScriptCodeOnlyConnectorDoesNotBecomeAIOrChatEvidence(t *testing.T) {
 			t.Fatal(err)
 		}
 		app.dataConnections = manager
-		e.run.Script.Contract, err = app.scriptContract(e.run.Spec)
+		e.run.Script.Contract, err = app.automationrun.ScriptContract(e.run.Spec)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -40,12 +41,12 @@ func TestScriptCodeOnlyConnectorDoesNotBecomeAIOrChatEvidence(t *testing.T) {
 		if (err == nil) != enabled {
 			t.Fatalf("code-only permission=%v: %v", enabled, err)
 		}
-		if app.dataAllowed(context.WithValue(e.ctx, chatScopeKey{}, &chatRunScope{}), "fixture-api", "read") {
+		if app.dataAllowed(chat.WithScope(e.ctx, &chat.RunScope{}), "fixture-api", "read") {
 			t.Fatal("code-only data disclosed to chat")
 		}
-		actor := e.ctx.Value(automationKey{}).(automationAuth)
+		actor, _ := automation.IdentityFrom(e.ctx)
 		actor.Spec.Script, actor.Spec.Kind, actor.Spec.AIConnection = nil, "task", "provider"
-		if app.dataAllowed(context.WithValue(e.ctx, automationKey{}, actor), "fixture-api", "read") {
+		if app.dataAllowed(automation.WithIdentity(e.ctx, actor), "fixture-api", "read") {
 			t.Fatal("code-only data disclosed to a non-script AI job")
 		}
 		manager.Close()
@@ -99,7 +100,7 @@ func TestAutomationRunnerKeepsCodeOnlyCatalogOutsideChat(t *testing.T) {
 	defer manager.Close()
 	app.dataConnections = manager
 	e.run.Script = nil
-	if err = app.runAutomation(t.Context(), e.run, e.save); err != nil {
+	if err = app.automationrun.RunAutomation(t.Context(), e.run, e.save); err != nil {
 		t.Fatal(err)
 	}
 	if requests != 1 || !strings.Contains(e.run.Result, `"explicit":true`) {

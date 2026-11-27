@@ -11,9 +11,11 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/jsonfile"
+	"forgetmenote/internal/messaginghttp"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -53,12 +55,12 @@ func (s *Server) ConfigureDataConnectionsConfig(cfg connectors.Config) error {
 	return nil
 }
 func (s *Server) dataAllowed(ctx context.Context, id, operation string) bool {
-	if a, ok := ctx.Value(automationKey{}).(automationAuth); ok {
+	if a, ok := automation.IdentityFrom(ctx); ok {
 		if !slices.Contains(a.Spec.Connections, id) {
 			return false
 		}
 		if a.Spec.Kind == "assistant" && a.Spec.Delivery != nil && a.Spec.Delivery.Shared {
-			_, binding, _, err := s.messageBinding(*a.Spec.Delivery)
+			_, binding, _, err := s.messaging.MessageBinding(*a.Spec.Delivery)
 			if err != nil {
 				return false
 			}
@@ -90,13 +92,13 @@ func (s *Server) dataAllowed(ctx context.Context, id, operation string) bool {
 			return false
 		}
 	}
-	a, automated := ctx.Value(automationKey{}).(automationAuth)
+	a, automated := automation.IdentityFrom(ctx)
 	if info.CodeOnly && !(automated && a.Spec.Kind == "script" && a.Spec.Script != nil) {
 		return false
 	}
 	if !info.ExternalProcessing {
-		trustedScript, _ := ctx.Value(scriptHostContextKey{}).(bool)
-		if chatScopeFrom(ctx) != nil && !(info.CodeOnly && automated && a.Spec.Kind == "script" && a.Spec.Script != nil && trustedScript) {
+		trustedScript := automation.ScriptHost(ctx)
+		if chat.RunScopeFrom(ctx) != nil && !(info.CodeOnly && automated && a.Spec.Kind == "script" && a.Spec.Script != nil && trustedScript) {
 			return false
 		}
 		if automated && a.Spec.UsesAI() && !(a.Spec.Script != nil && info.CodeOnly) {
@@ -155,8 +157,8 @@ func (s *Server) dataTools(ctx context.Context, id string) ([]connectors.Operati
 	}
 	// A chat run never executes a write; it proposes one for its requester to
 	// confirm, so it lists the writes its grants allow.
-	a, automated := ctx.Value(automationKey{}).(automationAuth)
-	proposes := automated && proposesWrites(a.Spec)
+	a, automated := automation.IdentityFrom(ctx)
+	proposes := automated && messaginghttp.ProposesWrites(a.Spec)
 	out := []connectors.Operation{}
 	for _, op := range ops {
 		if s.dataAllowed(ctx, id, op.Name) && (op.ReadOnly || s.hasScope(ctx, "data:write") || proposes) {
@@ -179,14 +181,14 @@ func (s *Server) initDataOperations() error {
 		Manager: func() *connectors.Manager { return s.dataConnections },
 		Allowed: s.dataAllowed,
 		WriteAllowed: func(ctx context.Context, in dataCall) bool {
-			return s.hasScope(ctx, "data:write") && chatScopeFrom(ctx) == nil || confirmedDataWrite(ctx, in)
+			return s.hasScope(ctx, "data:write") && chat.RunScopeFrom(ctx) == nil || messaginghttp.ConfirmedDataWrite(ctx, in)
 		},
 		ReadProfile: func(ctx context.Context, in dataCall) error {
 			store, err := s.clientAccess(ctx, subject(ctx), in.Project, "read")
 			if err != nil {
 				return err
 			}
-			_, err = readChatNote(ctx, store, in.ProfilePath, in.ProfileRevision)
+			_, err = chatrun.ReadNote(ctx, store, in.ProfilePath, in.ProfileRevision)
 			return err
 		},
 		Submit: s.dataSubmit,
@@ -202,7 +204,7 @@ func (s *Server) initDataOperations() error {
 // Routing is exact and deterministic. Only operator-configured maintenance can
 // write; callers cannot choose its actor, checks, provider or acceptance criteria.
 func (s *Server) observeRecipeUsage(ctx context.Context, in dataCall, receipt connectors.Receipt, callErr error, elapsed time.Duration) {
-	if s.automations == nil || in.ProfilePath == "" || ctx.Value(automationKey{}) != nil {
+	if _, automated := automation.IdentityFrom(ctx); s.automations == nil || in.ProfilePath == "" || automated {
 		return
 	}
 	for _, spec := range s.automations.Definitions.Specs() {
@@ -293,7 +295,9 @@ func (s *Server) dataConnectionTools(server *mcp.Server) {
 func (s *Server) dataConnectionRoutes() {
 	s.mux.HandleFunc("POST /integrations/actions/{action}", func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("action")
-		if !strings.HasPrefix(name, "list_data_") && name != "call_data_operation" && name != "data_connection_access" && name != "set_data_connection_access" && name != "bind_external_identity" {
+		// Task queue settings are here, not among the organization actions,
+		// because those are closed to API tokens and MCP clients set them too.
+		if !strings.HasPrefix(name, "list_data_") && name != "call_data_operation" && name != "data_connection_access" && name != "set_data_connection_access" && name != "bind_external_identity" && name != "task_queues" && name != "set_task_queues" {
 			http.NotFound(w, r)
 			return
 		}

@@ -39,12 +39,12 @@ func TestChatRetrievalHonorsPerNoteAllowance(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: run.Epoch}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: run.Epoch}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "search", Name: "search_passages", Arguments: json.RawMessage(`{"text":"saffron"}`)}, connection); err != nil {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "search", Name: "search_passages", Arguments: json.RawMessage(`{"text":"saffron"}`)}, connection); err != nil {
 		t.Fatal(err)
 	}
 	saved, err := app.chat.Store.Read("alice", "default", c.ID)

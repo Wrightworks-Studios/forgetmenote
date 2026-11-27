@@ -1,9 +1,11 @@
 // The browser's one JSON request boundary. A failed response becomes an Error
 // with the server's message, HTTP status and stable code; an expired session
-// has one actionable message on every page.
+// has one actionable message on every page. Browser routes answer
+// {"error": message, "code": code}; routes that reach the API's typed actions
+// answer {"error": {"code": code, "message": message}}.
 export async function responseError(response) {
   let message=await response.text(),code;
-  try {const body=JSON.parse(message);message=body.error;code=body.code;} catch {}
+  try {const body=JSON.parse(message);({error:message,code}=body);if(message&&typeof message==='object')({message,code}=message);} catch {}
   if(response.status===401)message='Your session expired. Sign in again.';
   const error=new Error(message || `Request failed (${response.status})`);
   error.status=response.status;error.code=code;

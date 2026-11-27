@@ -169,7 +169,7 @@ func TestPausedInstanceSendsNoSlackMessages(t *testing.T) {
 	}
 	// A reply that was queued on the live instance before the copy was taken.
 	run := automation.Run{ID: automation.Hash("copied"), Spec: automation.Spec{ID: "slack-copied", Kind: "assistant", Actor: "alice", Project: "default", Instruction: "How many records?", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "123.456", SlackUser: "U123"}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); !errors.Is(err, outgoing.ErrPaused) {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); !errors.Is(err, outgoing.ErrPaused) {
 		t.Fatalf("paused instance ran a queued Slack reply: %v", err)
 	}
 	if err := app.slack.Send(t.Context(), messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", User: "U123"}, messaging.Reply{Text: "Hello"}); !errors.Is(err, outgoing.ErrPaused) {
@@ -376,7 +376,6 @@ func TestPausedInstanceRunsNoJevReview(t *testing.T) {
 	if w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs", `{"kind":"consistency","operationId":"rehearsal"}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
 		t.Fatalf("paused review start: %d %s", w.Code, w.Body)
 	}
-	app.launchNextJevJob()
 	if calls.Load() != 0 {
 		t.Fatalf("Jev called %d times", calls.Load())
 	}

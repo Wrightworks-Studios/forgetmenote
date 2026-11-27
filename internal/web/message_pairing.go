@@ -16,7 +16,7 @@ import (
 // the client admits workspace members as, with the domains named beside it, so
 // the administrator who configured the client decides who may be paired.
 func (s *Server) emailPairing(spec automation.Spec) (messaging.Client, messaging.MemberLister, error) {
-	c, transport, ok := s.messageClient(spec.Native.Client)
+	c, transport, ok := s.messaging.MessageClient(spec.Native.Client)
 	if !ok {
 		return c, nil, errors.New("the messaging client is not configured or is disabled")
 	}

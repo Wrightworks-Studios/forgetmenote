@@ -441,10 +441,11 @@ Mount `SLACK_CONFIG_FILE` with the workspace ID and private runtime secret paths
 ```
 
 Restart once to load the transport, then open **Administration → Chat clients**.
-Link Slack user IDs to active ForgetMeNote user IDs, and add channel or DM
+Link Slack user IDs to active ForgetMeNote accounts, and add channel or DM
 destinations. Each destination selects a primary notebook, additional notebooks
-(including repository notebooks and profiles), allowed data connections, and
-optional thread context and files. Comma-separated lists are accepted in the form.
+(including repository notebooks and profiles), allowed data connections (those
+that allow AI processing), allowed members, and optional thread context and
+files. Slack channel and user IDs are typed: the app has no listing of them.
 Omit `aiConnection` and `model` to use the instance's configured default model.
 `slack.example.json` also demonstrates a complete initial file-managed policy.
 Replace its placeholders and explicitly review the shared audience before using it.
@@ -600,10 +601,10 @@ remain supported, using the current adopted policy and recipient scope.
 
 **Adding another client.** Implement `internal/messaging.Transport`'s `Context` and
 `Send` methods, authenticate its inbound events, and pass normalized `messaging.Event`
-values to the server's shared `enqueueMessage` path. Register the transport at
-startup. Client adapters own signatures, network APIs and platform formatting;
-`internal/web/messaging.go` owns identities, permissions, scoped conversations and
-execution. A second fake transport exercises shared conversations, retrieval,
+values to the shared `EnqueueMessage` path in `internal/messaginghttp`. Register the
+transport at startup. Client adapters own signatures, network APIs and platform
+formatting; `internal/messaginghttp/messaging.go` owns identities, permissions, scoped
+conversations and execution. A second fake transport exercises shared conversations, retrieval,
 restart and revocation in tests. Teams/Discord/etc. adapters are not included yet.
 Tests use local synthetic Slack endpoints; no live messages or app changes occur.
 

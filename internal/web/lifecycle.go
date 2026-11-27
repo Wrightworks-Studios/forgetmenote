@@ -45,13 +45,13 @@ func (s *Server) Start(ctx context.Context) error {
 		s.backups.manager.Start()
 	}
 	if !s.outgoing.Paused() {
-		s.startJevScheduler(ctx)
-		s.startAutomations(ctx)
+		s.jev.StartScheduler(ctx)
+		s.automationrun.Start(ctx)
 	}
 	if s.chat != nil {
 		s.chat.StartRecovery()
 	}
-	s.finishStoppedPurges(ctx)
+	s.purge.FinishStopped(ctx)
 	return nil
 }
 
@@ -79,7 +79,7 @@ func (s *Server) closeResources() {
 		s.repositories.Close()
 	}
 	s.citations.Close()
-	s.jevState.close()
+	s.jev.Close()
 	if s.quicknotes != nil {
 		s.quicknotes.Close()
 	}

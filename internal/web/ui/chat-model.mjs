@@ -18,6 +18,8 @@ export function applyChatEvent(state, event) {
   if (event.type === 'text_delta') {
     const turn = next.turns.find(turn => turn.id === data.turnId);
     next.turns = replaceByID(next.turns,{...turn,id:data.turnId,runId:event.run,role:'assistant',content:(turn?.content || '') + data.text,streaming:true});
+  } else if (event.type === 'retracted') {
+    next.turns = next.turns.filter(turn => turn.id !== data.turnId);
   } else if (event.type === 'assistant' || event.type === 'user') {
     next.turns = replaceByID(next.turns,{...data,runId:event.run,streaming:false});
   } else if (['tool_started','tool_result','approval_required'].includes(event.type)) {

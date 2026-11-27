@@ -1,11 +1,13 @@
 package web
 
 import (
+	"testing"
+
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/workspace"
-	"testing"
 )
 
 // Each tool result pins its citations. Citations at the current revision
@@ -23,11 +25,11 @@ func TestChatCitationsAtCurrentRevisionPinWithOneSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := chat.Run{ID: "pin-run", Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}}}
-	ctx, err := withChatRunScope(t.Context(), chat.Conversation{Owner: catalog.Bootstrap, Project: "default", ID: "pin-chat", Turns: []chat.Turn{{Role: "user", RunID: run.ID}}}, run)
+	ctx, err := chat.WithRunScope(t.Context(), chat.Conversation{Owner: catalog.Bootstrap, Project: "default", ID: "pin-chat", Turns: []chat.Turn{{Role: "user", RunID: run.ID}}}, run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot, err := chatScopedSnapshot(ctx, store, doc.Revision)
+	snapshot, err := chatrun.ScopedSnapshot(ctx, store, doc.Revision)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +38,7 @@ func TestChatCitationsAtCurrentRevisionPinWithOneSnapshot(t *testing.T) {
 		t.Fatal("fixture has no review fingerprint")
 	}
 	citations := []chat.Citation{{ID: "cited", Path: doc.Path, Revision: doc.Revision, Hash: workspace.ContentHash([]byte(content))}}
-	if err = pinChatCitationReferences(ctx, store, citations); err != nil {
+	if err = chatrun.PinCitationReferences(ctx, store, citations); err != nil {
 		t.Fatal(err)
 	}
 	if citations[0].References != want || citations[0].Scope != "current" {

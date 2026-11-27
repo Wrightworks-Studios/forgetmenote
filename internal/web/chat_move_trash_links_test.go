@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/workspace"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // trashLinkersFixture saves F/a.md and two notes linking to it, L/free.md
@@ -78,13 +78,13 @@ func TestChatMoveUpdatesTrashLinksAndReportsOnlyCounts(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: run.Epoch}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: run.Epoch}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)
 	}
 	args, _ := json.Marshal(map[string]any{"project": "default", "from": "F", "to": "G", "revision": status.Revision})
-	if err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "move", Name: "move_notes", Arguments: args}, app.chat.Config.Connections[0]); err != errChatConfirmation {
+	if err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "move", Name: "move_notes", Arguments: args}, app.chat.Config.Connections[0]); err != chatrun.ErrConfirmation {
 		t.Fatalf("prepare: %v", err)
 	}
 	prepared, err := app.chat.Store.Read("alice", "default", c.ID)
@@ -161,7 +161,7 @@ func TestChatChangeGroupCannotEditTrashNotes(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.WithValue(t.Context(), identityKey{}, catalog.Bootstrap)
-	ctx = context.WithValue(ctx, chatScopeKey{}, &chatRunScope{Project: "default", Run: chat.Run{Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}}}, Content: workspace.ContentScope{Policy: workspace.ContainerPolicy{Version: 1, Archives: "exclude", Drafts: "exclude"}, Collection: "all"}})
+	ctx = chat.WithScope(ctx, &chat.RunScope{Project: "default", Run: chat.Run{Options: chat.Options{Corpus: &chat.Corpus{Version: 1, Archives: "exclude", Drafts: "exclude"}}}, Content: workspace.ContentScope{Policy: workspace.ContainerPolicy{Version: 1, Archives: "exclude", Drafts: "exclude"}, Collection: "all"}})
 	args, _ := json.Marshal(map[string]any{"project": "default", "mode": "apply", "group": workspace.EditGroup{ID: "trash-edit", Summary: "Edit a note in the Trash", Edits: []workspace.NoteEdit{{Path: free.Path, Content: "# Free\n\n[A](../G/a.md)\n", Revision: status.Revision}}}})
 	if _, err = app.dispatchAction(ctx, "default", "submit_change_group", args); err == nil {
 		t.Fatal("a chat change group edited a note in the Trash")

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/workspace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -66,12 +67,12 @@ func TestPersonalAccountActionsRefuseMCPGrants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	memory, _ := json.Marshal(personalMemoryState{Status: "started", Batch: []personalInteraction{{ID: "one", UserText: "Keep it concise"}}})
-	memoryState, err := app.automations.Queue.SaveJobState(personalMemorySpec(spec), "", memory, false)
+	memory, _ := json.Marshal(personal.MemoryState{Status: "started", Batch: []personal.Interaction{{ID: "one", UserText: "Keep it concise"}}})
+	memoryState, err := app.automations.Queue.SaveJobState(personal.MemorySpec(spec), "", memory, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	drafts, _ := json.Marshal(personalState{Drafts: map[string]personalDraft{"ready": {ID: "ready", State: "ready", Path: "drafts/missing.md", Reply: "Proposed reply", Source: personalObservation{Kind: "email"}}}})
+	drafts, _ := json.Marshal(personal.State{Drafts: map[string]personal.Draft{"ready": {ID: "ready", State: "ready", Path: "drafts/missing.md", Reply: "Proposed reply", Source: personal.Observation{Kind: "email"}}}})
 	draftState, err := app.automations.Queue.SaveJobState(spec, "", drafts, false)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +95,7 @@ func TestPersonalAccountActionsRefuseMCPGrants(t *testing.T) {
 	if writes.Load() != 0 {
 		t.Fatalf("MCP grant reached the provider with %d writes", writes.Load())
 	}
-	if current, err := app.automations.Queue.JobState(personalMemorySpec(spec)); err != nil || current.Revision != memoryState.Revision {
+	if current, err := app.automations.Queue.JobState(personal.MemorySpec(spec)); err != nil || current.Revision != memoryState.Revision {
 		t.Fatalf("MCP grant changed interrupted memory work: %v", err)
 	}
 

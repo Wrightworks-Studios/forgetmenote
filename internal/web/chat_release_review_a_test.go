@@ -3,11 +3,13 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
 	"net/http"
 	"strings"
 	"testing"
+
+	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 )
 
 func TestReleaseReviewAApprovalEpoch(t *testing.T) {
@@ -35,14 +37,14 @@ func TestReleaseReviewAApprovalEpoch(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	auth := runAuth{User: "alice", Project: "default", Epoch: run.Epoch}
+	auth := chat.RunAuth{User: "alice", Project: "default", Epoch: run.Epoch}
 	ctx, err := app.runContext(auth)
 	if err != nil {
 		t.Fatal(err)
 	}
 	args, _ := json.Marshal(map[string]any{"path": note.Path, "locked": true, "revision": status.Revision})
-	err = app.executeChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "lock", Name: "set_note_lock", Arguments: args}, app.chat.Config.Connections[0])
-	if err != errChatConfirmation {
+	err = app.chatrun.ExecuteChatTool(ctx, auth, c.ID, run.ID, chat.ToolCall{ID: "lock", Name: "set_note_lock", Arguments: args}, app.chat.Config.Connections[0])
+	if err != chatrun.ErrConfirmation {
 		t.Fatalf("prepare: %v", err)
 	}
 	prepared, err := app.chat.Store.Read("alice", "default", c.ID)
@@ -101,11 +103,11 @@ func TestReleaseReviewAInstructionsInContext(t *testing.T) {
 	}
 	run := chat.Run{ID: chat.NewID(), Options: chat.Options{Corpus: c.Options.Corpus, Connection: "local", Model: "synthetic", Mode: "ask"}}
 	c.Turns = []chat.Turn{{ID: chat.NewID(), RunID: run.ID, Role: "user", Content: "What markings do zebras have?"}}
-	msgs, _, _, err := app.initialChatMessages(t.Context(), c, run, app.chat.Config.Connections[0])
+	msgs, _, _, err := app.chatrun.InitialMessages(t.Context(), c, run, app.chat.Config.Connections[0])
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, _ := json.Marshal(chat.Request{System: chatSystem, Messages: msgs, Tools: app.runTools(run, app.chat.Config.Connections[0])})
+	raw, _ := json.Marshal(chat.Request{System: chatrun.System, Messages: msgs, Tools: app.chatrun.RunTools(run, app.chat.Config.Connections[0])})
 	if !strings.Contains(string(raw), marker) {
 		t.Fatalf("owner instructions absent from provider request: %s", raw)
 	}

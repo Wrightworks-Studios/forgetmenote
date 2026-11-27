@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"forgetmenote/internal/purgehttp"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"forgetmenote/internal/catalog"
@@ -116,7 +117,7 @@ func TestPurgeRefusedByTheWorkspaceLeavesExportsInProgress(t *testing.T) {
 		t.Fatalf("export: %+v %v", first, err)
 	}
 	plan := preparePurgeHTTP(t, app, workspace.PurgeScope{Kind: workspace.PurgeText, Text: secret})
-	running, err := app.db.Exclusive(ctx, purgeRunKey("default"))
+	running, err := app.db.Exclusive(ctx, purgehttp.RunKey("default"))
 	if err != nil {
 		t.Fatal(err)
 	}

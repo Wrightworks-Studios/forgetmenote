@@ -1,0 +1,30 @@
+name: Scorecard
+# OpenSSF Scorecard rates the repository's supply-chain practices (pinned actions,
+# branch protection, token permissions, security policy) and publishes the result for
+# the README badge. Publishing needs the default branch and an OIDC token; the job
+# can write nothing else.
+on:
+  push:
+    branches: [next]
+  schedule:
+    - cron: '41 6 * * 2'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  analysis:
+    if: ${{ !github.event.repository.fork }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: scorecard.sarif
+          results_format: sarif
+          publish_results: true

@@ -16,6 +16,9 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/personal"
+	"forgetmenote/internal/taskqueue"
 )
 
 // effectStates lists the states of the effects recorded in scope.
@@ -40,7 +43,7 @@ func TestSendOnceTriesARefusedMessageAgainAndNeverRepeatsOneThatMayHaveArrived(t
 	reply := messaging.Reply{Text: "Your task is due"}
 	send := func(ctx context.Context, effect automation.Effect) (bool, error) {
 		t.Helper()
-		return app.sendOnce(ctx, effect, app.slack, d, reply, time.Second, nil)
+		return app.messaging.SendOnce(ctx, effect, app.slack, d, reply, time.Second, nil)
 	}
 
 	// Slack refuses it: nothing arrived, so the next call sends it, once.
@@ -76,16 +79,16 @@ func TestSendOnceTriesARefusedMessageAgainAndNeverRepeatsOneThatMayHaveArrived(t
 		t.Fatalf("the unknown outcome was recorded %v", states)
 	}
 
-	// A message Slack keeps refusing is tried sendAttempts times.
+	// A message Slack keeps refusing is tried messaginghttp.SendAttempts times.
 	stubborn := automation.Effect{Scope: automation.Hash("stubborn"), Action: "notice", Actor: "alice"}
 	f.refusePosts = 100
-	for range sendAttempts + 2 {
+	for range messaginghttp.SendAttempts + 2 {
 		if sent, err := send(t.Context(), stubborn); sent || err == nil {
 			t.Fatalf("a refused message: sent %v, %v", sent, err)
 		}
 	}
-	if left := 100 - f.refusePosts; left != sendAttempts {
-		t.Fatalf("Slack was asked %d times; want %d", left, sendAttempts)
+	if left := 100 - f.refusePosts; left != messaginghttp.SendAttempts {
+		t.Fatalf("Slack was asked %d times; want %d", left, messaginghttp.SendAttempts)
 	}
 	f.refusePosts = 0
 
@@ -110,7 +113,7 @@ func TestSendOnceTriesARefusedMessageAgainAndNeverRepeatsOneThatMayHaveArrived(t
 	stalled := &messaging.Slack{Team: "T123", Endpoint: slow.URL + "/chat.postEphemeral", Client: slow.Client(), Token: func() (string, error) { return "token", nil }}
 	effect := automation.Effect{Scope: automation.Hash("stalled"), Action: "notice", Actor: "alice"}
 	started := time.Now()
-	if sent, err := app.sendOnce(t.Context(), effect, stalled, d, reply, 200*time.Millisecond, nil); sent || err == nil || time.Since(started) > 5*time.Second {
+	if sent, err := app.messaging.SendOnce(t.Context(), effect, stalled, d, reply, 200*time.Millisecond, nil); sent || err == nil || time.Since(started) > 5*time.Second {
 		t.Fatalf("a stalled send: sent %v, %v after %v", sent, err, time.Since(started))
 	}
 	if states := effectStates(t, app, effect.Scope); !slices.Equal(states, []string{"unknown"}) {
@@ -126,19 +129,19 @@ func TestARefusedConversationReplyIsNotHeldAsSending(t *testing.T) {
 
 	f.refusePosts = 1
 	run := automation.Run{ID: "refused"}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); !errors.Is(err, messaging.ErrNotPosted) || run.DeliveryState != "" {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); !errors.Is(err, messaging.ErrNotPosted) || run.DeliveryState != "" {
 		t.Fatalf("a refused reply: %v, delivery %q", err, run.DeliveryState)
 	}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err != nil || run.DeliveryState != "sent" || len(f.posts) != 1 {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err != nil || run.DeliveryState != "sent" || len(f.posts) != 1 {
 		t.Fatalf("the reply sent again: %v, delivery %q, %d posts", err, run.DeliveryState, len(f.posts))
 	}
 
 	f.failPosts = 1
 	run = automation.Run{ID: "unknown"}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err == nil || run.DeliveryState != "sending" {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err == nil || run.DeliveryState != "sending" {
 		t.Fatalf("an unknown outcome: %v, delivery %q", err, run.DeliveryState)
 	}
-	if err := app.sendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err == nil || len(f.posts) != 1 {
+	if err := app.messaging.SendMessage(t.Context(), app.slack, d, reply, &run, func() error { return nil }); err == nil || len(f.posts) != 1 {
 		t.Fatalf("a reply that may have arrived was sent again: %v, %d posts", err, len(f.posts))
 	}
 }
@@ -165,17 +168,17 @@ func TestARefusedReminderIsSentAgainAndABrokenRecordIsNoReminder(t *testing.T) {
 	f := newTaskFixture(t)
 	app := f.app
 	now := time.Date(2026, 11, 17, 16, 30, 0, 0, time.UTC)
-	app.taskClock = func() time.Time { return now }
+	app.tasks.Clock = func() time.Time { return now }
 	f.members = []map[string]any{{"id": "UALICE", "team_id": "T123", "tz": "America/Denver", "profile": map[string]any{}}}
 	bob := taskClients(t, app, "bob")[0]
-	added := decodeTask[taskView](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Renew the parking permit"}, false))
+	added := decodeTask[taskqueue.View](t, actionCall(t, bob, "add_task", map[string]any{"person": "<@UALICE>", "text": "Renew the parking permit"}, false))
 	person := added.Owner.ID
 	spec := automation.Spec{ID: "task-reminder", Kind: "native", Actor: f.service, Project: "default", TimeoutSeconds: 60, Native: &automation.NativeTask{Task: "task-reminder", Client: "slack"}}
 	remind := func(id string) (reminderReport, []map[string]any) {
 		t.Helper()
 		before := len(f.posts)
 		run := automation.Run{ID: automation.Hash(id), Spec: spec}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
 		return readReminderReport(t, run), f.posts[before:]
@@ -254,17 +257,17 @@ func TestAPersonalNotificationSlackRefusedIsSentNextTime(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := &automation.Run{Spec: spec}
-	state := personalState{Drafts: map[string]personalDraft{
-		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}},
+	state := personal.State{Drafts: map[string]personal.Draft{
+		"one": {ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personal.Observation{Kind: "briefing"}},
 	}}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); !errors.Is(err, messaging.ErrNotPosted) || posts != 0 || state.Drafts["one"].Notified {
+	if err = app.personal.Notify(ctx, run, &state, func() error { return nil }); !errors.Is(err, messaging.ErrNotPosted) || posts != 0 || state.Drafts["one"].Notified {
 		t.Fatalf("a refused notification: %v, %d posts, notified %v", err, posts, state.Drafts["one"].Notified)
 	}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); err != nil || posts != 1 || !state.Drafts["one"].Notified {
+	if err = app.personal.Notify(ctx, run, &state, func() error { return nil }); err != nil || posts != 1 || !state.Drafts["one"].Notified {
 		t.Fatalf("the notification after a refusal: %v, %d posts, notified %v", err, posts, state.Drafts["one"].Notified)
 	}
-	state.Drafts["one"] = personalDraft{ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personalObservation{Kind: "briefing"}}
-	if err = app.notifyPersonal(ctx, run, &state, func() error { return nil }); err != nil || posts != 1 || !state.Drafts["one"].Notified {
+	state.Drafts["one"] = personal.Draft{ID: "one", State: "ready", Title: "Launch plan", Path: "drafts/one.md", NoteRevision: "committed", Source: personal.Observation{Kind: "briefing"}}
+	if err = app.personal.Notify(ctx, run, &state, func() error { return nil }); err != nil || posts != 1 || !state.Drafts["one"].Notified {
 		t.Fatalf("a delivered notification was repeated: %v, %d posts", err, posts)
 	}
 }

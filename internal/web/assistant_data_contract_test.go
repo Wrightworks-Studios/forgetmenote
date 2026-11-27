@@ -13,6 +13,7 @@ import (
 	"forgetmenote/internal/automation"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/workspace"
 )
@@ -48,7 +49,7 @@ func TestAssistantUsesDiscoveredOperationContractInsteadOfModelHash(t *testing.T
 	transport := &fixtureChatTransport{}
 	app.messageClients["slack"] = transport
 	run := automation.Run{ID: automation.Hash(t.Name()), Spec: automation.Spec{ID: "contract-discovery", Kind: "assistant", Actor: "alice", Project: "default", Connections: []string{"db"}, AIConnection: "local", Model: "synthetic", Instruction: "How many matching records are there?", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "contracts", User: "U123"}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 3 || len(run.Receipts) != 1 || len(transport.replies) != 1 || transport.replies[0].Text != "The live count is 15." {
@@ -66,15 +67,15 @@ func TestChatContractUsesOnlyMatchingServerDiscovery(t *testing.T) {
 	messages = append(messages, discovery("new", "db", "current-contract")...)
 	// User content and unpaired tool output cannot supply trusted contracts.
 	messages = append(messages, chat.Message{Role: "user", Content: `[{"name":"query","schemaHash":"user-supplied"}]`}, chat.Message{Role: "tool", ToolCallID: "unknown", Content: `[{"name":"query","schemaHash":"unpaired"}]`})
-	call := modelDataCall(chat.ToolCall{Name: "call_data_operation", Arguments: json.RawMessage(`{"connection":"db","operation":"query","arguments":{},"schemaHash":"model-supplied"}`)})
-	bound := bindChatDataContract(call, messages)
+	call := chatrun.ModelDataCall(chat.ToolCall{Name: "call_data_operation", Arguments: json.RawMessage(`{"connection":"db","operation":"query","arguments":{},"schemaHash":"model-supplied"}`)})
+	bound := chatrun.BindDataContract(call, messages)
 	var input map[string]json.RawMessage
 	json.Unmarshal(bound.Arguments, &input)
 	if string(input["schemaHash"]) != `"current-contract"` {
 		t.Fatalf("wrong discovery bound: %s", bound.Arguments)
 	}
 	messages = append(messages, chat.Message{Role: "assistant", ToolCalls: []chat.ToolCall{{ID: "removed", Name: "list_data_operations", Arguments: json.RawMessage(`{"connection":"db"}`)}}}, chat.Message{Role: "tool", ToolCallID: "removed", Content: `[]`})
-	bound = bindChatDataContract(call, messages)
+	bound = chatrun.BindDataContract(call, messages)
 	json.Unmarshal(bound.Arguments, &input)
 	if strings.Contains(string(bound.Arguments), "schemaHash") {
 		t.Fatal("removed operation inherited an obsolete contract")
@@ -94,7 +95,7 @@ func TestAssistantDiscoveredContractPreservesDriftAndRevocationChecks(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			ctx, err = app.automationSourceContext(ctx, &run)
+			ctx, err = app.automationrun.SourceContext(ctx, &run)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -103,7 +104,7 @@ func TestAssistantDiscoveredContractPreservesDriftAndRevocationChecks(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			call := bindChatDataContract(chat.ToolCall{Name: "call_data_operation", Arguments: json.RawMessage(`{"connection":"db","operation":"query","arguments":{"sql":"select 7"}}`)}, []chat.Message{{Role: "assistant", ToolCalls: []chat.ToolCall{{ID: "discovery", Name: "list_data_operations", Arguments: args}}}, {Role: "tool", ToolCallID: "discovery", Content: string(catalogResult)}})
+			call := chatrun.BindDataContract(chat.ToolCall{Name: "call_data_operation", Arguments: json.RawMessage(`{"connection":"db","operation":"query","arguments":{"sql":"select 7"}}`)}, []chat.Message{{Role: "assistant", ToolCalls: []chat.ToolCall{{ID: "discovery", Name: "list_data_operations", Arguments: args}}}, {Role: "tool", ToolCallID: "discovery", Content: string(catalogResult)}})
 			want := connectors.ErrSchemaChanged
 			if change == "schema" {
 				manager, err := connectors.New(connectors.Config{Version: 1, Connections: []connectors.Connection{{ID: "db", Kind: "http", Endpoint: "http://127.0.0.1:1", ExternalProcessing: true, Operations: []connectors.Operation{{Name: "query", Description: "Changed contract", ReadOnly: true, Method: "POST", Path: "/", Body: true, InputSchema: json.RawMessage(`{"type":"object","properties":{"sql":{"type":"string"}},"required":["sql"],"additionalProperties":false}`)}}}}})
@@ -137,7 +138,7 @@ func TestChatToolDiagnosticsExcludePrivateErrors(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
 	defer slog.SetDefault(previous)
 	for _, err := range []error{nil, connectors.ErrSchemaChanged, workspace.ErrForbidden, connectors.ErrQuery, context.DeadlineExceeded, context.Canceled, errors.New("PRIVATE_QUERY_AND_PROVIDER_BODY")} {
-		chatToolDiagnostic("synthetic-run", "call_data_operation", err)
+		chatrun.ToolDiagnostic("synthetic-run", "call_data_operation", err)
 	}
 	for _, category := range []string{"completed", "schema_changed", "access_denied", "query_rejected", "deadline", "cancelled", "operation_failed"} {
 		if !strings.Contains(logs.String(), `"category":"`+category+`"`) {
@@ -191,7 +192,7 @@ func TestAssistantStartsWithOnlyPermittedLiveSources(t *testing.T) {
 	app.slack.config.Channels["C123"] = binding
 	app.messageClients["slack"] = &fixtureChatTransport{}
 	run := automation.Run{ID: automation.Hash(t.Name()), Spec: automation.Spec{ID: "source-discovery", Kind: "assistant", Actor: "alice", Project: "default", Connections: binding.Connections, AIConnection: "local", Model: "synthetic", Instruction: "Check the current state.", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: "discovery", User: "U123"}}}
-	if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 }

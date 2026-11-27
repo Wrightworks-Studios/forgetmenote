@@ -25,9 +25,9 @@ func TestScriptImageDetailsPreserveOriginalPixels(t *testing.T) {
 	if err := png.Encode(&encoded, original); err != nil {
 		t.Fatal(err)
 	}
-	app.scriptImageFetch = func(context.Context, string) ([]byte, string, string, error) {
+	app.automationrun.SetScriptImageFetch(func(context.Context, string) ([]byte, string, string, error) {
 		return encoded.Bytes(), "image/png", "https://images.example.org/original.png", nil
-	}
+	})
 	value, err := hostStep(t, app, execution, "original", "web.fetch", map[string]any{"url": "https://images.example.org/original.png", "image": true, "detail": true})
 	if err != nil {
 		t.Fatal(err)
@@ -76,9 +76,9 @@ func TestScriptImageDetailsExposeNativeOriginalEdges(t *testing.T) {
 	if err := png.Encode(&encoded, original); err != nil {
 		t.Fatal(err)
 	}
-	app.scriptImageFetch = func(context.Context, string) ([]byte, string, string, error) {
+	app.automationrun.SetScriptImageFetch(func(context.Context, string) ([]byte, string, string, error) {
 		return encoded.Bytes(), "image/png", "https://images.example.org/original.png", nil
-	}
+	})
 	value, err := hostStep(t, app, execution, "original", "web.fetch", map[string]any{"url": "https://images.example.org/original.png", "image": true, "detail": true})
 	if err != nil {
 		t.Fatal(err)

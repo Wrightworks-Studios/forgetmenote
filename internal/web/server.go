@@ -9,8 +9,6 @@ import (
 	"embed"
 	"encoding/base64"
 	"errors"
-	"forgetmenote/internal/quicknotes"
-	"forgetmenote/internal/reposource"
 	"html/template"
 	"io"
 	"mime"
@@ -25,27 +23,37 @@ import (
 	"time"
 
 	"forgetmenote/internal/actions"
+	"forgetmenote/internal/agentmemory"
 	"forgetmenote/internal/attribution"
 	"forgetmenote/internal/auth"
 	"forgetmenote/internal/automation"
+	"forgetmenote/internal/automationrun"
 	"forgetmenote/internal/backups"
 	"forgetmenote/internal/blob"
 	"forgetmenote/internal/branding"
 	"forgetmenote/internal/capacity"
 	"forgetmenote/internal/catalog"
-	"forgetmenote/internal/chat"
+	"forgetmenote/internal/chatrun"
 	"forgetmenote/internal/citationchecks"
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/decision"
+	"forgetmenote/internal/jev"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/messaginghttp"
+	"forgetmenote/internal/modules"
 	"forgetmenote/internal/notebooks"
 	"forgetmenote/internal/outgoing"
+	"forgetmenote/internal/personal"
 	"forgetmenote/internal/pg"
+	"forgetmenote/internal/purgehttp"
+	"forgetmenote/internal/quicknotes"
+	"forgetmenote/internal/reposource"
 	"forgetmenote/internal/search"
 	"forgetmenote/internal/sourcehttp"
 	"forgetmenote/internal/sources"
+	"forgetmenote/internal/taskqueue"
 	"forgetmenote/internal/webcore"
 	"forgetmenote/internal/workspace"
 )
@@ -57,29 +65,29 @@ import (
 var assets embed.FS
 
 type Server struct {
-	browserAssets   browserManifest
-	customIcons     appIconCache
-	lifecycleMu     sync.Mutex
-	started, closed bool
-	closeOnce       sync.Once
-	// Same credential-free source boundary as document capture; replaceable by
-	// local HTTP fixtures without weakening production DNS/redirect checks.
-	scriptImageFetch     func(context.Context, string) ([]byte, string, string, error)
-	scriptWebsiteCapture func(context.Context, string) (chat.WebsiteEvidence, error)
-	personalConnections  *connectors.PersonalConnections
-	dataConnections      *connectors.Manager
-	dataOperations       *dataops.Service
-	automations          *automationService
-	python               *automation.Python
-	slack                *slackService
-	// taskClock replaces the time task queues read, in tests.
-	taskClock func() time.Time
-	// memberNames are the task workspace's member names, for task messages.
-	memberNames    memberNameCache
+	browserAssets       browserManifest
+	customIcons         appIconCache
+	lifecycleMu         sync.Mutex
+	started, closed     bool
+	closeOnce           sync.Once
+	personalConnections *connectors.PersonalConnections
+	dataConnections     *connectors.Manager
+	dataOperations      *dataops.Service
+	automations         *automationService
+	python              *automation.Python
+	slack               *slackService
+	messaging           *messaginghttp.Service
+	personal            *personal.Service
+	chatrun             *chatrun.Service
+	automationrun       *automationrun.Service
+	tasks               *taskqueue.Service
+	// messageClients are the configured messaging transports, by client ID.
 	messageClients map[string]messaging.Transport
 	headless       bool
 	outgoing       *outgoing.Mode
-	authority      *notebooks.Authority
+	// modules is the startup module set; the zero set runs every module.
+	modules   modules.Set
+	authority *notebooks.Authority
 
 	repositoryConnections *repositoryConnections
 
@@ -88,7 +96,7 @@ type Server struct {
 	backups             *backupService
 	quicknotes          *quicknotes.Service
 	citations           *citationchecks.Runtime
-	jevState            *jevState
+	jev                 *jev.Service
 	decisions           *decision.Policy
 	chat                *chatService
 	actions             actions.Registry
@@ -103,7 +111,7 @@ type Server struct {
 	legacy              *legacySessions
 	mcpTools            []func()
 	indexes             *search.Indexes
-	memoryVectors       memoryVectors
+	memory              *agentmemory.Service
 	corpusSearch        *search.Coordinator
 	aiMu                sync.Mutex
 	catalog             *catalog.Catalog
@@ -121,6 +129,7 @@ type Server struct {
 	passwords           passwordRequests
 	sourceJobs          *sources.Jobs
 	sourceHTTP          *sourcehttp.HTTP
+	purge               *purgehttp.Service
 	sourceWork          chan struct{}
 	rpcWork             chan struct{}
 	rpcReadWork         chan struct{}
@@ -254,6 +263,10 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 		return nil, errors.New("ForgetMeNote requires its Postgres database; see docs/postgres.md")
 	}
 	s.db = db
+	// The flow sweep the first export pass begins keeps purge receipts.
+	if err = s.initPurge(); err != nil {
+		return nil, err
+	}
 	// Exports another gateway left expire here too.
 	s.expireExports()
 	// Request windows are shared, so each limit holds for the instance.
@@ -272,11 +285,29 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initChat(); err != nil {
 		return nil, err
 	}
+	if err = s.initChatRun(); err != nil {
+		return nil, err
+	}
 	if err = s.initJev(); err != nil {
 		return nil, err
 	}
-	s.decisions = decision.NewPolicy(projects, s.jevConfigured, s.jevState.preferences)
+	s.decisions = decision.NewPolicy(projects, s.jevConfigured, s.jev.StoredPreferences)
+	if err = s.initMemory(); err != nil {
+		return nil, err
+	}
 	if err = s.initAutomations(); err != nil {
+		return nil, err
+	}
+	if err = s.initAutomationRun(); err != nil {
+		return nil, err
+	}
+	if err = s.initTasks(); err != nil {
+		return nil, err
+	}
+	if err = s.initMessaging(); err != nil {
+		return nil, err
+	}
+	if err = s.initPersonal(); err != nil {
 		return nil, err
 	}
 	if err = s.initDataOperations(); err != nil {
@@ -373,7 +404,7 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	s.chatRoutes()
 	s.connectionRoutes()
 	s.authorityRoutes()
-	s.purgeRoutes()
+	s.purge.Register(s.handleProject)
 	s.instanceAdministrationRoutes()
 
 	s.mux.Handle("/mcp", s.mcpHandler())
@@ -442,7 +473,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer done()
 	}
 	if target.api {
-		r = r.WithContext(context.WithValue(r.Context(), apiContextKey{}, true))
+		r = r.WithContext(auth.WithAPI(r.Context()))
 		s.apiHTTP(w, r)
 		return
 	}
@@ -529,12 +560,8 @@ func (s *Server) serveHeadless(w http.ResponseWriter, r *http.Request, target re
 // or bearer check.
 func (s *Server) serveIntegration(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch {
-	case path == "/integrations/slack/events":
-		s.slackEvents(w, r)
-	case path == "/integrations/slack/interactions":
-		s.slackInteractions(w, r)
-	case path == "/integrations/slack/commands":
-		s.slackCommands(w, r)
+	case path == "/integrations/slack/events" || path == "/integrations/slack/interactions" || path == "/integrations/slack/commands":
+		s.slackApp(w, r, path)
 	case strings.HasPrefix(path, "/internal/backups/v1/"):
 		s.backupWorkerHTTP(w, r)
 	case path == "/repository/github/webhook":
@@ -849,8 +876,8 @@ func (s *Server) readNote(ctx context.Context, store *workspace.Store, in readNo
 	if !strings.HasSuffix(in.Path, ".md") {
 		return noteOutput{}, webcore.Invalid("notes are Markdown (.md) files; read media as an attachment")
 	}
-	v, err := pinnedRead(ctx, store, in.Path, in.Revision, func(revision string) (workspace.Document, error) {
-		return readChatNote(ctx, store, in.Path, revision)
+	v, err := purgehttp.PinnedRead(ctx, store, in.Path, in.Revision, func(revision string) (workspace.Document, error) {
+		return chatrun.ReadNote(ctx, store, in.Path, revision)
 	})
 	return s.output(v), err
 }
@@ -952,7 +979,7 @@ func (s *Server) upload(w http.ResponseWriter, r *http.Request) {
 func (s *Server) asset(w http.ResponseWriter, r *http.Request) {
 	path := r.PathValue("path")
 	store := projectStore(r.Context())
-	doc, err := pinnedRead(r.Context(), store, path, r.URL.Query().Get("revision"), func(revision string) (workspace.Document, error) {
+	doc, err := purgehttp.PinnedRead(r.Context(), store, path, r.URL.Query().Get("revision"), func(revision string) (workspace.Document, error) {
 		return store.Read(r.Context(), path, revision)
 	})
 	if err != nil {

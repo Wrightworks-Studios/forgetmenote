@@ -19,6 +19,7 @@ import (
 	"forgetmenote/internal/decision"
 	"forgetmenote/internal/jsonfile"
 	"forgetmenote/internal/messaging"
+	"forgetmenote/internal/modules"
 	"forgetmenote/internal/reposource"
 )
 
@@ -104,12 +105,19 @@ func errOwnersRemoved(setting string) error {
 	return fmt.Errorf("%s has been removed: every notebook lives in the instance database, which each gateway serves, so remove the notebook owner map", setting)
 }
 
+// Modules turns feature modules off; internal/modules owns their names and
+// requirements. Like the server settings, it is read once at startup.
+type Modules struct {
+	Off []string `json:"off,omitempty"`
+}
+
 type Config struct {
 	Version      int          `json:"version"`
 	Server       Server       `json:"server"`
 	Identity     Identity     `json:"identity"`
 	AI           AI           `json:"ai"`
 	Integrations Integrations `json:"integrations"`
+	Modules      Modules      `json:"modules"`
 	Notebooks    *Notebooks   `json:"notebooks,omitempty"`
 }
 type Resolved struct {
@@ -141,6 +149,11 @@ func Load(path string) (Config, error) {
 	}
 	if c.Notebooks != nil && len(c.Notebooks.Owners) > 0 {
 		return c, errOwnersRemoved("notebooks.owners")
+	}
+	// A wrong module set stops every command that reads the file, before
+	// anything opens; the server installs the same set again at startup.
+	if _, err := modules.Parse(c.Modules.Off); err != nil {
+		return c, fmt.Errorf("instance configuration: %w", err)
 	}
 	return c, nil
 }

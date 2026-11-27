@@ -84,10 +84,10 @@ func TestSlackWritesRunOnlyAfterTheRequesterConfirms(t *testing.T) {
 	send := func(id, user, text string) string {
 		t.Helper()
 		d := messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", Thread: "1.0", Message: id, User: user}
-		if err := app.enqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
+		if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: id, Text: text, Address: d}); err != nil {
 			t.Fatal(err)
 		}
-		if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {
+		if ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || !ran {
 			t.Fatal("run", ran, err)
 		}
 		if len(transport.replies) == 0 {
@@ -242,10 +242,10 @@ func TestSlackModelSeesTheWriteOperationsItMayPropose(t *testing.T) {
 	transport := &fixtureChatTransport{}
 	app.messageClients["slack"] = transport
 	d := messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", Thread: "1.0", Message: "1.1", User: "U123"}
-	if err = app.enqueueMessage(t.Context(), messaging.Event{ID: "1.1", Text: "File a test issue.", Address: d}); err != nil {
+	if err = app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: "1.1", Text: "File a test issue.", Address: d}); err != nil {
 		t.Fatal(err)
 	}
-	if ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || !ran {
+	if ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || !ran {
 		t.Fatal("run", ran, err)
 	}
 	// A write the requester may confirm must be discoverable, or the model
@@ -332,7 +332,7 @@ func TestSlackButtonsConfirmOrCancelOnlyTheRequestersWrite(t *testing.T) {
 	}
 	run := func() bool {
 		t.Helper()
-		ran, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation)
+		ran, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -342,7 +342,7 @@ func TestSlackButtonsConfirmOrCancelOnlyTheRequestersWrite(t *testing.T) {
 	propose := func(message string) (string, string) {
 		t.Helper()
 		d := messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", Thread: "1.0", Message: message, User: "U123"}
-		if err := app.enqueueMessage(t.Context(), messaging.Event{ID: message, Text: "File an issue for the wrong API key logging.", Address: d}); err != nil {
+		if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: message, Text: "File an issue for the wrong API key logging.", Address: d}); err != nil {
 			t.Fatal(err)
 		}
 		if !run() {
@@ -421,7 +421,7 @@ func TestSlackButtonsConfirmOrCancelOnlyTheRequestersWrite(t *testing.T) {
 	var value struct{ Code string }
 	json.Unmarshal([]byte(cancel), &value)
 	d := messaging.Address{Client: "slack", Workspace: "T123", Channel: "C123", Thread: "1.0", Message: "1.5", User: "U123"}
-	if err := app.enqueueMessage(t.Context(), messaging.Event{ID: "1.5", Text: "confirm " + value.Code, Address: d}); err != nil {
+	if err := app.messaging.EnqueueMessage(t.Context(), messaging.Event{ID: "1.5", Text: "confirm " + value.Code, Address: d}); err != nil {
 		t.Fatal(err)
 	}
 	if !run() || writes != 1 || !strings.Contains(lastReply(), "cancelled") {

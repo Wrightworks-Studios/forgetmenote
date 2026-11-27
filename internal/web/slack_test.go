@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -60,7 +61,7 @@ func TestSlackThreadRetainsOnlyItsRequestersConversation(t *testing.T) {
 			instruction = "Explain that answer."
 		}
 		run := automation.Run{ID: automation.Hash(i), Spec: automation.Spec{ID: "slack-" + strconv.Itoa(i), Kind: "assistant", Actor: "alice", Project: "default", Instruction: instruction, AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", Thread: thread, SlackUser: "U123"}}}
-		if err := app.runAutomation(t.Context(), &run, func() error { return nil }); err != nil {
+		if err := app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 			t.Fatal(err)
 		}
 		if i == 0 {
@@ -129,6 +130,43 @@ func TestSlackSignedEventsDeduplicateAndBindIdentity(t *testing.T) {
 	}
 }
 
+// TestSlackEndpointsCheckSignatures sends each Slack app endpoint a request
+// signed with the wrong key and one signed too long ago: both are refused
+// before any handler reads them, and the same request signed now reaches it.
+func TestSlackEndpointsCheckSignatures(t *testing.T) {
+	app := chatFixture(t)
+	configureSlackFixture(t, app)
+	request := func(path, body, key string, when int64) *httptest.ResponseRecorder {
+		stamp := strconv.FormatInt(when, 10)
+		mac := hmac.New(sha256.New, []byte(key))
+		mac.Write([]byte("v0:" + stamp + ":" + body))
+		r := httptest.NewRequest("POST", "http://localhost"+path, strings.NewReader(body))
+		r.Header.Set("X-Slack-Request-Timestamp", stamp)
+		r.Header.Set("X-Slack-Signature", "v0="+hex.EncodeToString(mac.Sum(nil)))
+		w := httptest.NewRecorder()
+		app.ServeHTTP(w, r)
+		return w
+	}
+	for _, c := range []struct {
+		path, body string
+		signed     int
+	}{
+		{"/integrations/slack/events", `{"type":"url_verification","challenge":"fixture"}`, 200},
+		{"/integrations/slack/interactions", "payload=" + url.QueryEscape(`{"type":"view_closed","team":{"id":"T123"}}`), 200},
+		{"/integrations/slack/commands", "team_id=T999&command=%2Ftasks", 403},
+	} {
+		if w := request(c.path, c.body, "wrong", time.Now().Unix()); w.Code != 401 {
+			t.Errorf("%s with the wrong key: HTTP %d", c.path, w.Code)
+		}
+		if w := request(c.path, c.body, "fixture-signing", time.Now().Add(-10*time.Minute).Unix()); w.Code != 401 {
+			t.Errorf("%s signed ten minutes ago: HTTP %d", c.path, w.Code)
+		}
+		if w := request(c.path, c.body, "fixture-signing", time.Now().Unix()); w.Code != c.signed {
+			t.Errorf("%s signed now: HTTP %d, want %d", c.path, w.Code, c.signed)
+		}
+	}
+}
+
 func TestSlackDirectMessagesUseMappedPrivateContext(t *testing.T) {
 	app, _ := runnerFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"Private DM answer"},"finish_reason":"stop"}]}`))
@@ -172,7 +210,7 @@ func TestSlackDirectMessagesUseMappedPrivateContext(t *testing.T) {
 	if err != nil || len(runs) != 1 || !runs[0].Spec.Delivery.Direct {
 		t.Fatal("DM was not queued", runs, err)
 	}
-	if _, err = app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || posts != 1 {
+	if _, err = app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || posts != 1 {
 		t.Fatal("DM was not delivered", err, posts)
 	}
 	if strings.Join(progress, ",") != "/reactions.add,/chat.postMessage,/reactions.remove" {
@@ -216,7 +254,7 @@ func TestSlackDirectAnswerArrivesWhenMemoryCannotRecordIt(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body)
 	}
-	if _, err := app.automations.Queue.RunNext(t.Context(), app.runAutomation); err != nil || posts != 1 {
+	if _, err := app.automations.Queue.RunNext(t.Context(), app.automationrun.RunAutomation); err != nil || posts != 1 {
 		t.Fatal("the DM answer was lost to memory recording", err, posts)
 	}
 }
@@ -238,24 +276,24 @@ func TestSlackPrivateDeliveryReplayAndRevocation(t *testing.T) {
 	run := automation.Run{Spec: automation.Spec{ID: "slack-fixture", Kind: "assistant", Actor: "alice", Project: "default", AIConnection: "local", Model: "synthetic", ExternalProcessing: true, Delivery: &automation.Delivery{Channel: "C123", SlackUser: "U123", Thread: "123.456"}}, Answer: "Private answer"}
 	var checkpoints []string
 	save := func() error { checkpoints = append(checkpoints, run.DeliveryState); return nil }
-	if err := app.runAutomation(t.Context(), &run, save); err != nil {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, save); err != nil {
 		t.Fatal(err)
 	}
 	if posts != 1 || run.DeliveryState != "sent" || len(checkpoints) != 2 || checkpoints[0] != "sending" || checkpoints[1] != "sent" {
 		t.Fatal(posts, checkpoints)
 	}
-	if err := app.runAutomation(t.Context(), &run, save); err != nil || posts != 1 {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, save); err != nil || posts != 1 {
 		t.Fatal("resent acknowledged delivery", err, posts)
 	}
 	run.DeliveryState = "sending"
-	if err := app.runAutomation(t.Context(), &run, save); err == nil || posts != 1 {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, save); err == nil || posts != 1 {
 		t.Fatal("resent ambiguous delivery", err, posts)
 	}
 	run.DeliveryState = ""
 	if err := app.catalog.SetUser(catalog.Bootstrap, catalog.User{ID: "alice", Disabled: true}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.runAutomation(t.Context(), &run, save); err == nil || posts != 1 {
+	if err := app.automationrun.RunAutomation(t.Context(), &run, save); err == nil || posts != 1 {
 		t.Fatal("delivered after account revocation", err, posts)
 	}
 }
