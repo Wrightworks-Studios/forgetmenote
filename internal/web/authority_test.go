@@ -539,7 +539,7 @@ func TestAuthorityImportRecoveryBeforeAndAfterPublication(t *testing.T) {
 			app = reopenAuthorityFixture(t, app)
 			savedSources := app.repositories
 			app.repositories = nil
-			if err = app.RecoverAuthority(ctx); err == nil || !app.catalog.AuthorityChanging("default") {
+			if err = app.RecoverAuthority(ctx); err == nil || !strings.Contains(err.Error(), "modules on") || !app.catalog.AuthorityChanging("default") {
 				t.Fatal("missing provider silently cleared fence", err)
 			}
 			app.repositories = savedSources

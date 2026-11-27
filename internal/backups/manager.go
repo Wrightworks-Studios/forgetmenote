@@ -128,6 +128,20 @@ func Open(db *pg.DB, app *githubapp.Client, check func(Binding) error) (*Manager
 	return m, nil
 }
 
+// Stored reads the bindings the instance's gateways share, by notebook,
+// without a GitHub App and without opening a manager: for an instance that
+// runs no managed backups yet still reports the ones people connected. A
+// binding's authorization is not checked.
+func Stored(ctx context.Context, db *pg.DB) (map[string]Binding, error) {
+	ctx, cancel := context.WithTimeout(ctx, stateTimeout)
+	defer cancel()
+	state, _, err := pg.NewDoc[sharedState](db, stateKind, stateID, maxStateBytes).Load(ctx)
+	if err != nil {
+		return nil, errors.Join(ErrUnavailable, err)
+	}
+	return state.Bindings, nil
+}
+
 func emptyState() sharedState { return sharedState{Version: 1, Bindings: map[string]Binding{}} }
 
 // lock takes the manager and adopts what another gateway stored since the last

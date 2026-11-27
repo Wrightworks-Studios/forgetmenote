@@ -80,6 +80,9 @@ func (s *Server) closeResources() {
 	if s.repositories != nil {
 		s.repositories.Close()
 	}
+	if s.dormantRepositories != nil {
+		s.dormantRepositories.Close()
+	}
 	s.citations.Close()
 	s.judgments.Close()
 	if s.quicknotes != nil {

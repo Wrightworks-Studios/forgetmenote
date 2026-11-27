@@ -143,8 +143,11 @@ can wait there and release together. A release is a pull request from `next` int
 stays an ancestor of `main`, and the push starts the pipeline above. Never squash
 or rebase that pull request, and never delete `next`. A fix that cannot wait may
 go straight to `main`; merge `main` back into `next` afterwards. Both branches
-require the `fast` check. `next` merges through a merge queue: it runs `fast` on
-each pull request on top of the ones ahead of it and squash-merges them in turn.
+require the `fast` check, and `next` also requires `full`. `next` merges through a
+merge queue: it runs `fast` on each pull request on top of the ones ahead of it,
+also runs the complete regression as `full` on a pull request labelled
+[`full-gate`](../../docs/verification.md#pr-feedback-and-complete-regression), and
+squash-merges them in turn.
 
 ## Choosing verification coverage
 

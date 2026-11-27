@@ -34,7 +34,9 @@ func (s *Server) mcpHandler() http.Handler {
 	s.personalConnectionTools(server)
 	s.personalUITools(server)
 	s.personalRecoveryTools(server)
-	s.connectionTools(server)
+	if s.gitHubConnections() {
+		s.connectionTools(server)
+	}
 	s.automationEffectTools(server)
 	s.automationTools(server)
 	s.authorityTools(server)
@@ -42,7 +44,8 @@ func (s *Server) mcpHandler() http.Handler {
 	s.trashTools(server)
 	s.commentTools(server)
 	s.purgeTools(server)
-	s.repositoryTools(server)
+	s.documentTools(server)
+	s.notebookLinkTools(server)
 	// The tools of the feature modules this instance runs.
 	s.moduleTools(server)
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}

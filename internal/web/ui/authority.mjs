@@ -1,5 +1,6 @@
 import {notebookPath} from './request.mjs';
 import {$,busy,isBusy} from './dom.mjs';
+import {moduleOn} from './state.mjs';
 
 export function initAuthority({api,post,getProject,getUser,remember}) {
  let version=0,state=null,preview=null;
@@ -8,7 +9,8 @@ export function initAuthority({api,post,getProject,getUser,remember}) {
   const owner=getUser()?.admin||getProject()?.role==='owner';
   $('authority-current').textContent=label(state.authority.type)+(state.changing?' · Handoff in progress':state.authority.type==='github'?' · Read only':' · Editable');
   $('authority-revision').textContent=state.source?.connected&&state.authority.type==='github'?`${state.source.repository.full_name} · ${state.source.repository.default_branch} · ${(state.source.downloaded||'').slice(0,12)}`:(state.revision||'').slice(0,12);
-  $('authority-form').hidden=!owner||!!getProject()?.protectedInbox||state.changing;
+  // A handoff moves a notebook to or from its repository source.
+  $('authority-form').hidden=!owner||!!getProject()?.protectedInbox||state.changing||!moduleOn(getUser(),'repositories');
   $('authority-to').textContent=label(state.authority.type==='github'?'forgetmenote':'github');
   $('authority-writers-label').hidden=state.authority.type==='github';
   $('authority-writers').required=state.authority.type!=='github';

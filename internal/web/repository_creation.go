@@ -7,8 +7,8 @@ import (
 	"net/http"
 )
 
-func (s *Server) repositoryCreationRoutes() {
-	s.mux.HandleFunc("POST /api/projects/repository/connect", func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) repositoryCreationRoutes(register routeRegistrar) {
+	register.global("POST /api/projects/repository/connect", func(w http.ResponseWriter, r *http.Request) {
 		var in struct{ ID, Name string }
 		if !decode(w, r, &in) {
 			return
@@ -24,7 +24,7 @@ func (s *Server) repositoryCreationRoutes() {
 		}
 		s.beginRepositoryConnection(w, r, g, repositoryGrant{Creating: true, Project: in.ID, Name: in.Name})
 	})
-	s.mux.HandleFunc("GET /api/projects/repository/choices", func(w http.ResponseWriter, r *http.Request) {
+	register.global("GET /api/projects/repository/choices", func(w http.ResponseWriter, r *http.Request) {
 		g, err := s.repoApp()
 		if err != nil {
 			fail(w, err)
@@ -38,7 +38,7 @@ func (s *Server) repositoryCreationRoutes() {
 		choices, err := g.Choices(r.Context(), p.Token)
 		respond(w, map[string]any{"project": p.Project, "name": p.Name, "choices": choices, "installUrl": "https://github.com/apps/" + g.Config.Slug + "/installations/new"}, err)
 	})
-	s.mux.HandleFunc("POST /api/projects/repository/finish", s.finishRepositoryCreation)
+	register.global("POST /api/projects/repository/finish", s.finishRepositoryCreation)
 }
 
 func (s *Server) finishRepositoryCreation(w http.ResponseWriter, r *http.Request) {

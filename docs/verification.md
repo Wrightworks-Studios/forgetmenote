@@ -91,9 +91,10 @@ cases; omitted cases are never reported as passed.
 Missing/nonancestor baselines, unknown paths, shared fixtures, security, storage,
 authority and dependency changes select full regression. Full mode retains all
 Go race tests, every browser case, all nine container boundaries (the ninth, `smoke-cluster`, runs two gateways on Postgres and an S3 stand-in, with no owner), the source and
-decision matrices, and backup-worker tests. It runs only on explicit request, locally
-or as a manual GitHub Check; publishing a routine feature change does not force full
-regression.
+decision matrices, and backup-worker tests. It runs only on explicit request, locally,
+as a manual GitHub Check or for a merge queue entry labelled
+[`full-gate`](#pr-feedback-and-complete-regression); publishing a routine feature
+change does not force full regression.
 Format, vet, frontend/fixture and operator tests retain their exact input receipts.
 Unchanged successful checks are reused without rerunning them.
 
@@ -271,14 +272,38 @@ baseline means all race tests, including the entire web package.
 GitHub Check uses this tier for pull requests. Its manual full
 runs execute `release_image.py --verify-only --mode full` on a standard runner,
 with npm downloads, Playwright browsers and image layers (`FMN_IMAGE_CACHE=gha`)
-in the Actions cache. The gate prints only the last 16,000 characters of a failed
-check's log, so a failed full run uploads the candidate's check logs
-(`REVISION/*.log`), browser reports, `verification.json` and `browser-*-results/`
-traces and screenshots as its `gate-failure-ATTEMPT` artifact, kept for seven days.
+in the Actions cache. A failed `go test -json` check prints each test that failed
+or never finished (as at a `-timeout` panic) with its own output, then the output of
+failed builds and packages outside their tests, such as build errors and panics or
+races after the tests. Any other failed check prints the last 16,000 characters of
+its log. The full logs stay on the runner, so a failed full run uploads the
+candidate's check logs (`REVISION/*.log`), browser reports, `verification.json` and
+`browser-*-results/` traces and screenshots as its `gate-failure-ATTEMPT` artifact,
+kept for seven days.
 Anyone signed in to GitHub can read a public repository's artifacts. These hold only
 synthetic test data, and `release_image.py` keeps the Actions runtime variables
 (`ACTIONS_*`, with the cache token) from every command but the image build, because a
 test may record its environment: the trace of a browser launched with one does.
+
+Label a pull request `full-gate` when its change selects full regression:
+security, storage, authority, dependencies, shared infrastructure (workflows,
+release and verification tooling, shared fixtures) or anything the selection does
+not know. Its merge queue entry then runs the complete regression as the `full`
+check on the queue's combined commit, `next` plus every entry ahead of it.
+`next` requires `full` as well as `fast`, so with auto-merge on the pull request
+merges once both pass and nobody needs to watch the run. An entry without the
+label passes `full` within seconds, beside `fast`; a pull request run skips it.
+The label is read when the queue builds the entry, so add it before the pull
+request joins the queue, or remove it from the queue and add it back. Only the
+labelled pull request's own entry runs the gate: the queue merges only entries
+that pass their own checks ("Only merge non-failing pull requests"), so the
+entries behind it keep the fast tier but wait for it, and a failed gate removes
+it and rebuilds every entry behind it. The gate takes 35–49 minutes of the
+queue's 90-minute check timeout and holds one of its five concurrent builds, so
+label only the changes that need it. A manual run (`gh workflow run check.yml
+--ref BRANCH`) still runs the gate on a branch, for example to reproduce a
+failure before queuing again.
+
 Pushes to `main` and `next` and a weekly schedule run only
 the advisory scan. No workflow here builds an image to publish: self-hosters build
 from source, and a deployment repository builds, verifies and publishes its own

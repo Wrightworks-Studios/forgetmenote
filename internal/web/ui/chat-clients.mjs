@@ -11,7 +11,9 @@ export function initChatClients({post,getUser,getActive}) {
  async function open(){
   const active=getActive(),current=++version;root.replaceChildren(node('p','Loading chat clients…'));
   try{
-   // Slack channel and user IDs stay typed: the server has no listing of them.
+   // The Slack app's channels and people come separately, so a slow listing
+   // never holds the page: ID fields start typed and take names once listed.
+   const listing=post('/api/organization/action/chat_client_directory',{}).catch(error=>({unlisted:{channels:error.message,users:error.message}}));
    const [data,directory,available]=await Promise.all([post('/api/organization/action/chat_clients',{}),request('/api/admin'),moduleOn(getUser(),'data-connections')?post('/integrations/actions/list_data_connections',{}):[]]);
    if(current!==version||!getUser()?.admin||!active())return;
    const accounts=directory.users.filter(u=>!u.disabled&&!u.id.startsWith('@')).map(u=>[u.id,u.displayName||directory.usernames?.[u.id]||u.id,u.kind]);
@@ -36,13 +38,33 @@ export function initChatClients({post,getUser,getActive}) {
      else{if(type==='textarea'){input.rows=5;input.spellcheck=false;}else input.type=type;input.value=value;wrap.append(input);}
      parent.append(wrap);return input;
     }
+    // A Slack channel or person: typed by ID until the listing arrives, then a
+    // choice by name, unless someone already changed it. A list the Slack app
+    // can't give keeps typed IDs, and the note says why.
+    const pickers=[],note=node('p',id==='slack'?'Listing Slack channels and people…':'','small');let names=null;
+    function idField(parent,label,kind,value=''){
+     const wrap=node('label',label);parent.append(wrap);
+     const state={control:null,show(){
+      const options=names?.[kind],typed=state.control?.value;
+      if(options?.length&&(!state.control||state.control.tagName==='INPUT'&&typed===value)){const select=choiceSelect(label,options,{placeholder:kind==='channels'?'Choose a channel':'Choose a person'});chooseOption(select,value,v=>`${v} (not listed)`);state.control?.remove();wrap.append(select);state.control=select;}
+      else if(!state.control){const input=node('input');input.type='text';input.setAttribute('aria-label',label);input.value=value;wrap.append(input);state.control=input;}
+     }};
+     state.show();pickers.push(state);return {get value(){return state.control.value;}};
+    }
+    if(id==='slack')listing.then(found=>{
+     if(current!==version||!form.isConnected)return;
+     names={channels:found.unlisted?.channels?null:(found.channels||[]).map(c=>[c.id,`#${c.name} (${c.id})`]),users:found.unlisted?.users?null:(found.users||[]).map(u=>[u.id,u.name?`${u.name} (${u.id})`:u.id])};
+     for(const picker of pickers)picker.show();
+     note.textContent=[found.unlisted?.channels&&`Channel IDs are typed: ${found.unlisted.channels}.`,found.unlisted?.users&&`Chat user IDs are typed: ${found.unlisted.users}.`].filter(Boolean).join(' ');
+    });
     const enabled=field(form,'Enable '+id,!client.disabled,'checkbox');
     const workspace=field(form,'Workspace ID',client.workspace);workspace.readOnly=true;
     if(id==='slack'){const endpoint=field(form,'Slack event URL',data.eventURL);endpoint.readOnly=true;const interactions=field(form,'Slack interactivity URL',data.interactionURL);interactions.readOnly=true;const command=field(form,'Slack /task command URL',data.commandURL);command.readOnly=true;}
+    form.append(note);
     const links=node('fieldset');links.append(node('legend','Linked accounts'));form.append(links);
     const accountRows=[];
     function account(external='',user=''){
-     const row=node('div');row.className='form-columns';const externalInput=field(row,'Chat user ID',external);const userInput=choose(row,'ForgetMeNote account',choiceSelect('ForgetMeNote account',people,{placeholder:'Choose an account'}),user);
+     const row=node('div');row.className='form-columns';const externalInput=idField(row,'Chat user ID','users',external);const userInput=choose(row,'ForgetMeNote account',choiceSelect('ForgetMeNote account',people,{placeholder:'Choose an account'}),user);
      const state={row,externalInput,userInput};accountRows.push(state);row.append(button('Remove account',()=>{accountRows.splice(accountRows.indexOf(state),1);row.remove();}));links.append(row);
     }
     for(const [external,user] of Object.entries(client.users||{}))account(external,user);
@@ -50,7 +72,7 @@ export function initChatClients({post,getUser,getActive}) {
     const destinations=node('div');form.append(destinations);const rows=[];
     function destination(kind='channels',id='',binding={project:'',externalProcessing:true}){
      const box=node('fieldset');box.className='chat-destination';box.append(node('legend',kind==='channels'?'Channel':'Direct messages'));
-     const key=field(box,kind==='channels'?'Channel ID':'DM user ID',id);
+     const key=idField(box,kind==='channels'?'Channel ID':'DM user ID',kind==='channels'?'channels':'users',id);
      const project=choose(box,'Primary notebook',choiceSelect('Primary notebook',notebooks,{placeholder:'Choose a notebook'}),binding.project||'');
      const readProjects=choices(box,'Additional notebooks',notebooks,binding.readProjects);
      const dataConnections=choices(box,'Data connections',connections,binding.connections,unlisted);

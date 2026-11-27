@@ -317,6 +317,25 @@ func fixtureOn(t *testing.T, db *pg.DB) (*Manager, *bool, *string) {
 	}
 	return m, &private, &head
 }
+
+// An instance that runs no managed backups reads the bindings configured
+// while it did, without a GitHub App, and an instance that never had one
+// reads none.
+func TestStoredBindingsReadWithoutAnApp(t *testing.T) {
+	db := pgtest.Org(t)
+	if stored, err := Stored(t.Context(), db); err != nil || len(stored) != 0 {
+		t.Fatalf("no state: %v %v", stored, err)
+	}
+	m, _, _ := fixtureOn(t, db)
+	if _, err := m.Configure(t.Context(), Setup{Binding: Binding{Project: "notes", Actor: "alice", Owner: "local", Installation: 7, Repository: githubapp.Repository{ID: 42}, Branch: "main"}, UserToken: "user-grant"}); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := Stored(t.Context(), db)
+	if b := stored["notes"]; err != nil || len(stored) != 1 || b.Actor != "alice" || !b.Connected || !b.Enabled {
+		t.Fatalf("stored: %+v %v", stored, err)
+	}
+}
+
 func TestBackupBindingUsesPrivateDestinationAndPersists(t *testing.T) {
 	db := pgtest.Org(t)
 	m, private, _ := fixtureOn(t, db)
