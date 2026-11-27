@@ -177,12 +177,12 @@ func TestPurgeWhoseReceiptTheDatabaseRefusedKeepsItLater(t *testing.T) {
 		return purgehttp.Receipt{}
 	}
 	finished := func(r purgehttp.Receipt) bool {
-		return !r.Unfinished && !r.Interrupted && len(r.Warnings) == 0 && r.Derived.JevRecords == 1
+		return !r.Unfinished && !r.Interrupted && len(r.Warnings) == 0 && r.Derived.JudgmentRecords == 1
 	}
 	for i, other := range []bool{false, true} {
 		secret := webPurgeSecret()
 		savePurgeNote(t, store, fmt.Sprintf("notes/keys-%d.md", i), "# Keys\n\nThe key is "+secret+".\n", "")
-		if err := app.jev.Records().Write(fmt.Sprintf("jobs/%064d.json", i), map[string]any{"version": 2, "project": "default", "message": "Checked " + secret}); err != nil {
+		if err := app.judgments.Records().Write(fmt.Sprintf("jobs/%064d.json", i), map[string]any{"version": 2, "project": "default", "message": "Checked " + secret}); err != nil {
 			t.Fatal(err)
 		}
 		restore := pgtest.FailWrites(t, app.db, purgehttp.ReceiptKind)

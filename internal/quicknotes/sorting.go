@@ -12,9 +12,9 @@ import (
 	"forgetmenote/internal/workspace"
 )
 
-// ConfigureJev borrows the gateway's existing client and ledger. Reconfiguration
+// ConfigureJudgments borrows the gateway's existing client and ledger. Reconfiguration
 // invalidates in-flight checks; ownership and Close stay with the gateway.
-func (s *Service) ConfigureJev(judge *decision.Service, localOnly bool) {
+func (s *Service) ConfigureJudgments(judge *decision.Service, localOnly bool) {
 	s.judgeMu.Lock()
 	s.judge = judge
 	s.localOnly = localOnly

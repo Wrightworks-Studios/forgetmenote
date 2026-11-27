@@ -15,9 +15,9 @@ import (
 )
 
 type RetrievalQuery struct {
-	PathPrefix   string      `json:"pathPrefix,omitempty"`
-	SemanticOnly bool        `json:"-"`
-	Jev          *JevRanking `json:"-"`
+	PathPrefix   string           `json:"pathPrefix,omitempty"`
+	SemanticOnly bool             `json:"-"`
+	Judgments    *JudgmentRanking `json:"-"`
 	ContainerSelection
 	contentScope workspace.ContentScope
 	// EmbeddingWait is a server-owned sub-budget, never a tool argument.
@@ -209,7 +209,7 @@ func (e *Engine) Retrieve(ctx context.Context, query RetrievalQuery) (RetrievalR
 			result.Message += " " + input.history.Message
 		}
 	}
-	ranked, result.Reranked, err = e.rerankJev(ctx, query, input, ranked)
+	ranked, result.Reranked, err = e.rerankJudgments(ctx, query, input, ranked)
 	if err != nil {
 		return RetrievalResult{}, err
 	}

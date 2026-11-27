@@ -100,16 +100,16 @@ type purgeExecuteInput struct {
 //
 // Even so, the records are other people's, and what the notebook holds is
 // what its writers chose: someone who is not an instance Admin is told how
-// many of their own chats, proposals and Jev records quote the content
+// many of their own chats, proposals and judgment records quote the content
 // (Own), and only that other people's are redacted too (Others), never how
 // many, or a dictionary of guesses written into a note would tell them
 // which their colleagues' private records hold.
 type Derived struct {
-	Chats       int `json:"chats"`
-	Proposals   int `json:"proposals"`
-	JevRecords  int `json:"jevRecords"`
-	Checkpoints int `json:"checkpoints,omitempty"`
-	Vectors     int `json:"vectors,omitempty"`
+	Chats           int `json:"chats"`
+	Proposals       int `json:"proposals"`
+	JudgmentRecords int `json:"jevRecords"`
+	Checkpoints     int `json:"checkpoints,omitempty"`
+	Vectors         int `json:"vectors,omitempty"`
 	// Partial reports that some purged versions were too large to read in
 	// full for what the purge redacts elsewhere.
 	Partial bool `json:"partial,omitempty"`
@@ -126,8 +126,8 @@ type Derived struct {
 // What a plan or receipt that counts only the caller's own records says of
 // everyone else's, and what a receipt of someone else's purge says.
 const (
-	OthersRedacted = "Other people's private chat transcripts, Knowledge proposals and Jev records that quote it are redacted too; only an instance Admin is told how many."
-	OthersWithheld = "Private chat transcripts, Knowledge proposals and Jev records that quoted it were redacted; only the person who ran this purge and instance Admins are told how many."
+	OthersRedacted = "Other people's private chat transcripts, Knowledge proposals and judgment records that quote it are redacted too; only an instance Admin is told how many."
+	OthersWithheld = "Private chat transcripts, Knowledge proposals and judgment records that quoted it were redacted; only the person who ran this purge and instance Admins are told how many."
 )
 
 // A PlanView is the workspace's plan with what the instance adds: the
@@ -311,7 +311,7 @@ func (s *Service) PrepareForAgent(ctx context.Context, store *workspace.Store, i
 	plan.Scope.Text, plan.Scope.Pattern = "", ""
 	link := s.hooks.Origin() + "/?" + url.Values{"project": {in.Project}, "purge": {token}}.Encode()
 	return AgentPlan{Plan: plan, ConfirmURL: link, Expires: time.Now().Add(purgePlanTTL).UTC().Format(time.RFC3339),
-		Message: "Nothing was erased. Give the user this URL: a notebook Owner or Admin must review the plan in the browser, give a reason and confirm it there. Private chats, Jev records and Knowledge proposals that quote the content are counted only when that person opens the plan. " + Exposure}, nil
+		Message: "Nothing was erased. Give the user this URL: a notebook Owner or Admin must review the plan in the browser, give a reason and confirm it there. Private chats, judgment records and Knowledge proposals that quote the content are counted only when that person opens the plan. " + Exposure}, nil
 }
 
 // FlowKind is the kind of the plans agents prepared for project. A
@@ -432,9 +432,9 @@ func (s *Service) purgeOwnRecords(ctx context.Context, target purgeTarget, clean
 }
 
 // purgeRecordOwner reports whether a record outside the notebook, as a
-// purge's clean-up reads it, is user's own: a chat transcript, Jev job or
+// purge's clean-up reads it, is user's own: a chat transcript, judgment job or
 // citation check they own, a Knowledge proposal they made, a consumer
-// checkpoint of theirs, or a result of a Jev job of theirs.
+// checkpoint of theirs, or a result of a judgment job of theirs.
 func (s *Service) purgeRecordOwner(user string) func(raw []byte) bool {
 	jobs := map[string]bool{}
 	return func(raw []byte) bool {
@@ -455,7 +455,7 @@ func (s *Service) purgeRecordOwner(user string) func(raw []byte) bool {
 		}
 		mine, known := jobs[record.Job]
 		if !known {
-			mine = s.hooks.OwnsJevJob(record.Job, user)
+			mine = s.hooks.OwnsJudgmentJob(record.Job, user)
 			jobs[record.Job] = mine
 		}
 		return mine
@@ -556,7 +556,7 @@ func (s *Service) ReceiptFor(user string, receipt Receipt) Receipt {
 // unredactedCount matches what chat.RedactProject and decision.RedactNotebook
 // say of the records they could not redact: how many of everyone's records
 // quoted the content, which only an Admin is told.
-var unredactedCount = regexp.MustCompile(`\b\d+ (chat transcripts|Jev records) cannot be redacted and are left as they are`)
+var unredactedCount = regexp.MustCompile(`\b\d+ (chat transcripts|judgment records) cannot be redacted and are left as they are`)
 
 // withoutRecordCounts returns warnings with those counts replaced by a
 // sentence without a number.
@@ -593,7 +593,7 @@ func (s *Service) purgeCleanerFor(ctx context.Context, target purgeTarget, plan 
 
 // derivedRecords counts, or with write redacts, what quoted the purged
 // content outside the notebook: the private chat transcripts of the notebook
-// and of other notebooks that drew on it, its Jev records and its Knowledge
+// and of other notebooks that drew on it, its judgment records and its Knowledge
 // proposals. With write it also clears the notebook's search and semantic
 // index on every gateway after purge, and drops what held the content
 // before it: plans agents prepared, bundle exports in progress and the
@@ -609,10 +609,10 @@ func (s *Service) derivedRecords(ctx context.Context, target purgeTarget, cleane
 	if err != nil {
 		errs = append(errs, fmt.Errorf("chat transcripts: %w", err))
 	}
-	n, err = s.hooks.RedactJevRecords(ctx, target.project, cleaner.document, write)
-	out.JevRecords = n
+	n, err = s.hooks.RedactJudgmentRecords(ctx, target.project, cleaner.document, write)
+	out.JudgmentRecords = n
 	if err != nil {
-		errs = append(errs, fmt.Errorf("Jev records: %w", err))
+		errs = append(errs, fmt.Errorf("judgment records: %w", err))
 	}
 	if !write {
 		var err error
@@ -719,7 +719,7 @@ func (s *Service) executePurge(ctx context.Context, target purgeTarget, in purge
 		if err != nil {
 			return Receipt{}, err
 		}
-		if found.Chats+found.JevRecords+found.Proposals == 0 {
+		if found.Chats+found.JudgmentRecords+found.Proposals == 0 {
 			return Receipt{}, fmt.Errorf("%w: nothing holds the content to purge", workspace.ErrPurgeInvalid)
 		}
 		result = workspace.PurgeResult{Purge: "purge-" + auth.Token()[:32], Revision: plan.Revision}
@@ -963,7 +963,7 @@ func StoppedWarnings(p notestore.RecordedPurge) []string {
 	if p.FromSeq > 0 {
 		out = append(out, fmt.Sprintf("Its Git export is rebuilt for this purge, and flagged so the backup worker replaces the GitHub copy once, the next time the gateway that runs the export exports the notebook (within five minutes); with the instance stopped, `forgetmenote admin purge rebuild -notebook %s -purge %s` does it.", p.Notebook, p.ID))
 	}
-	return append(out, "The private chat transcripts, Knowledge proposals and Jev records that quoted the erased content may not have been redacted. An instance Admin can redact them by purging the erased text, or each erased line of a note or versions purge, as text: a plan that finds it only outside the notebook redacts it there.")
+	return append(out, "The private chat transcripts, Knowledge proposals and judgment records that quoted the erased content may not have been redacted. An instance Admin can redact them by purging the erased text, or each erased line of a note or versions purge, as text: a plan that finds it only outside the notebook redacts it there.")
 }
 
 // FinishStopped finishes what it can of each purge that rewrote a

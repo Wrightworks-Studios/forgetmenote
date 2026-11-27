@@ -11,7 +11,7 @@ import (
 
 // Actor is one simulated writer. Humans write through the browser, directly or
 // through live collaboration checkpoints; the assistant is an MCP service
-// account; the organizer is the owner's Jev organizer. Their identities and
+// account; the organizer is the owner's judgment organizer. Their identities and
 // trailers follow web/server.go, catalog/accounts.go and workspace/db_commit.go.
 type Actor struct {
 	Key     string // stable short name
@@ -67,7 +67,7 @@ func contentHash(parts ...string) string {
 }
 
 // sign sets the author and trailers of an ordinary save by actor a.
-// Operations (Jev organizer actions) also carry Gitnotes-Operation/Request.
+// Operations (judgment organizer actions) also carry Gitnotes-Operation/Request.
 func (a Actor) sign(r *Revision, operation string) {
 	r.Actor, r.AuthorName, r.AuthorEmail = a.Key, a.Name, a.Email
 	r.Time = r.Time.In(a.Zone)

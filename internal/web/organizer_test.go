@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"forgetmenote/internal/catalog"
 	"forgetmenote/internal/decision"
-	"forgetmenote/internal/jev"
+	"forgetmenote/internal/judgments"
 	"net/http"
 	"strings"
 	"sync"
@@ -17,7 +17,7 @@ import (
 
 func organizerStart(t *testing.T, app *Server, body string) string {
 	t.Helper()
-	w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs", body)
+	w := proxyCall(app, "alice", "POST", "/p/default/api/judgments/jobs", body)
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -77,7 +77,7 @@ func TestOrganizerConsentWithdrawalDuringInferenceStopsMutation(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("inference did not start")
 	}
-	w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":false,"rerank":false,"citations":false}`)
+	w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":false,"rerank":false,"citations":false}`)
 	close(release)
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
@@ -97,12 +97,12 @@ func TestOrganizerRevokedConsentCannotResumeOldGrant(t *testing.T) {
 	app := reviewFixture(t, syntheticOrganizationAnswer)
 	id := organizerTagJob(t, app, "alice", "old-grant")
 	for _, consent := range []bool{false, true} {
-		w := proxyCall(app, "alice", "POST", "/api/jev/settings", fmt.Sprintf(`{"consent":%t}`, consent))
+		w := proxyCall(app, "alice", "POST", "/api/judgments/settings", fmt.Sprintf(`{"consent":%t}`, consent))
 		if w.Code != 200 {
 			t.Fatal(w.Body.String())
 		}
 	}
-	if e := app.jev.CheckJob(context.Background(), id); e == nil {
+	if e := app.judgments.CheckJob(context.Background(), id); e == nil {
 		t.Fatal("renewed consent revived an invalidated applying grant")
 	}
 }
@@ -114,20 +114,20 @@ func TestOrganizerRevokedConsentCannotResumeOldGrant(t *testing.T) {
 func TestOrganizerRenewedConsentRefusesAGrantTheWithdrawalMissed(t *testing.T) {
 	app := reviewFixture(t, syntheticOrganizationAnswer)
 	id := organizerTagJob(t, app, "alice", "missed-grant")
-	restore := failJevRecordWrites(t, app, "NEW.name LIKE 'jobs/%' AND (NEW.body->>'cancelled')::boolean")
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":false}`); w.Code == 200 {
+	restore := failJudgmentRecordWrites(t, app, "NEW.name LIKE 'jobs/%' AND (NEW.body->>'cancelled')::boolean")
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":false}`); w.Code == 200 {
 		t.Fatal("the withdrawal reported success without cancelling the job")
 	}
 	restore()
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	w := proxyCall(app, "alice", "GET", "/p/default/api/jev/jobs/"+id, "")
+	w := proxyCall(app, "alice", "GET", "/p/default/api/judgments/jobs/"+id, "")
 	var job map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &job); err != nil || w.Code != 200 || job["cancelled"] == true || job["state"] == "cancelled" {
 		t.Fatalf("the job is not the live grant the withdrawal missed: %d %v", w.Code, job)
 	}
-	if e := app.jev.CheckJob(context.Background(), id); e == nil {
+	if e := app.judgments.CheckJob(context.Background(), id); e == nil {
 		t.Fatal("renewed consent revived a grant the withdrawal missed")
 	}
 }
@@ -158,7 +158,7 @@ func TestOrganizerRevokedMembershipCannotResumeOldGrant(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if e := app.jev.CheckJob(context.Background(), id); e == nil {
+	if e := app.judgments.CheckJob(context.Background(), id); e == nil {
 		t.Fatal("restored membership revived an invalidated applying grant")
 	}
 }
@@ -167,12 +167,12 @@ func TestOrganizerRevokedMembershipCannotResumeOldGrant(t *testing.T) {
 // result was never recorded: reading the job recovers it from its Git receipt.
 func TestOrganizerCommittedActionRemainsUndoableAfterRevocation(t *testing.T) {
 	app := reviewFixture(t, syntheticOrganizationAnswer)
-	restore := failJevRecordWrites(t, app, "NEW.name LIKE 'results/%'")
+	restore := failJudgmentRecordWrites(t, app, "NEW.name LIKE 'results/%'")
 	id := organizerStart(t, app, `{"kind":"organize","operationId":"receipt-revoked","organization":{"mode":"apply","scope":"selected","paths":["a.md"],"policy":{"tags":true,"vocabulary":["workshop"]}}}`)
 	// The run commits, cannot record the result and pauses. Reading a paused
 	// job recovers the result, which fails too while writes fail.
 	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(20 * time.Millisecond) {
-		w := proxyCall(app, "alice", "GET", "/p/default/api/jev/jobs/"+id, "")
+		w := proxyCall(app, "alice", "GET", "/p/default/api/judgments/jobs/"+id, "")
 		var job map[string]any
 		json.Unmarshal(w.Body.Bytes(), &job)
 		if w.Code != 200 || job["state"] == "paused" {
@@ -187,14 +187,14 @@ func TestOrganizerCommittedActionRemainsUndoableAfterRevocation(t *testing.T) {
 		t.Fatal("the action was not committed")
 	}
 	restore()
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":false}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":false}`); w.Code != 200 {
 		t.Fatal(w.Body.String())
 	}
 	got := waitReview(t, app, id)
 	if len(got["results"].([]any)) != 1 {
 		t.Fatal("committed action disappeared behind revoked consent", got)
 	}
-	w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs/"+id+"/organization/undo", `{}`)
+	w := proxyCall(app, "alice", "POST", "/p/default/api/judgments/jobs/"+id+"/organization/undo", `{}`)
 	if w.Code != 200 || strings.Contains(w.Body.String(), `"error"`) {
 		t.Fatal(w.Body.String())
 	}
@@ -225,7 +225,7 @@ func TestOrganizerRunWithoutNotebookAccessPausesWithMessage(t *testing.T) {
 	}
 	queued := organizerStart(t, app, `{"kind":"organize","operationId":"withdrawn","organization":{"mode":"preview","scope":"selected","paths":["a.md"],"policy":{"tags":true,"vocabulary":["workshop"]}}}`)
 	var job map[string]any
-	if w := proxyCall(app, "alice", "GET", "/p/default/api/jev/jobs/"+queued, ""); w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &job) != nil || job["state"] != "queued" {
+	if w := proxyCall(app, "alice", "GET", "/p/default/api/judgments/jobs/"+queued, ""); w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &job) != nil || job["state"] != "queued" {
 		close(release)
 		t.Fatal("the organizer did not queue", w.Code, w.Body.String())
 	}
@@ -250,11 +250,11 @@ func TestOrganizerDifferentOwnersCanUndoDependentActions(t *testing.T) {
 	}
 	id := organizerStart(t, app, `{"kind":"organize","operationId":"two-owners","organization":{"mode":"apply","scope":"selected","paths":["a.md"],"policy":{"tags":true,"links":true,"vocabulary":["workshop"]}}}`)
 	waitReview(t, app, id)
-	w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs/"+id+"/organization/undo", `{"index":1}`)
+	w := proxyCall(app, "alice", "POST", "/p/default/api/judgments/jobs/"+id+"/organization/undo", `{"index":1}`)
 	if w.Code != 200 || strings.Contains(w.Body.String(), `"error"`) {
 		t.Fatal(w.Body.String())
 	}
-	w = proxyCall(app, "bob", "POST", "/p/default/api/jev/jobs/"+id+"/organization/undo", `{}`)
+	w = proxyCall(app, "bob", "POST", "/p/default/api/judgments/jobs/"+id+"/organization/undo", `{}`)
 	if w.Code != 200 || strings.Contains(w.Body.String(), `"error"`) {
 		t.Fatal("different owner could not continue dependent Undo", w.Body.String())
 	}
@@ -262,12 +262,12 @@ func TestOrganizerDifferentOwnersCanUndoDependentActions(t *testing.T) {
 
 func TestOrganizerSettingsExposeOnlyPublicPolicy(t *testing.T) {
 	app := reviewFixture(t, syntheticOrganizationAnswer)
-	w := proxyCall(app, "alice", "POST", "/p/default/api/jev/organization", `{"enabled":true,"generation":0,"policy":{"tags":true,"vocabulary":["workshop"]}}`)
+	w := proxyCall(app, "alice", "POST", "/p/default/api/judgments/organization", `{"enabled":true,"generation":0,"policy":{"tags":true,"vocabulary":["workshop"]}}`)
 	if w.Code != 200 {
 		t.Fatal(w.Body.String())
 	}
 	for _, user := range []string{"alice", "bob"} {
-		w = proxyCall(app, user, "GET", "/p/default/api/jev/organization", "")
+		w = proxyCall(app, user, "GET", "/p/default/api/judgments/organization", "")
 		var response struct {
 			Settings map[string]json.RawMessage `json:"settings"`
 		}
@@ -284,26 +284,26 @@ func TestOrganizerSettingsExposeOnlyPublicPolicy(t *testing.T) {
 // notebook, without running it, and returns its ID.
 func organizerTagJob(t *testing.T, app *Server, user, operation string) string {
 	t.Helper()
-	var input jev.JobInput
+	var input judgments.JobInput
 	body := `{"kind":"organize","operationId":"` + operation + `","organization":{"mode":"apply","scope":"selected","paths":["a.md"],"policy":{"tags":true,"vocabulary":["workshop"]}}}`
 	if err := json.Unmarshal([]byte(body), &input); err != nil {
 		t.Fatal(err)
 	}
-	id, err := app.jev.CreateJob(context.Background(), user, "default", input, false, nil, nil)
+	id, err := app.judgments.CreateJob(context.Background(), user, "default", input, false, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return id
 }
 
-var jevWriteFailures atomic.Int32
+var judgmentWriteFailures atomic.Int32
 
-// failJevRecordWrites makes Postgres refuse every insert and update of Jev's
+// failJudgmentRecordWrites makes Postgres refuse every insert and update of judgment
 // records in app's org whose new row meets condition, until the returned
 // function runs or the test ends.
-func failJevRecordWrites(t *testing.T, app *Server, condition string) func() {
+func failJudgmentRecordWrites(t *testing.T, app *Server, condition string) func() {
 	t.Helper()
-	name := fmt.Sprintf("fail_jev_%s_%d", strings.ReplaceAll(app.db.Org, "-", "_"), jevWriteFailures.Add(1))
+	name := fmt.Sprintf("fail_jev_%s_%d", strings.ReplaceAll(app.db.Org, "-", "_"), judgmentWriteFailures.Add(1))
 	ctx := context.Background()
 	if _, err := app.db.Pool.Exec(ctx, "CREATE FUNCTION "+name+"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected write failure'; END $$"); err != nil {
 		t.Fatal(err)

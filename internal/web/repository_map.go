@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Server) sourceMapModel() string {
-	judge, localOnly := s.jevConfigured()
+	judge, localOnly := s.judgmentsConfigured()
 	if judge == nil || localOnly {
 		return ""
 	}
@@ -20,8 +20,8 @@ func (s *Server) sourceMapModel() string {
 }
 
 func (s *Server) classifySourceMap(ctx context.Context, state reposource.State, inputs []reposource.MapInput) ([]reposource.MapClassification, error) {
-	judge, localOnly := s.jevConfigured()
-	if judge == nil || localOnly || !state.IndexConfig.MapJev || !state.IndexConfig.ExternalProcessing {
+	judge, localOnly := s.judgmentsConfigured()
+	if judge == nil || localOnly || !state.IndexConfig.MapJudgments || !state.IndexConfig.ExternalProcessing {
 		return nil, reposource.ErrDenied
 	}
 	user := state.MapActor
@@ -29,14 +29,14 @@ func (s *Server) classifySourceMap(ctx context.Context, state reposource.State, 
 		if _, err := s.catalog.Access(user, state.Project, "owner"); err != nil {
 			return reposource.ErrDenied
 		}
-		if err := s.jevAuthorized(ctx, user, state.Project, "repository-map", judge); err != nil {
+		if err := s.judgmentsAuthorized(ctx, user, state.Project, "repository-map", judge); err != nil {
 			return reposource.ErrDenied
 		}
 		current, err := s.repositories.Status(state.Project)
 		if err != nil {
 			return err
 		}
-		if !current.Connected || current.Paused || current.ID != state.ID || current.Generation != state.Generation || current.Downloaded != state.Downloaded || current.MapActor != user || !current.IndexConfig.MapJev {
+		if !current.Connected || current.Paused || current.ID != state.ID || current.Generation != state.Generation || current.Downloaded != state.Downloaded || current.MapActor != user || !current.IndexConfig.MapJudgments {
 			return reposource.ErrDenied
 		}
 		paths := make([]string, len(inputs))

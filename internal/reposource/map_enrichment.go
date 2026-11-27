@@ -48,7 +48,7 @@ func (m *Manager) EnrichMapPending(ctx context.Context, project string) (bool, e
 	var inputs []MapInput
 	err = m.read(ctx, project, "", func(c *cache, s State) error {
 		state = s
-		if s.Paused || !s.IndexConfig.MapJev || !s.IndexConfig.ExternalProcessing || s.Index.MapError != "" {
+		if s.Paused || !s.IndexConfig.MapJudgments || !s.IndexConfig.ExternalProcessing || s.Index.MapError != "" {
 			return nil
 		}
 		if s.MapActor == "" || m.check(project, s.MapActor) != nil {
@@ -94,7 +94,7 @@ func (m *Manager) EnrichMapPending(ctx context.Context, project string) (bool, e
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if s.Generation != state.Generation || s.Downloaded != state.Downloaded || s.Paused || !s.IndexConfig.MapJev || m.check(project, state.MapActor) != nil {
+		if s.Generation != state.Generation || s.Downloaded != state.Downloaded || s.Paused || !s.IndexConfig.MapJudgments || m.check(project, state.MapActor) != nil {
 			return ErrConflict
 		}
 		if providerErr != nil {

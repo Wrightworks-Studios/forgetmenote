@@ -112,7 +112,7 @@ func (j *Records) RedactNotebook(ctx context.Context, notebook string, fn func([
 		changed++
 	}
 	if skipped > 0 {
-		return changed, errors.Join(fmt.Errorf("%d Jev records cannot be redacted and are left as they are", skipped), refusal)
+		return changed, errors.Join(fmt.Errorf("%d judgment records cannot be redacted and are left as they are", skipped), refusal)
 	}
 	return changed, nil
 }

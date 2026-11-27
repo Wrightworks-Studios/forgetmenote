@@ -147,7 +147,7 @@ func TestFailedCaptureScansDoNotStarveHealthyWork(t *testing.T) {
 				t.Fatal(err)
 			}
 			var calls atomic.Int32
-			s.ConfigureJev(testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_000") }), false)
+			s.ConfigureJudgments(testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_000") }), false)
 			inbox, err := c.EnsureInbox(firstSubject)
 			if err != nil {
 				t.Fatal(err)
@@ -414,7 +414,7 @@ func TestScanAttemptsAtMostEightHealthyCaptures(t *testing.T) {
 		t.Fatal(err)
 	}
 	var calls atomic.Int32
-	s.ConfigureJev(testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_000") }), false)
+	s.ConfigureJudgments(testJudge(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); routeReply(w, r, "destination_000") }), false)
 	for i := 0; i < 20; i++ {
 		if _, err = s.Capture(context.Background(), "alice", fmt.Sprintf("bounded-scan-%d", i), "Planning the next task."); err != nil {
 			t.Fatal(err)

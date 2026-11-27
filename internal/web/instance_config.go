@@ -94,8 +94,8 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 		if chat.WebsiteCapture != nil {
 			files = append(files, chat.WebsiteCapture.AccountIDFile, chat.WebsiteCapture.SecretFile)
 		}
-		if chat.Jev != nil && chat.Jev.Enabled {
-			files = append(files, chat.Jev.SecretFile)
+		if chat.Judgments != nil && chat.Judgments.Enabled {
+			files = append(files, chat.Judgments.SecretFile)
 		}
 		for _, file := range files {
 			if _, err := secret(file); err != nil {
@@ -183,7 +183,7 @@ func (s *Server) ConfigureInstance(resolved instanceconfig.Resolved) error {
 // decide whether a configured integration may process content.
 func (s *Server) InstanceSummary() map[string]bool {
 	cfg := s.chat.Snapshot().Config
-	judge, _ := s.jevConfigured()
+	judge, _ := s.judgmentsConfigured()
 	automations := s.automations != nil && len(s.automations.Definitions.List()) > 0
 	return map[string]bool{
 		"chat": cfg != nil, "decisions": judge != nil, "embeddings": s.indexes.Endpoint() != nil,

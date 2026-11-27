@@ -15,7 +15,7 @@ function iconButton(label,name,action,attrs = {}) {
   const control = button('',action,{class:'quiet chat-icon','aria-label':label,title:label,...attrs});control.append(icon(name));return control;
 }
 
-export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment,canEdit,canManage,openCitation,openDocument,openReview,openSource,openJevSettings,mountCitationChecks,onOpen = () => {},onClose = () => {}}) {
+export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment,canEdit,canManage,openCitation,openDocument,openReview,openSource,openJudgmentSettings,mountCitationChecks,onOpen = () => {},onClose = () => {}}) {
   const panel = document.getElementById('chat-panel'), opener = document.getElementById('chat-open');
   const openerHome=opener.parentElement;
   // Keep the labeled control reachable inside the active contextual surface.
@@ -90,7 +90,7 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
   const body = element('div',undefined,{id:'chat-body'});
   const settingsBody = element('div',undefined,{class:'chat-settings-body'});
   settingsBody.append(choices,corpusFields,scopes,controls);
-  if(openJevSettings)settingsBody.append(button('Evidence checks',()=>{settings.close();openJevSettings();},{class:'quiet'}));
+  if(openJudgmentSettings)settingsBody.append(button('Evidence checks',()=>{settings.close();openJudgmentSettings();},{class:'quiet'}));
   settings.append(settingsBody);
   body.append(toolbar,message,setup,error,transcript,runPanel);
   panel.append(header,body,form,settings);
@@ -627,7 +627,7 @@ export function initChat({api,post,getProject,getUser,getNote,getDraftAttachment
   input.addEventListener('keydown',event => {if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {event.preventDefault();form.requestSubmit();}});
 
   async function prepareMessage(text) {
-    const key='draft:jev-'+crypto.randomUUID();
+    const key='draft:judgments-'+crypto.randomUUID();
     const selection=selectChat(key);
     // Selection installs its composer synchronously, before loading defaults.
     // A later selection, edit, or close supersedes this correction handoff.

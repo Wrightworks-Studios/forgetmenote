@@ -349,15 +349,15 @@ func TestPausedInstanceGrantsNoBackupLease(t *testing.T) {
 	}
 }
 
-// Jev reviews are paid background work. A paused copy starts none and does
+// judgment reviews are paid background work. A paused copy starts none and does
 // not resume one copied from the live instance.
-func TestPausedInstanceRunsNoJevReview(t *testing.T) {
+func TestPausedInstanceRunsNoJudgmentReview(t *testing.T) {
 	var paused atomic.Bool
 	var calls atomic.Int32
 	app := reviewFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		if paused.Load() {
 			calls.Add(1)
-			t.Errorf("paused instance called Jev: %s %s", r.Method, r.URL.Path)
+			t.Errorf("paused instance called the judge: %s %s", r.Method, r.URL.Path)
 		}
 		http.Error(w, "synthetic outage", 503)
 	})
@@ -370,14 +370,14 @@ func TestPausedInstanceRunsNoJevReview(t *testing.T) {
 		t.Fatal(err)
 	}
 	paused.Store(true)
-	if w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs/"+copied+"/continue", `{}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
+	if w := proxyCall(app, "alice", "POST", "/p/default/api/judgments/jobs/"+copied+"/continue", `{}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
 		t.Fatalf("paused review resume: %d %s", w.Code, w.Body)
 	}
-	if w := proxyCall(app, "alice", "POST", "/p/default/api/jev/jobs", `{"kind":"consistency","operationId":"rehearsal"}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
+	if w := proxyCall(app, "alice", "POST", "/p/default/api/judgments/jobs", `{"kind":"consistency","operationId":"rehearsal"}`); w.Code != 503 || !strings.Contains(w.Body.String(), outgoing.ErrPaused.Error()) {
 		t.Fatalf("paused review start: %d %s", w.Code, w.Body)
 	}
 	if calls.Load() != 0 {
-		t.Fatalf("Jev called %d times", calls.Load())
+		t.Fatalf("the judge called %d times", calls.Load())
 	}
 }
 

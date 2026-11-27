@@ -76,7 +76,7 @@ type SourceConfig struct {
 type Config struct {
 	WebsiteCapture    *WebsiteCaptureConfig `json:"websiteCapture,omitempty"`
 	Sources           *SourceConfig         `json:"sources,omitempty"`
-	Jev               *decision.Config      `json:"jev,omitempty"`
+	Judgments         *decision.Config      `json:"jev,omitempty"`
 	Connections       []Connection          `json:"connections"`
 	DefaultConnection string                `json:"defaultConnection"`
 	LocalOnly         bool                  `json:"localOnly"`
@@ -237,7 +237,7 @@ func (c *Config) Validate() error {
 	if c == nil {
 		return errors.New("missing chat configuration")
 	}
-	if err := c.Jev.Validate(c.LocalOnly); err != nil {
+	if err := c.Judgments.Validate(c.LocalOnly); err != nil {
 		return err
 	}
 	var err error

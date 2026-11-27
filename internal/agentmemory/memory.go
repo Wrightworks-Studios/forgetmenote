@@ -39,11 +39,11 @@ const (
 	memoryRetired       = "Retired"
 	memoryItemsPerCall  = 20
 	memoryChangedDays   = 30
-	memoryReviewItems   = 24 // existing items in one topic that Jev compares with
+	memoryReviewItems   = 24 // existing items in one topic that the judge compares with
 	memoryWriteAttempts = 16 // each conflict means another writer committed
 	// Reviews are accounted to the assistant that owns the notebook. A new ledger
 	// feature would make earlier binaries refuse the whole ledger on rollback.
-	memoryJevFeature = "personal-assistant"
+	memoryJudgmentFeature = "personal-assistant"
 )
 
 var memoryTopics = map[string]string{"decision": "Decisions", "fact": "Facts", "preference": "Preferences", "commitment": "Commitments", "lesson": "Lessons"}
@@ -121,7 +121,7 @@ type Remembered struct {
 	Path         string           `json:"path"`
 	Revision     string           `json:"revision"`
 	Items        []RememberedItem `json:"items"`
-	Review       string           `json:"review,omitempty" jsonschema:"checked when Jev compared new items with their topic, skipped when it was not used, failed when it could not answer; items are saved either way"`
+	Review       string           `json:"review,omitempty" jsonschema:"checked when the judge compared new items with their topic, skipped when it was not used, failed when it could not answer; items are saved either way"`
 	ReviewReason string           `json:"reviewReason,omitempty" jsonschema:"Why the review failed: capacity, timeout, provider, permission or error"`
 }
 
@@ -304,7 +304,7 @@ func (s *Service) ConfirmAction(ctx context.Context, in ConfirmInput) (Confirmed
 }
 
 // Write adds items to one memory file as person, whose memory it is.
-// recheck confirms the caller may still write it before Jev's review is used. A
+// recheck confirms the caller may still write it before the judge's answer is used. A
 // conflict rereads the newest version, so another writer's items are kept.
 func (s *Service) Write(ctx context.Context, person, notebook string, store *workspace.Store, key string, items []Item, today time.Time, recheck func(context.Context) error) (Remembered, error) {
 	doc, content, err := readMemoryFile(ctx, store, key)
@@ -323,7 +323,7 @@ func (s *Service) Write(ctx context.Context, person, notebook string, store *wor
 			if doc, content, err = readMemoryFile(ctx, store, key); err != nil {
 				return Remembered{}, err
 			}
-			continue // Add to the newer version; Jev's choices name items by ID.
+			continue // Add to the newer version; the judge's choices name items by ID.
 		}
 		out.Revision = saved.Revision
 		return out, err
@@ -385,8 +385,8 @@ func (s *Service) recallMemory(ctx context.Context, settings catalog.AssistantSe
 	return out, err
 }
 
-// reviewMemory asks Jev which existing item, if any, each new observation
-// replaces. Items are compared only within their topic. Without Jev, its consent
+// reviewMemory asks the judge which existing item, if any, each new observation
+// replaces. Items are compared only within their topic. Without the judge, its consent
 // or a confident answer, observations are simply added. A failed review is
 // logged by step, never with memory text, and its reason returned.
 func (s *Service) reviewMemory(ctx context.Context, person, project string, doc *memoryDoc, items []Item, recheck func(context.Context) error) (map[string]string, string, string) {
@@ -411,17 +411,17 @@ func (s *Service) reviewMemory(ctx context.Context, person, project string, doc 
 		return nil, "", ""
 	}
 	judge := s.hooks.Judge()
-	if judge == nil || s.hooks.JudgeAuthorized(ctx, person, project, memoryJevFeature, judge) != nil || len(request.Questions) > judge.QuestionLimit() {
+	if judge == nil || s.hooks.JudgeAuthorized(ctx, person, project, memoryJudgmentFeature, judge) != nil || len(request.Questions) > judge.QuestionLimit() {
 		return nil, "skipped", ""
 	}
 	request.State = map[string]any{"observations": observations, "existing": existing}
 	if judge.ValidateRequest(request) != nil {
 		return nil, "skipped", ""
 	}
-	result, err := judge.Evaluate(ctx, decision.Evaluation{Scope: decision.Scope{Actor: person, Notebook: project, Feature: memoryJevFeature, Run: automation.Hash(items), Operation: automation.Hash(request)}, Request: request, Check: recheck})
+	result, err := judge.Evaluate(ctx, decision.Evaluation{Scope: decision.Scope{Actor: person, Notebook: project, Feature: memoryJudgmentFeature, Run: automation.Hash(items), Operation: automation.Hash(request)}, Request: request, Check: recheck})
 	if err != nil {
 		failure, _ := decision.Failed(err)
-		slog.Warn("memory review failed", "feature", memoryJevFeature, "step", failure.Step, "status", failure.Status, "error", err.Error(), "questions", len(request.Questions), "existing", len(existing))
+		slog.Warn("memory review failed", "feature", memoryJudgmentFeature, "step", failure.Step, "status", failure.Status, "error", err.Error(), "questions", len(request.Questions), "existing", len(existing))
 		return nil, "failed", memoryReviewReason(failure, err)
 	}
 	replaces := map[string]string{}
@@ -435,7 +435,7 @@ func (s *Service) reviewMemory(ctx context.Context, person, project string, doc 
 }
 
 // memoryReviewReason tells the agent, in one word, whether a failed review is
-// worth mentioning to the user: Jev's usage ledger is full, it timed out, the
+// worth mentioning to the user: the judgments usage ledger is full, it timed out, the
 // provider failed, or the caller's access changed meanwhile.
 func memoryReviewReason(failure decision.Failure, err error) string {
 	switch {

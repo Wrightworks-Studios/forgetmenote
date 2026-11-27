@@ -106,11 +106,11 @@ for (const destination of ['note', 'folder'])
     }
   });
 async function checksFixture(page) {
-  await page.route('**/api/jev/**', route => {
+  await page.route('**/api/judgments/**', route => {
     const path = new URL(route.request().url()).pathname;
     return route.fulfill({
       json:
-        path === '/api/jev/settings'
+        path === '/api/judgments/settings'
           ? {available: true, settings: {consent: true}}
           : path.endsWith('/settings')
             ? {canManage: true, settings: {autoChecks: false}}
@@ -120,7 +120,7 @@ async function checksFixture(page) {
 }
 async function openChecks(page) {
   await page.locator('#review-open').click();
-  await page.locator('#jev-review-open').click();
+  await page.locator('#judgments-review-open').click();
   await expect(page.locator('#review-checks')).toContainText('Consistency');
 }
 for (const action of ['open', 'collection'])
@@ -190,8 +190,8 @@ for (const status of [401, 403])
         }
       ]
     };
-    await page.route('**/p/default/api/jev/jobs', route => route.fulfill({json: {jobs: [job]}}));
-    await page.route('**/p/default/api/jev/jobs/private-job', route =>
+    await page.route('**/p/default/api/judgments/jobs', route => route.fulfill({json: {jobs: [job]}}));
+    await page.route('**/p/default/api/judgments/jobs/private-job', route =>
       denied ? route.fulfill({status, body: 'Access denied'}) : route.fulfill({json: job})
     );
     await page.goto(app.origin + '/?project=default&folder=');
@@ -273,7 +273,7 @@ for (const decision of ['Resolve', 'finding Dismiss', 'Accept group', 'proposal 
           .click();
         await held.promise;
         if (destination === 'checks') {
-          await page.locator('#jev-review-open').click();
+          await page.locator('#judgments-review-open').click();
           await expect(page.locator('#review-checks')).toContainText('Consistency');
         } else await page.locator('#knowledge-dialog [data-close="knowledge-dialog"]').click();
         gate.resolve();
@@ -281,7 +281,7 @@ for (const decision of ['Resolve', 'finding Dismiss', 'Accept group', 'proposal 
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         if (destination === 'checks') {
           await expect(page.locator('#review-checks')).toBeVisible();
-          await expect(page.locator('#jev-review-open')).toHaveAttribute('aria-pressed', 'true');
+          await expect(page.locator('#judgments-review-open')).toHaveAttribute('aria-pressed', 'true');
         } else await expect(page.locator('#knowledge-dialog')).toBeHidden();
       } finally {
         gate.resolve();
@@ -293,7 +293,7 @@ for (const destination of ['findings', 'sources'])
     const gate = deferred(),
       held = deferred(),
       finished = deferred();
-    await page.route('**/p/default/api/jev/jobs', async route => {
+    await page.route('**/p/default/api/judgments/jobs', async route => {
       held.resolve();
       await gate.promise;
       await route.fulfill({status: 500, body: 'STALE_CHECK_ERROR'});
@@ -301,7 +301,7 @@ for (const destination of ['findings', 'sources'])
     });
     await page.goto(app.origin + '/?project=default&note=same.md');
     await page.locator('#review-open').click();
-    await page.locator('#jev-review-open').click();
+    await page.locator('#judgments-review-open').click();
     await held.promise;
     try {
       if (destination === 'findings') {
@@ -340,7 +340,7 @@ test('late Notebook checks action failure does not enter Findings', async ({page
   const gate = deferred(),
     held = deferred(),
     finished = deferred();
-  await page.route('**/p/default/api/jev/jobs', async route => {
+  await page.route('**/p/default/api/judgments/jobs', async route => {
     if (route.request().method() !== 'POST') {
       await route.fallback();
       return;
@@ -452,7 +452,7 @@ for (const entry of ['initial', 'section'])
         else await page.locator('[data-review-section=findings]').click();
         await held.promise;
         if (destination === 'checks') {
-          await page.locator('#jev-review-open').click();
+          await page.locator('#judgments-review-open').click();
           await expect(page.locator('#review-checks')).toContainText('Consistency');
         } else {
           await page.locator('#knowledge-dialog [data-close="knowledge-dialog"]').click();
@@ -471,7 +471,7 @@ for (const entry of ['initial', 'section'])
         if (destination === 'closed') await expect(page.locator('#knowledge-dialog')).toBeHidden();
         else {
           await expect(page.locator('#review-checks')).toBeVisible();
-          await expect(page.locator('#jev-review-open')).toHaveAttribute('aria-pressed', 'true');
+          await expect(page.locator('#judgments-review-open')).toHaveAttribute('aria-pressed', 'true');
         }
         await expect(page.locator('#knowledge-error')).toBeHidden();
         await expect(page.locator('#knowledge-error')).not.toContainText('RETIRED_FINDINGS_ERROR');
@@ -565,7 +565,7 @@ for (const outcome of ['success', 'failure'])
         await expect(page.locator('#project-select')).toHaveValue('other');
         await expect(page.locator('#note-path')).toHaveText(newerPath);
         await expect(page.locator('#project-select')).not.toContainText('RETIRED_CATALOG');
-        await expect(page.locator('#inbox-content .jev-error')).not.toContainText('RETIRED_CAPTURE_FAILURE');
+        await expect(page.locator('#inbox-content .judgments-error')).not.toContainText('RETIRED_CAPTURE_FAILURE');
         expect(prompts).toEqual([]);
         if (newer === 'private draft') await expectEditorText(page, 'Private draft entered after the Inbox request.\n');
         else await expect(page.locator('#preview')).toContainText('Unique other evidence.');
@@ -577,7 +577,7 @@ test('current Inbox capture catalog failure stays visible without losing the cap
   const {card} = await savedInboxCapture(page, 'Current catalog failure');
   await page.route('**/api/projects', route => route.fulfill({status: 500, body: 'CURRENT_CAPTURE_FAILURE'}));
   await card.getByRole('link', {name: 'Open note', exact: true}).click();
-  await expect(page.locator('#inbox-content .jev-error')).toHaveText('CURRENT_CAPTURE_FAILURE');
+  await expect(page.locator('#inbox-content .judgments-error')).toHaveText('CURRENT_CAPTURE_FAILURE');
   await expect(page.locator('#inbox-view')).toBeVisible();
   await expect(card).toBeVisible();
 });
@@ -945,7 +945,7 @@ for (const phase of ['catalog', 'settings', 'list', 'status', 'note', 'locks'])
       await expect(page).toHaveURL(inboxURL);
       await expect(page.locator('#inbox-view')).toBeVisible();
     } else {
-      await expect(page.locator('#notice:visible, #inbox-content .jev-error:visible')).toContainText([message]);
+      await expect(page.locator('#notice:visible, #inbox-content .judgments-error:visible')).toContainText([message]);
       await expect(page.locator('#inbox-view')).toBeVisible();
       await expect(card.getByRole('link', {name: 'Open note', exact: true})).toBeVisible();
       await expect(page.locator('#empty')).toBeHidden();
@@ -1018,7 +1018,7 @@ for (const phase of ['catalog', 'settings', 'list', 'status', 'note', 'locks'])
         await expect(page.locator('#inbox-view')).toBeHidden();
         await expectEditorText(page, draft);
         await expect(page.locator('#notice')).toHaveText('NEWER_SAVE_FAILURE');
-        await expect(page.locator('#inbox-content .jev-error')).not.toContainText('RETIRED_CAPTURE_PHASE_ERROR');
+        await expect(page.locator('#inbox-content .judgments-error')).not.toContainText('RETIRED_CAPTURE_PHASE_ERROR');
       } finally {
         gate.resolve();
       }

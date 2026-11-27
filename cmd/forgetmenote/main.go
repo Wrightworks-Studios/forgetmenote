@@ -236,7 +236,7 @@ func runArguments(args []string) error {
 		log.Printf("ForgetMeNote build leaves out optional integrations: %s", strings.Join(names, " "))
 	}
 	if app.OutgoingPaused() {
-		log.Print("ForgetMeNote outgoing actions are paused by server.outgoing (OUTGOING): no automations, Jev reviews, repository refresh, backup expiry, background embedding or Quicknotes routing run; Slack, data writes, personal connections, backup leases and setup, and hosted extraction refuse")
+		log.Print("ForgetMeNote outgoing actions are paused by server.outgoing (OUTGOING): no automations, judgment reviews, repository refresh, backup expiry, background embedding or Quicknotes routing run; Slack, data writes, personal connections, backup leases and setup, and hosted extraction refuse")
 	}
 	log.Printf("ForgetMeNote listening at %s; public origin %s; access key in %s", *listen, *public, tokenPath)
 	return runtime.Serve(ctx, server, 15*time.Second)

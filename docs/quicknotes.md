@@ -2,7 +2,7 @@
 
 Quicknotes first commits the original Markdown to the signed-in user's private
 Inbox and acknowledges that save. Sorting happens afterward. Browser drafts must
-remain recoverable until the save acknowledgement arrives. No Jev call is part
+remain recoverable until the save acknowledgement arrives. No judgment call is part
 of saving, and a provider failure cannot discard the capture.
 
 **Inbox** is a permanent system destination beside Notes, Drafts, and Archives. It opens a main-area list of captures, filing actions, Undo, and Preferences; Trash is separate. The labelled **Create → Quick note** action and Inbox's **Quick note** button open a small private capture dialog. **Create → Note** starts in the current notebook, and **Create → Import source** opens source import. Capture no longer has a separate floating button. The Inbox route survives reload and browser history. It is available even before the first capture and without ordinary notebook grants; listing an empty Inbox does not provision a repository.
@@ -15,7 +15,7 @@ rights; it does not grant those rights. Owners and Admins cannot share or transf
 its catalog membership. Protected Inboxes are excluded from the ordinary notebook selector; opening a capture still uses the ordinary authorized note editor and saved history. The list only requests the signed-in account’s captures, including for Admins. Protection remains after filing every note because its
 Git history still contains private originals. Existing instance Admin read/write
 authority remains unchanged, but it does not extend to model processing: every
-Jev feature (explicit reviews, organization, citation checks, reranking, and
+judgments feature (explicit reviews, organization, citation checks, reranking, and
 automatic checks, whether enabling them or running a retained setting),
 notebook chat in the Inbox, and chat corpora that select it are refused for
 everyone except the Inbox's own account, which also needs its personal cloud
@@ -83,7 +83,7 @@ no committed receipt remains marked as awaiting its original client draft. It is
 not displayed as a saved capture, and periodic receipt checks still find a late
 commit. Explicit client retries bypass backoff without changing the
 original payload binding. A successful save or recovery clears the retry state.
-The worker respects current consent and permissions and uses the shared Jev
+The worker respects current consent and permissions and uses the shared judgments
 service and usage ledger.
 Classification intent is persisted before the paid call. An interrupted paid
 classification is not silently retried with a fresh identity. An explicit Sort
@@ -138,7 +138,7 @@ are not silently truncated to force a choice.
 
 A complete stopped-instance backup includes the database, which holds the
 catalog, Quicknotes records, capture reservations and receipts, notebook
-revisions, live documents and the shared Jev ledger, together with the blob store
+revisions, live documents and the shared judgments ledger, together with the blob store
 and the data directory. Restore them together. The test suite
 restores a separate synthetic copy after destination commit and before source
 completion, then recovers and performs Undo without duplicating content.

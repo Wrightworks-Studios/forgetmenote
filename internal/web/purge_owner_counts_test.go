@@ -16,7 +16,7 @@ import (
 
 // A purge redacts everyone's records that quoted the content, but only an
 // instance Admin is told how many. An Owner who is not an Admin is told how
-// many of their own chats, proposals and Jev records quote it, and that
+// many of their own chats, proposals and judgment records quote it, and that
 // other people's are redacted too, without a number, in the browser plan,
 // in the plan of an agent's prepare_purge they open, in the purge's receipt
 // and in the receipts listed later; another Owner is told no counts of
@@ -57,10 +57,10 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 	quote("reader", "The key "+secret+" and my bank PIN is 7391")
 	for i, owner := range []string{"keeper", "reader"} {
 		job := strings.Repeat(string(rune('a'+i)), 64)
-		if err := app.jev.Records().Write("jobs/"+job+".json", map[string]any{"version": 2, "project": "default", "owner": owner, "message": "Checked " + secret}); err != nil {
+		if err := app.judgments.Records().Write("jobs/"+job+".json", map[string]any{"version": 2, "project": "default", "owner": owner, "message": "Checked " + secret}); err != nil {
 			t.Fatal(err)
 		}
-		if err := app.jev.Records().Write("results/"+job+"-00000001.json", map[string]any{"version": 1, "job": job, "quote": secret}); err != nil {
+		if err := app.judgments.Records().Write("results/"+job+"-00000001.json", map[string]any{"version": 1, "job": job, "quote": secret}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -86,8 +86,8 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 		return plan
 	}
 	scope := workspace.PurgeScope{Kind: workspace.PurgeText, Text: secret}
-	own := purgehttp.Derived{Chats: 1, Proposals: 1, JevRecords: 2, Own: true, Others: purgehttp.OthersRedacted}
-	all := purgehttp.Derived{Chats: 2, Proposals: 2, JevRecords: 4}
+	own := purgehttp.Derived{Chats: 1, Proposals: 1, JudgmentRecords: 2, Own: true, Others: purgehttp.OthersRedacted}
+	all := purgehttp.Derived{Chats: 2, Proposals: 2, JudgmentRecords: 4}
 	if got := prepare("keeper", map[string]any{"scope": scope}).Derived; got != own {
 		t.Errorf("the Owner's plan counts %+v, want %+v", got, own)
 	}
@@ -162,7 +162,7 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 	if got := listed("partner"); got != (purgehttp.Derived{Withheld: true, Others: purgehttp.OthersWithheld}) {
 		t.Errorf("another Owner's listed receipt counts %+v", got)
 	}
-	if got := listed("admin"); got.Chats != 2 || got.JevRecords != 4 || got.Proposals != 2 || got.Own || got.Withheld || got.Others != "" {
+	if got := listed("admin"); got.Chats != 2 || got.JudgmentRecords != 4 || got.Proposals != 2 || got.Own || got.Withheld || got.Others != "" {
 		t.Errorf("the Admin's listed receipt counts %+v", got)
 	}
 }
@@ -172,7 +172,7 @@ func TestOnlyAnAdminIsToldHowManyOfOtherPeoplesRecordsQuoteAPurge(t *testing.T) 
 // know, as a later release may write, is left as it is and reported. An
 // Owner who is not an instance Admin is told so without a number, in the
 // purge's receipt and in the receipts listed later, as such records may be
-// other people's; an Admin is told how many. Jev records that cannot be
+// other people's; an Admin is told how many. judgment records that cannot be
 // redacted are reported the same way.
 func TestAnOwnerIsToldWithoutANumberThatRecordsCouldNotBeRedacted(t *testing.T) {
 	app, store := fixture(t)
@@ -239,14 +239,14 @@ func TestAnOwnerIsToldWithoutANumberThatRecordsCouldNotBeRedacted(t *testing.T) 
 	told("the Owner listing receipts", listed("keeper"), numberless, "1 chat transcripts")
 	told("the Admin listing receipts", listed("admin"), "1 chat transcripts cannot be redacted", numberless)
 
-	if err := app.jev.Records().Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "owner": "reader"}); err != nil {
+	if err := app.judgments.Records().Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "owner": "reader"}); err != nil {
 		t.Fatal(err)
 	}
-	_, refused := app.jev.Records().RedactNotebook(ctx, "default", func([]byte) ([]byte, bool, error) { return nil, false, errors.New("refused") }, false)
+	_, refused := app.judgments.Records().RedactNotebook(ctx, "default", func([]byte) ([]byte, bool, error) { return nil, false, errors.New("refused") }, false)
 	if refused == nil {
-		t.Fatal("a Jev record the redaction refuses is not reported")
+		t.Fatal("a judgment record the redaction refuses is not reported")
 	}
-	jev := purgehttp.Receipt{Actor: "keeper", Warnings: []string{"Some records outside the notebook could not be cleaned: Jev records: " + refused.Error()}}
-	told("the Owner, of Jev records", app.purge.ReceiptFor("keeper", jev).Warnings, "some Jev records, perhaps other people's, cannot be redacted", "1 Jev records")
-	told("the Admin, of Jev records", app.purge.ReceiptFor("admin", jev).Warnings, "1 Jev records cannot be redacted", "perhaps")
+	judgments := purgehttp.Receipt{Actor: "keeper", Warnings: []string{"Some records outside the notebook could not be cleaned: judgment records: " + refused.Error()}}
+	told("the Owner, of judgment records", app.purge.ReceiptFor("keeper", judgments).Warnings, "some judgment records, perhaps other people's, cannot be redacted", "1 judgment records")
+	told("the Admin, of judgment records", app.purge.ReceiptFor("admin", judgments).Warnings, "1 judgment records cannot be redacted", "perhaps")
 }

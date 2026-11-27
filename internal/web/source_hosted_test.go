@@ -125,7 +125,7 @@ func TestHostedSourceExplicitOCRReusesPaidResultAtSave(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatal("saving repeated paid extraction", calls.Load())
 	}
-	records, err := app.chat.JevLedger.Records()
+	records, err := app.chat.JudgmentLedger.Records()
 	if err != nil || len(records) != 1 || records[0].Usage == nil || records[0].Usage.InputTokens != 37 || records[0].Status != "settled" {
 		t.Fatalf("hosted spending receipt: %+v %v", records, err)
 	}
@@ -176,7 +176,7 @@ func TestHostedSourceUnknownRequestCannotResume(t *testing.T) {
 		t.Fatal("restart lost paid attempt fence")
 	}
 	resumed := call(app, "POST", "/api/sources/jobs/"+id+"/resume", "{}", testToken)
-	records, err := app.chat.JevLedger.Records()
+	records, err := app.chat.JudgmentLedger.Records()
 	if err != nil || len(records) != 1 || records[0].Status != "unknown" {
 		t.Fatalf("uncertain spending receipt: %+v %v", records, err)
 	}

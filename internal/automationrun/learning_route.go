@@ -28,9 +28,9 @@ func (s *Service) routeLearning(ctx context.Context, r *automation.Run, groups m
 	})
 	judge, localOnly := s.hooks.JudgmentsConfigured()
 	limit := 8
-	if r.Spec.Learning.Jev {
+	if r.Spec.Learning.Judgments {
 		if judge == nil || localOnly {
-			return nil, errors.New("learning Jev is not configured or is prohibited by local-only mode")
+			return nil, errors.New("learning judgments are not configured or are prohibited by local-only mode")
 		}
 		limit = min(limit, judge.QuestionLimit())
 	}
@@ -53,7 +53,7 @@ func (s *Service) routeLearning(ctx context.Context, r *automation.Run, groups m
 			}
 		}
 	}
-	if !r.Spec.Learning.Jev || len(known) == len(keys) {
+	if !r.Spec.Learning.Judgments || len(known) == len(keys) {
 		return routes, nil
 	}
 	if r.Learning.JudgmentAttempted {
@@ -86,7 +86,7 @@ func (s *Service) routeLearning(ctx context.Context, r *automation.Run, groups m
 	if err != nil {
 		return nil, err
 	}
-	// Existing lexical evidence shortlists profiles; Jev chooses among these and
+	// Existing lexical evidence shortlists profiles; the judge chooses among these and
 	// the current observed patterns. Independent choices share a parallel request.
 	paths := []string{}
 	for p := range profiles {

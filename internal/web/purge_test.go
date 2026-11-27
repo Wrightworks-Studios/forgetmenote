@@ -252,7 +252,7 @@ func TestPurgeOfRecordsOnlyNeedsAnAdmin(t *testing.T) {
 // A plan tells an Owner which records outside the notebook quote what the
 // purge erases only for content the notebook holds: never for guessed text or
 // a pattern the notebook does not hold, and an agent's plan never at all, so
-// nobody reads other members' private chats or Jev records by probing. A
+// nobody reads other members' private chats or judgment records by probing. A
 // pattern purge matches those records against the texts it matched in the
 // notebook, never against the pattern, so running it rewrites nothing else
 // in them.
@@ -279,7 +279,7 @@ func TestPurgePlanCountsOnlyRecordsQuotingWhatTheNotebookHolds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.jev.Records().Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "The PIN is 7391"}); err != nil {
+	if err := app.judgments.Records().Write("jobs/"+strings.Repeat("c", 64)+".json", map[string]any{"version": 2, "project": "default", "message": "The PIN is 7391"}); err != nil {
 		t.Fatal(err)
 	}
 	prepare := func(scope workspace.PurgeScope) webPurgePlan {

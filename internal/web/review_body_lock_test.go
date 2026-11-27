@@ -22,7 +22,7 @@ func (b *slowReviewJSON) Read([]byte) (int, error) {
 }
 func (b *slowReviewJSON) Close() error { return nil }
 func TestSlowReviewBodyDoesNotBlockAnotherNotebook(t *testing.T) {
-	for _, path := range []string{"/api/jev/settings", "/p/default/api/jev/settings", "/p/default/api/jev/organization", "/p/default/api/jev/jobs/{job}/organization/dismiss"} {
+	for _, path := range []string{"/api/judgments/settings", "/p/default/api/judgments/settings", "/p/default/api/judgments/organization", "/p/default/api/judgments/jobs/{job}/organization/dismiss"} {
 		t.Run(path, func(t *testing.T) { testSlowReviewBody(t, path) })
 	}
 }
@@ -39,14 +39,14 @@ func testSlowReviewBody(t *testing.T, requestPath string) {
 			t.Fatal(err)
 		}
 	}
-	path := "/p/second-review/api/jev/organization"
+	path := "/p/second-review/api/judgments/organization"
 	if w := proxyCall(app, "alice", "GET", path, ""); w.Code != 200 {
 		t.Fatal("baseline GET", w.Code, w.Body.String())
 	}
 	if strings.Contains(requestPath, "{job}") {
 		id := digest("slow-client-control")
 		job := map[string]any{"version": 2, "id": id, "owner": "alice", "accountId": "account", "project": "default", "requestHash": "request", "inventory": "inventory", "model": "model", "state": "paused", "notes": []any{}, "work": []any{}, "organization": map[string]any{}}
-		if err := app.jev.Records().Write("jobs/"+id+".json", job); err != nil {
+		if err := app.judgments.Records().Write("jobs/"+id+".json", job); err != nil {
 			t.Fatal(err)
 		}
 		requestPath = strings.Replace(requestPath, "{job}", id, 1)

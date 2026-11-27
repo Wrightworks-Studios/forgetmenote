@@ -10,7 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// initMemory binds agent memory to this instance's access checks, Jev, chat
+// initMemory binds agent memory to this instance's access checks, judgments, chat
 // embedding policy and origin, which are read at each call.
 func (s *Server) initMemory() error {
 	var err error
@@ -22,10 +22,10 @@ func (s *Server) initMemory() error {
 		ClientAccess:         s.clientAccess,
 		ClientProjectAllowed: s.clientProjectAllowed,
 		Judge: func() *decision.Service {
-			judge, _ := s.jevConfigured()
+			judge, _ := s.judgmentsConfigured()
 			return judge
 		},
-		JudgeAuthorized: s.jevAuthorized,
+		JudgeAuthorized: s.judgmentsAuthorized,
 		EmbeddingPolicy: s.chatEmbeddingPolicy,
 		Origin:          func() string { return s.origin },
 	})

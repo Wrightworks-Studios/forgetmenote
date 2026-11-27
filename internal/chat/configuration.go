@@ -43,11 +43,11 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 			return err
 		}
 		localOnly = cfg.LocalOnly
-		if cfg.Jev != nil {
+		if cfg.Judgments != nil {
 			if judgeConfig != nil {
 				return errors.New("configure decisions in DECISION_CONFIG_FILE or CHAT_CONFIG_FILE, not both")
 			}
-			judgeConfig = cfg.Jev
+			judgeConfig = cfg.Judgments
 		}
 	}
 	if err := judgeConfig.Validate(localOnly); err != nil {
@@ -82,7 +82,7 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 		}
 	}
 	var judge *decision.Service
-	ledger := r.JevLedger
+	ledger := r.JudgmentLedger
 	openedLedger := false
 	if judgeConfig != nil && judgeConfig.Enabled || cfg != nil && cfg.Sources != nil {
 		if ledger == nil {
@@ -125,9 +125,9 @@ func (r *Runtime) ConfigureValues(data string, cfg *Config, judgeConfig *decisio
 			return err
 		}
 	}
-	oldJudge := r.Jev
-	r.Jev = judge
-	r.JevLedger = ledger
+	oldJudge := r.Judgments
+	r.Judgments = judge
+	r.JudgmentLedger = ledger
 	r.Config = cfg
 	r.Providers = providers
 	r.Research = research

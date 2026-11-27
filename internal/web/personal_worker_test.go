@@ -95,7 +95,7 @@ func personalProviderFixture(t *testing.T, app *Server, provider string, handler
 	}
 }
 func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
-	var model, jev, writes atomic.Int32
+	var model, judgments, writes atomic.Int32
 	var opened atomic.Bool
 	app, _ := runnerFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		model.Add(1)
@@ -107,8 +107,8 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 		}
 		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"role": "assistant", "content": `{"title":"Reply about the launch plan","summary":"A colleague needs the current launch plan.","reply":"I will check the current plan and follow up.","due":"","report":"Source is the connected email thread.","noteRevision":"forged","mailboxID":"forged","notified":true}`}, "finish_reason": "stop"}}})
 	})
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
-		jev.Add(1)
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
+		judgments.Add(1)
 		var in struct {
 			Questions map[string]any `json:"questions"`
 		}
@@ -201,8 +201,8 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	if model.Load() != 1 || jev.Load() != 1 || writes.Load() != 0 {
-		t.Fatalf("repeated work or unsolicited write: model=%d Jev=%d writes=%d", model.Load(), jev.Load(), writes.Load())
+	if model.Load() != 1 || judgments.Load() != 1 || writes.Load() != 0 {
+		t.Fatalf("repeated work or unsolicited write: model=%d judge=%d writes=%d", model.Load(), judgments.Load(), writes.Load())
 	}
 	settings.MailboxDrafts = true
 	settings, err = app.catalog.SaveAssistant("alice", settings)
@@ -239,7 +239,7 @@ func TestPersonalAssistantChangedItemsAreJudgedOnce(t *testing.T) {
 	if err = app.automationrun.RunAutomation(t.Context(), &run, func() error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	if model.Load() != 1 || jev.Load() != 1 || writes.Load() != 1 {
+	if model.Load() != 1 || judgments.Load() != 1 || writes.Load() != 1 {
 		t.Fatal("mailbox draft triggered repeated paid work or another draft")
 	}
 	settings.Enabled = false

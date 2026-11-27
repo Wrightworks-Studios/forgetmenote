@@ -49,11 +49,11 @@ func TestRepositoryMapHTTPAndMCPShareScope(t *testing.T) {
 	}
 }
 
-func TestRepositoryMapJevRequiresOwnerConsentAndCachesAbstentions(t *testing.T) {
+func TestRepositoryMapJudgmentRequiresOwnerConsentAndCachesAbstentions(t *testing.T) {
 	app := chatFixture(t)
 	configureSearchSource(t, app)
 	var calls atomic.Int32
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		var request struct {
 			Questions map[string]decision.Question `json:"questions"`
@@ -88,7 +88,7 @@ func TestRepositoryMapJevRequiresOwnerConsentAndCachesAbstentions(t *testing.T) 
 	}
 	state, _ := manager.Status("default")
 	cfg := state.IndexConfig
-	cfg.MapJev = true
+	cfg.MapJudgments = true
 	if _, err := manager.ConfigureIndex("default", "alice", state.Generation, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestRepositoryMapJevRequiresOwnerConsentAndCachesAbstentions(t *testing.T) 
 	if calls.Load() != 0 {
 		t.Fatal("map ignored owner's personal consent")
 	}
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	if more, err := manager.EnrichMapPending(t.Context(), "default"); err != nil || !more || calls.Load() != 1 {
@@ -118,14 +118,14 @@ func TestRepositoryMapRecoversUncertainPurchaseWithoutPayingAgain(t *testing.T) 
 	app := chatFixture(t)
 	configureSearchSource(t, app)
 	var calls atomic.Int32
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, _ *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
 		http.Error(w, "temporarily unavailable", 503)
 	})
 	if err := app.catalog.Member(catalog.Bootstrap, "default", "alice", "owner"); err != nil {
 		t.Fatal(err)
 	}
-	if w := proxyCall(app, "alice", "POST", "/api/jev/settings", `{"consent":true}`); w.Code != 200 {
+	if w := proxyCall(app, "alice", "POST", "/api/judgments/settings", `{"consent":true}`); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	manager := app.repositories
@@ -133,7 +133,7 @@ func TestRepositoryMapRecoversUncertainPurchaseWithoutPayingAgain(t *testing.T) 
 	enable := func() {
 		state, _ := manager.Status("default")
 		cfg := state.IndexConfig
-		cfg.MapJev = true
+		cfg.MapJudgments = true
 		if _, err := manager.ConfigureIndex("default", "alice", state.Generation, cfg); err != nil {
 			t.Fatal(err)
 		}

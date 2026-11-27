@@ -38,7 +38,7 @@ import (
 	"forgetmenote/internal/connectors"
 	"forgetmenote/internal/dataops"
 	"forgetmenote/internal/decision"
-	"forgetmenote/internal/jev"
+	"forgetmenote/internal/judgments"
 	"forgetmenote/internal/knowledge"
 	"forgetmenote/internal/messaging"
 	"forgetmenote/internal/messaginghttp"
@@ -96,7 +96,7 @@ type Server struct {
 	backups             *backupService
 	quicknotes          *quicknotes.Service
 	citations           *citationchecks.Runtime
-	jev                 *jev.Service
+	judgments           *judgments.Service
 	decisions           *decision.Policy
 	chat                *chatService
 	actions             actions.Registry
@@ -288,10 +288,10 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initChatRun(); err != nil {
 		return nil, err
 	}
-	if err = s.initJev(); err != nil {
+	if err = s.initJudgments(); err != nil {
 		return nil, err
 	}
-	s.decisions = decision.NewPolicy(projects, s.jevConfigured, s.jev.StoredPreferences)
+	s.decisions = decision.NewPolicy(projects, s.judgmentsConfigured, s.judgments.StoredPreferences)
 	if err = s.initMemory(); err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func NewWithBlobs(projects *catalog.Catalog, db *pg.DB, blobs blob.Store, data, 
 	if err = s.initDataOperations(); err != nil {
 		return nil, err
 	}
-	s.jevRoutes()
+	s.judgmentRoutes()
 	if err = s.initQuicknotes(); err != nil {
 		return nil, err
 	}

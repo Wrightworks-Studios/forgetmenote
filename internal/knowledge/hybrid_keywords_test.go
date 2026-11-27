@@ -67,11 +67,11 @@ func TestHybridAutomaticKeepsExactTitlesFirstAndFilters(t *testing.T) {
 	}
 }
 
-func hybridJev(service *decision.Service, check func(context.Context) error) *JevRanking {
-	return &JevRanking{Service: service, Scope: decision.Scope{Actor: "alice", Notebook: "book", Feature: "rerank", Run: "search", Operation: "search"}, Check: check}
+func hybridJudgments(service *decision.Service, check func(context.Context) error) *JudgmentRanking {
+	return &JudgmentRanking{Service: service, Scope: decision.Scope{Actor: "alice", Notebook: "book", Feature: "rerank", Run: "search", Operation: "search"}, Check: check}
 }
 
-func TestHybridJevRanksOnlyExplicitRequests(t *testing.T) {
+func TestHybridJudgmentRanksOnlyExplicitRequests(t *testing.T) {
 	engine := retrievalNotes(t, map[string]string{
 		"a.md": "# Record\nBicycle workshop bicycle workshop bicycle workshop attendance.",
 		"z.md": "# Maintenance\nBicycle workshop chains require CERULEAN lubricant.",
@@ -82,16 +82,16 @@ func TestHybridJevRanksOnlyExplicitRequests(t *testing.T) {
 		scoreRelevance(w, r)
 	})
 	allow := func(context.Context) error { return nil }
-	query := HybridQuery{SearchQuery: SearchQuery{Text: "bicycle workshop", Limit: 10}, Jev: hybridJev(service, allow)}
+	query := HybridQuery{SearchQuery: SearchQuery{Text: "bicycle workshop", Limit: 10}, Judgments: hybridJudgments(service, allow)}
 	typed, err := engine.HybridSearch(context.Background(), query)
 	if err != nil || typed.Reranked || calls.Load() != 0 || hybridPaths(typed)[0] != "a.md" {
-		t.Fatalf("search without an explicit request used Jev: %+v %v calls=%d", typed, err, calls.Load())
+		t.Fatalf("search without an explicit request used the judge: %+v %v calls=%d", typed, err, calls.Load())
 	}
 	query.Rerank = true
 	query.Mode = "text"
 	literal, err := engine.HybridSearch(context.Background(), query)
 	if err != nil || literal.Reranked || calls.Load() != 0 {
-		t.Fatalf("text mode used Jev: %+v %v", literal, err)
+		t.Fatalf("text mode used the judge: %+v %v", literal, err)
 	}
 	query.Mode = "all"
 	ranked, err := engine.HybridSearch(context.Background(), query)
@@ -99,16 +99,16 @@ func TestHybridJevRanksOnlyExplicitRequests(t *testing.T) {
 		t.Fatalf("explicit request did not rank: %+v %v", ranked, err)
 	}
 	if paths := hybridPaths(ranked); len(paths) != 2 || paths[0] != "z.md" || paths[1] != "a.md" {
-		t.Fatalf("Jev order not applied: %v", paths)
+		t.Fatalf("judge order not applied: %v", paths)
 	}
-	query.Jev = nil
+	query.Judgments = nil
 	unbound, err := engine.HybridSearch(context.Background(), query)
 	if err != nil || unbound.Reranked || hybridPaths(unbound)[0] != "a.md" {
 		t.Fatalf("request without an authorized binding: %+v %v", unbound, err)
 	}
 }
 
-func TestHybridJevFailureKeepsLocalOrderAndRevocationFails(t *testing.T) {
+func TestHybridJudgmentFailureKeepsLocalOrderAndRevocationFails(t *testing.T) {
 	notes := map[string]string{
 		"a.md": "# Record\nBicycle workshop bicycle workshop bicycle workshop attendance.",
 		"z.md": "# Maintenance\nBicycle workshop chains require CERULEAN lubricant.",
@@ -116,8 +116,8 @@ func TestHybridJevFailureKeepsLocalOrderAndRevocationFails(t *testing.T) {
 	t.Run("provider failure", func(t *testing.T) {
 		engine := retrievalNotes(t, notes)
 		service := rankingService(t, func(w http.ResponseWriter, r *http.Request) { http.Error(w, "unavailable", 503) })
-		got, err := engine.HybridSearch(context.Background(), HybridQuery{SearchQuery: SearchQuery{Text: "bicycle workshop"}, Rerank: true, Jev: hybridJev(service, func(context.Context) error { return nil })})
-		if err != nil || got.Reranked || hybridPaths(got)[0] != "a.md" || !strings.Contains(got.Message, "Jev ranking is unavailable") {
+		got, err := engine.HybridSearch(context.Background(), HybridQuery{SearchQuery: SearchQuery{Text: "bicycle workshop"}, Rerank: true, Judgments: hybridJudgments(service, func(context.Context) error { return nil })})
+		if err != nil || got.Reranked || hybridPaths(got)[0] != "a.md" || !strings.Contains(got.Message, "Judgment ranking is unavailable") {
 			t.Fatalf("provider failure did not keep local order with a message: %+v %v", got, err)
 		}
 	})
@@ -128,7 +128,7 @@ func TestHybridJevFailureKeepsLocalOrderAndRevocationFails(t *testing.T) {
 			revoked.Store(true)
 			scoreRelevance(w, r)
 		})
-		_, err := engine.HybridSearch(context.Background(), HybridQuery{SearchQuery: SearchQuery{Text: "bicycle workshop"}, Rerank: true, Jev: hybridJev(service, func(context.Context) error {
+		_, err := engine.HybridSearch(context.Background(), HybridQuery{SearchQuery: SearchQuery{Text: "bicycle workshop"}, Rerank: true, Judgments: hybridJudgments(service, func(context.Context) error {
 			if revoked.Load() {
 				return workspace.ErrForbidden
 			}
@@ -149,7 +149,7 @@ func TestHybridJevFailureKeepsLocalOrderAndRevocationFails(t *testing.T) {
 			}
 			scoreRelevance(w, r)
 		})
-		_, err := engine.HybridSearch(context.Background(), HybridQuery{SearchQuery: SearchQuery{Text: "bicycle workshop"}, Rerank: true, Jev: hybridJev(service, func(context.Context) error { return nil })})
+		_, err := engine.HybridSearch(context.Background(), HybridQuery{SearchQuery: SearchQuery{Text: "bicycle workshop"}, Rerank: true, Judgments: hybridJudgments(service, func(context.Context) error { return nil })})
 		if !errors.Is(err, workspace.ErrConflict) {
 			t.Fatalf("stale ranking published: %v", err)
 		}

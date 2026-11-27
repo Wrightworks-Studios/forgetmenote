@@ -78,7 +78,7 @@ func exportFiles(t *testing.T, db *pg.DB) (filestate.Sum, string) {
 // The imported ledger keeps its order and refuses a second reservation of an
 // imported attempt, records read back with their exact values, and the export
 // is the fixture: the ledger byte for byte, each record in canonical form.
-func TestJevFilesRoundTrip(t *testing.T) {
+func TestJudgmentFilesRoundTrip(t *testing.T) {
 	data := releaseA(t)
 	// Interrupted writes leave temporary files the release never reads.
 	os.WriteFile(filepath.Join(data, "jev", usageTemp+"123"), []byte(`{"version":`), 0600)
@@ -162,7 +162,7 @@ func TestJevFilesRoundTrip(t *testing.T) {
 
 // A call still reserved when the gateways stopped exports as unknown, as the
 // file-based release would record it, so the export imports again.
-func TestJevExportRecordsReservedCallsAsUnknown(t *testing.T) {
+func TestJudgmentExportRecordsReservedCallsAsUnknown(t *testing.T) {
 	db := pgtest.Org(t)
 	if _, err := importFiles(t, db, releaseA(t)); err != nil {
 		t.Fatal(err)
@@ -186,7 +186,7 @@ func TestJevExportRecordsReservedCallsAsUnknown(t *testing.T) {
 
 // An import refuses what the file-based release would refuse or repair first,
 // and a refused import writes no row.
-func TestJevImportRefusesUnreadableFiles(t *testing.T) {
+func TestJudgmentImportRefusesUnreadableFiles(t *testing.T) {
 	edit := func(rel, old, new string) func(string) {
 		return func(data string) {
 			path := filepath.Join(data, rel)
@@ -219,13 +219,13 @@ func TestJevImportRefusesUnreadableFiles(t *testing.T) {
 		})
 	}
 	if sum, err := importFiles(t, pgtest.Org(t), t.TempDir()); err != nil || sum.Files != 0 {
-		t.Fatal("an instance without Jev failed to import", sum, err)
+		t.Fatal("an instance without judgments failed to import", sum, err)
 	}
 }
 
 // The report compares each number by its exact value: jsonb's spelling of a
 // number matches the file's, and no two different numbers match.
-func TestJevReportComparesNumbersExactly(t *testing.T) {
+func TestJudgmentReportComparesNumbersExactly(t *testing.T) {
 	canonical := func(raw string) string {
 		t.Helper()
 		out, err := canonicalRecord([]byte(raw))

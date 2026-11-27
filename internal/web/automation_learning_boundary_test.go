@@ -141,7 +141,7 @@ func TestLearningUsesConfiguredPromptBudget(t *testing.T) {
 	}
 }
 
-func TestLearningJevConsolidatesMCPActivityBeforeOneModelCall(t *testing.T) {
+func TestLearningJudgmentConsolidatesMCPActivityBeforeOneModelCall(t *testing.T) {
 	for _, repeats := range []int{2, 1} {
 		t.Run(fmt.Sprintf("examples-per-shape-%d", repeats), func(t *testing.T) {
 			testLearningConsolidation(t, repeats)
@@ -152,11 +152,11 @@ func TestLearningJevConsolidatesMCPActivityBeforeOneModelCall(t *testing.T) {
 func testLearningConsolidation(t *testing.T, repeats int) {
 	modelCalls := 0
 	app, spec := learningFixture(t, func(w http.ResponseWriter, r *http.Request) { modelCalls++; learningAnswer(w, r) })
-	spec.Learning.Jev = true
+	spec.Learning.Judgments = true
 	setTestAutomationSpec(t, app, spec)
-	jevcalls := 0
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
-		jevcalls++
+	judgmentCalls := 0
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
+		judgmentCalls++
 		var req struct {
 			Questions map[string]decision.Question `json:"questions"`
 		}
@@ -200,8 +200,8 @@ func testLearningConsolidation(t *testing.T, repeats int) {
 	}
 	store, _ := app.catalog.Access("alice", "default", "read")
 	notes, err := store.Find(context.Background(), "", "recipe", "", "learned/")
-	if err != nil || len(notes) != 1 || modelCalls != 1 || jevcalls != 1 {
-		t.Fatalf("notes %d model %d Jev %d: %v", len(notes), modelCalls, jevcalls, err)
+	if err != nil || len(notes) != 1 || modelCalls != 1 || judgmentCalls != 1 {
+		t.Fatalf("notes %d model %d judge %d: %v", len(notes), modelCalls, judgmentCalls, err)
 	}
 	if len(run.Learning.Published) != 1 {
 		t.Fatal("missing publication receipt")
@@ -270,18 +270,18 @@ func TestLearningExpiryPurgesIdleEvidence(t *testing.T) {
 	}
 }
 
-func TestLearningRechecksProfileVisibilityAfterJev(t *testing.T) {
+func TestLearningRechecksProfileVisibilityAfterJudgments(t *testing.T) {
 	app, spec := learningFixture(t, func(http.ResponseWriter, *http.Request) {
 		t.Error("profile was sent to the model after being archived")
 	})
-	spec.Learning.Jev = true
+	spec.Learning.Judgments = true
 	setTestAutomationSpec(t, app, spec)
 	store, _ := app.catalog.Access("alice", "default", "edit")
 	doc, err := store.Save(context.Background(), "learned/guide.md", []byte("---\ntags: [recipe]\n---\n# Counts\nCount examples.\n"), "", "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
-	configureSyntheticJev(t, app, func(w http.ResponseWriter, r *http.Request) {
+	configureSyntheticJudgments(t, app, func(w http.ResponseWriter, r *http.Request) {
 		if _, err := store.Save(context.Background(), doc.Path, []byte("---\ntags: [recipe]\nfmn-container: archive\n---\n# Counts\n"), doc.Revision, "alice"); err != nil {
 			t.Error(err)
 		}

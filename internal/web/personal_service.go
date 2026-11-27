@@ -19,7 +19,7 @@ func (s *Server) initPersonal() error {
 
 // personalHooks binds the worker to this instance's consent and access checks
 // (personal_access.go, personal_ui.go, credentials.go), its automation runs,
-// Jev, and its connections and Slack app. Connections, the origin and the
+// judgments, and its connections and Slack app. Connections, the origin and the
 // Slack app are read at each call, since web replaces them after startup.
 func (s *Server) personalHooks() personal.Hooks {
 	return personal.Hooks{
@@ -39,7 +39,7 @@ func (s *Server) personalHooks() personal.Hooks {
 		},
 		CheckAutomationEvidence: s.checkAutomationEvidence,
 		AutomationCall:          s.automationrun.Call,
-		JevConfigured:           s.jevConfigured,
+		JudgmentsConfigured:     s.judgmentsConfigured,
 		PersonalConnections:     func() *connectors.PersonalConnections { return s.personalConnections },
 		DataConnections:         func() *connectors.Manager { return s.dataConnections },
 		Origin:                  func() string { return s.origin },
