@@ -183,7 +183,7 @@ One table classifies every path for PR feedback, releases and deployment:
 `path_class` in `deploy/production/verification_plan.py` names image inputs
 (`IMAGE_SOURCES`, which the Dockerfile copies as an allowlist), tests and fixtures
 (which `.dockerignore` drops from the image), documents (exactly
-`publish.yml`'s `paths-ignore`) and release tooling. Committed Go
+`notify-deployments.yml`'s `paths-ignore`) and release tooling. Committed Go
 embedding adds runtime inputs per commit. A path no table names, or Go
 implementation outside the image sources, counts as a runtime input until it is
 reviewed. Operator tests check the table against those three files and require
@@ -195,7 +195,7 @@ trace before an explicit `--retry-failed`. There are no automatic retries or
 weakened assertions. A later pass alone does not establish that an intermittent
 bug is fixed. Keep synthetic credentials/data and browser traces private. The one
 exception is a failed gate on a GitHub runner, whose evidence the
-[Check](#pr-feedback-and-complete-regression) and [Publish](#published-images) jobs upload.
+[Check](#pr-feedback-and-complete-regression) job uploads.
 
 ## Performance targets and known bottlenecks
 
@@ -280,7 +280,9 @@ synthetic test data, and `release_image.py` keeps the Actions runtime variables
 (`ACTIONS_*`, with the cache token) from every command but the image build, because a
 test may record its environment: the trace of a browser launched with one does.
 Pushes to `main` and `next` and a weekly schedule run only
-the advisory scan; a push to `main` also [publishes an image](#published-images). Publication
+the advisory scan. No workflow here builds an image to publish: self-hosters build
+from source, and a deployment repository builds, verifies and publishes its own
+([releasing](../deploy/production/releasing.md#github-actions-release)). Publication
 uses `--since DEPLOYED_REVISION --mode auto` by default. An automatic full plan keeps
 every Go, web and browser test. Of the slow container scenarios (source, jev, oidc,
 totp) it runs only those whose inputs changed. Image or dependency changes keep
@@ -317,46 +319,6 @@ may select a different endpoint with `-url`. Redirects, oversized responses and
 non-`ok` bodies fail without disclosing upstream diagnostics. Docker uses this
 probe instead of an additional wget package. Existing parser package versions,
 base-image digests and OCR content hashes remain pinned.
-
-## Published images
-
-Each release merged to `main` runs [Publish](../.github/workflows/publish.yml) and,
-unless it changes no runtime file, publishes `ghcr.io/wrightworks-studios/forgetmenote`
-as `main-COMMIT`:
-
-1. The `verify` job runs the release gate on a standard runner with
-   `--since-published`: against the newest earlier `main` commit whose image the
-   registry serves without a sign-in. Without one, as for the first publication or a
-   package that is not public, the gate runs completely. This job holds no registry
-   or signing credentials, although npm packages and every test run in it. A failed
-   gate uploads the same `gate-failure-ATTEMPT` artifact as Check's full job.
-2. The `publish` job loads the exact image the gate checked and runs only
-   `release_image.py --publish-verified`, which refuses a record that is incomplete,
-   names another revision or has a failed check, and never replaces a different image
-   under the same tag. It then signs two attestations for the pushed digest: SLSA build
-   provenance and a verification summary.
-3. The `deploy` job checks that anyone can pull the image, then starts a deployment
-   repository's Release with the revision and the pinned digest. GitHub creates a new
-   package as private; make it public in its settings and re-run this job.
-
-The verification summary's predicate type is this section's URL,
-`https://github.com/Wrightworks-Studios/forgetmenote/blob/main/docs/verification.md#published-images`.
-It holds `source_revision`, `image_id`, `complete`, `expected_checks`, each expected
-check's `status`, `exit_code`, `elapsed_seconds` and `reused`, the plan's `mode`,
-`reason` and `baseline`, and `record_sha256`. That last field is the SHA-256 of the complete
-verification record, with its commands, inputs and runner paths, which the run keeps
-for 90 days as its `verification` artifact. A deployment can check both attestations:
-
-```sh
-gh attestation verify oci://ghcr.io/wrightworks-studios/forgetmenote@sha256:DIGEST \
-  --repo Wrightworks-Studios/forgetmenote \
-  --signer-workflow Wrightworks-Studios/forgetmenote/.github/workflows/publish.yml \
-  --source-ref refs/heads/main --source-digest COMMIT --deny-self-hosted-runners
-```
-
-Add `--predicate-type` with the URL above and `--format json` to read the summary.
-Deploy by digest: GHCR tags can be moved. The image is `linux/amd64`, built with the
-default user and group IDs, 1000:1000, and every [optional integration](integrations.md).
 
 ## Reproducible runtime dependencies
 

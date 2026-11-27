@@ -111,70 +111,31 @@ class ScorecardWorkflowTests(unittest.TestCase):
         self.assertIs(checkout['with']['persist-credentials'], False)
 
 
+class NotifyDeploymentsWorkflowTests(unittest.TestCase):
+    def test_main_hands_deployments_the_revision_and_github_publishes_no_image(self):
+        value, triggers = workflow('notify-deployments.yml')
+        self.assertEqual(set(triggers), {'push'})
+        self.assertEqual(triggers['push']['branches'], ['main'])
+        job = value['jobs']['dispatch']
+        self.assertEqual(job['environment'], 'deployments')
+        run = job['steps'][0]['run']
+        # A deployment repository builds and verifies its own image from this revision.
+        self.assertIn('gh workflow run release.yml', run)
+        self.assertIn('-f revision="$GITHUB_SHA"', run)
+        self.assertNotIn('image', run)
+        # Self-hosters build from source: no workflow pushes or attests an image.
+        for path in sorted((ROOT / '.github/workflows').glob('*.yml')):
+            with self.subTest(workflow=path.name):
+                text = path.read_text()
+                self.assertNotRegex(text, r'packages:\s*write')
+                self.assertNotIn('attestations:', text)
+
+
 class DependabotTests(unittest.TestCase):
     def test_only_actions_get_version_updates_and_they_wait_two_weeks(self):
         value = yaml.safe_load((ROOT / '.github/dependabot.yml').read_text())
         self.assertEqual([update['package-ecosystem'] for update in value['updates']], ['github-actions'])
         self.assertGreaterEqual(value['updates'][0]['cooldown']['default-days'], 14)
-
-
-class PublishWorkflowTests(unittest.TestCase):
-    def setUp(self):
-        self.value, self.triggers = workflow('publish.yml')
-        self.jobs = self.value['jobs']
-
-    def test_each_main_release_verifies_publishes_and_deploys_in_order(self):
-        self.assertEqual(set(self.triggers), {'push'})
-        self.assertEqual(self.triggers['push']['branches'], ['main'])
-        self.assertEqual(set(self.jobs), {'verify', 'publish', 'deploy'})
-        self.assertEqual(self.jobs['publish']['needs'], 'verify')
-        self.assertEqual(self.jobs['deploy']['needs'], 'publish')
-        self.assertIs(self.value['concurrency']['cancel-in-progress'], False)
-        # Publication replaced the old notification: one dispatch per release.
-        self.assertFalse((ROOT / '.github/workflows/notify-deployments.yml').exists())
-
-    def test_the_gate_holds_no_registry_or_signing_credentials(self):
-        self.assertEqual(self.value['permissions'], {'contents': 'read'})
-        verify = self.jobs['verify']
-        self.assertNotIn('permissions', verify)
-        self.assertNotIn('environment', verify)
-        steps = yaml.safe_dump(verify['steps'])
-        self.assertNotIn('secrets.', steps)
-        self.assertNotIn('github.token', steps)
-        gate = next(step for step in verify['steps'] if 'release_image.py' in step.get('run', ''))
-        self.assertIn('--verify-only --since-published', gate['run'])
-        self.assertEqual(gate['env'], {'FMN_IMAGE_CACHE': 'gha'})
-
-    def test_failed_gate_uploads_its_logs_reports_and_traces(self):
-        assert_failed_gate_uploads_its_evidence(self, self.jobs['verify']['steps'])
-
-    def test_publication_signs_only_what_the_gate_verified_and_runs_no_project_checks(self):
-        publish = self.jobs['publish']
-        self.assertEqual(publish['permissions'], {'contents': 'read', 'packages': 'write', 'id-token': 'write',
-                                                  'attestations': 'write'})
-        actions = [step['uses'].split('@')[0] for step in publish['steps'] if 'uses' in step]
-        self.assertEqual(actions, ['actions/checkout', 'actions/setup-python', 'actions/download-artifact',
-                                   'actions/download-artifact', 'actions/attest-build-provenance', 'actions/attest'])
-        runs = ' '.join(step.get('run', '') for step in publish['steps'])
-        for tool in ('make ', 'npm ', 'npx ', 'go ', 'pip '):
-            self.assertNotIn(tool, runs)
-        step = next(step for step in publish['steps'] if step.get('id') == 'publish')
-        self.assertIn('release_image.py --publish-verified', step['run'])
-        self.assertEqual(step['env'], {'GH_TOKEN': '${{ github.token }}'})
-        for name in ('attest-build-provenance', 'attest'):
-            attest = next(s for s in publish['steps'] if s.get('uses', '').startswith('actions/' + name + '@'))
-            self.assertEqual(attest['with']['subject-digest'], '${{ steps.publish.outputs.digest }}')
-        summary = next(s for s in publish['steps'] if s.get('uses', '').startswith('actions/attest@'))
-        self.assertTrue(summary['with']['predicate-path'].endswith('/verification-summary.json'))
-
-    def test_deployment_receives_the_pinned_public_digest(self):
-        deploy = self.jobs['deploy']
-        self.assertEqual(deploy['environment'], 'deployments')
-        self.assertNotIn('permissions', deploy)
-        runs = [step['run'] for step in deploy['steps']]
-        self.assertIn('imagetools inspect "$IMAGE@$DIGEST"', runs[0])
-        self.assertIn('-f image="$IMAGE@$DIGEST"', runs[1])
-        self.assertEqual(deploy['env']['DIGEST'], '${{ needs.publish.outputs.digest }}')
 
 
 if __name__ == '__main__':
