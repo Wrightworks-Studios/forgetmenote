@@ -784,6 +784,16 @@ func TestTaskQueueSettingsWarnUntilAReminderJobRuns(t *testing.T) {
 	if enabled.Project != catalog.TaskQueuesProject || len(enabled.Reminders) != 0 || len(enabled.Warnings) != 1 || !strings.Contains(enabled.Warnings[0], "task-reminder") {
 		t.Fatalf("enabling task queues reported %+v", enabled)
 	}
+	// Settings read back can be changed and saved as they are: the reported
+	// fields are ignored.
+	var round map[string]any
+	if err := json.Unmarshal(actionCall(t, admin, "task_queues", map[string]any{}, false), &round); err != nil || round["warnings"] == nil {
+		t.Fatalf("task_queues: %v %v", round, err)
+	}
+	round["awayStatuses"] = []string{"ooo"}
+	if again := read(actionCall(t, admin, "set_task_queues", round, false)); again.Revision != 2 || len(again.Warnings) != 1 {
+		t.Fatalf("saving settings as read reported %+v", again)
+	}
 	job := map[string]any{"id": "task-reminder", "name": "Task reminders", "kind": "native", "actor": f.service, "project": "default", "intervalSeconds": 900, "timeoutSeconds": 120, "native": map[string]any{"task": "task-reminder", "client": "slack"}}
 	var saved automation.Definition
 	if err := json.Unmarshal(actionCall(t, admin, "save_automation", map[string]any{"spec": job, "revision": ""}, false), &saved); err != nil {

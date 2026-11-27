@@ -985,15 +985,18 @@ func (s *Service) HistoryAction(ctx context.Context, in HistoryInput) ([]History
 
 // Settings are the task queue settings with the reminder jobs that serve
 // them. Enabling task queues creates no reminder job, so nobody is reminded
-// of their tasks until an administrator adds one; Warnings says so.
+// of their tasks until an administrator adds one; Warnings says so. Like
+// Project and Workspace, Reminders and Warnings are reported and a save
+// ignores them, so settings read with task_queues can be changed and sent
+// back.
 type Settings struct {
 	catalog.TaskQueues
-	Reminders []string `json:"reminders" jsonschema:"IDs of the enabled task-reminder automations for the client"`
-	Warnings  []string `json:"warnings,omitempty" jsonschema:"Setup that keeps task queues from working in full"`
+	Reminders []string `json:"reminders,omitempty" jsonschema:"Reported: IDs of the enabled task-reminder automations for the client; ignored on save"`
+	Warnings  []string `json:"warnings,omitempty" jsonschema:"Reported: setup that keeps task queues from working in full; ignored on save"`
 }
 
 func (s *Service) settings(settings catalog.TaskQueues) Settings {
-	out := Settings{TaskQueues: settings, Reminders: []string{}}
+	out := Settings{TaskQueues: settings}
 	if settings.Client == "" {
 		return out
 	}
@@ -1016,8 +1019,8 @@ func (s *Service) SettingsAction(ctx context.Context, in struct{}) (Settings, er
 }
 
 // SetSettingsAction enables or changes task queues, for an administrator.
-func (s *Service) SetSettingsAction(ctx context.Context, in catalog.TaskQueues) (Settings, error) {
-	settings, err := s.catalog.SetTaskQueues(auth.Subject(ctx), in)
+func (s *Service) SetSettingsAction(ctx context.Context, in Settings) (Settings, error) {
+	settings, err := s.catalog.SetTaskQueues(auth.Subject(ctx), in.TaskQueues)
 	if err != nil {
 		return Settings{}, err
 	}

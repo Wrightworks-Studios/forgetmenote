@@ -45,9 +45,12 @@ export function initTaskQueues({post,getUser,getActive}){
   const holidays=phrases('Holiday titles (one per line)',settings.holidayTitles,'All-day events on the reminder’s holiday calendars whose titles begin with these are days off. Blank means “holiday”.');
   let paused=null;
   if(enabled){const wrap=node('label');wrap.className='check-row';paused=node('input');paused.type='checkbox';paused.checked=!!settings.disabled;wrap.append(paused,node('span','Pause every task action'));form.append(wrap);}
-  form.append(node('p','Weekday reminders come from a task-reminder automation under Automation.','small'));
+  // The server names the reminder jobs, and warns while there is none.
+  const reminders=settings.reminders||[];
+  form.append(node('p',enabled&&reminders.length?`Weekday reminders come from the ${reminders.join(', ')} automation under Automation.`:'Weekday reminders come from a task-reminder automation under Automation.','small'));
   const submit=node('button',enabled?'Save task queues':'Turn on task queues','primary');submit.type='submit';form.append(submit,status);
-  root.replaceChildren(heading,state,form);
+  const warnings=(settings.warnings||[]).map(text=>node('p',text,'settings-warning'));
+  root.replaceChildren(heading,state,...warnings,form);
   form.onsubmit=event=>{
    event.preventDefault();if(current!==version||!getActive()())return;status.textContent='';
    return busy(form,async()=>{
