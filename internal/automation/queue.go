@@ -687,6 +687,11 @@ func (q *Queue) scan(details bool) ([]Run, error) {
 		r := prior.run
 		if details || !cached || prior.version != f.version {
 			r, e = q.read(id)
+			if errors.Is(e, os.ErrNotExist) {
+				// Reads take no cross-gateway lock, so another gateway may
+				// have pruned the run since the listing.
+				continue
+			}
 			if e != nil {
 				return nil, e
 			}

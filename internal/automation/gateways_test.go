@@ -3,10 +3,16 @@ package automation
 import (
 	"context"
 	"errors"
+	"os"
+	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/pg/pgtest"
@@ -418,3 +424,110 @@ func TestReadsDoNotWaitForAnotherGatewaysQueueLock(t *testing.T) {
 		t.Fatal("reads waited for another gateway's queue lock")
 	}
 }
+
+// Another gateway prunes old runs while this one lists them without the
+// queue's cross-gateway lock, so a run can go between the listing and the read
+// of that run. The listing leaves it out instead of failing: the automation
+// health task, which lists every run, failed this way whenever the other
+// gateway pruned while it looked.
+func TestListingLeavesOutARunAnotherGatewayRemovesMeanwhile(t *testing.T) {
+	url := pgtest.URL(t, true)
+	pruner, err := pg.Open(t.Context(), url, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pruner.Close()
+	config, err := pgxpool.ParseConfig(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace := &removeOnRead{}
+	config.ConnConfig.Tracer = trace
+	pool, err := pgxpool.NewWithConfig(t.Context(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	lister := &pg.DB{Pool: pool, Org: pruner.Org, Holder: pg.NewHolder()}
+	for _, db := range []*pg.DB{pruner, lister} {
+		leave, err := db.KeepPresence()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(leave)
+	}
+	a, err := Open(lister)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Open(pruner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, job := range []string{"one", "two"} {
+		r, err := b.Enqueue(gatewaySpec(job), "key")
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, r.ID)
+	}
+	// Runs are read in name order, so the second goes while the first is read.
+	slices.Sort(ids)
+	kept, removed := ids[0], ids[1]
+	gone, err := b.Get(removed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace.arm(kept+".json", func() error { return b.records.remove(removed+".json", gone.stored) })
+
+	runs, err := a.List()
+	if err != nil {
+		t.Fatalf("listing failed when another gateway removed a run: %v", err)
+	}
+	if err := trace.result(); err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 1 || runs[0].ID != kept {
+		t.Fatalf("listed %d runs, want only %s", len(runs), kept)
+	}
+	if _, err := a.Get(removed); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the removed run is still read: %v", err)
+	}
+}
+
+// removeOnRead runs remove once, as its gateway starts to read the record
+// named, so the removal falls between that gateway's listing and its reads.
+type removeOnRead struct {
+	mu     sync.Mutex
+	name   string
+	remove func() error
+	ran    bool
+	err    error
+}
+
+func (r *removeOnRead) arm(name string, remove func() error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.name, r.remove = name, remove
+}
+
+func (r *removeOnRead) result() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.ran {
+		return errors.New("the removal never ran during the listing")
+	}
+	return r.err
+}
+
+func (r *removeOnRead) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.remove != nil && !r.ran && strings.HasPrefix(data.SQL, `SELECT version, "body" FROM "automation_records"`) && len(data.Args) == 2 && data.Args[1] == r.name {
+		r.ran, r.err = true, r.remove()
+	}
+	return ctx
+}
+
+func (*removeOnRead) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
