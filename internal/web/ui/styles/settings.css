@@ -115,4 +115,5 @@ body.settings-page-open :is(#main,#sidebar,#mobile-navigation,#chat-panel,#comme
 /* A panel heading with its own action keeps the action at the right edge. */
 .settings-heading { justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .settings-heading > h3 { margin: 0; }
+.settings-warning { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--warning); border-radius: 0 4px 4px 0; background: var(--warning-bg); color: var(--text); overflow-wrap: anywhere; }
 #group-id-help { margin: 4px 0 0; }
