@@ -240,6 +240,11 @@ func (s *Service) scriptStep(e *scriptExecution, in scriptRequest) (any, error) 
 	if effect && r.Script.Uncertain() {
 		return nil, errors.New("an earlier paid call or write has an unknown outcome; reconcile it before starting another effect")
 	}
+	if in.Operation == "web.search" {
+		if _, err := s.scriptSearchAdmission(e, in); err != nil {
+			return nil, err
+		}
+	}
 	step := &automation.ScriptStep{Operation: in.Operation, Input: in.Arguments, Hash: hash, State: "started", Effect: effect, Started: time.Now().UTC()}
 	r.Script.Steps[in.Step] = step
 	if err := e.save(); err != nil {
