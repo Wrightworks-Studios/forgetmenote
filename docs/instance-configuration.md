@@ -78,8 +78,10 @@ while its operator believes it is off. An instance that turns a module off:
 - offers none of its tools: they are absent from MCP and `/api/v1/actions`,
   and its routes answer 404;
 - runs none of its workers and takes none of its leases. With `sources` off,
-  startup still expires the source jobs left from when the module ran and
-  removes their files;
+  nothing could resume a source job, so startup retires the jobs left from
+  when the module ran and removes their files at once, however young, rather
+  than keep uploads for the rest of their 24 hours. A job another gateway that
+  still runs the module holds is left to it;
 - reads none of its settings: with `judgments` off, `ai.decisions` and chat's
   judgment settings are ignored, and with `data-connections` off,
   `integrations.data`. Their credentials stay where the operator put them,
