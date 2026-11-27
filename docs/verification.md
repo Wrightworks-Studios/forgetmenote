@@ -135,10 +135,7 @@ never replan the checks its publication reuses.
 `--jobs` bounds host slots (1–12, default the host CPUs minus four, capped at
 ten). Browser verification uses one slot per worker, a third of the slots and at
 most four workers. Host checks start longest first by their last measured run;
-without one, as on a fresh GitHub runner, the browser suite starts first, then the
-checks `TYPICAL_SECONDS` in `verification_plan.py` lists by their reviewed typical
-time on a standard runner, and `check-fast` starts those packages first too. That
-table only orders checks: batching, receipts and limits use measured runs. Docker checks stay
+without one, as on a fresh GitHub runner, the browser suite starts first. Docker checks stay
 in one lane because they share memory and OIDC's HTTPS port. No extra runners or
 paid infrastructure are required. Browser suites continue to reset only stopped,
 disposable fixture data; real restart/history cases retain their written data.
@@ -255,7 +252,9 @@ and runs the fixture, frontend and operator tests. Bundle sources (`frontend/`, 
 importers; this tier still runs the frontend tests and builds the binary. Routine
 releases share this selection (`verification_plan.py` serves both tiers), and
 `frontend/` or package manifest changes still make a release run the full gate.
-Every selected package runs its complete suite; no test depends on `-short`.
+Every selected package runs its complete suite; no test depends on `-short`. The
+packages `TYPICAL_SECONDS` in `fast_check.py` lists start first, longest first, so
+`internal/workspace` does not run alone at the end.
 
 With a verified baseline, the web package runs the existing critical authentication,
 permission, conflict, MCP/API, sanitizer, live-edit and connector-revocation checks

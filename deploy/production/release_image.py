@@ -17,7 +17,7 @@ import time
 
 from verification import Verification, fingerprint, go_package_inputs, release_lock, source_inputs
 from verification_plan import (verification_plan, selected_web_tests, affected_go_packages, retained_browser_failures,
-                               path_class, TYPICAL_SECONDS)
+                               path_class)
 
 # Git's well-known empty tree: a baseline with no files.
 EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
@@ -288,7 +288,7 @@ def build_and_verify(root, revision, verification, source_url, jobs, actions_run
             options = dict(env={"GOMAXPROCS": "2"}, tool_keys=go_tools, force=bool(os.environ.get(live_setting)))
             if not verification.package_batched(package, package_times.get(package, 0) > LONG_PACKAGE_SECONDS):
                 add(name, command + [package], {"source": package_inputs[package], "package": package},
-                    estimate=package_times.get(package, TYPICAL_SECONDS.get(package, 1)), **options)
+                    estimate=package_times.get(package, 1), **options)
                 continue
             # Like the web package, a measured long suite runs in separate process
             # batches so it does not hold one slot for the whole matrix.
@@ -305,8 +305,7 @@ def build_and_verify(root, revision, verification, source_url, jobs, actions_run
         # The operator tests take about three minutes in one process and cannot change
         # the image, so they run beside the matrix instead of holding it back.
         add(name, ["make", target, "-o", "frontend", python], inputs, tool_keys=tool_keys,
-            preflight=name in ('format', 'vet', 'frontend'),
-            estimate=verification.history.get(name, {}).get("elapsed_seconds", TYPICAL_SECONDS.get(name, 0)))
+            preflight=name in ('format', 'vet', 'frontend'))
     verification.run(checks, jobs=jobs)
     print("Verification record: " + str(candidate / "verification.json"), flush=True)
     return verification.image_id

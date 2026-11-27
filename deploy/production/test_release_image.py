@@ -834,41 +834,6 @@ class ReleaseTests(unittest.TestCase):
                    or c["tool"] == "go" and c["args"][:3] == ["test", "-race", "-json"]]
         self.assertIn("check-browser", started[0])
 
-    def host_matrix_order(self):
-        """The browser, Go and fixture/operator test checks in the order they started."""
-        started = []
-        for call in self.calls():
-            args = call["args"]
-            if call["tool"] == "go" and args[:3] == ["test", "-race", "-json"]:
-                started.append(args[-1].rsplit("/", 1)[-1])
-            elif call["tool"] == "make" and args[0] in ("check-browser", "test-python-host", "test-fixture"):
-                started.append({"check-browser": "browser", "test-python-host": "python", "test-fixture": "fixture"}[args[0]])
-        return started
-
-    def test_host_without_timings_starts_typical_long_checks_first(self):
-        # In package order a fresh runner started internal/workspace, the longest
-        # package, last: every full gate ended minutes after the browser suite.
-        result = self.release("--verify-only", "--jobs", "1")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.host_matrix_order(),
-                         ["browser", "sources", "python", "web", "web", "web", "web", "store", "fixture"])
-
-    def test_measured_times_replace_typical_times(self):
-        earlier = self.root / "cache/forgetmenote/releases/earlier"
-        earlier.mkdir(parents=True)
-        checks = {"python": {"status": "passed", "exit_code": 0, "started_at": 1, "elapsed_seconds": 200}}
-        for name, seconds in [("store", 120), ("sources", 2)]:
-            package = "forgetmenote/internal/" + name
-            log = earlier / f"go-{name}.log"
-            log.write_text(json.dumps({"Action": "pass", "Package": package, "Elapsed": seconds}) + "\n")
-            checks["go-" + package.replace("/", "-")] = {
-                "status": "passed", "exit_code": 0, "started_at": 1, "elapsed_seconds": seconds, "log": str(log)}
-        (earlier / "verification.json").write_text(json.dumps({"checks": checks}))
-        result = self.release("--verify-only", "--jobs", "1")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.host_matrix_order(),
-                         ["browser", "python", "store", "sources", "web", "web", "web", "web", "fixture"])
-
     def test_gate_installs_every_browser_engine_the_suite_uses(self):
         # A spec in an engine the gate did not install fails to launch:
         # "Executable doesn't exist".

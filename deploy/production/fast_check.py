@@ -12,7 +12,18 @@ from pathlib import Path
 import subprocess
 
 from verification import go_package_inputs, web_shards
-from verification_plan import TYPICAL_SECONDS, affected_go_packages, feature_of, selected_web_tests
+from verification_plan import affected_go_packages, feature_of, selected_web_tests
+
+# Typical seconds of the packages whose race tests take over a minute here: medians
+# of seven all-package runs at --jobs 2 on standard 4-vCPU GitHub runners, 2026-11-25
+# and 26. They start first, longest first; in package order internal/workspace started
+# last and ran alone for the last five minutes. They only order this tier's commands.
+# Refresh them when the slowest packages change.
+TYPICAL_SECONDS = {
+    'forgetmenote/internal/workspace': 300,
+    'forgetmenote/internal/chat': 90,
+    'forgetmenote/internal/automation': 70,
+}
 
 
 def output(root, *args):

@@ -20,6 +20,14 @@ class FastOrderTest(unittest.TestCase):
             'forgetmenote/internal/workspace', 'forgetmenote/internal/chat', 'forgetmenote/internal/automation',
             'forgetmenote/cmd/forgetmenote', 'forgetmenote/internal/notestore'])
 
+    def test_every_typical_time_names_a_current_package(self):
+        # A renamed package would silently lose its place at the front.
+        root = Path(__file__).resolve().parents[2]
+        for package in fast_check.TYPICAL_SECONDS:
+            with self.subTest(package):
+                self.assertTrue(package.startswith('forgetmenote/'), package)
+                self.assertTrue(list((root / package.removeprefix('forgetmenote/')).glob('*.go')), package)
+
 
 @unittest.skipUnless(shutil.which('go'), 'Go toolchain required')
 class FastPlanTest(unittest.TestCase):

@@ -120,22 +120,6 @@ FULL_GATE = {
                 'internal/workspace/', 'internal/blob/', 'internal/pg/', 'internal/durable/'),
 }
 
-# Typical seconds of the checks that take over a minute on a standard 4-vCPU GitHub
-# runner at --jobs 2: medians of 17 full gates on 2026-11-25. Without a measured run,
-# as on every fresh runner, the release gate and check-fast start these first, longest
-# first; in package order internal/workspace started last and ended each gate minutes
-# after everything else. A measured run replaces its entry. They only order checks:
-# batching, receipts and limits never read them. Keys are Go packages and the release
-# gate's operator test check; refresh them when the slowest checks change.
-TYPICAL_SECONDS = {
-    'forgetmenote/internal/workspace': 270,
-    # check-fast installs no document parsers, so most of these cases skip there.
-    'forgetmenote/internal/sources': 135,
-    'python': 100,
-    'forgetmenote/internal/chat': 85,
-    'forgetmenote/internal/automation': 70,
-}
-
 
 # Share baseline authorization/storage callers with PR verification. Feature
 # modules run their complete unit suites; these are their HTTP/MCP consumers.
