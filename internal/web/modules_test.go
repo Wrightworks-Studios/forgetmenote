@@ -299,8 +299,10 @@ var offModuleChecks = map[string]moduleChecks{
 		running: func(app *Server) bool { return app.sourceJobs != nil && app.sourceHTTP != nil },
 		cleanup: func(t *testing.T, app *Server) {
 			// A gateway that ran the module took a source job and is gone.
-			// A day later, an instance with the module off restarts: it runs
-			// no source work, but still expires the job and its files.
+			// An instance with the module off restarts well within the job's
+			// 24 hours: it runs no source work, so nothing could resume the
+			// job, and it retires the job and its files at once rather than
+			// keep a private upload past its limit.
 			db, leave := pgtest.Gateway(t, app.db)
 			on, err := NewWithBlobs(app.catalog, db, app.blobs, modules.Set{}, t.TempDir(), app.origin, app.token)
 			if err != nil {
@@ -327,17 +329,6 @@ var offModuleChecks = map[string]moduleChecks{
 			if stored, err := app.blobs.List(t.Context(), "source-jobs/"+out.Job.ID+"/"); jobs() != 1 || err != nil || len(stored) == 0 {
 				t.Fatalf("the job was not stored: %v %v", stored, err)
 			}
-			var raw []byte
-			if err := app.db.Pool.QueryRow(t.Context(), `SELECT manifest FROM source_jobs WHERE org = $1 AND id = $2`, app.db.Org, out.Job.ID).Scan(&raw); err != nil {
-				t.Fatal(err)
-			}
-			var manifest map[string]any
-			json.Unmarshal(raw, &manifest)
-			manifest["expires"] = time.Now().Add(-time.Minute).UTC()
-			raw, _ = json.Marshal(manifest)
-			if _, err := app.db.Pool.Exec(t.Context(), `UPDATE source_jobs SET manifest = $3 WHERE org = $1 AND id = $2`, app.db.Org, out.Job.ID, raw); err != nil {
-				t.Fatal(err)
-			}
 			restarted, leaveAgain := pgtest.Gateway(t, app.db)
 			defer leaveAgain()
 			off, err := NewWithBlobs(app.catalog, restarted, app.blobs, app.modules, t.TempDir(), app.origin, app.token)
@@ -346,11 +337,11 @@ var offModuleChecks = map[string]moduleChecks{
 			}
 			defer off.Close()
 			if off.sourceJobs != nil || jobs() != 0 {
-				t.Fatalf("with the module off, the expired job stays (%d rows) or source work runs", jobs())
+				t.Fatalf("with the module off, the job stays (%d rows) or source work runs", jobs())
 			}
 			objects, err := app.blobs.List(t.Context(), "source-jobs/"+out.Job.ID+"/")
 			if err != nil || len(objects) != 0 {
-				t.Fatalf("the expired job's files stay: %v %v", objects, err)
+				t.Fatalf("the job's files stay: %v %v", objects, err)
 			}
 		},
 	},

@@ -82,8 +82,10 @@ instance that turns a module off:
   `managed-backups` off, the backup worker protocol. The GitHub App connection
   flow the two share runs while either does;
 - runs none of its workers and takes none of its leases. With `sources` off,
-  startup still expires the source jobs left from when the module ran and
-  removes their files;
+  nothing could resume a source job, so startup retires the jobs left from
+  when the module ran and removes their files at once, however young, rather
+  than keep uploads for the rest of their 24 hours. A job another gateway that
+  still runs the module holds is left to it;
 - reads none of its settings: with `judgments` off, `ai.decisions` and chat's
   judgment settings are ignored, with `data-connections` off,
   `integrations.data`, with `repositories` off, `integrations.repository`,

@@ -92,20 +92,19 @@ func (s *Server) acquireSourceWork(ctx context.Context) (func(), error) {
 }
 
 // initSourceJobs opens the source jobs. On an instance that turns the sources
-// module off it closes them again at once: opening still expires the jobs
-// left from when the module ran and removes their files, and after that no
-// source work runs.
+// module off no source work runs, so nothing could resume a job: startup
+// retires the jobs left from when the module ran and removes their files at
+// once, rather than keep a private upload for the rest of its 24 hours.
 func (s *Server) initSourceJobs() error {
+	if !s.modules.Enabled("sources") {
+		return sources.RetireJobs(s.db, s.blobs, s.data)
+	}
 	jobs, err := sources.OpenJobs(s.db, s.blobs, s.data, func(ctx context.Context, scope sources.JobScope) error {
 		_, err := s.sourceContext(ctx, scope)
 		return err
 	})
 	if err != nil {
 		return err
-	}
-	if !s.modules.Enabled("sources") {
-		jobs.Close()
-		return nil
 	}
 	s.sourceJobs = jobs
 	jobs.SetHosted(s.hostedSource)
