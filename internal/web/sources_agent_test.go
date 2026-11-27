@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"forgetmenote/internal/catalog"
+	"forgetmenote/internal/integrations"
 	"forgetmenote/internal/workspace"
 	"forgetmenote/plugins"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -342,7 +343,12 @@ func TestSourceFormatsSayWhoExtracts(t *testing.T) {
 				t.Errorf("%s: agent extracts %q", ext, format.AgentExtracts)
 			}
 		}
-		for _, ext := range []string{".pdf", ".docx", ".xlsx", ".epub", ".eml", ".csv", ".html", ".txt", ".png", ".wav", ".mp4"} {
+		required := []string{".pdf", ".docx", ".xlsx", ".epub", ".eml", ".csv", ".html", ".txt", ".wav", ".mp4"}
+		// A build without local OCR leaves images out of the catalog.
+		if integrations.Included("ocr") {
+			required = append(required, ".png")
+		}
+		for _, ext := range required {
 			if !seen[ext] {
 				t.Errorf("%s is not listed", ext)
 			}
