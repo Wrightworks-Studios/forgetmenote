@@ -70,6 +70,26 @@ type MemberLister interface {
 	Members(context.Context) ([]Member, error)
 }
 
+// Directory is what a chat app lists of its workspace so an administrator can
+// choose channels and people by name: IDs and names only. Unlisted gives, by
+// kind ("channels" or "users"), why that list was left out, so the chooser
+// takes typed IDs for it instead.
+type Directory struct {
+	Channels []DirectoryEntry  `json:"channels"`
+	Users    []DirectoryEntry  `json:"users"`
+	Unlisted map[string]string `json:"unlisted,omitempty"`
+}
+
+type DirectoryEntry struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Unlisted is a directory that lists nothing, for reason.
+func Unlisted(reason string) Directory {
+	return Directory{Channels: []DirectoryEntry{}, Users: []DirectoryEntry{}, Unlisted: map[string]string{"channels": reason, "users": reason}}
+}
+
 // AudienceLister is implemented by transports that can list the members of a
 // channel or a user group, by member ID and in the provider's order. The
 // lists may include guests, apps and other workspaces' members.

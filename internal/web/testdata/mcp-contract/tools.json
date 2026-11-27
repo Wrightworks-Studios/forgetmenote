@@ -762,6 +762,11 @@
   },
   {
     "coverage": "not called",
+    "name": "chat_client_directory",
+    "readOnly": true
+  },
+  {
+    "coverage": "not called",
     "name": "chat_clients",
     "readOnly": true
   },

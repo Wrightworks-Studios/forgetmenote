@@ -56,6 +56,7 @@ var policies = map[string]Policy{
 	"ai_settings":                  {},
 	"set_ai_settings":              {},
 	"chat_clients":                 {},
+	"chat_client_directory":        {},
 	"set_chat_clients":             {},
 	"set_instance_name":            {},
 	"set_instance_branding":        {},
