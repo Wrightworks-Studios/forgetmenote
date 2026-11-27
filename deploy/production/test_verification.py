@@ -1,4 +1,6 @@
 """Exercise receipts and resource scheduling with real, disposable processes."""
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -11,6 +13,23 @@ import unittest
 from unittest import mock
 
 from verification import Verification, go_package_inputs, release_lock, source_inputs, web_shards
+
+
+def go_log(*events):
+    """A `go test -json` log as Go 1.27 writes it: one test2json event per line."""
+    return ''.join(json.dumps({'Time': '2026-11-26T00:00:00Z', **event}) + '\n' for event in events)
+
+
+def go_test(package, test, result, *output):
+    """A test's run, its output lines and its result; None for a test that never finished."""
+    events = [{'Action': 'run', 'Package': package, 'Test': test}]
+    events += [{'Action': 'output', 'Package': package, 'Test': test, 'Output': line} for line in output]
+    return events + ([{'Action': result, 'Package': package, 'Test': test, 'Elapsed': 0}] if result else [])
+
+
+def go_package(package, result, *output):
+    return ([{'Action': 'output', 'Package': package, 'Output': line} for line in output]
+            + [{'Action': result, 'Package': package, 'Elapsed': 1.5}])
 
 
 class VerificationTests(unittest.TestCase):
@@ -90,6 +109,106 @@ class VerificationTests(unittest.TestCase):
         logs = list(runner.candidate.glob('failed-*.log'))
         self.assertEqual(len(logs), 2)
         self.assertTrue(any('original HTTP 409 conflict' in p.read_text() for p in logs))
+
+    def failed_check(self, name, output):
+        """What the gate prints for a check that writes output and fails."""
+        recorded = self.root / 'recorded.log'
+        recorded.write_text(output)
+        command = [sys.executable, '-c', 'import sys; sys.stdout.write(open(sys.argv[1]).read()); sys.exit(1)', str(recorded)]
+        runner = self.verifier()
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            with self.assertRaisesRegex(ValueError, name + r' failed \(exit 1\)\. Full original log: '):
+                runner.check(name, command, {}, cwd=self.root)
+        # The summary is printed only: the attempt log stays the check's whole output.
+        self.assertEqual(Path(runner.results[name]['log']).read_text(), output)
+        with self.assertRaisesRegex(ValueError, 'retry-failed'):
+            self.verifier().check(name, self.command, {}, cwd=self.root)
+        return printed.getvalue()
+
+    def test_failed_go_check_prints_each_failing_test_with_its_own_output(self):
+        # The failure is early; the last 16 kB are later passing tests.
+        package = 'fixture/export'
+        later = [f'    export_test.go:40: passing case {n}\n' for n in range(400)]
+        log = go_log(
+            {'Action': 'start', 'Package': package},
+            *go_test(package, 'TestPass', 'pass', '=== RUN   TestPass\n', '    export_test.go:5: fine\n', '--- PASS: TestPass (0.00s)\n'),
+            {'Action': 'run', 'Package': package, 'Test': 'TestParent'},
+            {'Action': 'output', 'Package': package, 'Test': 'TestParent', 'Output': '=== RUN   TestParent\n'},
+            *go_test(package, 'TestParent/broken', 'fail', '=== RUN   TestParent/broken\n', '    export_test.go:8: context line\n',
+                     '    export_test.go:8: expected 1, got 2\n', '--- FAIL: TestParent/broken (0.00s)\n'),
+            {'Action': 'output', 'Package': package, 'Test': 'TestParent', 'Output': '--- FAIL: TestParent (0.00s)\n'},
+            {'Action': 'fail', 'Package': package, 'Test': 'TestParent', 'Elapsed': 0},
+            # Parallel tests interleave; each event names its own test.
+            *go_test(package, 'TestParallelA', None, '=== RUN   TestParallelA\n', '=== PAUSE TestParallelA\n'),
+            *go_test(package, 'TestParallelB', 'pass', '=== CONT  TestParallelB\n', '    export_test.go:11: b fine\n'),
+            {'Action': 'output', 'Package': package, 'Test': 'TestParallelA', 'Output': '    export_test.go:10: a failed\n'},
+            {'Action': 'fail', 'Package': package, 'Test': 'TestParallelA', 'Elapsed': 0},
+            *go_test(package, 'TestLater', 'pass', *later),
+            *go_package(package, 'fail', 'FAIL\n', f'FAIL\t{package}\t1.500s\n'))
+        self.assertNotIn('expected 1, got 2', log[-16000:])
+        printed = self.failed_check('go-fixture', log)
+        self.assertIn(f'Go tests that failed or never finished:\n  FAIL {package} TestParent\n'
+                      f'  FAIL {package} TestParent/broken\n  FAIL {package} TestParallelA\n', printed)
+        broken = printed.index(f'==> FAIL {package} TestParent/broken <==\n=== RUN   TestParent/broken\n'
+                               '    export_test.go:8: context line\n    export_test.go:8: expected 1, got 2\n'
+                               '--- FAIL: TestParent/broken (0.00s)\n')
+        parallel = printed.index(f'==> FAIL {package} TestParallelA <==\n=== RUN   TestParallelA\n'
+                                 '=== PAUSE TestParallelA\n    export_test.go:10: a failed\n')
+        outside = printed.index(f'==> PACKAGE {package} <==\nFAIL\nFAIL\t{package}\t1.500s\n')
+        self.assertLess(broken, parallel)
+        self.assertLess(parallel, outside)
+        for passing in ('fine', 'b fine', 'passing case', '"Action"'):
+            self.assertNotIn(passing, printed)
+
+    def test_failed_go_check_prints_build_errors_timeouts_and_lines_outside_events(self):
+        # A -timeout panic is the hung test's output, but only its package fails.
+        dump = ''.join(f'goroutine {n} [chan receive]:\ntesting.(*T).Run(...)\n\n' for n in range(4000))
+        log = go_log(
+            {'ImportPath': 'fixture/build [fixture/build.test]', 'Action': 'build-output', 'Output': '# fixture/build [fixture/build.test]\n'},
+            {'ImportPath': 'fixture/build [fixture/build.test]', 'Action': 'build-output', 'Output': 'build/build_test.go:5:28: undefined: helper\n'},
+            {'ImportPath': 'fixture/build [fixture/build.test]', 'Action': 'build-fail'},
+            *go_package('fixture/build', 'fail', 'FAIL\tfixture/build [build failed]\n'),
+            *go_test('fixture/wait', 'TestHangs', None, '=== RUN   TestHangs\n', '    wait_test.go:5: waiting\n',
+                     'panic: test timed out after 2s\n', '\trunning tests:\n', '\t\tTestHangs (2s)\n', '\n', dump),
+            *go_package('fixture/wait', 'fail', 'FAIL\tfixture/wait\t2.239s\n'),
+            *go_package('fixture/fine', 'pass', 'PASS\n', 'ok  \tfixture/fine\t0.1s\n'))
+        log = 'go: downloading example.com/module v1.0.0\n' + log + '\nStopped at the 3600 s limit.\n'
+        printed = self.failed_check('go-fixture', log)
+        self.assertIn('Go tests that failed or never finished:\n  UNFINISHED fixture/wait TestHangs\n', printed)
+        hung = printed[printed.index('==> UNFINISHED fixture/wait TestHangs <==\n'):]
+        self.assertTrue(hung.startswith('==> UNFINISHED fixture/wait TestHangs <==\n=== RUN   TestHangs\n'
+                                        '    wait_test.go:5: waiting\npanic: test timed out after 2s\n'
+                                        '\trunning tests:\n\t\tTestHangs (2s)\n'), hung[:300])
+        self.assertIn('characters omitted', hung)
+        self.assertIn('==> BUILD fixture/build [fixture/build.test] <==\n# fixture/build [fixture/build.test]\n'
+                      'build/build_test.go:5:28: undefined: helper\n', printed)
+        self.assertIn('==> PACKAGE fixture/build <==\nFAIL\tfixture/build [build failed]\n', printed)
+        self.assertIn('==> PACKAGE fixture/wait <==\nFAIL\tfixture/wait\t2.239s\n', printed)
+        self.assertNotIn('fixture/fine', printed)
+        self.assertIn('==> Output outside test events <==\ngo: downloading example.com/module v1.0.0\n'
+                      'Stopped at the 3600 s limit.\n', printed)
+        self.assertLess(len(printed), 16000)
+
+    def test_many_failing_go_tests_print_a_bounded_summary_naming_them_all(self):
+        package = 'fixture/database'
+        events = [event for n in range(40) for event in
+                  go_test(package, f'TestStore{n}', 'fail', f'=== RUN   TestStore{n}\n', 'connection refused\n' * 600)]
+        printed = self.failed_check('go-fixture', go_log(*events, *go_package(package, 'fail', f'FAIL\t{package}\t9.0s\n')))
+        for n in range(40):
+            self.assertIn(f'  FAIL {package} TestStore{n}\n', printed)
+        self.assertIn(f'==> FAIL {package} TestStore0 <==\n', printed)
+        self.assertNotIn(f'==> FAIL {package} TestStore39 <==\n', printed)
+        self.assertIn('more failing tests are in the full log', printed)
+        self.assertIn(f'==> PACKAGE {package} <==\nFAIL\t{package}\t9.0s\n', printed)
+        self.assertLess(len(printed), 90000)
+
+    def test_failed_check_without_failing_test_events_prints_the_end_of_its_log(self):
+        printed = self.failed_check('smoke-fixture', 'first line\n' + 'x' * 20000 + '\nlast line\n')
+        self.assertIn('x' * 15000 + '\nlast line\n', printed)
+        self.assertNotIn('first line', printed)
+        # Events that explain nothing never print less than the log's end.
+        passing = go_log(*go_test('fixture/fine', 'TestFine', 'pass', 'ok\n'), *go_package('fixture/fine', 'pass', 'PASS\n'))
+        self.assertIn(passing, self.failed_check('go-fixture', passing))
 
     def test_interrupted_retry_retains_failure_until_valid_pass(self):
         runner = self.verifier()
