@@ -222,9 +222,10 @@ test('notebook bundles import through the UI with history and useful errors', as
   expect(importResponse.status(), await importResponse.text()).toBe(200);
   await expect(page.locator('#workspace-create-dialog')).not.toBeVisible();
   await expect(page.locator('#project-select')).toHaveValue('restored-notebook');
-  const toast = page.locator('#notice');
-  await expect(toast).toHaveText('Notebook imported. Your notes and history are ready.');
-  await expect(toast).toHaveAttribute('role', 'status');
+  const message = page.locator('#notice'),
+    toast = page.locator('#feedback-tray .toast');
+  await expect(message).toHaveText('Notebook imported. Your notes and history are ready.');
+  await expect(message).toHaveAttribute('role', 'status');
   await expect(toast).toHaveClass(/\bsuccess\b/);
   for (const [theme, color, background] of [
     ['light', 'rgb(33, 110, 57)', 'rgb(237, 248, 240)'],
@@ -241,8 +242,8 @@ test('notebook bundles import through the UI with history and useful errors', as
   await page.locator('#menu').click();
 
   await page.locator('#settings-open').click();
-  await expect(toast).toHaveText('Could not load notebook settings.');
-  await expect(toast).toHaveAttribute('role', 'alert');
+  await expect(message).toHaveText('Could not load notebook settings.');
+  await expect(message).toHaveAttribute('role', 'alert');
   await expect(toast).not.toHaveClass(/\bsuccess\b/);
   for (const [theme, color] of [
     ['light', 'rgb(196, 59, 62)'],

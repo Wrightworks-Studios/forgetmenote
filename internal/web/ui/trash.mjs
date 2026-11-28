@@ -4,13 +4,12 @@ import {notebookPath} from './request.mjs';
 import {$} from './dom.mjs';
 export function initTrash({api,post,getProject,canManage,beforeOpen,beforeMove,afterMove,refresh,notice}) {
  const dialog=$('trash-dialog');
- let listing=null,selected=null,busy=false,loading=false,loadVersion=0,generation=0,preview=null,undo=null;
+ let listing=null,selected=null,busy=false,loading=false,loadVersion=0,generation=0,preview=null,undo=null,undoNotice=null;
  const context=()=>{const project=getProject();if(!project)throw Error('Choose a notebook first.');return {id:project.id,generation,prefix:notebookPath(project.id)}};
  const active=c=>c.id===getProject()?.id && c.generation===generation;
  const request=(c,path,body)=>body===undefined?api(c.prefix+'/api/'+path):post(c.prefix+'/api/'+path,body);
  function error(message){feedback($('trash-error'),message);}
  function controls(){
-  $('trash-undo').disabled=busy;
   for(const b of dialog.querySelectorAll('button'))b.disabled=busy || loading;
   $('trash-close').disabled=busy;
   $('trash-empty').hidden=!canManage();$('trash-empty').disabled=busy || loading || !listing?.entries.length;
@@ -43,22 +42,26 @@ export function initTrash({api,post,getProject,canManage,beforeOpen,beforeMove,a
   $('trash-list').textContent='Loading…';listing=null;selected=null;controls();
   try{await load(id)}catch(e){error(e.message)}
  }
- // One note, or a folder's notes as one transaction; Undo restores them all.
+ // One note, or a folder's notes as one transaction; Undo, offered on its
+ // toast, restores them all. Once the move is done, a failure to show the
+ // notebook again keeps Undo on the toast that reports it.
+ const undoAction={label:'Undo move to Trash',run:undoMove};
  async function move(selection,onError=notice){
   if(busy)return;
-  const c=context(),paths=[].concat(selection);let finish;
+  const c=context(),paths=[].concat(selection);let finish,moved=false;
   try{
    finish=await beforeMove(paths);busy=true;controls();
    const status=await request(c,'status');if(!active(c))return;
    const result=await request(c,'trash',{paths,revision:status.revision});if(!active(c))return;
-   undo={entries:result.entries,project:c.id};$('trash-undo').hidden=false;
-   await afterMove(paths);await refresh();notice(paths.length===1?'Moved to Trash.':`Moved ${paths.length} notes to Trash.`,true);
-  }catch(e){if(active(c))onError(e.message)}finally{busy=false;finish?.();controls()}
+   undo={entries:result.entries,project:c.id};moved=true;
+   await afterMove(paths);await refresh();
+   undoNotice=notice(paths.length===1?'Moved to Trash.':`Moved ${paths.length} notes to Trash.`,true,undoAction);
+  }catch(e){if(active(c)){if(moved)undoNotice=notice(e.message,false,undoAction);else onError(e.message)}}finally{busy=false;finish?.();controls()}
  }
  async function restore(entry,to,c=context()){
   const result=await request(c,'trash/restore',{id:entry.id,to,revision:listing.revision});
   if(!active(c))return;
-  if(undo?.entries.some(e=>e.id===entry.id)){undo.entries=undo.entries.filter(e=>e.id!==entry.id);if(!undo.entries.length){undo=null;$('trash-undo').hidden=true}}
+  if(undo?.entries.some(e=>e.id===entry.id)){undo.entries=undo.entries.filter(e=>e.id!==entry.id);if(!undo.entries.length)undo=null}
   await refresh();await load();notice('Restored '+result.entries[0].path+'.',true);
  }
  $('trash-open').onclick=()=>open();
@@ -69,10 +72,10 @@ export function initTrash({api,post,getProject,canManage,beforeOpen,beforeMove,a
   try{await restore(entry,$('trash-destination').value.trim(),c)}catch(e){if(active(c))error(e.message+' Choose another destination if occupied, or refresh Trash if the notebook changed.')}
   finally{busy=false;controls()}
  };
- $('trash-undo').onclick=async()=>{
+ async function undoMove(){
   if(busy || !undo)return;const c=context();if(undo.project!==c.id)return;busy=true;controls();
   try{for(const entry of [...undo.entries]){listing=await request(c,'trash');if(!active(c))break;await restore(entry,'',c)}}catch(e){if(active(c)){notice(e.message);await open(undo?.entries[0]?.id)}}finally{busy=false;controls()}
- };
+ }
  $('trash-empty').onclick=async()=>{
   if(busy)return;const c=context();busy=true;controls();error('');
   try{
@@ -90,10 +93,10 @@ export function initTrash({api,post,getProject,canManage,beforeOpen,beforeMove,a
   if(busy || !preview)return;const p=preview;busy=true;$('trash-empty-confirm').disabled=true;$('trash-empty-cancel').disabled=true;
   try{
    await request(p.context,'trash/empty',{revision:p.revision,confirmation:p.confirmation});if(!active(p.context))return;
-   $('trash-empty-dialog').close();undo=null;$('trash-undo').hidden=true;await refresh();await load();notice('Trash emptied.',true);
+   $('trash-empty-dialog').close();undo=null;undoNotice?.();await refresh();await load();notice('Trash emptied.',true);
   }catch(e){if(active(p.context))$('trash-empty-error').textContent=e.message+' Cancel and review Trash again before retrying.'}
   finally{busy=false;$('trash-empty-confirm').disabled=false;$('trash-empty-cancel').disabled=false;controls()}
  };
- function reset(){generation++;loadVersion++;loading=false;listing=null;selected=null;preview=null;undo=null;dialog.close();$('trash-empty-dialog').close();$('trash-undo').hidden=true;$('trash-preview').textContent=''}
+ function reset(){generation++;loadVersion++;loading=false;listing=null;selected=null;preview=null;undo=null;undoNotice?.();dialog.close();$('trash-empty-dialog').close();$('trash-preview').textContent=''}
  return {open,move,reset};
 }

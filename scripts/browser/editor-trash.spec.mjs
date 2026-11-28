@@ -34,16 +34,16 @@ test('Trash supports Undo restore search opt-in and confirmed empty without eras
     await clickNoteAction(page, 'properties-open');
     await page.locator('#note-trash').click();
     await started;
-    await expect(page.locator('#trash-undo')).toBeVisible();
-    await expect(page.locator('#trash-undo')).toBeDisabled();
+    // Undo is offered once the notebook shows the move.
+    await expect(page.locator('#feedback-tray').getByRole('button', {name: 'Undo move to Trash'})).toHaveCount(0);
   } finally {
     release();
     await page.unrouteAll({behavior: 'wait'});
   }
   await expect(page.locator('#notice')).toHaveText('Moved to Trash.');
-  await expect(page.locator('#trash-undo')).toBeVisible();
+  await expect(page.locator('#feedback-tray').getByRole('button', {name: 'Undo move to Trash'})).toBeVisible();
   await expect(page.locator('#sidebar a[data-note="' + path + '"]').first()).toHaveCount(0);
-  await page.locator('#trash-undo').click();
+  await page.locator('#feedback-tray').getByRole('button', {name: 'Undo move to Trash'}).click();
   await expect(page.locator('#notice')).toHaveText('Restored ' + path + '.');
   await page.locator('#browse-root').click();
   await expect(page.locator('#folder-items a[data-note="' + path + '"]').first()).toBeVisible();
@@ -301,7 +301,7 @@ test('Properties moves to Trash while preserving private drafts and Undo', async
   await expect(page.locator('#folder-browser')).toBeVisible();
   await expect(page.locator('#note-trash')).toBeHidden();
   expect((await api('/p/default/api/trash')).entries.map(e => e.originalPath)).toContain(path);
-  await page.locator('#trash-undo').click();
+  await page.locator('#feedback-tray').getByRole('button', {name: 'Undo move to Trash'}).click();
   await expect
     .poll(async () => (await api('/p/default/api/trash')).entries.filter(entry => entry.originalPath === path).length)
     .toBe(0);

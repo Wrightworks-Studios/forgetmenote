@@ -11,7 +11,7 @@ const answer = '## Search\n\nAn answer heading named like the search field.\n\n#
 
 function appElements() {
   return {
-    notice: document.getElementById('notice')?.parentElement?.id,
+    notice: document.getElementById('notice')?.closest('#feedback-tray')?.id,
     search: document.getElementById('search')?.tagName,
     comment: document.getElementById('comment-text')?.tagName
   };

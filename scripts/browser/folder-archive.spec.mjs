@@ -41,7 +41,7 @@ test('a folder moves to Archives and back from its actions menu', async ({page})
   await page.getByRole('button', {name: 'Continue'}).click();
   await expect(page.getByText('Moved 2 notes to Archives.')).toBeVisible();
   // A completed move is a success notice that dismisses itself.
-  await expect(page.locator('#notice')).toHaveAttribute('data-level', 'success');
+  await expect(page.locator('#feedback-tray .toast')).toHaveAttribute('data-level', 'success');
   await expect(page.locator('#notice')).toBeHidden({timeout: 8000});
   await expect(folder).toBeHidden();
   await expect(page.locator('#folder-items')).toContainText('Kept');
@@ -90,7 +90,7 @@ test('folder actions are grouped with icons and a folder moves to Trash with its
   await expect(folder).toBeHidden();
   const paths = async () => (await app.api('/p/default/api/notes')).map(entry => entry.path);
   expect(await paths()).not.toContain('Retired/One.md');
-  await page.locator('#trash-undo').click();
+  await page.locator('#feedback-tray').getByRole('button', {name: 'Undo move to Trash'}).click();
   await expect.poll(paths).toEqual(expect.arrayContaining(['Retired/One.md', 'Retired/Two.md']));
 });
 

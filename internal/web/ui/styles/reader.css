@@ -186,13 +186,18 @@ hr {
   z-index: var(--layer-navigation); pointer-events: none;
 }
 #feedback-tray > * { pointer-events: auto; }
-#notice {
-  flex: 1; background: var(--surface);
+/* A toast: its message (#notice), an optional action and a Dismiss button. */
+.toast {
+  flex: 1; display: flex; align-items: center; gap: var(--space-2);
+  background: var(--surface);
   border: 1px solid var(--danger);
   border-radius: var(--radius-control);
-  padding: 16px;
+  padding: 8px 8px 8px 16px;
   color: var(--danger);
   box-shadow: var(--shadow-popover);
-  z-index: var(--layer-navigation);
 }
-#trash-undo { background: var(--surface); border-color: var(--control-border); box-shadow: var(--shadow-popover); }
+.toast[hidden] { display: none; }
+.toast.success { color: var(--success); border-color: var(--success); background: var(--success-bg); }
+#notice { flex: 1; min-width: 0; margin: 0; padding: 8px 0; overflow-wrap: anywhere; }
+.toast-action { flex: none; background: var(--surface); border-color: var(--control-border); }
+.toast-dismiss { flex: none; align-self: flex-start; color: inherit; }

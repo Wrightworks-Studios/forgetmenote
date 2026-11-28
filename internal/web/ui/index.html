@@ -41,7 +41,7 @@
       {{template "index-document" .}}
       {{template "index-wiki-footer" .}}
       <nav id="reader-actions" aria-label="Note actions" hidden></nav>
-      <div id="feedback-tray"><div id="notice" role="alert" hidden></div><button id="trash-undo" class="quiet" hidden>Undo move to Trash</button></div>
+      <div id="feedback-tray"><div class="toast" hidden><p id="notice" role="alert"></p></div></div>
       <dialog id="draft-candidates-dialog"><div class="dialog-title"><h2>Choose a retained draft</h2><button id="draft-candidates-close" class="quiet">Cancel</button></div>
         <div id="draft-candidates-list"></div>
         <button id="draft-candidates-shared" class="quiet">Open shared version</button>
