@@ -19,6 +19,9 @@ from unittest import mock
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import watcher
 
+# The worker image names its rclone here; these tests choose their own.
+os.environ.pop('FMN_BACKUP_RCLONE', None)
+
 
 class ManagedContractTest(unittest.TestCase):
     def test_worker_rejects_gateway_without_transport_protection(self):
@@ -30,6 +33,37 @@ class ManagedContractTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 watcher.validate_lease({'id':'lease','remote':remote,'branch':'main','revision':'a'*40,'project':'notes','generation':1},
                                        {'project':'notes','generation':1,'branch':'main','repository':{'full_name':'example/backup'}},'a'*40)
+
+    def test_a_worker_beside_the_gateway_connects_over_loopback_with_its_host(self):
+        seen = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen.append((self.path, self.headers['Host'], self.headers['Authorization']))
+                body = b'[]'
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        with tempfile.TemporaryDirectory() as tmp:
+            token = Path(tmp) / 'token'
+            token.write_text('t' * 40)
+            settings = {'gateway': 'https://notes.example', 'worker': 'local', 'token_file': str(token)}
+            gateway = watcher.Gateway({**settings, 'gateway_address': f'http://127.0.0.1:{server.server_port}'})
+            self.assertEqual(gateway.call('bindings'), [])
+            self.assertEqual(seen, [('/internal/backups/v1/bindings', 'notes.example', 'Bearer ' + 't' * 40)])
+            for address in ['https://127.0.0.1:8080', 'http://10.0.0.5:8080', 'http://notes.example',
+                            'http://127.0.0.1:8080/api', 'http://user@127.0.0.1:8080']:
+                with self.assertRaises(ValueError, msg=address):
+                    watcher.Gateway({**settings, 'gateway_address': address})
 
 SCRIPT = Path(__file__).with_name('watcher.py')
 REPO = Path(__file__).resolve().parents[2]
@@ -676,7 +710,7 @@ HERE = Path(__file__).resolve().parent
 argv = sys.argv[1:]
 with open(HERE / 'calls.jsonl', 'a') as log:
     log.write(json.dumps({'argv': argv, 'env': dict(os.environ)}) + '\n')
-VALUED = {'--config', '--include', '--files-from', '--max-size', '--count'}
+VALUED = {'--config', '--include', '--include-from', '--files-from', '--max-size', '--count'}
 options, positional, index = {}, [], 0
 while index < len(argv):
     if argv[index] in VALUED:
@@ -793,10 +827,15 @@ elif command == 'cat':
     data = read(args[0])
     sys.stdout.buffer.write(data[:int(options['--count'])] if '--count' in options else data)
 elif command == 'copy':
+    # As rclone 1.74 does, refuse --files-from beside any other filter.
+    if '--files-from' in options and len({'--include', '--include-from', '--max-size'} & set(options)):
+        fail('the usage of --files-from overrides all other filters', 1)
     limit = int(options['--max-size'].rstrip('M')) * 1024 * 1024
     target = Path(args[1])
     target.mkdir(parents=True, exist_ok=True)
-    for name in Path(options['--files-from']).read_text().split():
+    rules = Path(options['--include-from']).read_text().split()
+    assert all(rule.startswith('/') for rule in rules)
+    for name in (rule[1:] for rule in rules):
         if locate(join(args[0], name))[0].is_file() and len(read(join(args[0], name))) <= limit:
             (target / name).write_bytes(read(join(args[0], name)))
 elif command == 'hashsum':

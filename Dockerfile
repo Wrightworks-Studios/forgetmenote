@@ -94,9 +94,10 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD ["forgetmenote", "
 ENTRYPOINT ["forgetmenote"]
 
 # The backup worker image (deploy/git-backup/README.md#the-worker-image): the
-# application image plus the pinned rclone and pg_dump, so one container runs every
-# worker mode, instance snapshots included, with nothing on the host. It shares
-# every layer of the application image. pg_dump comes from PostgreSQL's archive,
+# application image plus the pinned rclone and pg_dump, and inotify-tools for SSH
+# mode's watch, so one container runs every worker mode, instance snapshots
+# included, with nothing on the host. It shares every layer of the application
+# image. pg_dump comes from PostgreSQL's archive,
 # which keeps every release, at the newest 17.x minor: it dumps the Postgres 17
 # that compose.yaml runs and every older server.
 FROM runtime AS worker
@@ -109,7 +110,7 @@ RUN printf '%s\n' 'Types: deb' 'URIs: https://apt-archive.postgresql.org/pub/rep
       > /etc/apt/sources.list.d/postgresql.sources \
  && apt-get update \
  && apt-get install -y --no-install-recommends postgresql-client-17=${POSTGRESQL_CLIENT_VERSION} \
-      libpq5=${POSTGRESQL_CLIENT_VERSION} postgresql-client-common=${POSTGRESQL_COMMON_VERSION} \
+      libpq5=${POSTGRESQL_CLIENT_VERSION} postgresql-client-common=${POSTGRESQL_COMMON_VERSION} inotify-tools \
  && rm -rf /var/lib/apt/lists/* \
  && ln -s /usr/lib/postgresql/17/bin/pg_dump /usr/local/bin/pg_dump
 COPY --from=worker-downloads /out/ /

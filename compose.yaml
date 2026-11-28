@@ -118,8 +118,8 @@ services:
     init: true
     stop_grace_period: 30s
     user: "${PUID:-1000}:${PGID:-1000}"
-    # The application's network: the worker reaches it at http://127.0.0.1:8080,
-    # the one plain-HTTP gateway it accepts, and Postgres as postgres.
+    # The application's network: the worker reaches it at http://127.0.0.1:8080
+    # (gateway_address) and Postgres as postgres.
     network_mode: "service:forgetmenote"
     depends_on:
       forgetmenote:

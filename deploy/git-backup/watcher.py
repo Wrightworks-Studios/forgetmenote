@@ -364,6 +364,17 @@ class Gateway:
         url = urllib.parse.urlsplit(self.origin)
         if (url.scheme != 'https' and not (url.scheme == 'http' and url.hostname in ['localhost', '127.0.0.1'])) or not url.hostname or url.username or url.path or url.query or url.fragment:
             raise ValueError('Managed gateway must be an HTTPS origin (HTTP only on localhost)')
+        # A worker beside the application, as in the worker image's Compose
+        # service, reaches it over loopback HTTP and names the gateway origin as
+        # the Host, which the application requires.
+        self.address, self.host = self.origin, None
+        if config.get('gateway_address') is not None:
+            address = str(config['gateway_address']).rstrip('/')
+            loopback = urllib.parse.urlsplit(address)
+            if (loopback.scheme != 'http' or loopback.hostname not in ['localhost', '127.0.0.1', '::1'] or
+                    loopback.username or loopback.path or loopback.query or loopback.fragment):
+                raise ValueError('"gateway_address" must be a loopback HTTP origin')
+            self.address, self.host = address, url.netloc
         self.worker = config['worker']
         self.token = Path(config['token_file']).read_text().strip()
         if not 32 <= len(self.token) <= 4096 or any(c in self.token for c in '\r\n\x00'):
@@ -371,10 +382,12 @@ class Gateway:
         self.http = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
 
     def call(self, path, data=None):
-        req = urllib.request.Request(self.origin + '/internal/backups/v1/' + path,
-                                     data=json.dumps(data).encode() if data is not None else None,
-                                     headers={'Authorization': 'Bearer ' + self.token,
-                                              'X-Backup-Worker': self.worker, 'Content-Type': 'application/json'})
+        headers = {'Authorization': 'Bearer ' + self.token, 'X-Backup-Worker': self.worker,
+                   'Content-Type': 'application/json'}
+        if self.host:
+            headers['Host'] = self.host
+        req = urllib.request.Request(self.address + '/internal/backups/v1/' + path,
+                                     data=json.dumps(data).encode() if data is not None else None, headers=headers)
         try:
             with self.http.open(req, timeout=15) as response:
                 raw = response.read(4 * 1024 * 1024 + 1)
@@ -824,10 +837,14 @@ class Rclone:
             if stale.name not in names:
                 stale.unlink()
         if names:
-            # One transfer for every manifest not already cached unchanged.
+            # One transfer for every manifest not already cached unchanged. rclone
+            # refuses --files-from beside --max-size, so the names are anchored
+            # include rules, which hold no pattern characters.
+            if not all(re.fullmatch(r'[A-Za-z0-9._-]+', name) for name in names):
+                raise ValueError('Invalid manifest name')
             listing = self.work / 'manifests.txt'
-            listing.write_text(''.join(name + '\n' for name in names))
-            self.run('copy', '--files-from', str(listing), '--max-size', '1M', self.root, str(cache))
+            listing.write_text(''.join('/' + name + '\n' for name in names))
+            self.run('copy', '--include-from', str(listing), '--max-size', '1M', self.root, str(cache))
         found = {}
         for name in names:
             with suppress(FileNotFoundError), os.fdopen(private_file(cache / name, os.O_RDONLY), 'rb') as source:

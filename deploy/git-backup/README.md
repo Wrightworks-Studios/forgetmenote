@@ -388,6 +388,83 @@ describes: load `postgres.sql` into an empty database, put the data directory ba
 from `capture/`, and the `include/` paths at their own locations. Never unpack
 over a live data directory.
 
+## The worker image
+
+The Dockerfile's `worker` target is the application image plus the pinned
+[rclone](#rclone), `pg_dump` 17.12 from PostgreSQL's archive, and `inotifywait`
+(`docker build --target worker -t forgetmenote-worker .`). Its entrypoint is
+`forgetmenote-backup`, and it names its rclone in `FMN_BACKUP_RCLONE`, so a
+configuration can leave out `rclone`. It runs every mode with nothing installed on
+the host: drive snapshots, and instance snapshots of a Postgres 17 or older
+database. It shares every layer of the application image, so beside it it adds only
+those tools, about 30 MB compressed. The application image has none of them; its
+`forgetmenote-backup` pushes to GitHub and copies snapshots to folders.
+
+`compose.yaml` runs it as the `backup` service, which starts only with its profile:
+
+```sh
+docker compose --profile backup up -d
+```
+
+The service shares the application's network namespace: it reaches the
+application at `http://127.0.0.1:8080`, its `gateway_address`, and Postgres as
+`postgres`. Its `gateway` stays the instance's `PUBLIC_URL`, which the worker sends
+as the `Host` the application requires; `gateway_address` must be a loopback HTTP
+origin. It mounts the data directory read-only at `/data` and keeps its
+configuration, state and captures in `./backup`, writable by `PUID`. A worker for the GitHub, Google Drive and Dropbox
+destinations people set up in Notebook settings, with its token in
+`./secrets/backup-worker-token` and registered for the application as
+[managed backups](../../docs/managed-backups.md#server-configuration) describes, has
+`./backup/worker.json`:
+
+```json
+{
+  "mode": "managed",
+  "gateway": "https://notes.example",
+  "gateway_address": "http://127.0.0.1:8080",
+  "worker": "local",
+  "token_file": "/run/secrets/backup-worker-token",
+  "state_dir": "/backup/state",
+  "notebooks": {"notes": "/data/exports/notes.git"}
+}
+```
+
+For instance snapshots as well, add a second service in `compose.override.yaml`:
+
+```yaml
+services:
+  instance-backup:
+    extends:
+      file: compose.yaml
+      service: backup
+    command: ["--config", "/backup/instance.json"]
+```
+
+The capture runs in its own container, with the application's database and blob
+settings, and writes to `./backup/.capture`; `pg_dump` reads the database URL from
+its secret. `include` names the service's `./secrets` mount, commented out in
+`compose.yaml`, so the archive keeps the instance's secrets: uncomment it, or leave
+out both to keep the secrets elsewhere. `./backup/instance.json`:
+
+```json
+{
+  "mode": "instance",
+  "state_dir": "/backup/instance",
+  "at": "04:00",
+  "capture_command": ["forgetmenote", "admin", "capture", "-out", "/backup/.capture/current"],
+  "capture_dir": "/backup/.capture/current",
+  "dump_command": ["sh", "-c", "exec pg_dump --snapshot=\"$1\" --dbname=\"$(cat /run/secrets/database-url)\"",
+                   "sh", "{snapshot}"],
+  "include": ["/instance/secrets"],
+  "destination": {"rclone": "gdrive-crypt:", "path": "ForgetMeNote/instance"},
+  "rclone_config": "/backup/rclone.conf",
+  "retention": {"daily": 14, "weekly": 8}
+}
+```
+
+Release tooling builds and checks the application image; build the worker image
+from the same revision.
+
 ## rclone
 
 Every destination but a folder needs rclone, pinned at v1.74.3. It reaches Google

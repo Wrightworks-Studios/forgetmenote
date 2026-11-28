@@ -87,7 +87,8 @@ credentials/configuration take effect on restart.
 
 ## Worker configuration
 
-Use the existing systemd unit with a managed configuration file:
+Use the existing systemd unit, or the [worker image](../deploy/git-backup/README.md#the-worker-image)'s
+Compose service, with a managed configuration file:
 
 ```json
 {
@@ -102,6 +103,10 @@ Use the existing systemd unit with a managed configuration file:
   }
 }
 ```
+
+A worker beside the application, as in the worker image's Compose service, also
+sets `"gateway_address": "http://127.0.0.1:8080"`: it connects there and sends
+`gateway` as the `Host`, which the application checks against `PUBLIC_URL`.
 
 Each path is the notebook's Git export, `data/exports/NOTEBOOK.git`
 ([Git export repositories](backups.md#git-export-repositories)). The paths are a
@@ -178,7 +183,10 @@ of the Owner's Google Drive or Dropbox account. The application never uploads.
 It keeps the destination's OAuth refresh token, sealed, and for each upload
 leases the worker a fresh short-lived access token. The worker's snapshot
 format, retention and restore steps are described with the worker
-([`deploy/git-backup`](../deploy/git-backup/README.md)).
+([`deploy/git-backup`](../deploy/git-backup/README.md)). The worker uploads with
+rclone, which the [worker image](../deploy/git-backup/README.md#the-worker-image)
+includes; the `forgetmenote-backup` in the application image skips drive
+destinations.
 
 ### Register your own OAuth clients
 
