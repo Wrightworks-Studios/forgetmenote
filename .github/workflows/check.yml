@@ -65,7 +65,8 @@ jobs:
           ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1 >> "$GITHUB_PATH"
       - run: make setup-deps
       # The backup worker's real-rclone tests need the pinned rclone, checked
-      # against its SHA-256 (deploy/git-backup/README.md#rclone).
+      # against its SHA-256: the release the Dockerfile ships
+      # (deploy/git-backup/README.md#rclone).
       - id: rclone
         run: |
           curl -fsSL --retry 3 --max-time 300 -o "$RUNNER_TEMP/rclone.zip" \

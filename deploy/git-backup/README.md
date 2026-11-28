@@ -254,9 +254,10 @@ exits 0 or 1. It changes nothing, so it can run beside the worker.
 In [managed mode](../../docs/managed-backups.md), `GET bindings` also lists the
 Google Drive and Dropbox destinations people connect in Notebook settings
 (`"kind": "gdrive"` or `"dropbox"`). A worker serves them when its configuration
-sets `rclone`; otherwise it logs each drive binding once, skips it, and keeps
-pushing to GitHub. The application image's `forgetmenote-backup` has no rclone, so
-serve drive bindings from a worker host with the [pinned rclone](#rclone). Each binding takes the snapshots described above, with the
+has [rclone](#rclone): the [worker image](#the-worker-image)'s, or the one its
+configuration's `rclone` names. A worker without rclone, such as the
+`forgetmenote-backup` inside the application image, logs each drive binding once,
+skips it, and keeps pushing to GitHub. Each binding takes the snapshots described above, with the
 worker configuration's `min_interval_seconds` and `retention`; **Back up now** takes
 one at once.
 
@@ -391,11 +392,18 @@ over a live data directory.
 
 Every destination but a folder needs rclone, pinned at v1.74.3. It reaches Google
 Drive, Dropbox and many other services, and encrypts with `crypt`, as one separate
-executable, so the worker stays standard library Python. Install it from the
-project's release archive and check the archive's SHA-256; for
-`rclone-v1.74.3-linux-amd64.zip` it is
-`dbee7ccd7a5d617e4ed4cd4555c16669b511abfe8d31164f61be35ac9e999bd2`. The application
-image does not include it.
+executable, so the worker stays standard library Python.
+
+The [worker image](#the-worker-image) includes it at `/usr/local/bin/rclone`, with
+its MIT licence in `/usr/share/doc/rclone/COPYING`, and names it in
+`FMN_BACKUP_RCLONE`; the worker uses it when its configuration sets no `rclone`. The
+application image does not include it. On another host, install it from the
+project's release archive and check the archive's SHA-256:
+
+| Archive | SHA-256 |
+| --- | --- |
+| `rclone-v1.74.3-linux-amd64.zip` | `dbee7ccd7a5d617e4ed4cd4555c16669b511abfe8d31164f61be35ac9e999bd2` |
+| `rclone-v1.74.3-linux-arm64.zip` | `8f8d47446e061f80c3256659fe8e21f56d72d96aaefe1275d088ea5eb6b42aa7` |
 
 The worker uses `copyto`, `moveto`, `copy`, `cat`, `lsjson`, `hashsum`, `check`,
 `deletefile`, `obscure` and `listremotes`. It runs rclone with `--config` (the
@@ -403,8 +411,9 @@ configured file or an empty temporary one) and `--ask-password=false`, with only
 `PATH` and `HOME` (its state directory) in the environment apart from managed
 remotes, bounds every call, and ends the process group on a timeout or a failed
 lease check. CI runs the real-rclone tests on the pinned version: change the pin in
-`.github/workflows/check.yml` and here together, after checking rclone's
-changelog for those commands. Locally:
+the `Dockerfile`, `.github/workflows/check.yml` and here together, after checking
+rclone's changelog for those commands; the worker's tests check that the three
+agree. Locally:
 
 ```sh
 FMN_RCLONE=/usr/local/bin/rclone python3 -m unittest discover -s deploy/git-backup

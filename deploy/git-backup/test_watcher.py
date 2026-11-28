@@ -32,6 +32,48 @@ class ManagedContractTest(unittest.TestCase):
                                        {'project':'notes','generation':1,'branch':'main','repository':{'full_name':'example/backup'}},'a'*40)
 
 SCRIPT = Path(__file__).with_name('watcher.py')
+REPO = Path(__file__).resolve().parents[2]
+
+
+class RcloneSetupTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.rclone = Path(self.tmp.name) / 'rclone'
+        self.rclone.write_text('#!/bin/sh\n')
+        self.rclone.chmod(0o755)
+
+    def test_the_worker_image_rclone_serves_when_none_is_configured(self):
+        other = Path(self.tmp.name) / 'pinned-rclone'
+        other.write_text('#!/bin/sh\n')
+        with mock.patch.dict(os.environ, {'FMN_BACKUP_RCLONE': str(self.rclone)}):
+            self.assertEqual(watcher.rclone_binary({}), self.rclone)
+            self.assertEqual(watcher.rclone_binary({'rclone': str(other)}), other)
+
+    def test_a_worker_without_rclone_needs_it_configured(self):
+        env = {k: v for k, v in os.environ.items() if k != 'FMN_BACKUP_RCLONE'}
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaisesRegex(ValueError, 'Set "rclone"'):
+                watcher.rclone_binary({})
+        with mock.patch.dict(os.environ, {'FMN_BACKUP_RCLONE': str(Path(self.tmp.name) / 'missing')}):
+            with self.assertRaisesRegex(ValueError, 'Set "rclone"'):
+                watcher.rclone_binary({})
+
+    def test_the_worker_image_ci_and_readme_pin_one_rclone_release(self):
+        docker = (REPO / 'Dockerfile').read_text()
+        version = re.search(r'^ARG RCLONE_VERSION=([0-9.]+)$', docker, re.M)[1]
+        sums = {arch: re.search(rf'^ARG RCLONE_SHA256_{arch.upper()}=([0-9a-f]{{64}})$', docker, re.M)[1]
+                for arch in ('amd64', 'arm64')}
+        ci = (REPO / '.github/workflows/check.yml').read_text()
+        self.assertEqual(set(re.findall(r'rclone-v([0-9.]+)-linux', ci)), {version})
+        self.assertIn(f'https://downloads.rclone.org/v{version}/rclone-v{version}-linux-amd64.zip', ci)
+        self.assertIn(f'echo "{sums["amd64"]}  ', ci)
+        readme = (REPO / 'deploy/git-backup/README.md').read_text()
+        self.assertEqual(set(re.findall(r'pinned at v([0-9]+(?:\.[0-9]+)*)', readme)), {version})
+        self.assertEqual(set(re.findall(r'rclone-v([0-9.]+)-linux', readme)), {version})
+        for arch, digest in sums.items():
+            self.assertIn(f'| `rclone-v{version}-linux-{arch}.zip` | `{digest}` |', readme)
+
 
 
 def git(repo, *args, check=True):

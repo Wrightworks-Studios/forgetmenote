@@ -889,9 +889,11 @@ class Rclone:
 
 
 def rclone_binary(config, outside=()):
-    binary = Path(config.get('rclone', ''))
+    """The configured rclone, or else the worker image's, which it names in
+    FMN_BACKUP_RCLONE."""
+    binary = Path(config.get('rclone') or os.environ.get('FMN_BACKUP_RCLONE', ''))
     if not binary.is_absolute() or not binary.is_file():
-        raise ValueError('Set "rclone" to the absolute path of the pinned rclone executable')
+        raise ValueError('Set "rclone" to the absolute path of the pinned rclone executable, or run the worker image')
     if any(binary.resolve().is_relative_to(root) for root in outside):
         raise ValueError('The rclone executable must be outside notebook data')
     return binary
