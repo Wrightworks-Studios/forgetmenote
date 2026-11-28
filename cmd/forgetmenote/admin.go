@@ -17,9 +17,12 @@ import (
 
 func runAdmin(args []string, input io.Reader, output io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("use admin bootstrap, admin credential, admin rollback-semantic-storage, admin storage export (stop the instance first) or admin purge (on the running instance)")
+		return errors.New("use admin bootstrap, admin credential, admin rollback-semantic-storage, admin storage export (stop the instance first), admin purge or admin capture (on the running instance)")
 	}
 	switch args[0] {
+	case "capture":
+		// The backup worker reads its exit code, so it exits here.
+		os.Exit(runCaptureAdmin(args[1:], input, output, os.Stderr))
 	case "storage":
 		return runStorageAdmin(args[1:], output)
 	case "purge":

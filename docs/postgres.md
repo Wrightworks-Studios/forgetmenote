@@ -100,7 +100,11 @@ The locks that once guarded one process now hold for the instance:
   reloaded catalog lists.
 - The scheduled sweep of unused content blocks takes `TryExclusive` on
   `notestore-block-sweep`, so one gateway at a time sweeps
-  ([notebook content](#notebook-content)).
+  ([notebook content](#notebook-content)). A purge's removal of the blocks it
+  freed waits for that key with `pg.DB.Shared`, and an instance capture
+  (`admin capture`) holds it exclusively as a session lock on a connection of
+  its own for its whole run, so neither a sweep nor a purge removes a block
+  the capture's snapshot uses ([live capture](backups.md#live-capture)).
 - A conversation's deletion takes its conversation lock with `TryExclusive` and
   a citation check holds it with `pg.DB.Shared`, so a deletion through one
   gateway answers 409 while another checks that conversation's citations, and
@@ -339,6 +343,13 @@ last ten minutes.
 
 A [purge](purge.md) removes the blocks only it used right after its transaction
 commits, even if the request that started it has ended, and tries again twice.
+That removal first waits for a running block sweep or
+[instance capture](backups.md#live-capture) to end, within the same
+five minutes as its attempts; if they run out, it leaves its blocks to the next
+sweep and says so in its warnings. A gateway whose scheduled sweep finds the
+lock held, by another gateway's sweep, a purge's removal or a capture, tries
+again 15 minutes later instead of a day later, so a capture at the hour of its
+sweep every day cannot keep it from running.
 Blocks that removal could not delete, those a write put before it was refused,
 for example as a conflict, and those of a deleted notebook (a failed import, or
 a creation the catalog did not publish) stay in blob storage until the scheduled

@@ -104,6 +104,8 @@
       </section>
       <section data-settings-panel="history">
       <section id="managed-backup" hidden>
+        <p id="managed-backup-personal" class="small" hidden>Only the person this notebook belongs to can connect or change its backups.</p>
+        <div id="managed-backup-github">
         <h3>GitHub backup</h3>
         <p id="managed-backup-status" role="status"></p><p id="managed-backup-receipt" class="small"></p>
         <button id="managed-backup-connect" class="quiet" type="button">Connect GitHub backup</button>
@@ -123,6 +125,8 @@
         </form>
         <div id="managed-backup-controls" hidden><button id="managed-backup-now" class="quiet">Back up now</button><button id="managed-backup-pause" class="quiet">Pause</button><button id="managed-backup-disconnect" class="quiet">Disconnect</button></div>
         <p id="managed-backup-error" role="alert"></p>
+        </div>
+        <div id="drive-backups" hidden></div>
       </section>
       <h3>History</h3>
       <button id="project-history-open" class="quiet">Notebook history</button>

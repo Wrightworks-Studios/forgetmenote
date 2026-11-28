@@ -857,6 +857,8 @@ func contractSession(sc *contractScenario) {
 	sc.fails("admin", "creating an existing notebook is refused", "create_project", map[string]any{"id": contractNotebook, "name": "Again"})
 	sc.ok("admin", "notebook authority", "notebook_authority_status", contractArgs())
 	sc.ok("admin", "managed backup status", "managed_backup_status", contractArgs())
+	sc.ok("admin", "every notebook's managed backups", "managed_backup_overview", map[string]any{})
+	sc.fails("editor", "the backup overview is for Admins", "managed_backup_overview", map[string]any{})
 	sc.ok("admin", "discover capabilities", "capabilities", map[string]any{}, masked("result.instance"))
 	sc.ok("reader", "a reader's capabilities", "capabilities", map[string]any{}, masked("result.instance"))
 }

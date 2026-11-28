@@ -1,6 +1,10 @@
 // Package backuphttp owns the credential-restricted external backup worker API.
 // Consent, generation fencing, drains, leases and durable receipts remain in the
 // concrete backups manager; no HTTP argument selects a filesystem root.
+//
+// A request names a destination kind: omitted or "github" is the notebook's
+// GitHub binding, with the request and response shapes of workers that predate
+// drives; "gdrive" and "dropbox" are its drive destinations.
 package backuphttp
 
 import (
@@ -32,6 +36,9 @@ func New(manager *backups.Manager, workers map[string]Worker) *HTTP {
 	return &HTTP{manager: manager, workers: maps.Clone(workers)}
 }
 
+// github reports whether kind names the GitHub binding.
+func github(kind string) bool { return kind == "" || kind == "github" }
+
 func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	credential, ok := h.workers[r.Header.Get("X-Backup-Worker")]
 	supplied := sha256.Sum256([]byte(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")))
@@ -39,11 +46,16 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Worker authentication required", 401)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	path := strings.TrimPrefix(r.URL.Path, "/internal/backups/v1/")
+	// A drive receipt lists the snapshots retention deleted.
+	limit := int64(8192)
+	if path == "receipt" {
+		limit = 128 << 10
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	m := h.manager
 	if path == "bindings" && r.Method == "GET" {
-		out, err := m.List(credential.Owner)
+		out, err := m.Worklist(credential.Owner)
 		if err != nil {
 			webcore.Fail(w, err)
 			return
@@ -59,13 +71,20 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "drain":
 		var in struct {
 			Project    string `json:"project"`
+			Kind       string `json:"kind"`
 			Handoff    string `json:"handoff"`
 			Generation uint64 `json:"generation"`
 		}
 		if !webcore.Decode(w, r, &in) {
 			return
 		}
-		if err := m.AcknowledgeDrain(credential.Owner, in.Project, in.Handoff, in.Generation); err != nil {
+		var err error
+		if github(in.Kind) {
+			err = m.AcknowledgeDrain(credential.Owner, in.Project, in.Handoff, in.Generation)
+		} else {
+			err = m.AcknowledgeDriveDrain(credential.Owner, in.Kind, in.Project, in.Handoff, in.Generation)
+		}
+		if err != nil {
 			webcore.Fail(w, err)
 			return
 		}
@@ -73,13 +92,20 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "lease":
 		var in struct {
 			Project    string `json:"project"`
+			Kind       string `json:"kind"`
 			Generation uint64 `json:"generation"`
 			Revision   string `json:"revision"`
 		}
 		if !webcore.Decode(w, r, &in) {
 			return
 		}
-		out, err := m.Lease(r.Context(), credential.Owner, in.Project, in.Generation, in.Revision)
+		var out any
+		var err error
+		if github(in.Kind) {
+			out, err = m.Lease(r.Context(), credential.Owner, in.Project, in.Generation, in.Revision)
+		} else {
+			out, err = m.DriveLease(r.Context(), credential.Owner, in.Kind, in.Project, in.Generation, in.Revision)
+		}
 		if err != nil {
 			webcore.Fail(w, err)
 			return
@@ -98,11 +124,21 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		webcore.JSON(w, map[string]bool{"valid": true})
 	case "receipt":
-		var in backups.Receipt
+		var in backups.DriveReceipt
 		if !webcore.Decode(w, r, &in) {
 			return
 		}
-		out, err := m.Complete(r.Context(), credential.Owner, in)
+		var out any
+		var err error
+		if github(in.Kind) {
+			if in.Snapshot != nil {
+				http.Error(w, "A GitHub receipt names no snapshot", 400)
+				return
+			}
+			out, err = m.Complete(r.Context(), credential.Owner, backups.Receipt{Lease: in.Lease, Project: in.Project, Generation: in.Generation, Revision: in.Revision, Error: in.Error, Diverged: in.Diverged})
+		} else {
+			out, err = m.CompleteDrive(r.Context(), credential.Owner, in)
+		}
 		if err != nil {
 			webcore.Fail(w, err)
 			return

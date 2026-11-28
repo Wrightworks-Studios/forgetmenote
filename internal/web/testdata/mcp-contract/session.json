@@ -199,6 +199,52 @@
     }
   },
   {
+    "step": "every notebook's managed backups",
+    "tool": "managed_backup_overview",
+    "as": "admin",
+    "arguments": {},
+    "result": {
+      "configured": false,
+      "drives": [],
+      "github": false,
+      "notebooks": [
+        {
+          "destinations": [],
+          "name": "Contract notebook",
+          "owners": [],
+          "project": "contract"
+        },
+        {
+          "destinations": [],
+          "name": "My notes",
+          "owners": [],
+          "project": "default"
+        },
+        {
+          "destinations": [],
+          "name": "Scratch notebook",
+          "owners": [],
+          "project": "contract-scratch"
+        },
+        {
+          "destinations": [],
+          "name": "Work notebook",
+          "owners": [
+            "contract-person"
+          ],
+          "project": "contract-work"
+        }
+      ]
+    }
+  },
+  {
+    "step": "the backup overview is for Admins",
+    "tool": "managed_backup_overview",
+    "as": "editor",
+    "arguments": {},
+    "error": "this path is not accessible"
+  },
+  {
     "step": "discover capabilities",
     "tool": "capabilities",
     "as": "admin",

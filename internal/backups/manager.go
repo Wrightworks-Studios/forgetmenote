@@ -1,4 +1,5 @@
-// Package backups owns consent and receipts. Only the external worker pushes Git.
+// Package backups owns consent and receipts. Only the external worker uploads:
+// it pushes Git to GitHub and copies snapshots to Google Drive and Dropbox.
 package backups
 
 import (
@@ -6,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"forgetmenote/internal/drivebackup"
 	"forgetmenote/internal/githubapp"
 	"forgetmenote/internal/outgoing"
 	"forgetmenote/internal/pg"
@@ -61,10 +63,14 @@ type Setup struct {
 	Binding
 	UserToken string
 }
+
+// A Lease is one upload's permission. A GitHub lease carries an installation
+// token; a drive lease's access token goes to the worker once and is not kept.
 type Lease struct {
 	NotebookGeneration uint64    `json:"notebookGeneration,omitempty"`
 	ID                 string    `json:"id"`
 	Project            string    `json:"project"`
+	Kind               string    `json:"kind,omitempty"`
 	Generation         uint64    `json:"generation"`
 	Revision           string    `json:"revision"`
 	Remote             string    `json:"remote"`
@@ -72,6 +78,8 @@ type Lease struct {
 	Token              string    `json:"token"`
 	Expires            time.Time `json:"expires"`
 	Owner              string    `json:"-"`
+	// sealed is the token as the shared state stores it.
+	sealed string
 }
 type Receipt struct {
 	Lease      string `json:"lease"`
@@ -83,10 +91,13 @@ type Receipt struct {
 }
 
 // sharedState is one instance's bindings and active leases, which every gateway
-// shares as one versioned Postgres document.
+// shares as one versioned Postgres document. Version 2 added authority
+// handoffs, version 3 drive destinations; a gateway refuses a version it does
+// not know rather than drop what it cannot read.
 type sharedState struct {
 	Version  int                    `json:"version"`
 	Bindings map[string]Binding     `json:"bindings"`
+	Drives   map[string]storedDrive `json:"drives,omitempty"`
 	Leases   map[string]storedLease `json:"leases,omitempty"`
 }
 
@@ -99,12 +110,14 @@ type storedLease struct {
 }
 type Manager struct {
 	// Outgoing is installed before use. While it is paused nothing reaches
-	// GitHub: copied leases hold the live instance's tokens.
+	// GitHub or a drive provider: copied state holds the live instance's
+	// credentials.
 	Outgoing *outgoing.Mode
 	mu       sync.Mutex
 	doc      *pg.Doc[sharedState]
 	db       *pg.DB
 	app      *githubapp.Client
+	drives   *drivebackup.Client
 	check    func(Binding) error
 	state    sharedState
 	leases   map[string]Lease
@@ -115,12 +128,13 @@ type Manager struct {
 
 // Open returns the manager of the backup bindings and leases that an instance's
 // gateways share in db, so a worker may lease from one gateway and report to
-// another.
-func Open(db *pg.DB, app *githubapp.Client, check func(Binding) error) (*Manager, error) {
-	if db == nil || app == nil || check == nil {
+// another. app, the Backups GitHub App, and drives, the drive providers, are
+// each optional; at least one is required.
+func Open(db *pg.DB, app *githubapp.Client, drives *drivebackup.Client, check func(Binding) error) (*Manager, error) {
+	if db == nil || app == nil && drives == nil || check == nil {
 		return nil, ErrUnavailable
 	}
-	m := &Manager{doc: pg.NewDoc[sharedState](db, stateKind, stateID, maxStateBytes), db: db, app: app, check: check, state: emptyState(), leases: map[string]Lease{}}
+	m := &Manager{doc: pg.NewDoc[sharedState](db, stateKind, stateID, maxStateBytes), db: db, app: app, drives: drives, check: check, state: emptyState(), leases: map[string]Lease{}}
 	if err := m.lock(); err != nil {
 		return nil, err
 	}
@@ -128,18 +142,38 @@ func Open(db *pg.DB, app *githubapp.Client, check func(Binding) error) (*Manager
 	return m, nil
 }
 
+// GitHub reports whether this manager serves GitHub destinations.
+func (m *Manager) GitHub() bool { return m.app != nil }
+
 // Stored reads the bindings the instance's gateways share, by notebook,
 // without a GitHub App and without opening a manager: for an instance that
 // runs no managed backups yet still reports the ones people connected. A
 // binding's authorization is not checked.
 func Stored(ctx context.Context, db *pg.DB) (map[string]Binding, error) {
+	state, err := stored(ctx, db)
+	return state.Bindings, err
+}
+
+// StoredDrives reads the drive destinations the same way, without their
+// sealed credentials.
+func StoredDrives(ctx context.Context, db *pg.DB) ([]Drive, error) {
+	state, err := stored(ctx, db)
+	out := []Drive{}
+	for _, d := range state.Drives {
+		out = append(out, d.Drive)
+	}
+	sortDrives(out)
+	return out, err
+}
+
+func stored(ctx context.Context, db *pg.DB) (sharedState, error) {
 	ctx, cancel := context.WithTimeout(ctx, stateTimeout)
 	defer cancel()
 	state, _, err := pg.NewDoc[sharedState](db, stateKind, stateID, maxStateBytes).Load(ctx)
 	if err != nil {
-		return nil, errors.Join(ErrUnavailable, err)
+		return sharedState{}, errors.Join(ErrUnavailable, err)
 	}
-	return state.Bindings, nil
+	return state, nil
 }
 
 func emptyState() sharedState { return sharedState{Version: 1, Bindings: map[string]Binding{}} }
@@ -172,29 +206,48 @@ func (m *Manager) lock() error {
 // opened, such as one sealed before the App key changed, keeps its notebook's
 // place without a token until it lapses, so no second lease overlaps it.
 func (m *Manager) adopt(s *sharedState) (map[string]Lease, error) {
-	if s.Version == 0 && s.Bindings == nil && s.Leases == nil {
+	if s.Version == 0 && s.Bindings == nil && s.Leases == nil && s.Drives == nil {
 		*s = emptyState()
 		return map[string]Lease{}, nil
 	}
-	if err := checkBindings(s.Version, s.Bindings); err != nil {
+	if err := checkState(*s); err != nil {
 		return nil, err
+	}
+	if s.Drives == nil {
+		s.Drives = map[string]storedDrive{}
 	}
 	leases := map[string]Lease{}
 	for id, stored := range s.Leases {
-		if id != stored.ID || stored.Owner == "" {
+		if id != stored.ID || stored.Owner == "" || stored.Kind != "" && !validKind(stored.Kind) {
 			return nil, errors.New("damaged managed backup lease")
 		}
 		l := stored.Lease
-		l.Owner = stored.Owner
-		l.Token, _ = m.app.OpenToken(stored.Sealed)
+		l.Owner, l.sealed = stored.Owner, stored.Sealed
+		if m.app != nil && stored.Kind == "" && stored.Sealed != "" {
+			l.Token, _ = m.app.OpenToken(stored.Sealed)
+		}
 		leases[id] = l
 	}
 	s.Leases = nil
 	return leases, nil
 }
 
-// checkBindings refuses bindings no gateway may serve, as the file-based
-// release refused them when it opened.
+// checkState refuses shared state no gateway may serve.
+func checkState(s sharedState) error {
+	switch {
+	case s.Version == 3:
+		if err := checkBindings(2, s.Bindings); err != nil {
+			return err
+		}
+		return checkDrives(s.Drives)
+	case len(s.Drives) > 0:
+		return errors.New("unsupported or damaged managed backup state")
+	}
+	return checkBindings(s.Version, s.Bindings)
+}
+
+// checkBindings refuses GitHub bindings no gateway may serve, as the
+// file-based release refused them when it opened.
 func checkBindings(version int, bindings map[string]Binding) error {
 	if (version != 1 && version != 2) || bindings == nil {
 		return errors.New("unsupported or damaged managed backup state")
@@ -268,12 +321,20 @@ func (m *Manager) expire() {
 	defer m.mu.Unlock()
 	now := time.Now()
 	leases, tokens := m.without(func(l Lease) bool {
-		return now.After(l.Expires) || !m.allowed(m.state.Bindings[l.Project], l.Owner, l.Generation)
+		return now.After(l.Expires) || !m.leaseAllowed(l)
 	})
 	// A lease another gateway changed first is expired on the next pass.
-	if len(tokens) > 0 && m.save(leases) == nil {
+	if len(leases) < len(m.leases) && m.save(leases) == nil {
 		m.revoke(context.Background(), tokens...)
 	}
+}
+
+// leaseAllowed reports whether a lease's binding still admits it.
+func (m *Manager) leaseAllowed(l Lease) bool {
+	if l.Kind != "" {
+		return m.driveAllowed(m.state.Drives[driveKey(l.Kind, l.Project)].Drive, l.Owner, l.Generation)
+	}
+	return m.allowed(m.state.Bindings[l.Project], l.Owner, l.Generation)
 }
 
 // Close stops this gateway's expiry loop. Leases are shared, so they stay valid
@@ -288,6 +349,9 @@ func (m *Manager) Close() {
 func (m *Manager) Configure(ctx context.Context, in Setup) (Binding, error) {
 	if err := m.Outgoing.Check(); err != nil {
 		return Binding{}, err
+	}
+	if m.app == nil {
+		return Binding{}, ErrUnavailable
 	}
 	if err := m.lock(); err != nil {
 		return Binding{}, err
@@ -326,7 +390,7 @@ func (m *Manager) Configure(ctx context.Context, in Setup) (Binding, error) {
 		b.LastRevision = old.LastRevision
 		b.LastSuccess = old.LastSuccess
 	}
-	leases, tokens := m.without(func(l Lease) bool { return l.Project == b.Project })
+	leases, tokens := m.without(func(l Lease) bool { return l.Project == b.Project && l.Kind == "" })
 	if err = m.save(leases, b); err != nil {
 		return Binding{}, err
 	}
@@ -351,30 +415,58 @@ func validBranch(v string) bool {
 	return true
 }
 
-// save stores the changed bindings with leases as the shared state, only over
-// the version this gateway last read, and then adopts it. After a failed save
-// nothing here changed, and the next call rereads what the database holds.
+// save stores the changed bindings with leases as the shared state.
 func (m *Manager) save(leases map[string]Lease, changed ...Binding) error {
-	next := sharedState{Version: 1, Bindings: map[string]Binding{}, Leases: map[string]storedLease{}}
+	return m.commit(leases, changed, nil)
+}
+
+// commit stores the changed bindings and drives with leases as the shared
+// state, only over the version this gateway last read, and then adopts it.
+// After a failed commit nothing here changed, and the next call rereads what
+// the database holds.
+func (m *Manager) commit(leases map[string]Lease, changed []Binding, drives []storedDrive) error {
+	next := sharedState{Version: 1, Bindings: map[string]Binding{}, Drives: map[string]storedDrive{}, Leases: map[string]storedLease{}}
 	for p, v := range m.state.Bindings {
 		next.Bindings[p] = v
 	}
 	for _, b := range changed {
 		next.Bindings[b.Project] = b
 	}
+	for k, d := range m.state.Drives {
+		next.Drives[k] = d
+	}
+	for _, d := range drives {
+		next.Drives[driveKey(d.Kind, d.Project)] = d
+	}
 	for _, binding := range next.Bindings {
 		if binding.Handoff != "" || binding.AuthorityTarget || binding.NotebookGeneration > 0 || m.state.Version >= 2 {
 			next.Version = 2
 		}
 	}
+	// A gateway that predates drive destinations refuses version 3, so it
+	// cannot rewrite the state without them.
+	if len(next.Drives) > 0 || m.state.Version >= 3 {
+		next.Version = 3
+	}
 	for id, l := range leases {
-		sealed, err := m.app.SealToken(l.Token)
-		if err != nil {
-			return err
+		sealed := l.sealed
+		if sealed == "" && l.Token != "" {
+			if m.app == nil {
+				return ErrUnavailable
+			}
+			var err error
+			if sealed, err = m.app.SealToken(l.Token); err != nil {
+				return err
+			}
+			l.sealed = sealed
+			leases[id] = l
 		}
 		stored := storedLease{Lease: l, Owner: l.Owner, Sealed: sealed}
 		stored.Token = ""
 		next.Leases[id] = stored
+	}
+	if len(next.Drives) == 0 {
+		next.Drives = nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), stateTimeout)
 	defer cancel()
@@ -389,6 +481,9 @@ func (m *Manager) save(leases map[string]Lease, changed ...Binding) error {
 		return err
 	}
 	next.Leases = nil
+	if next.Drives == nil {
+		next.Drives = map[string]storedDrive{}
+	}
 	m.state, m.leases = next, leases
 	return nil
 }
@@ -419,6 +514,9 @@ func (m *Manager) List(owner string) ([]Binding, error) {
 		return nil, err
 	}
 	defer m.mu.Unlock()
+	return m.list(owner), nil
+}
+func (m *Manager) list(owner string) []Binding {
 	out := []Binding{}
 	for _, b := range m.state.Bindings {
 		if b.Owner == owner && b.Handoff != "" && !b.Drained {
@@ -430,6 +528,25 @@ func (m *Manager) List(owner string) ([]Binding, error) {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Project < out[j].Project })
+	return out
+}
+
+// Worklist is what a worker of owner does next: its drive destinations and
+// GitHub bindings, from one reading of the shared state. Drive entries come
+// first, so a worker that predates them and keys bindings by notebook keeps
+// the GitHub binding it can serve.
+func (m *Manager) Worklist(owner string) ([]any, error) {
+	if err := m.lock(); err != nil {
+		return nil, err
+	}
+	defer m.mu.Unlock()
+	out := []any{}
+	for _, d := range m.listDrives(owner) {
+		out = append(out, d)
+	}
+	for _, b := range m.list(owner) {
+		out = append(out, b)
+	}
 	return out, nil
 }
 func (m *Manager) Control(ctx context.Context, project string, generation uint64, action string) (Binding, error) {
@@ -470,7 +587,7 @@ func (m *Manager) Control(ctx context.Context, project string, generation uint64
 		return b, ErrDenied
 	}
 	b.Generation++
-	leases, tokens := m.without(func(l Lease) bool { return l.Project == project })
+	leases, tokens := m.without(func(l Lease) bool { return l.Project == project && l.Kind == "" })
 	err := m.save(leases, b)
 	if err == nil {
 		m.revoke(ctx, tokens...)
@@ -485,6 +602,9 @@ func (m *Manager) Lease(ctx context.Context, owner, project string, generation u
 	if err := m.Outgoing.Check(); err != nil {
 		return Lease{}, err
 	}
+	if m.app == nil {
+		return Lease{}, ErrDenied
+	}
 	if err := m.lock(); err != nil {
 		return Lease{}, err
 	}
@@ -496,7 +616,7 @@ func (m *Manager) Lease(ctx context.Context, owner, project string, generation u
 	now := time.Now()
 	leases, expired := m.without(func(l Lease) bool { return l.Expires.Before(now) })
 	for _, l := range leases {
-		if l.Project == project {
+		if l.Project == project && l.Kind == "" {
 			return Lease{}, ErrConflict
 		}
 	}
@@ -523,11 +643,11 @@ func (m *Manager) Lease(ctx context.Context, owner, project string, generation u
 	return l, nil
 }
 func (m *Manager) allowed(b Binding, owner string, generation uint64) bool {
-	return b.Owner == owner && b.Connected && b.Enabled && !b.Blocked && b.Generation == generation && m.check(b) == nil
+	return m.app != nil && b.Owner == owner && b.Connected && b.Enabled && !b.Blocked && b.Generation == generation && m.check(b) == nil
 }
 func (m *Manager) revoke(ctx context.Context, tokens ...string) {
 	// A paused copy's tokens are the live instance's; they expire on their own.
-	if m.Outgoing.Paused() {
+	if m.Outgoing.Paused() || m.app == nil {
 		return
 	}
 	for _, token := range tokens {
@@ -544,7 +664,7 @@ func (m *Manager) checked(ctx context.Context, owner, id string) (Lease, Binding
 		return Lease{}, Binding{}, err
 	}
 	l, ok := m.leases[id]
-	if !ok || l.Owner != owner {
+	if !ok || l.Owner != owner || l.Kind != "" {
 		return Lease{}, Binding{}, ErrDenied
 	}
 	b := m.state.Bindings[l.Project]
@@ -564,11 +684,17 @@ func (m *Manager) checked(ctx context.Context, owner, id string) (Lease, Binding
 	}
 	return l, b, nil
 }
+
+// CheckLease reports whether a worker's lease of either kind is still valid.
 func (m *Manager) CheckLease(ctx context.Context, owner, id string) error {
 	if err := m.lock(); err != nil {
 		return err
 	}
 	defer m.mu.Unlock()
+	if l, ok := m.leases[id]; ok && l.Kind != "" {
+		_, _, err := m.checkedDrive(owner, id, l.Kind)
+		return err
+	}
 	_, _, err := m.checked(ctx, owner, id)
 	return err
 }
@@ -618,6 +744,9 @@ func (m *Manager) Complete(ctx context.Context, owner string, in Receipt) (Bindi
 func (m *Manager) Create(ctx context.Context, in Setup, owner, name string) (githubapp.Repository, error) {
 	if err := m.Outgoing.Check(); err != nil {
 		return githubapp.Repository{}, err
+	}
+	if m.app == nil {
+		return githubapp.Repository{}, ErrUnavailable
 	}
 	if err := m.lock(); err != nil {
 		return githubapp.Repository{}, err

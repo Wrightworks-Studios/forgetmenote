@@ -108,6 +108,7 @@ var policies = map[string]Policy{
 	"refresh_repository_source":         {},
 	"managed_backup_status":             {Read: true},
 	"control_managed_backup":            {},
+	"managed_backup_overview":           {Read: true},
 	"add_comment":                       {Chat: true, Edit: true},
 	"administration":                    {}, // Deliberately excluded from embedded chat.
 	"archive_source":                    {Chat: true, Control: true},

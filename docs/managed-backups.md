@@ -1,9 +1,13 @@
-# Managed private GitHub backups
+# Managed private backups
 
-The application owns destination consent, authority checks, short worker leases,
-and verified receipts. `deploy/git-backup/watcher.py` remains the only remote-push
-implementation. Saves never wait for GitHub. Existing SSH worker configurations
-continue to work.
+A notebook Owner can send the notebook's saved Git history to a private GitHub
+repository, a Google Drive folder, a Dropbox folder, or any of them at once (one
+destination of each kind per notebook). The application owns destination
+consent, authority checks, short worker leases, and verified receipts.
+`deploy/git-backup/watcher.py` remains the only upload implementation. Saves
+never wait for a destination. Existing SSH worker configurations continue to
+work. GitHub is described first; [Google Drive and Dropbox](#google-drive-and-dropbox)
+follow. Each works without the other.
 
 ## Register separate Apps
 
@@ -83,7 +87,8 @@ credentials/configuration take effect on restart.
 
 ## Worker configuration
 
-Use the existing systemd unit with a managed configuration file:
+Use the existing systemd unit, or the [worker image](../deploy/git-backup/README.md#the-worker-image)'s
+Compose service, with a managed configuration file:
 
 ```json
 {
@@ -98,6 +103,10 @@ Use the existing systemd unit with a managed configuration file:
   }
 }
 ```
+
+A worker beside the application, as in the worker image's Compose service, also
+sets `"gateway_address": "http://127.0.0.1:8080"`: it connects there and sends
+`gateway` as the `Host`, which the application checks against `PUBLIC_URL`.
 
 Each path is the notebook's Git export, `data/exports/NOTEBOOK.git`
 ([Git export repositories](backups.md#git-export-repositories)). The paths are a
@@ -163,6 +172,189 @@ edits, chats, permissions, accounts, and receipts require the appropriate
 [full-instance backup](backups.md). Git LFS support and GitHub file-size/storage
 limits are unchanged; failures are visible and content/history is never truncated.
 
+A protected Inbox or personal assistant notebook gets a backup destination only
+from its own person's account: an Admin's authority over another person's Inbox
+does not connect, control or lease one, for GitHub or a drive.
+
+## Google Drive and Dropbox
+
+The worker uploads snapshots of the notebook's saved Git history into one folder
+of the Owner's Google Drive or Dropbox account. The application never uploads.
+It keeps the destination's OAuth refresh token, sealed, and for each upload
+leases the worker a fresh short-lived access token. The worker's snapshot
+format, retention and restore steps are described with the worker
+([`deploy/git-backup`](../deploy/git-backup/README.md)). The worker uploads with
+rclone, which the [worker image](../deploy/git-backup/README.md#the-worker-image)
+includes; the `forgetmenote-backup` in the application image skips drive
+destinations.
+
+### Register your own OAuth clients
+
+Every instance registers its own clients; there is no shared ForgetMeNote
+client. Use separate clients for development and production.
+
+**Google Drive.** In a Google Cloud project, enable the **Google Drive API**.
+Configure the OAuth consent screen and add the one scope
+`https://www.googleapis.com/auth/drive.file`, which lets the client see only
+the files it creates, never the rest of the account's Drive. Create an **OAuth
+client ID** of type **Web application** with the authorized redirect URI
+`PUBLIC_URL/backup/google/callback` (for example
+`https://notes.example.com/backup/google/callback`). Save the client secret in a
+private file. While an external consent screen is in Testing, Google expires its
+refresh tokens after seven days; publish it before relying on backups.
+
+**Dropbox.** In the Dropbox App Console, create an app with **Scoped access**
+and **App folder** access. On its Permissions tab enable `account_info.read`,
+`files.metadata.read`, `files.metadata.write`, `files.content.read` and
+`files.content.write`. On its Settings tab add the redirect URI
+`PUBLIC_URL/backup/dropbox/callback`. Save the app secret in a private file. A
+destination folder lives inside the app's folder, `Apps/<app name>/`. Dropbox
+limits apps in development status to a small number of linked accounts; apply
+for production status for more.
+
+### Configuration
+
+Add `drives` to the same `BACKUP_APP_CONFIG_FILE`. `app` and `allowCreate` may be
+left out when there is no GitHub App, and `drives` when there are no drive
+destinations; one of `app` or `drives` is required, and so is `workers`. Each
+provider is optional.
+
+```json
+{
+  "workers": {
+    "local": {"owner": "local", "tokenFile": "/run/secrets/backups/worker-token"}
+  },
+  "drives": {
+    "sealKeyFile": "/run/secrets/backups/drive-seal-key",
+    "google": {
+      "clientId": "123456789012-example.apps.googleusercontent.com",
+      "clientSecretFile": "/run/secrets/backups/google-client-secret"
+    },
+    "dropbox": {
+      "appKey": "exampleappkey",
+      "appSecretFile": "/run/secrets/backups/dropbox-app-secret"
+    }
+  }
+}
+```
+
+The seal key file holds at least 32 bytes of key material, raw or as hex or
+base64 text; a shorter key is refused at startup. Create one with
+`openssl rand -hex 32 > drive-seal-key` and mode 0600. Every gateway of an
+instance needs the same key. It seals each destination's refresh token and
+encryption password in the shared state; neither the database nor an export
+holds the key, so a database copy alone reveals neither. Keep it with the
+instance's recovery assets: without it, every drive destination must be
+reconnected, and an encrypted destination's password is recoverable only from
+the Owner's own copy.
+
+The OAuth endpoints are the providers' own and cannot be configured; tests reach
+fake providers through the HTTP client.
+
+### Owner setup
+
+Open **Notebook settings → History** as the notebook's Owner. Each configured
+provider has a row. **Connect** goes to the provider, which asks the Owner to
+allow access (PKCE, an offline grant). Back in ForgetMeNote, the setup screen
+names the account and the folder, `ForgetMeNote/<notebook>-<six random letters
+and digits>`, fixed for the destination. The Owner must confirm that anyone with
+access to that folder can read every snapshot, including earlier revisions,
+unless the snapshots are encrypted.
+
+**Encrypt snapshots** is off by default. When chosen, ForgetMeNote makes a
+random password (32 random bytes, base64url) and shows it once, in a copyable
+field, with the warning that losing it makes the snapshots unreadable. It is not
+shown again: restoring an encrypted snapshot needs the Owner's copy. The
+application keeps it sealed and gives it to the worker in each lease.
+
+Each row shows the account, folder, encryption, the last verified snapshot's
+time and commit, how many snapshots the folder keeps, pending saved changes and
+any error, with **Back up now**, **Pause**/**Resume** and **Disconnect**.
+Reconnecting the same account continues the destination: the same folder,
+encryption password and receipts. Connecting another account starts a new
+destination in a new folder and revokes the replaced grant. **Cancel** on the
+setup screen revokes the grant it obtained. A setup left unfinished is forgotten
+after ten minutes, but its grant stays listed among the account's connected apps
+until the account owner removes it.
+
+**Disconnect** ends active leases, forgets the refresh token and password, and
+revokes the grant at the provider. Snapshots already uploaded stay in the folder.
+Revoking a Google token ends the OAuth client's whole grant for that Google
+account, so while another notebook's destination uses the same Google account
+the grant is kept; it is revoked with the last one. Dropbox revokes only the
+destination's own token. If the provider does not confirm the revocation, the
+row says so; remove the app from the account's connected apps. An account owner
+who removes access at the provider stops the destination until the Owner
+reconnects.
+
+The same status and controls are available to MCP and API clients:
+`managed_backup_status` lists a notebook's drive destinations, and
+`control_managed_backup` takes `kind` (`github`, the default, `gdrive` or
+`dropbox`). Connecting, the folder consent and the encryption choice happen
+only in the browser.
+
+### Worker API
+
+The worker authenticates as for GitHub (`X-Backup-Worker` and its bearer token)
+under `/internal/backups/v1/`. A request without `kind`, or with
+`"kind": "github"`, has the GitHub meaning and shapes, unchanged.
+
+- `GET bindings` lists drive destinations first, then GitHub bindings. A drive
+  entry is `{"kind","project","generation","notebookGeneration","path",
+  "encrypted","enabled","blocked","request","handoff"?}` plus `lastRevision` and
+  `lastSnapshot` once one is verified. It never holds a token.
+- `POST lease {"project","kind","generation","revision"}` refreshes an access
+  token at the provider and answers `{"id","project","kind","generation",
+  "notebookGeneration","revision","path","token","tokenExpires","expires",
+  "encryption"}`. `encryption` is `{"password"}` or `null`. `tokenExpires`
+  (RFC 3339) is at least ten minutes away; the lease `expires` in three
+  minutes. One lease per destination is active at a time. Leases are refused
+  while the destination is paused, blocked, disconnected or in a handoff, for
+  another generation or storage owner, when its Owner's authority changed, and
+  on a restored copy whose outgoing actions are paused.
+- `POST check {"lease"}` answers `{"valid":true}` while the lease holds.
+- `POST receipt {"lease","project","kind","generation","revision","error"?,
+  "diverged"?,"snapshot":{"name","sha256","size","kept","deleted":[...]}}`
+  ends the lease. A successful receipt names the verified snapshot; `kept` is
+  the number of snapshots the folder keeps after retention deleted `deleted`.
+  The worker's error text is not stored. `diverged` stops the destination until
+  the Owner resumes it.
+- `POST drain {"project","kind","generation","handoff"}` acknowledges that the
+  worker stopped uploading for an authority handoff.
+
+Access tokens are not revoked after each upload; they expire at the provider.
+
+### Handoffs, restored copies and exports
+
+An authority handoff fences drive destinations as it fences
+the GitHub binding: their generation rises, their leases end, and the handoff
+waits for the worker's drain of each. A committed handoff disconnects them and
+revokes their grants; an aborted one leaves them paused for an explicit resume.
+
+A copy restored beside the live instance, with outgoing actions paused, grants
+no lease and calls no provider: the grants are the live instance's.
+
+`export-files` writes drive destinations to `managed-backups/drives.json` beside
+`bindings.json`, with their refresh tokens and passwords still sealed, and
+`import-files` reads them back; the file-based release ignores `drives.json`.
+They work again only on gateways that hold the same seal key.
+
+Once a notebook has a drive destination, the shared backup state is version 3,
+which gateways from before drive destinations refuse rather than drop it.
+Upgrade every gateway, and the worker, before connecting the first drive
+destination.
+
+## Administration → Backups
+
+Admins see one row per notebook with its managed destinations and when each last
+verified a snapshot. Notebooks without a managed destination come first. A
+personal notebook's row omits its provider account. Backups an operator runs on
+the server's host (operator SSH mode, full-instance backups) are not visible to
+the application and are not listed. MCP and API clients read the same list with
+`managed_backup_overview`. The page follows the `managed-backups` module switch.
+
 Sources: [App manifests](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest),
 [installation authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation),
-[repository creation](https://docs.github.com/en/rest/repos/repos#create-a-repository-for-the-authenticated-user).
+[repository creation](https://docs.github.com/en/rest/repos/repos#create-a-repository-for-the-authenticated-user),
+[Google OAuth for web server apps](https://developers.google.com/identity/protocols/oauth2/web-server),
+[Dropbox OAuth guide](https://developers.dropbox.com/oauth-guide).

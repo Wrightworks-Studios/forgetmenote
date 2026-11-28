@@ -2,6 +2,7 @@ package notestore
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand/v2"
 	"time"
@@ -19,15 +20,25 @@ var minSweepAge = 10 * time.Minute
 // failed to remove, or a write refused after it put them, leave the blob
 // store within about a day. A delete asks its store to sweep
 // blockSweepSoon after it, once the blocks it freed, which it touched, are
-// past the grace period, unless a sweep is due sooner.
+// past the grace period, unless a sweep is due sooner. A store that finds
+// the lock held, by another gateway's sweep, a purge's block removal or an
+// instance capture, tries again blockSweepRetry later rather than a day
+// later, so a capture that runs at the hour of a gateway's sweep every day
+// does not keep that sweep from ever running.
 var (
 	blockSweepDelay   = 5 * time.Minute
 	blockSweepJitter  = time.Minute
 	blockSweepEvery   = 24 * time.Hour
 	blockSweepSoon    = minSweepAge + time.Minute
+	blockSweepRetry   = 15 * time.Minute
 	blockSweepTimeout = time.Hour
 )
 
+// blockSweepLock guards removing content blocks from the blob store. The
+// sweep takes it exclusively without waiting, a purge's removal of the
+// blocks it freed shares it, waiting, and an instance capture (LockBlocks)
+// holds it exclusively while it copies the blocks of its database snapshot,
+// so nothing removes a block the snapshot uses until the capture ends.
 const blockSweepLock = "notestore-block-sweep"
 
 // sweepBatch is how many blocks one transaction of a sweep locks while it
@@ -58,9 +69,12 @@ func (s *Store) sweeper(ctx context.Context) {
 			continue
 		case <-timer.C:
 		}
-		s.scheduledSweep(ctx)
-		timer.Reset(blockSweepEvery)
-		next = time.Now().Add(blockSweepEvery)
+		wait := blockSweepEvery
+		if _, swept, err := s.scheduledSweep(ctx); err == nil && !swept {
+			wait = min(blockSweepRetry, blockSweepEvery)
+		}
+		timer.Reset(wait)
+		next = time.Now().Add(wait)
 	}
 }
 
@@ -98,13 +112,20 @@ func (s *Store) scheduledSweep(ctx context.Context) (SweepResult, bool, error) {
 // (purgeSegments). It runs without the caller's cancellation, so a client
 // that disconnects once the commit is done cannot stop it, and tries three
 // times; whatever it could not remove stays in the blob store until the
-// scheduled block sweep removes it.
+// scheduled block sweep removes it. It shares the sweep's lock, waiting for
+// a running sweep or instance capture within the same budget: a capture's
+// database snapshot may still use the blocks the purge freed.
 func (s *Store) purgeAfterCommit(ctx context.Context, segments [][32]byte) (removedSegments, removedBlocks int, err error) {
 	if len(segments) == 0 {
 		return 0, 0, nil
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), purgeTimeout)
 	defer cancel()
+	release, err := s.db.Shared(ctx, blockSweepLock)
+	if err != nil {
+		return 0, 0, fmt.Errorf("waiting for a block sweep or an instance capture to end: %w", err)
+	}
+	defer release()
 	for attempt := 1; ; attempt++ {
 		if removedSegments, removedBlocks, err = s.purgeSegments(ctx, segments); err == nil || attempt == 3 {
 			return removedSegments, removedBlocks, err
@@ -117,8 +138,9 @@ func (s *Store) purgeAfterCommit(ctx context.Context, segments [][32]byte) (remo
 	}
 }
 
-// purgeTimeout bounds purgeAfterCommit's attempts together; purgeRetry is
-// the pause before the second, twice it before the third.
+// purgeTimeout bounds purgeAfterCommit's wait for the lock and its attempts
+// together; purgeRetry is the pause before the second, twice it before the
+// third.
 var (
 	purgeTimeout = 5 * time.Minute
 	purgeRetry   = time.Second

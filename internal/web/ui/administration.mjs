@@ -6,6 +6,7 @@ import {initOrganization} from './organization.mjs';
 import {initAISettings} from './ai-settings.mjs';
 import {initChatClients} from './chat-clients.mjs';
 import {initTaskQueues} from './task-queues.mjs';
+import {initBackupsOverview} from './backups-overview.mjs';
 import {initRepositoryImport} from './repository-import.mjs';
 import {contextMenuPosition} from './editor.mjs';
 import {notebookPath} from './request.mjs';
@@ -33,6 +34,9 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
   const taskQueues=initTaskQueues({post,getUser,getActive:()=>instancePageActive});
   const taskCategory=document.querySelector('#admin-dialog [data-settings-category=tasks]');
   taskCategory.addEventListener('click',()=>taskQueues.open());
+  const backupsOverview=initBackupsOverview({post,getUser,getActive:()=>instancePageActive});
+  const backupsCategory=document.querySelector('#admin-dialog [data-settings-category=backups]');
+  backupsCategory.addEventListener('click',()=>backupsOverview.open());
   const aiCategory=document.querySelector('#admin-dialog [data-settings-category=ai]');
   const connectionsCategory=document.querySelector('#admin-dialog [data-settings-category=connections]');
   const repositoriesCategory=document.querySelector('#admin-dialog [data-settings-category=repositories]');
@@ -235,7 +239,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     try {
     await reloadProjects();if(!page.active())return;
     if (!getUser().admin) { closeSettingsPage($('admin-dialog')); return; }
-    for(const [category,module] of [[connectionsCategory,'data-connections'],[repositoriesCategory,'repositories'],[chatCategory,'messaging'],[taskCategory,'tasks']]){
+    for(const [category,module] of [[connectionsCategory,'data-connections'],[repositoriesCategory,'repositories'],[chatCategory,'messaging'],[taskCategory,'tasks'],[backupsCategory,'managed-backups']]){
       category.hidden=!moduleOn(getUser(),module);
       if(category.hidden && category.getAttribute('aria-pressed')==='true')document.querySelector('#admin-dialog [data-settings-category=people]').click();
     }
@@ -244,6 +248,7 @@ export function initAdministration({api, post, notice, getUser, getProject, relo
     if(aiCategory.getAttribute('aria-pressed')==='true')await ai.open();
     if(chatCategory.getAttribute('aria-pressed')==='true')await chatClients.open();
     if(taskCategory.getAttribute('aria-pressed')==='true')await taskQueues.open();
+    if(backupsCategory.getAttribute('aria-pressed')==='true')await backupsOverview.open();
     if(!page.active())return;
 
     $('managed-workspaces').replaceChildren();

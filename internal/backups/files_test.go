@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"forgetmenote/internal/drivebackup"
+	"forgetmenote/internal/drivebackup/drivetest"
 	"forgetmenote/internal/filestate"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/pg/pgtest"
@@ -164,5 +166,53 @@ func TestBackupImportRefusesDamagedBindings(t *testing.T) {
 	}
 	if sum, err := importFiles(t, pgtest.Org(t), t.TempDir()); err != nil || sum.Files != 0 {
 		t.Fatal("an instance without managed backups failed to import", sum, err)
+	}
+}
+
+// Drive destinations travel in drives.json beside bindings.json, with their
+// credentials still sealed, and an import serves them to a gateway that holds
+// the seal key. The file-based release reads bindings.json as before.
+func TestDriveDestinationsRoundTripSealed(t *testing.T) {
+	db := pgtest.Org(t)
+	m, f, _ := driveManager(t, db, false)
+	d, password, refresh := connectDrive(t, m, f, drivebackup.Google, "notes", "alice@example.com", true, 0)
+	m.Close()
+	exported, dir := exportFiles(t, db)
+	if exported.Files != 2 {
+		t.Fatalf("export wrote %d files", exported.Files)
+	}
+	bindings, _ := os.ReadFile(filepath.Join(dir, bindingsFile))
+	drives, _ := os.ReadFile(filepath.Join(dir, drivesFile))
+	if !bytes.Contains(bindings, []byte(`"version": 2`)) || !bytes.Contains(bindings, []byte(`"bindings": {}`)) {
+		t.Fatalf("bindings.json is not the file-based release's:\n%s", bindings)
+	}
+	if !bytes.Contains(drives, []byte(d.Path)) || !bytes.Contains(drives, []byte("sealedRefresh")) || bytes.Contains(drives, []byte(refresh)) || bytes.Contains(drives, []byte(password)) {
+		t.Fatalf("drives.json does not keep the destination sealed:\n%s", drives)
+	}
+	restored := pgtest.Org(t)
+	imported, err := importFiles(t, restored, dir)
+	if err != nil || imported != exported {
+		t.Fatal(imported, exported, err)
+	}
+	again, err := Open(restored, nil, f.Client, func(Binding) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer again.Close()
+	l, err := again.DriveLease(t.Context(), "local", drivebackup.Google, "notes", d.Generation, strings.Repeat("a", 40))
+	if err != nil || l.Path != d.Path || l.Encryption == nil || l.Encryption.Password != password {
+		t.Fatalf("restored destination: %+v %v", l, err)
+	}
+	elsewhere := pgtest.Org(t)
+	if _, err = importFiles(t, elsewhere, dir); err != nil {
+		t.Fatal(err)
+	}
+	wrong, err := Open(elsewhere, nil, drivetest.New(t).Client, func(Binding) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer wrong.Close()
+	if _, err = wrong.DriveLease(t.Context(), "local", drivebackup.Google, "notes", d.Generation, strings.Repeat("a", 40)); err == nil {
+		t.Fatal("a gateway with another seal key leased the destination")
 	}
 }

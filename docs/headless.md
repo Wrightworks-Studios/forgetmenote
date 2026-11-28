@@ -176,7 +176,9 @@ For source reconnection or backup setup, use the shared actions:
    also requires operator `allowCreate` and explicit `createOwner`/`createName`.
 
 Use `backup status`, `backup run|pause|resume|disconnect --generation N` to operate
-an existing binding. Only the separate backup worker pushes Git.
+an existing binding; add `--kind gdrive` or `--kind dropbox` for a drive
+destination, with that destination's generation. Only the separate backup worker
+pushes Git or uploads snapshots.
 
 ## Notebook authority and safe switching
 

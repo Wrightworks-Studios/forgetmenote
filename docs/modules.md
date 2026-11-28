@@ -30,7 +30,7 @@ code out of the binary, see [optional integrations](integrations.md).
 | `messaging` | The Slack app and message delivery | `automations`, `tasks`, `memory`, `chat` |
 | `personal` | [Personal employee assistants](personal-assistant.md) and their personal connections | `automations`, `messaging` |
 | `memory` | [Agent memory](memory.md) | |
-| `managed-backups` | [Managed private GitHub backups](managed-backups.md) | |
+| `managed-backups` | [Managed private backups](managed-backups.md) | |
 
 A module that requires another cannot run without it. Turning a module off
 therefore means turning off every module that requires it too: `automations`

@@ -33,7 +33,7 @@ func parse(args []string) ([]string, options, error) {
 	pos := []string{}
 	opt := options{}
 	booleans := []string{"json", "create", "token-stdin", "no-browser", "manage", "help", "rebase", "operator-writers-stopped"}
-	values := []string{"path", "evidence", "data-access", "server", "file", "expected-revision", "source-revision", "origin", "revision", "source", "start-line", "end-line", "limit", "after", "mode", "notebook", "authority", "name", "id", "output", "editor", "to", "repository", "preview", "generation", "query", "profile", "schema-hash"}
+	values := []string{"path", "evidence", "data-access", "server", "file", "expected-revision", "source-revision", "origin", "revision", "source", "start-line", "end-line", "limit", "after", "mode", "notebook", "authority", "name", "id", "output", "editor", "to", "repository", "preview", "generation", "kind", "query", "profile", "schema-hash"}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--" {
@@ -86,7 +86,7 @@ const usage = `ForgetMeNote client
   note history NOTEBOOK [PATH]
   note restore NOTEBOOK PATH --source-revision REV --expected-revision REV
   search QUERY --notebook ID [--notebook ID] [--mode text|meaning|automatic]
-  backup status NOTEBOOK | run NOTEBOOK --generation N
+  backup status NOTEBOOK | run|pause|resume|disconnect NOTEBOOK --generation N [--kind github|gdrive|dropbox]
   edit list | resume ID [--rebase]
   organization status | offboarding USER | disable USER | enable USER
   organization group | invite | service --file FILE|-
@@ -489,6 +489,13 @@ func backupCall(pos []string, opt options) (string, map[string]any, error) {
 	params["action"] = action
 	if opt.get("generation") == "" {
 		return "", nil, errors.New("--generation from backup status is required")
+	}
+	// The GitHub binding unless --kind names a drive destination.
+	if kind := opt.get("kind"); kind != "" {
+		if !slices.Contains([]string{"github", "gdrive", "dropbox"}, kind) {
+			return "", nil, errors.New("--kind is github, gdrive or dropbox")
+		}
+		params["kind"] = kind
 	}
 	return "control_managed_backup", params, nil
 }

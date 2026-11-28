@@ -64,7 +64,20 @@ jobs:
           .github/scripts/apt-install.sh openssl inotify-tools postgresql
           ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1 >> "$GITHUB_PATH"
       - run: make setup-deps
+      # The backup worker's real-rclone tests need the pinned rclone, checked
+      # against its SHA-256: the release the Dockerfile ships
+      # (deploy/git-backup/README.md#rclone).
+      - id: rclone
+        run: |
+          curl -fsSL --retry 3 --max-time 300 -o "$RUNNER_TEMP/rclone.zip" \
+            https://downloads.rclone.org/v1.74.3/rclone-v1.74.3-linux-amd64.zip
+          echo "dbee7ccd7a5d617e4ed4cd4555c16669b511abfe8d31164f61be35ac9e999bd2  $RUNNER_TEMP/rclone.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/rclone.zip" -d "$RUNNER_TEMP/rclone"
+          echo "path=$RUNNER_TEMP/rclone/rclone-v1.74.3-linux-amd64/rclone" >> "$GITHUB_OUTPUT"
       - run: make check-fast
+        env:
+          FMN_RCLONE: ${{ steps.rclone.outputs.path }}
+          FMN_REQUIRE_RCLONE: '1'
   # next can require full. A pull request run skips it, which GitHub reports as
   # Success, so the gate runs on the queue's combined commit instead. Entries
   # without the label succeed in seconds, beside fast. The decision is a step here,

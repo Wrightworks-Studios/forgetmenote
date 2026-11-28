@@ -27,6 +27,7 @@ var organizationActions = map[string]bool{
 	"project_groups": true, "set_project_group": true, "create_invitation": true, "revoke_invitation": true,
 	"create_password_reset": true, "create_service_account": true, "set_service_steward": true,
 	"issue_service_credential": true, "revoke_user_credential": true, "offboarding_status": true, "reassign_notebook_ownership": true,
+	"managed_backup_overview": true,
 }
 
 func (s *Server) instanceAdministrationRoutes() {
@@ -259,6 +260,11 @@ func (s *Server) offboarding(actor, id string) (map[string]any, error) {
 			connections = append(connections, map[string]any{"project": p.ID, "kind": "backup", "paused": !b.Enabled, "reauthorize": report.User.Disabled || s.catalog.Epoch(id) != b.Epoch})
 		}
 	}
+	drives, err := s.driveConnections(context.Background(), id, report.User.Disabled)
+	if err != nil {
+		return nil, err
+	}
+	connections = append(connections, drives...)
 	return map[string]any{"account": report, "credentials": credentials, "connections": connections}, nil
 }
 func (s *Server) revokeCredential(actor, user, id string) error {

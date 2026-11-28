@@ -4611,6 +4611,125 @@
       "additionalProperties": {
         "not": {}
       },
+      "type": "object"
+    },
+    "name": "managed_backup_overview",
+    "outputSchema": {
+      "properties": {
+        "configured": {
+          "type": "boolean"
+        },
+        "drives": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "github": {
+          "type": "boolean"
+        },
+        "notebooks": {
+          "items": {
+            "properties": {
+              "destinations": {
+                "items": {
+                  "properties": {
+                    "account": {
+                      "type": "string"
+                    },
+                    "blocked": {
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "encrypted": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "lastRevision": {
+                      "type": "string"
+                    },
+                    "lastSuccess": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "name",
+                    "target",
+                    "enabled"
+                  ],
+                  "type": "object"
+                },
+                "type": [
+                  "null",
+                  "array"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "owners": {
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "null",
+                  "array"
+                ]
+              },
+              "personal": {
+                "type": "boolean"
+              },
+              "project": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project",
+              "name",
+              "owners",
+              "destinations"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        }
+      },
+      "required": [
+        "configured",
+        "github",
+        "drives",
+        "notebooks"
+      ],
+      "type": "object"
+    },
+    "readOnly": true
+  },
+  {
+    "coverage": "called",
+    "inputSchema": {
+      "additionalProperties": {
+        "not": {}
+      },
       "properties": {
         "project": {
           "type": "string"

@@ -99,3 +99,49 @@ services:
       - /tmp:size=256m,mode=1777
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+  # Optional backup worker (deploy/git-backup/README.md#the-worker-image): managed
+  # GitHub, Google Drive and Dropbox backups people set up in Notebook settings, or
+  # the operator's snapshot and instance modes. It starts only with
+  # `docker compose --profile backup up -d`; write ./backup/worker.json and
+  # ./secrets/backup-worker-token first.
+  backup:
+    profiles: [backup]
+    build:
+      context: .
+      target: worker
+      args:
+        APP_UID: ${PUID:-1000}
+        APP_GID: ${PGID:-1000}
+        FMN_OMIT: ${FMN_OMIT:-}
+    image: forgetmenote-worker:local
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    user: "${PUID:-1000}:${PGID:-1000}"
+    # The application's network: the worker reaches it at http://127.0.0.1:8080
+    # (gateway_address) and Postgres as postgres.
+    network_mode: "service:forgetmenote"
+    depends_on:
+      forgetmenote:
+        condition: service_healthy
+    command: ["--config", "/backup/worker.json"]
+    # An instance snapshot runs the capture here, which reads the instance's
+    # database and blob store as the application does.
+    environment:
+      INSTANCE_CONFIG_FILE: ${INSTANCE_CONFIG_FILE:-}
+      DATABASE_URL_FILE: ${DATABASE_URL_FILE:-/run/secrets/database-url}
+      BLOBS_CONFIG_FILE: ${BLOBS_CONFIG_FILE:-}
+    volumes:
+      # The exports it backs up, and what a capture copies; never written.
+      - ./data:/data:ro
+      # worker.json, its state and rclone.conf, and a capture's .capture folder.
+      - ./backup:/backup
+      - ./secrets/backup-worker-token:/run/secrets/backup-worker-token:ro
+      - ./secrets/database-url:/run/secrets/database-url:ro
+      # Instance snapshots that keep the instance's secrets as well:
+      # - ./secrets:/instance/secrets:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

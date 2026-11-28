@@ -119,6 +119,30 @@ kept.
 
 The legacy `remote` CLI command, remote/push API endpoints and synchronization controls, `GIT_REMOTE`, and `PUSH_INTERVAL` have been removed. New managed backup controls use a separate authorization/worker boundary. Old environment variables no longer configure or schedule anything. Remove them from deployment configuration and arrange an external backup schedule if desired. Existing `.git/config` remotes and all commits are preserved, but ForgetMeNote does not use those remotes. Remove any backup SSH/HTTPS credential mounts from the application; move credentials to the operator's host configuration. GitHub identity-linking secrets remain separate and are still supported.
 
+## Snapshot destinations and instance snapshots
+
+Instead of pushing to a Git remote, the [backup worker](../deploy/git-backup/README.md)
+can keep versioned snapshots. The application never uploads them; the worker does.
+
+- **Notebook snapshots** ([snapshot destinations](../deploy/git-backup/README.md#snapshot-destinations)):
+  verified Git bundles of one notebook's export in a folder or an
+  [rclone](../deploy/git-backup/README.md#rclone) remote, at most one per interval,
+  with daily and weekly retention. Each one restores with `git clone` or
+  **Import notebook** ([restoring snapshots](../deploy/git-backup/README.md#restoring-snapshots)).
+- **Drive snapshots** that people connect in Notebook settings run in the
+  [managed worker](../deploy/git-backup/README.md#managed-drive-snapshots), with a
+  short-lived token for one Google Drive or Dropbox folder.
+- **Instance snapshots** ([instance snapshots](../deploy/git-backup/README.md#instance-snapshots)):
+  a daily archive of the whole instance, taken without stopping it through the
+  capture command: the database dump, the capture of the data directory and the
+  configuration paths you list. The destination must be an rclone `crypt` remote,
+  since the archive holds the instance's secrets. Restore it as
+  [complete instance backup](#complete-instance-backup) describes.
+
+After a [purge](purge.md#what-a-purge-cannot-do), the worker deletes the snapshots
+taken before it once a newer one verifies. Snapshots of `inbox-*` and
+`assistant-*` notebooks send a person's private history off the machine.
+
 ## Notebook export and import
 
 Notebook settings offers **Download complete Git bundle**. It contains that project's committed Markdown, ordinary Git assets, discussion JSON, and Git history. Read access includes export access. It excludes user permissions, OAuth state, keys, custom CSS, and unsaved drafts.
@@ -139,7 +163,8 @@ Git LFS objects and untracked files are not in a Git bundle. This version does n
 ## Complete instance backup
 
 A complete and consistent instance backup has three parts, taken together while
-the application is stopped:
+the application is stopped, or while it serves with a
+[live capture](#live-capture):
 
 1. **The database** (`pg_dump`). It holds every notebook's revisions (commits,
    trees, changed paths and files under 8 KiB), live documents and their pending
@@ -171,6 +196,83 @@ Also preserve `.env`, `secrets/`, any `instance.json`, host backup credentials a
 To restore, stop ForgetMeNote, load the dump into an empty database, put the saved `data/` at the Compose volume path (and the bucket prefix back, with S3), ensure ownership matches PUID/PGID, restore the relevant private configuration, and start the service. Restore all three parts from the same backup: a file version whose blocks are missing cannot be read, and an export whose branch is ahead of the restored database stops as diverged until `forgetmenote admin storage export -recreate` writes it again; a remote that already received the newer commits then blocks as diverged, for review. Verify users, project grants, recent notes, images, and history. Do not unpack over a live data directory.
 
 To recover one notebook from a bundle into a fresh instance, use **Import notebook** with a new ID, as above. Notebook permissions stay in the instance catalog and must be assigned separately. An import never replaces an existing notebook.
+
+### Live capture
+
+`forgetmenote admin capture -out DIR` takes the same three parts while the
+instance keeps serving. The backup worker's instance mode runs it
+([Git backup worker](../deploy/git-backup/README.md)); run it in a gateway
+container that has the data directory with the Git exports, with the
+instance's configuration. DIR must not exist and must be outside the data
+directory and the blob directory; the capture creates it `0700` and every file
+in it `0600`:
+
+- `data/`: `admin.token`, `proxy.secret`, `custom.css`, purge receipts the
+  database has not taken yet (`purge-receipts/`), and each Git export
+  (`exports/<notebook>.git`) with its purge flag. The capture never runs Git in
+  an export: it copies the branch, then the objects, and has Git repack, prune
+  and check the copy, copying again when a repack or a purge's rebuild replaced
+  files meanwhile.
+- `blobs/blocks/<sha256>`: exactly the content blocks the snapshot's file
+  versions use, each checked against its hash and size.
+- `blobs/repository-sources/`: the index generation each source state in the
+  snapshot names, and the retained evidence.
+- `capture.json`: `format` (1), `created` (the snapshot's time), `snapshot`,
+  `purge` (the latest purge in the snapshot, or `-`), the `blocks` and `bytes`
+  copied, `version` (the build's revision, the schema and the reader version),
+  and the `included` paths and `excluded` ones, each with its reason. It holds
+  no secret.
+
+The exports and files are copied first, so no export is ahead of the database
+copy. Then the capture takes the `notestore-block-sweep` lock as a Postgres
+session lock, begins a `REPEATABLE READ READ ONLY` transaction and exports its
+snapshot (`pg_export_snapshot()`), and keeps both until it ends. While it holds
+the lock no block sweep runs and a purge's removal of the blocks it freed
+waits, so every block the snapshot uses is still there to copy, and no block a
+purge or a later write freed is copied. Newer blocks need no lock: a write puts
+its blocks before its transaction commits, and a block never changes. An export
+whose branch is no revision of the snapshot (a purge rewrote the notebook
+before its export was rebuilt, or the notebook was deleted) is removed from DIR
+and listed in `excluded`, so a capture holds nothing a purge in its snapshot
+erased from a notebook. A capture whose snapshot fell while a purge ran may
+still hold chats, proposals and judgment records that quote what it erased
+(the purge redacts them after its rewrite commits); capture again once its
+receipt is kept.
+
+Once DIR is complete the capture prints one line,
+`snapshot <ID> purge <ID or ->`, and waits up to 30 minutes for one line on its
+input, while the caller dumps the database with that snapshot
+(`pg_dump --snapshot=<ID>`). On `done` it ends the snapshot, releases the lock,
+prints `ok` and exits 0. Any other line, the end of its input, the wait running
+out or a signal end the snapshot and release the lock too; it exits 1 with a
+short reason on standard error and leaves DIR, which the caller deletes. A call
+it cannot run exits 2. A capture waits up to 15 minutes for a running sweep or a
+purge's block removal before it fails; a purge whose removal outwaits a capture
+leaves its blocks to the next sweep and says so in its warnings. The open
+snapshot holds back vacuum on the instance database until it ends.
+
+A capture leaves out, and lists in `excluded`:
+
+- source jobs (`blobs/source-jobs/`): private, temporary state that expires
+  within 24 hours, which cannot be copied consistently with the snapshot without
+  pausing conversions. A restored instance cannot return these jobs' results;
+  prepare those sources again.
+- bundle downloads (`blobs/exports/`), which last 15 minutes.
+- derived caches, rebuilt without provider charges: each notebook's keyword,
+  history and map caches (`data/projects/`, with the files there from before
+  the storage v2 cutover, which no purge reaches), each gateway's repository
+  mirrors and lexical
+  indexes (`data/repository-sources/`), working space (`data/cache/`) and
+  prepared Python environments (`data/automations/python/`).
+- a source's index generation a refresh retired during the capture: the
+  restored instance builds that index again, which embedding and map
+  classification charge for when they are enabled.
+
+Configuration and mounted secrets outside the data directory are not in a
+capture; preserve them as above. Restore a capture as a stopped backup: load
+the dump, put `DIR/data/` at the data directory and the contents of
+`DIR/blobs/` into the blob store (the data directory without `server.blobs`,
+the bucket prefix with S3).
 
 ## Recovery credentials
 

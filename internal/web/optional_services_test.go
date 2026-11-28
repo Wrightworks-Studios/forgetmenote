@@ -25,6 +25,10 @@ func TestUnconfiguredOptionalServicesAreUnavailable(t *testing.T) {
 		{"GET", "/api/document/asset?path=a.png", ""},
 		{"POST", "/api/managed-backup/connect", `not json`},
 		{"POST", "/api/managed-backup/control", `not json`},
+		{"POST", "/api/managed-backup/drive/connect", `not json`},
+		{"GET", "/api/managed-backup/drive/pending?kind=gdrive", ""},
+		{"POST", "/api/managed-backup/drive/enable", `not json`},
+		{"POST", "/api/managed-backup/drive/cancel", `not json`},
 	}
 	for _, request := range browser {
 		w := call(app, request.method, request.path, request.body, testToken)
