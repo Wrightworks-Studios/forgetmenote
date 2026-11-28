@@ -15,6 +15,7 @@ import (
 
 	"forgetmenote/internal/backuphttp"
 	"forgetmenote/internal/backups"
+	"forgetmenote/internal/drivebackup"
 	"forgetmenote/internal/githubapp"
 	"forgetmenote/internal/pg"
 	"forgetmenote/internal/workspace"
@@ -23,17 +24,22 @@ import (
 
 type backupWorker = backups.WorkerConfig
 type backupConfig = backups.AppConfig
+
+// A backupService is the instance's managed backups: a notebook's GitHub
+// binding through the Backups GitHub App, its Google Drive and Dropbox
+// destinations through drives, or both. Either may be absent.
 type backupService struct {
 	manager    *backups.Manager
 	workerHTTP *backuphttp.HTTP
 	app        *githubapp.Client
+	drives     *drivebackup.Client
 	config     backupConfig
 }
 
-// ConfigureBackups and ConfigureBackupsConfig install the Backups GitHub App
-// and its workers. On an instance that turns the managed-backups module off
-// they install nothing, and the file, the App's secrets and the worker
-// secrets stay unread.
+// ConfigureBackups and ConfigureBackupsConfig install the Backups GitHub App,
+// the drive providers and the workers. On an instance that turns the
+// managed-backups module off they install nothing, and the file, the secrets
+// and the worker secrets stay unread.
 func (s *Server) ConfigureBackups(file string) error {
 	if !s.modules.Enabled("managed-backups") {
 		return nil
@@ -57,13 +63,19 @@ func (s *Server) ConfigureBackupsConfig(cfg backups.AppConfig) error {
 		return nil
 	}
 
-	if len(cfg.Workers) == 0 || len(cfg.Workers) > 256 {
+	if len(cfg.Workers) == 0 || len(cfg.Workers) > 256 || !cfg.GitHub() && cfg.Drives == nil {
 		return errors.New("invalid backup App configuration")
 	}
-	if s.repositoryConnections != nil && cfg.App.AppID == s.repositoryConnections.github.Config.AppID {
+	if cfg.GitHub() && s.repositoryConnections != nil && cfg.App.AppID == s.repositoryConnections.github.Config.AppID {
 		return errors.New("Sources and Backups require separate GitHub Apps")
 	}
-	secretFiles := []string{cfg.App.ClientSecretFile, cfg.App.PrivateKeyFile, cfg.App.WebhookSecretFile}
+	var secretFiles []string
+	if cfg.GitHub() {
+		secretFiles = append(secretFiles, cfg.App.ClientSecretFile, cfg.App.PrivateKeyFile, cfg.App.WebhookSecretFile)
+	}
+	if cfg.Drives != nil {
+		secretFiles = append(secretFiles, cfg.Drives.SecretFiles()...)
+	}
 	for _, v := range cfg.Workers {
 		secretFiles = append(secretFiles, v.TokenFile)
 	}
@@ -87,14 +99,27 @@ func (s *Server) ConfigureBackupsConfig(cfg backups.AppConfig) error {
 		}
 		workers[id] = backuphttp.NewWorker(w.Owner, []byte(secret))
 	}
-	app, err := githubapp.New(cfg.App, "write")
-	if err != nil {
-		return err
+	service := &backupService{config: cfg}
+	if cfg.GitHub() {
+		if service.app, err = githubapp.New(cfg.App, "write"); err != nil {
+			return err
+		}
 	}
-	service := &backupService{app: app, config: cfg}
-	service.manager, err = backups.Open(s.db, app, func(b backups.Binding) error {
+	if cfg.Drives != nil {
+		if service.drives, err = drivebackup.New(*cfg.Drives); err != nil {
+			return err
+		}
+	}
+	// Every lease and status rechecks the person who connected the
+	// destination: still the notebook's Owner, with the same sign-in and
+	// notebook access epochs, under the same notebook authority, and the
+	// notebook's own person when it is personal.
+	service.manager, err = backups.Open(s.db, service.app, service.drives, func(b backups.Binding) error {
 		if b.NotebookGeneration > 0 && s.catalog.Authority(b.Project).Generation != b.NotebookGeneration || s.catalog.Kind(b.Project) != "notes" || s.catalog.StorageOwner(b.Project) != b.Owner || s.catalog.Epoch(b.Actor) != b.Epoch || s.catalog.ProjectAccessEpoch(b.Actor, b.Project) != b.Authority {
 			return backups.ErrDenied
+		}
+		if err := s.personalBackupAllowed(b.Actor, b.Project); err != nil {
+			return err
 		}
 		_, e := s.catalog.Access(b.Actor, b.Project, "owner")
 		return e
@@ -119,23 +144,23 @@ func (s *Server) backupRoutes(register routeRegistrar) {
 	register.project("POST /api/managed-backup/select", "owner", s.backupSelect)
 	register.project("POST /api/managed-backup/create", "owner", s.backupCreate)
 	register.project("POST /api/managed-backup/control", "owner", func(w http.ResponseWriter, r *http.Request) {
-		service, ok := s.backupReady(w, r)
-		if !ok {
-			return
-		}
 		var in struct {
+			Kind       string `json:"kind"`
 			Generation uint64 `json:"generation"`
 			Action     string `json:"action"`
 		}
 		if !decode(w, r, &in) {
 			return
 		}
-		out, err := integrationActivity(s, subject(r.Context()), "backup."+in.Action, projectID(r.Context()), func() (backups.Binding, error) {
-			return service.manager.Control(r.Context(), projectID(r.Context()), in.Generation, in.Action)
-		})
+		if err := s.outgoing.Check(); err != nil {
+			fail(w, err)
+			return
+		}
+		out, err := s.controlBackup(r.Context(), projectID(r.Context()), in.Kind, in.Generation, in.Action)
 		respond(w, out, err)
 	})
 	register.global("GET /backup/github/callback", s.backupCallback)
+	s.driveRoutes(register)
 }
 func (s *Server) backupStatus(ctx context.Context, project string) (any, error) {
 	store, err := s.toolStore(ctx, project, "owner")
@@ -153,24 +178,40 @@ func (s *Server) backupStatus(ctx context.Context, project string) (any, error) 
 	if err != nil {
 		return nil, err
 	}
-	return struct {
+	drives, err := s.driveStatus(project, st.Revision)
+	if err != nil {
+		return nil, err
+	}
+	// configured, the binding's fields and installUrl describe the GitHub
+	// destination, as before drives; drives lists each configured drive kind.
+	out := struct {
 		backups.Binding
-		Configured  bool   `json:"configured"`
-		AllowCreate bool   `json:"allowCreate"`
-		Pending     bool   `json:"pending"`
-		Head        string `json:"head"`
-		InstallURL  string `json:"installUrl"`
-	}{b, true, s.backups.config.AllowCreate, b.LastRevision != st.Revision, st.Revision, "https://github.com/apps/" + s.backups.config.App.Slug + "/installations/new"}, nil
+		Configured  bool          `json:"configured"`
+		AllowCreate bool          `json:"allowCreate"`
+		Pending     bool          `json:"pending"`
+		Head        string        `json:"head"`
+		InstallURL  string        `json:"installUrl,omitempty"`
+		Drives      []driveStatus `json:"drives"`
+		Personal    bool          `json:"personal,omitempty"`
+	}{Binding: backups.Binding{Project: project}, Head: st.Revision, Drives: drives, Personal: s.personalNotebook(project) != ""}
+	if s.backups.app != nil {
+		out.Binding, out.Configured, out.AllowCreate, out.Pending, out.InstallURL = b, true, s.backups.config.AllowCreate, b.LastRevision != st.Revision, "https://github.com/apps/"+s.backups.config.App.Slug+"/installations/new"
+	}
+	return out, nil
 }
 
-// backupReady is the managed backup service for a browser request that may
-// act on the selected notebook's backup; otherwise it writes the refusal.
+// backupReady is the GitHub backup service for a browser request that may
+// act on the selected notebook's GitHub binding; otherwise it writes the
+// refusal.
 func (s *Server) backupReady(w http.ResponseWriter, r *http.Request) (*backupService, bool) {
 	if s.catalog.Kind(projectID(r.Context())) != "notes" {
 		fail(w, workspace.ErrForbidden)
 		return nil, false
 	}
-	service, err := s.managedBackups()
+	service, err := s.gitHubBackups()
+	if err == nil {
+		err = s.personalBackupAllowed(subject(r.Context()), projectID(r.Context()))
+	}
 	if err == nil {
 		err = s.outgoing.Check()
 	}
@@ -218,7 +259,7 @@ func (s *Server) beginBackupConnection(w http.ResponseWriter, r *http.Request, g
 	jsonResponse(w, map[string]string{"url": "https://github.com/login/oauth/authorize?" + q.Encode()})
 }
 func (s *Server) backupCallback(w http.ResponseWriter, r *http.Request) {
-	g, err := s.managedBackups()
+	g, err := s.gitHubBackups()
 	if err != nil {
 		fail(w, err)
 		return
@@ -277,6 +318,9 @@ func (s *Server) backupGrantAuthority(p repositoryGrant) error {
 	a, err := s.catalog.Account(p.Subject)
 	if err != nil || a.Generation != p.Generation || p.Expires.Before(time.Now()) || s.catalog.Kind(p.Project) != "notes" {
 		return backups.ErrDenied
+	}
+	if err = s.personalBackupAllowed(p.Subject, p.Project); err != nil {
+		return err
 	}
 	_, err = s.catalog.Access(p.Subject, p.Project, "owner")
 	return err
@@ -405,24 +449,51 @@ func (s *Server) backupWorkerHTTP(w http.ResponseWriter, r *http.Request) {
 	s.backups.workerHTTP.ServeHTTP(w, r)
 }
 func (s *Server) backupTools(server *mcp.Server) {
-	addManagementTool(s, server, "managed_backup_status", "Read the selected notebook's managed GitHub backup status. Requires Owner and notes:manage. Only saved Git history is backed up.", true, func(ctx context.Context, in projectArg) (any, error) { return s.backupStatus(ctx, in.Project) })
-	addManagementTool(s, server, "control_managed_backup", "Pause, resume, disconnect, or request an immediate backup of an already configured private destination. Requires Owner and notes:manage; expected generation prevents stale changes. Resume a divergent destination only after the user resolves it. Setup and destination sharing consent happen in the browser.", false, func(ctx context.Context, in struct {
+	addManagementTool(s, server, "managed_backup_status", "Read the selected notebook's managed backup status: its GitHub binding and its Google Drive and Dropbox destinations, with each one's last verified snapshot. Requires Owner and notes:manage. Only saved Git history is backed up.", true, func(ctx context.Context, in projectArg) (any, error) { return s.backupStatus(ctx, in.Project) })
+	addManagementTool(s, server, "control_managed_backup", "Pause, resume, disconnect, or request an immediate backup of an already configured private destination. kind is github (the default), gdrive or dropbox. Requires Owner and notes:manage; expected generation prevents stale changes. Resume a divergent destination only after the user resolves it. Setup, encryption and destination sharing consent happen in the browser.", false, func(ctx context.Context, in struct {
 		projectArg
+		Kind       string `json:"kind,omitempty"`
 		Generation uint64 `json:"generation"`
 		Action     string `json:"action"`
-	}) (backups.Binding, error) {
+	}) (any, error) {
 		if _, err := s.toolStore(ctx, in.Project, "owner"); err != nil {
-			return backups.Binding{}, err
+			return nil, err
 		}
-		if s.catalog.Kind(in.Project) != "notes" {
-			return backups.Binding{}, workspace.ErrForbidden
-		}
-		service, err := s.managedBackups()
-		if err != nil {
-			return backups.Binding{}, err
-		}
-		return integrationActivity(s, subject(ctx), "backup."+in.Action, in.Project, func() (backups.Binding, error) {
-			return service.manager.Control(ctx, in.Project, in.Generation, in.Action)
-		})
+		return s.controlBackup(ctx, in.Project, in.Kind, in.Generation, in.Action)
 	})
+	addManagementTool(s, server, "managed_backup_overview", "List every notebook's managed backup destinations and when each last verified a snapshot, notebooks without one first. Admin only; no credentials. Operator-run host backups are not visible to the app.", true, func(ctx context.Context, in struct{}) (backupOverview, error) {
+		return s.backupOverview(subject(ctx))
+	})
+}
+
+// controlBackup applies an Owner's control to one destination of a notebook,
+// for the browser and MCP alike; the caller has checked the Owner's role and
+// credential scope.
+func (s *Server) controlBackup(ctx context.Context, project, kind string, generation uint64, action string) (any, error) {
+	if s.catalog.Kind(project) != "notes" {
+		return nil, workspace.ErrForbidden
+	}
+	if err := s.personalBackupAllowed(subject(ctx), project); err != nil {
+		return nil, err
+	}
+	if kind == "" || kind == "github" {
+		service, err := s.gitHubBackups()
+		if err != nil {
+			return nil, err
+		}
+		return integrationActivity(s, subject(ctx), "backup."+action, project, func() (backups.Binding, error) {
+			return service.manager.Control(ctx, project, generation, action)
+		})
+	}
+	service, err := s.driveBackups(kind)
+	if err != nil {
+		return nil, err
+	}
+	d, err := integrationActivity(s, subject(ctx), "backup."+kind+"."+action, project, func() (backups.Drive, error) {
+		return service.manager.DriveControl(ctx, kind, project, generation, action)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.driveView(d, ""), nil
 }
