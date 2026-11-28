@@ -79,7 +79,7 @@ func githubDuties(t *testing.T, app *Server, github *httptest.Server) {
 		t.Fatal(err)
 	}
 	backupApp.API, backupApp.HTTP = github.URL, github.Client()
-	bm, err := backups.Open(app.db, backupApp, func(backups.Binding) error { return nil })
+	bm, err := backups.Open(app.db, backupApp, nil, func(backups.Binding) error { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}

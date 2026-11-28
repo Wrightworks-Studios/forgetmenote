@@ -167,7 +167,11 @@ epoch. Existing provider calls cannot be recalled, but subsequent authorized wor
 is denied. Repository jobs are paused through the existing control boundary;
 re-enabling the account also checks that its repository jobs are paused first.
 Backup jobs retain their existing epoch/generation fencing and require explicit
-reauthorization. Source resume/reconnection is an explicit Owner/Admin operation.
+reauthorization. Offboarding lists a person's Google Drive and Dropbox backup
+destinations with their GitHub ones. **Administration → Backups** lists every
+notebook's managed backup destinations, those without one first; see
+[managed backups](managed-backups.md#administration--backups). Source
+resume/reconnection is an explicit Owner/Admin operation.
 If pausing fails, the account remains disabled and the API reports the error.
 
 With OIDC or a trusted proxy, disable the person in ForgetMeNote and the identity

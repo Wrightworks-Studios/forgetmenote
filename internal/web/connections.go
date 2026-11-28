@@ -75,7 +75,7 @@ func (s *Server) connectionGrant(ctx context.Context, p githubSetup) (repository
 	if p.Purpose == "source" && s.repositoryConnections != nil {
 		grant, ok, err = s.grant(ctx, "repository/grant", p.Binding, s.repositoryConnections.github.Client)
 	}
-	if p.Purpose == "backup" && s.backups != nil {
+	if p.Purpose == "backup" && s.backups != nil && s.backups.app != nil {
 		grant, ok, err = s.grant(ctx, "backup/grant", p.Binding, s.backups.app)
 	}
 	if err != nil {
@@ -126,7 +126,7 @@ func (s *Server) connectionRoutes() {
 		}
 		grant := repositoryGrant{Connection: p.ID, Project: p.Project, Creating: p.Creating, Name: p.Name}
 		if p.Purpose != "source" {
-			if _, err := s.managedBackups(); err != nil {
+			if _, err := s.gitHubBackups(); err != nil {
 				fail(w, err)
 				return
 			}
@@ -150,7 +150,7 @@ func (s *Server) connectionTools(server *mcp.Server) {
 		if in.Purpose == "source" {
 			_, unavailable = s.repoApp()
 		} else {
-			_, unavailable = s.managedBackups()
+			_, unavailable = s.gitHubBackups()
 		}
 		if unavailable != nil {
 			return nil, unavailable

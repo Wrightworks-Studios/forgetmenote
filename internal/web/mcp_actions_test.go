@@ -298,6 +298,7 @@ func TestMCPActionParityInventory(t *testing.T) {
 		"GET /api/authority/status":              "notebook_authority_status", "POST /api/authority/preview": "preview_notebook_authority_change", "POST /api/authority/apply": "apply_notebook_authority_change", "POST /api/authority/cancel": "cancel_notebook_authority_change",
 		"GET /api/managed-backup": "managed_backup_status", "POST /api/managed-backup/control": "control_managed_backup",
 		"POST /api/managed-backup/connect": "interactive repository setup", "GET /api/managed-backup/choices": "interactive repository setup", "POST /api/managed-backup/select": "interactive repository setup", "POST /api/managed-backup/create": "interactive repository setup",
+		"POST /api/managed-backup/drive/connect": "interactive repository setup", "GET /api/managed-backup/drive/pending": "interactive repository setup", "POST /api/managed-backup/drive/enable": "interactive repository setup", "POST /api/managed-backup/drive/cancel": "interactive repository setup",
 		"POST /api/retrieval":               "search_repository_sources",
 		"POST /api/repository/index-config": "configure_repository_index",
 		"GET /api/repository/map":           "repository_source_map",

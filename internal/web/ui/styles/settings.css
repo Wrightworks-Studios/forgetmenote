@@ -121,4 +121,10 @@ body.settings-page-open :is(#main,#sidebar,#mobile-navigation,#chat-panel,#comme
 .settings-heading { justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .settings-heading > h3 { margin: 0; }
 .settings-warning { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--warning); border-radius: 0 4px 4px 0; background: var(--warning-bg); color: var(--text); overflow-wrap: anywhere; }
+/* Administration → Backups: one row per notebook. */
+.backups-overview { list-style: none; padding: 0; margin: 0; }
+.backups-overview > li { padding: 10px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.backups-overview > li p { margin: 4px 0 0; }
+.backups-overview-notebook .small { color: var(--muted); }
+.backups-overview-none { font-weight: 600; }
 #group-id-help { margin: 4px 0 0; }

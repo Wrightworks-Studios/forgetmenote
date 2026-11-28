@@ -161,7 +161,7 @@ func authorityFixture(t *testing.T) (*Server, *workspace.Store, func(map[string]
 	}
 	backupApp.API = server.URL
 	backupApp.HTTP = server.Client()
-	bm, err := backups.Open(app.db, backupApp, func(b backups.Binding) error {
+	bm, err := backups.Open(app.db, backupApp, nil, func(b backups.Binding) error {
 		if app.catalog.Authority(b.Project).Generation != b.NotebookGeneration {
 			return backups.ErrDenied
 		}
@@ -223,7 +223,7 @@ func reopenAuthorityFixture(t *testing.T, old *Server) *Server {
 	}
 	app.repositories = m
 	app.repositoryConnections = &repositoryConnections{github: g}
-	bm, err := backups.Open(app.db, bg, func(b backups.Binding) error {
+	bm, err := backups.Open(app.db, bg, nil, func(b backups.Binding) error {
 		if c.Authority(b.Project).Generation != b.NotebookGeneration {
 			return backups.ErrDenied
 		}

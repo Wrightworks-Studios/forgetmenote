@@ -142,14 +142,14 @@ func TestBackupStateReopensAfterNotebookReplacement(t *testing.T) {
 	if _, err = db.WriteDocument(t.Context(), db.Pool, "backups", "bindings", 0, raw); err != nil {
 		t.Fatal(err)
 	}
-	m, err = Open(db, m.app, m.check)
+	m, err = Open(db, m.app, nil, m.check)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = m.Configure(t.Context(), Setup{Binding: Binding{Project: "replacement", Actor: "alice", Owner: "local", Installation: 7, Repository: githubapp.Repository{ID: 42}, Branch: "main"}, UserToken: "user-grant"}); err != nil {
 		t.Fatal(err)
 	}
-	reopened, err := Open(db, m.app, m.check)
+	reopened, err := Open(db, m.app, nil, m.check)
 	if err != nil {
 		t.Fatal("successful configuration could not be reopened", err)
 	}
@@ -165,7 +165,7 @@ func TestBackupConfigurationRefusesStateItCannotReopen(t *testing.T) {
 	if err == nil {
 		t.Fatal("configuration persisted more state than it can read on restart")
 	}
-	reopened, err := Open(db, m.app, m.check)
+	reopened, err := Open(db, m.app, nil, m.check)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestBackupConfigurationRefusesStateItCannotReopen(t *testing.T) {
 func TestGatewaysShareBackupLeasesAndReceipts(t *testing.T) {
 	db := pgtest.Org(t)
 	a, _, head := fixtureOn(t, db)
-	b, err := Open(db, a.app, a.check)
+	b, err := Open(db, a.app, nil, a.check)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +306,7 @@ func fixtureOn(t *testing.T, db *pg.DB) (*Manager, *bool, *string) {
 	}
 	app.API = server.URL
 	app.HTTP = server.Client()
-	m, err := Open(db, app, func(b Binding) error {
+	m, err := Open(db, app, nil, func(b Binding) error {
 		if b.Actor != "alice" || b.Owner != "local" {
 			return ErrDenied
 		}
@@ -347,7 +347,7 @@ func TestBackupBindingUsesPrivateDestinationAndPersists(t *testing.T) {
 	if !b.Enabled || b.Generation != 1 || b.Repository.FullName != "example/backup" {
 		t.Fatal(b)
 	}
-	reopened, err := Open(db, m.app, m.check)
+	reopened, err := Open(db, m.app, nil, m.check)
 	if err != nil {
 		t.Fatal(err)
 	}
