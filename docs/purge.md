@@ -233,12 +233,29 @@ before the purge cannot be saved back.
   emailed or sent to an AI provider must be treated as leaked, as must a
   backup download or export chunk that was being sent when the purge began:
   it completes with the notebook as it was. **Rotate a leaked secret
-  regardless.**
+  regardless.** The same holds for snapshots in Google Drive, Dropbox and
+  other [snapshot destinations](../deploy/git-backup/README.md#snapshots-and-purges):
+  the backup worker deletes those taken before the purge once one taken after
+  it verifies, but until then anyone and anything with access to the drive,
+  its synced devices included, could read and copy them (an encrypted
+  snapshot needs its password as well). Google Drive snapshots are deleted
+  permanently: rclone deletes them with the Drive's trash turned off (set
+  `use_trash = false` on an operator's own Drive remote for the same). Dropbox
+  keeps deleted files restorable for 30, 180 or 365 days depending on the
+  plan, and an app cannot shorten that; where the plan allows, the account
+  holder can permanently delete them sooner under **Deleted files** on the
+  Dropbox website.
 - **Clear GitHub's caches.** GitHub may keep cached views of old commits, pull
   requests and forks for a while; fully clearing them may need GitHub Support.
 - **Reach earlier backups.** Database dumps, data directory copies and Git
   bundles taken before the purge still hold the content. Delete or re-take
-  them according to your retention policy.
+  them according to your retention policy. The backup worker deletes notebook
+  and instance snapshots from before the purge only at a destination it still
+  serves, and only once a snapshot taken after the purge verifies there (for
+  an instance, its next daily capture). A destination no worker serves any
+  more, a folder or bundle someone copied or downloaded, and the versions,
+  trash or synced copies a destination keeps by itself still hold the
+  content, encrypted or not.
 - **Reach the previous release's files.** After the move to the database
   (the storage v2 cutover), each notebook's old Git working
   tree and repository (`data/projects/NOTEBOOK/workspace` with its `.git`),

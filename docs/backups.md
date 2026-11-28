@@ -119,6 +119,30 @@ kept.
 
 The legacy `remote` CLI command, remote/push API endpoints and synchronization controls, `GIT_REMOTE`, and `PUSH_INTERVAL` have been removed. New managed backup controls use a separate authorization/worker boundary. Old environment variables no longer configure or schedule anything. Remove them from deployment configuration and arrange an external backup schedule if desired. Existing `.git/config` remotes and all commits are preserved, but ForgetMeNote does not use those remotes. Remove any backup SSH/HTTPS credential mounts from the application; move credentials to the operator's host configuration. GitHub identity-linking secrets remain separate and are still supported.
 
+## Snapshot destinations and instance snapshots
+
+Instead of pushing to a Git remote, the [backup worker](../deploy/git-backup/README.md)
+can keep versioned snapshots. The application never uploads them; the worker does.
+
+- **Notebook snapshots** ([snapshot destinations](../deploy/git-backup/README.md#snapshot-destinations)):
+  verified Git bundles of one notebook's export in a folder or an
+  [rclone](../deploy/git-backup/README.md#rclone) remote, at most one per interval,
+  with daily and weekly retention. Each one restores with `git clone` or
+  **Import notebook** ([restoring snapshots](../deploy/git-backup/README.md#restoring-snapshots)).
+- **Drive snapshots** that people connect in Notebook settings run in the
+  [managed worker](../deploy/git-backup/README.md#managed-drive-snapshots), with a
+  short-lived token for one Google Drive or Dropbox folder.
+- **Instance snapshots** ([instance snapshots](../deploy/git-backup/README.md#instance-snapshots)):
+  a daily archive of the whole instance, taken without stopping it through the
+  capture command: the database dump, the capture of the data directory and the
+  configuration paths you list. The destination must be an rclone `crypt` remote,
+  since the archive holds the instance's secrets. Restore it as
+  [complete instance backup](#complete-instance-backup) describes.
+
+After a [purge](purge.md#what-a-purge-cannot-do), the worker deletes the snapshots
+taken before it once a newer one verifies. Snapshots of `inbox-*` and
+`assistant-*` notebooks send a person's private history off the machine.
+
 ## Notebook export and import
 
 Notebook settings offers **Download complete Git bundle**. It contains that project's committed Markdown, ordinary Git assets, discussion JSON, and Git history. Read access includes export access. It excludes user permissions, OAuth state, keys, custom CSS, and unsaved drafts.
