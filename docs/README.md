@@ -27,7 +27,7 @@ Start with the [application README](../README.md), [editing guide](editor.md) or
 | [Decision service and TypeSafe integration](judgments-architecture.md) | Developer |
 | [Judgments and notebook reviews](judgments.md) | User and operator |
 | [Knowledge workflows](knowledge.md) | User and operator |
-| [Managed private GitHub backups](managed-backups.md) | Operator |
+| [Managed private backups](managed-backups.md) | Operator |
 | [MCP action parity](mcp-actions.md) | User and operator |
 | [Images, files, and video](media.md) | User and operator |
 | [Agent memory](memory.md) | User and operator |
