@@ -144,16 +144,23 @@ func (s *Server) backupRoutes(register routeRegistrar) {
 	register.project("POST /api/managed-backup/select", "owner", s.backupSelect)
 	register.project("POST /api/managed-backup/create", "owner", s.backupCreate)
 	register.project("POST /api/managed-backup/control", "owner", func(w http.ResponseWriter, r *http.Request) {
+		if s.catalog.Kind(projectID(r.Context())) != "notes" {
+			fail(w, workspace.ErrForbidden)
+			return
+		}
+		if !s.backupsAvailable(w) {
+			return
+		}
+		if err := s.outgoing.Check(); err != nil {
+			fail(w, err)
+			return
+		}
 		var in struct {
 			Kind       string `json:"kind"`
 			Generation uint64 `json:"generation"`
 			Action     string `json:"action"`
 		}
 		if !decode(w, r, &in) {
-			return
-		}
-		if err := s.outgoing.Check(); err != nil {
-			fail(w, err)
 			return
 		}
 		out, err := s.controlBackup(r.Context(), projectID(r.Context()), in.Kind, in.Generation, in.Action)

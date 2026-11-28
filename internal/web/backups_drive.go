@@ -140,6 +140,16 @@ func (s *Server) driveRoutes(register routeRegistrar) {
 	}
 }
 
+// backupsAvailable answers an instance without managed backups before the
+// request is read, as every unconfigured optional service does.
+func (s *Server) backupsAvailable(w http.ResponseWriter) bool {
+	if _, err := s.managedBackups(); err != nil {
+		fail(w, err)
+		return false
+	}
+	return true
+}
+
 // driveReady is the service for a browser request that may act on the
 // selected notebook's destination of kind; otherwise it writes the refusal.
 func (s *Server) driveReady(w http.ResponseWriter, r *http.Request, kind string) (*backupService, bool) {
@@ -163,6 +173,9 @@ func (s *Server) driveReady(w http.ResponseWriter, r *http.Request, kind string)
 }
 
 func (s *Server) driveConnect(w http.ResponseWriter, r *http.Request) {
+	if !s.backupsAvailable(w) {
+		return
+	}
 	var in struct {
 		Kind string `json:"kind"`
 	}
@@ -313,6 +326,9 @@ func (s *Server) drivePendingStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) driveEnable(w http.ResponseWriter, r *http.Request) {
+	if !s.backupsAvailable(w) {
+		return
+	}
 	var in struct {
 		Kind       string `json:"kind"`
 		Generation uint64 `json:"generation"`
@@ -357,6 +373,9 @@ func (s *Server) driveEnable(w http.ResponseWriter, r *http.Request) {
 
 // driveCancel ends a setup the Owner declined and revokes its unused grant.
 func (s *Server) driveCancel(w http.ResponseWriter, r *http.Request) {
+	if !s.backupsAvailable(w) {
+		return
+	}
 	var in struct {
 		Kind string `json:"kind"`
 	}

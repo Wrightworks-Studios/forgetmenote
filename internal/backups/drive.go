@@ -185,8 +185,8 @@ func sortDrives(drives []Drive) {
 	})
 }
 
-// binding is the authorization the check function verifies for a drive.
-func (d Drive) binding() Binding {
+// authorization is the binding the check function verifies for a drive.
+func (d Drive) authorization() Binding {
 	return Binding{Project: d.Project, Actor: d.Actor, Owner: d.Owner, Epoch: d.Epoch, Authority: d.Authority, NotebookGeneration: d.NotebookGeneration}
 }
 
@@ -197,7 +197,7 @@ func (m *Manager) Drives(kind string) bool { return m.drives.Configured(kind) }
 func (m *Manager) DriveKinds() []string { return m.drives.Kinds() }
 
 func (m *Manager) driveAllowed(d Drive, owner string, generation uint64) bool {
-	return m.drives.Configured(d.Kind) && d.Owner == owner && d.Connected && d.Enabled && !d.Blocked && d.Handoff == "" && d.Generation == generation && m.check(d.binding()) == nil
+	return m.drives.Configured(d.Kind) && d.Owner == owner && d.Connected && d.Enabled && !d.Blocked && d.Handoff == "" && d.Generation == generation && m.check(d.authorization()) == nil
 }
 
 // DriveStatus reports a notebook's drive destinations as every gateway
@@ -217,7 +217,7 @@ func (m *Manager) DriveStatus(project string) ([]Drive, error) {
 }
 
 func (m *Manager) status(d Drive) Drive {
-	if d.Connected && m.check(d.binding()) != nil {
+	if d.Connected && m.check(d.authorization()) != nil {
 		d.Error = "Backup authorization changed; reconnect as a current notebook Owner"
 	}
 	return d
@@ -272,7 +272,7 @@ func (m *Manager) ConnectDrive(ctx context.Context, in DriveSetup) (Drive, strin
 	if !identifier.MatchString(in.Project) || in.Owner == "" || in.Actor == "" || in.Refresh == "" || in.Account == "" || in.AccountID == "" {
 		return Drive{}, "", ErrDenied
 	}
-	if err := m.check(in.binding()); err != nil {
+	if err := m.check(in.authorization()); err != nil {
 		return Drive{}, "", err
 	}
 	continuing := old.Connected && old.AccountID == in.AccountID
@@ -385,7 +385,7 @@ func (m *Manager) DriveControl(ctx context.Context, kind, project string, genera
 	case "pause":
 		d.Enabled = false
 	case "resume":
-		if err := m.check(d.binding()); err != nil {
+		if err := m.check(d.authorization()); err != nil {
 			return d.Drive, err
 		}
 		if !m.drives.Configured(kind) {
@@ -393,7 +393,7 @@ func (m *Manager) DriveControl(ctx context.Context, kind, project string, genera
 		}
 		d.Enabled, d.Blocked, d.Error = true, false, ""
 	case "now":
-		if err := m.check(d.binding()); err != nil {
+		if err := m.check(d.authorization()); err != nil {
 			return d.Drive, err
 		}
 		if !d.Enabled || d.Blocked {
