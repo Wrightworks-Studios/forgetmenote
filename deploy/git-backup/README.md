@@ -14,6 +14,12 @@ notebook files, and it force-pushes only for an authorized purge (below). Its
 state and credentials must live outside notebook data. Do not run external Git
 garbage collection or restore operations on the live app.
 
+Instead of pushing a branch, the same worker can keep versioned
+[snapshots](#snapshot-destinations) of a notebook in a folder or a cloud drive,
+leased [drive snapshots](#managed-drive-snapshots) the app's users set up, and
+daily encrypted [instance snapshots](#instance-snapshots). Those need the pinned
+[rclone](#rclone) for anything but a folder.
+
 The repository is the notebook's Git export, `data/exports/NOTEBOOK.git`, a bare
 repository ForgetMeNote keeps up to date with every revision. A notebook working
 tree (`data/projects/NOTEBOOK/workspace`, before storage v2) works the same way.
@@ -150,3 +156,256 @@ This is an operator backup, not a Notebook settings managed-App connection.
 Stop it before authority handoffs or restores; the gateway cannot fence an
 externally configured token worker. Fast-forward-only and remote verification
 rules are the same as SSH mode. Instance recovery still needs full-volume backups.
+
+## Snapshot destinations
+
+`mode: "snapshot"` keeps versioned copies of one notebook's export in a folder
+(a NAS mount or a disk) or an [rclone](#rclone) remote (Dropbox, Google Drive, S3,
+SFTP and the rest, best through an encrypting `crypt` remote), instead of pushing
+a branch. As in SSH mode, each notebook has its own configuration file and unit:
+
+```json
+{
+  "mode": "snapshot",
+  "repository": "/srv/forgetmenote/data/exports/notes.git",
+  "state_dir": "/srv/backup-state/notes",
+  "destination": {"rclone": "dropbox-crypt:", "path": "ForgetMeNote/notes"},
+  "rclone": "/usr/local/bin/rclone",
+  "rclone_config": "/srv/backup-state/rclone.conf",
+  "min_interval_seconds": 3600,
+  "retention": {"newest": 24, "daily": 30, "weekly": 52}
+}
+```
+
+For a folder, use `"destination": {"folder": "/mnt/nas/forgetmenote/notes"}` and
+leave out `rclone` and `rclone_config`; the folder must exist outside notebook data
+and the worker's state. rclone sees only the configuration file `rclone_config`
+names (outside notebook data) or, without it, an empty one: the worker passes it
+no other environment. `notebook` defaults to the repository's name without `.git`.
+Give each notebook its own destination path.
+
+The worker polls committed `HEAD` every two seconds, so this mode needs no inotify
+package, debounces like SSH mode and takes at most one snapshot per
+`min_interval_seconds`; `--once` takes one at once. A snapshot is:
+
+1. `git bundle create` of `HEAD` and `main` into the state directory. It only
+   reads the export: no locks, hooks or maintenance. **Import notebook** needs
+   `HEAD` in a bundle.
+2. `git bundle verify` in an empty repository, which proves the bundle complete,
+   and `git bundle list-heads` for the commit it actually holds, since the export
+   may have moved meanwhile.
+3. No upload when the newest snapshot at the destination already holds that
+   commit.
+4. Otherwise an upload as `YYYYMMDDTHHMMSSZ-COMMIT12.bundle.partial`, a hash check
+   at the destination, a rename, and only then the manifest
+   `YYYYMMDDTHHMMSSZ-COMMIT12.json`. A snapshot exists once its manifest does.
+
+```json
+{"format": 1, "kind": "notebook", "notebook": "notes", "commit": "40 hex digits",
+ "created": "2026-11-27T04:00:00.000000Z", "size": 123456, "sha256": "64 hex digits",
+ "purges": ["p1"], "worker": "forgetmenote-backup snapshot 1"}
+```
+
+The manifest holds no secrets. A folder upload is read back and hashed. An rclone
+upload is checked against the SHA-256 the backend reports, or another hash it
+reports and `rclone hashsum` computes locally, or, as for `crypt` remotes, which
+report none, by `rclone check --download`, which reads it back.
+
+After a new snapshot verifies, retention keeps the newest `newest` snapshots, the
+newest of each of the last `daily` UTC days and the newest of each of the last
+`weekly` ISO weeks, and always the newest of all. The worker deletes only files
+that match these names and have a manifest of this format, data first and the
+manifest last. A day later it removes leftovers of interrupted uploads and
+deletions: `.partial` files, and data or manifests without the other. It never
+touches other files.
+
+### Snapshots and purges
+
+The snapshot worker never reads or removes `forgetmenote-purge.json`; the Git push
+worker owns that flag. Each manifest instead lists every `Gitnotes-Purge` trailer
+in its history. After a new snapshot verifies, an older snapshot whose manifest
+lacks one of the new snapshot's purges holds history from before that purge, and
+is deleted. This works for any number of destinations backing up one notebook, and
+a restore to an older database, whose history has no new trailer, deletes nothing.
+Copies the destination keeps by itself (versions, trash, sync clients) are beyond
+the worker's reach; see [what a purge cannot do](../../docs/purge.md#what-a-purge-cannot-do).
+
+For a Google Drive remote, `use_trash = false` makes a deleted snapshot gone rather
+than kept in the Drive's trash.
+
+### Private notebooks
+
+Listing an `inbox-*` (protected Inbox) or `assistant-*` (personal assistant and
+memory) export sends one person's private history off the machine, beyond the
+instance's sharing rules. Leave them out unless that person asked for it, and then
+use an encrypted destination only you control.
+
+### Status and verification
+
+`status.json` records the status, the observed commit, the last snapshot (name,
+commit, created, SHA-256 and size), how many snapshots the last run kept and
+deleted, and the latest error. `--verify --config PATH` downloads the newest
+snapshot into a temporary directory under the state directory, checks its size and
+SHA-256 against its manifest, verifies the bundle and compares its commit, and
+exits 0 or 1. It changes nothing, so it can run beside the worker.
+
+## Managed drive snapshots
+
+In [managed mode](../../docs/managed-backups.md), `GET bindings` also lists the
+Google Drive and Dropbox destinations people connect in Notebook settings
+(`"kind": "gdrive"` or `"dropbox"`). A worker serves them when its configuration
+sets `rclone`; otherwise it logs each drive binding once, skips it, and keeps
+pushing to GitHub. Each binding takes the snapshots described above, with the
+worker configuration's `min_interval_seconds` and `retention`; **Back up now** takes
+one at once.
+
+- Active backups are keyed by notebook and kind: a GitHub push and a drive snapshot
+  of one notebook are independent, with state in `STATE/NOTEBOOK` and
+  `STATE/NOTEBOOK.KIND`. A drain during an authority handoff names the kind
+  (omitted for GitHub).
+- Each snapshot leases with the notebook, kind, generation and the bundle's commit.
+  Every lease field must match the binding and that commit; an encrypted
+  destination needs the lease's password and never receives an unencrypted upload.
+- The lease defines one-run rclone remotes only through `RCLONE_CONFIG_*`
+  environment variables of the rclone process: `fmnsnap:`, Google Drive with the
+  `drive.file` scope (only files the app created) and the trash off, or Dropbox,
+  holding the access token; and for an encrypted destination `fmncrypt:` over it,
+  with the password obscured by `rclone obscure -` from standard input. No file,
+  argument, status file, log or receipt holds either.
+- The lease is checked before the upload and every two seconds during each rclone
+  call; a failed check ends the call. Uploads are bounded to 120 seconds, within the
+  three-minute lease.
+- The receipt carries `snapshot` (name, SHA-256, size, the number kept and the names
+  deleted), or `error: "upload failed"`.
+- The worker does not revoke access tokens: it drops them when the run ends.
+  Disconnecting the destination in the app revokes the grant.
+
+## Instance snapshots
+
+`mode: "instance"` uploads a daily encrypted copy of the whole instance without
+stopping it, through the application's capture command:
+
+```json
+{
+  "mode": "instance",
+  "state_dir": "/srv/backup-state/instance",
+  "at": "04:00",
+  "capture_command": ["docker", "compose", "-f", "/srv/forgetmenote/compose.yaml", "exec", "-T",
+                      "forgetmenote", "forgetmenote", "admin", "capture", "-out", "/data/.capture/current"],
+  "capture_dir": "/srv/forgetmenote/data/.capture/current",
+  "dump_command": ["docker", "compose", "-f", "/srv/forgetmenote/compose.yaml", "exec", "-T",
+                   "postgres", "pg_dump", "-U", "forgetmenote", "--snapshot={snapshot}", "forgetmenote"],
+  "include": ["/srv/forgetmenote/.env", "/srv/forgetmenote/secrets", "/srv/forgetmenote/instance.json"],
+  "destination": {"rclone": "gdrive-crypt:", "path": "ForgetMeNote/instance"},
+  "rclone": "/usr/local/bin/rclone",
+  "rclone_config": "/srv/backup-state/rclone.conf",
+  "retention": {"daily": 14, "weekly": 8}
+}
+```
+
+`capture_dir` is the host path of the command's output directory. It must be inside
+a folder named `.capture`, because the worker deletes it after every capture, and
+the worker's state must be elsewhere. Run the worker as an account that can run
+both commands and delete what the capture writes: the data directory's owner, or
+root. Membership of the `docker` group, which the example needs, is equivalent to
+root.
+
+The destination must be an rclone `crypt` remote: before each capture the worker
+checks that `rclone listremotes --long` reports `crypt` for it, and refuses
+folders and other remotes. The archive holds the recovery key, the proxy secret,
+`.env`, `secrets/` and the database with its sign-in state. Keep the crypt password
+and salt apart from the backup: nothing restores without them.
+
+The worker captures daily at `at`, local time, and at start when the last scheduled
+capture was missed; `--once` captures at once. A failure retries after
+`retry_seconds` (300), doubling up to `retry_max_seconds` (3600).
+`capture_timeout_seconds` and `upload_timeout_seconds` (both 3600) bound the
+capture and every rclone call. Retention defaults to `newest` 1, `daily` 14 and
+`weekly` 8. `--verify` downloads the newest capture and checks its size, SHA-256,
+`capture/capture.json` and `postgres.sql`.
+
+The archive, `YYYYMMDDTHHMMSSZ-instance-SHA12.tar.gz`, holds `capture/` (the
+capture directory with its `capture.json`), `postgres.sql`, and each `include` path
+under `include/` followed by its absolute path. Modes are kept; a symlink as an
+included path, or one that leads out of an included tree, fails the capture. Its
+manifest has `format`, `kind: "instance"`, `created`, `size`, `sha256`, `purge` (the
+capture's latest purge, or `null`) and `purges`, every purge the destination's
+captures have seen. A new capture whose purge none of the older captures has seen
+deletes them all once it verifies, so a purged note leaves the destination; a
+restore to an older database, whose latest purge is an older one, deletes nothing.
+
+### Capture protocol v1
+
+1. The worker deletes any previous `capture_dir` and starts `capture_command` with
+   pipes for standard input and output, standard error to the journal, and no
+   `RCLONE_*` variables.
+2. The command copies the data directory's secrets and the Git exports into its
+   output directory, takes the block-sweep lock, opens one read-only database
+   snapshot, copies the content blocks that snapshot references, writes
+   `capture.json`, prints one line, `snapshot SNAPSHOT-ID purge PURGE-ID` (`-`
+   when there has been no purge), and waits.
+3. The worker runs `dump_command` with `{snapshot}` in its arguments replaced by the
+   snapshot ID (never through a shell), writes its standard output to `postgres.sql`
+   (mode 0600) in its staging directory, and requires exit status 0.
+4. The worker writes `done` and a newline. The command ends its snapshot, releases
+   the lock, prints `ok` and exits 0.
+
+Any other outcome fails the capture. The worker closes the command's standard
+input, which aborts the capture: the command ends its snapshot and releases the
+lock. After 30 seconds the worker ends the command's process group, then deletes
+`capture_dir` and its staging directory, records the error and retries later.
+
+## Restoring snapshots
+
+A notebook snapshot is a complete Git bundle; check it against its manifest first:
+
+```sh
+rclone --config rclone.conf copyto dropbox-crypt:ForgetMeNote/notes/NAME.bundle notes.bundle
+sha256sum notes.bundle
+git clone notes.bundle restored-notes
+git -C restored-notes log --oneline
+```
+
+To bring it back into ForgetMeNote, use **Import notebook** with a new ID
+([notebook export and import](../../docs/backups.md#notebook-export-and-import)).
+
+An instance snapshot decrypts on any machine through a `crypt` remote with the
+same password and salt:
+
+```sh
+rclone --config rclone.conf copyto gdrive-crypt:ForgetMeNote/instance/NAME.tar.gz instance.tar.gz
+sha256sum instance.tar.gz
+mkdir restore && tar -xzf instance.tar.gz -C restore
+```
+
+Then restore it as [complete instance backup](../../docs/backups.md#complete-instance-backup)
+describes: load `postgres.sql` into an empty database, put the data directory back
+from `capture/`, and the `include/` paths at their own locations. Never unpack
+over a live data directory.
+
+## rclone
+
+Every destination but a folder needs rclone, pinned at v1.74.3. It reaches Google
+Drive, Dropbox and many other services, and encrypts with `crypt`, as one separate
+executable, so the worker stays standard library Python. Install it from the
+project's release archive and check the archive's SHA-256; for
+`rclone-v1.74.3-linux-amd64.zip` it is
+`dbee7ccd7a5d617e4ed4cd4555c16669b511abfe8d31164f61be35ac9e999bd2`. The application
+image does not include it.
+
+The worker uses `copyto`, `moveto`, `copy`, `cat`, `lsjson`, `hashsum`, `check`,
+`deletefile`, `obscure` and `listremotes`. It runs rclone with `--config` (the
+configured file or an empty temporary one) and `--ask-password=false`, with only
+`PATH` and `HOME` (its state directory) in the environment apart from managed
+remotes, bounds every call, and ends the process group on a timeout or a failed
+lease check. CI runs the real-rclone tests on the pinned version: change the pin in
+`.github/workflows/check.yml` and here together, after checking rclone's
+changelog for those commands. Locally:
+
+```sh
+FMN_RCLONE=/usr/local/bin/rclone python3 -m unittest discover -s deploy/git-backup
+```
+
+These tests define local and `crypt` remotes in the environment and need no
+network. Without `FMN_RCLONE` they are skipped, and with `FMN_REQUIRE_RCLONE=1` a
+missing binary fails them.
