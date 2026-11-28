@@ -66,7 +66,8 @@ class ManagedContractTest(unittest.TestCase):
                     watcher.Gateway({**settings, 'gateway_address': address})
 
 SCRIPT = Path(__file__).with_name('watcher.py')
-REPO = Path(__file__).resolve().parents[2]
+# The source checkout; the release gate runs these tests with only this directory.
+REPO = Path(__file__).resolve().parent.parent.parent
 
 
 class RcloneSetupTest(unittest.TestCase):
@@ -94,6 +95,8 @@ class RcloneSetupTest(unittest.TestCase):
                 watcher.rclone_binary({})
 
     def test_the_worker_image_ci_and_readme_pin_one_rclone_release(self):
+        if not (REPO / 'Dockerfile').is_file():
+            self.skipTest('needs the source checkout')
         docker = (REPO / 'Dockerfile').read_text()
         version = re.search(r'^ARG RCLONE_VERSION=([0-9.]+)$', docker, re.M)[1]
         sums = {arch: re.search(rf'^ARG RCLONE_SHA256_{arch.upper()}=([0-9a-f]{{64}})$', docker, re.M)[1]
