@@ -1111,7 +1111,7 @@ async function initialize() {
   await restoreSearchRoute(initialQuery);
   routingReady=true;$("settings-open").disabled=!project;appState.update({route:location.href});
   if(initialQuery.get('repository')==='create')await administration.resumeRepository(initialQuery.get('notebook'));
-  if(initialQuery.get('backup')==='connect'){
+  if(['connect','gdrive','dropbox'].includes(initialQuery.get('backup'))){
     await administration.openProject();
     document.querySelector('#settings-dialog [data-settings-category=history]').click();
   }

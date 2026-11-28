@@ -192,8 +192,8 @@ func (s *Server) backupStatus(ctx context.Context, project string) (any, error) 
 		Head        string        `json:"head"`
 		InstallURL  string        `json:"installUrl,omitempty"`
 		Drives      []driveStatus `json:"drives"`
-		Personal    bool          `json:"personal,omitempty"`
-	}{Binding: backups.Binding{Project: project}, Head: st.Revision, Drives: drives, Personal: s.personalNotebook(project) != ""}
+		Connectable bool          `json:"connectable"`
+	}{Binding: backups.Binding{Project: project}, Head: st.Revision, Drives: drives, Connectable: s.personalBackupAllowed(subject(ctx), project) == nil}
 	if s.backups.app != nil {
 		out.Binding, out.Configured, out.AllowCreate, out.Pending, out.InstallURL = b, true, s.backups.config.AllowCreate, b.LastRevision != st.Revision, "https://github.com/apps/"+s.backups.config.App.Slug+"/installations/new"
 	}

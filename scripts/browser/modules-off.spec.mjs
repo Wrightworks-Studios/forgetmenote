@@ -48,7 +48,7 @@ test('an instance that turns modules off leaves out their entry points and says 
   await page.locator('#admin-open').click();
   await expect(page.locator('#admin-dialog')).toBeVisible();
   await expect(page.locator('#admin-dialog [data-settings-category=people]')).toBeVisible();
-  for (const category of ['connections', 'repositories', 'chat-clients', 'tasks'])
+  for (const category of ['connections', 'repositories', 'chat-clients', 'tasks', 'backups'])
     await expect(page.locator(`#admin-dialog [data-settings-category=${category}]`)).toBeHidden();
   // Repositories: the import from the App's installation goes with its category.
   await expect(page.locator('#admin-dialog [data-settings-category=repositories]')).toHaveCount(1);
