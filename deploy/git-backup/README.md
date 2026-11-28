@@ -291,8 +291,8 @@ stopping it, through the application's capture command:
   "state_dir": "/srv/backup-state/instance",
   "at": "04:00",
   "capture_command": ["docker", "compose", "-f", "/srv/forgetmenote/compose.yaml", "exec", "-T",
-                      "forgetmenote", "forgetmenote", "admin", "capture", "-out", "/data/.capture/current"],
-  "capture_dir": "/srv/forgetmenote/data/.capture/current",
+                      "forgetmenote", "forgetmenote", "admin", "capture", "-out", "/backup/.capture/current"],
+  "capture_dir": "/srv/forgetmenote/.capture/current",
   "dump_command": ["docker", "compose", "-f", "/srv/forgetmenote/compose.yaml", "exec", "-T",
                    "postgres", "pg_dump", "-U", "forgetmenote", "--snapshot={snapshot}", "forgetmenote"],
   "include": ["/srv/forgetmenote/.env", "/srv/forgetmenote/secrets", "/srv/forgetmenote/instance.json"],
@@ -305,7 +305,10 @@ stopping it, through the application's capture command:
 
 `capture_dir` is the host path of the command's output directory. It must be inside
 a folder named `.capture`, because the worker deletes it after every capture, and
-the worker's state must be elsewhere. Run the worker as an account that can run
+the worker's state must be elsewhere. The capture command refuses an output
+directory inside the data directory or the blob directory, so give the gateway
+container a separate mount for it, for example
+`/srv/forgetmenote/.capture:/backup/.capture` in the Compose file's `volumes`. Run the worker as an account that can run
 both commands and delete what the capture writes: the data directory's owner, or
 root. Membership of the `docker` group, which the example needs, is equivalent to
 root.
