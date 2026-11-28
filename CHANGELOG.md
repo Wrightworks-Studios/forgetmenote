@@ -54,6 +54,7 @@ For operators:
 - Sectioned instance configuration, accurate runtime summaries and configurable admission.
 - Fingerprinted browser assets, full-glyph WOFF2 fonts and shared UI ownership primitives.
 - Routable settings, people and timestamps, note context, clearer navigation and accessible themes.
+- Every toast at the bottom of the page has a Dismiss button and goes away on its own, errors included; an error or a toast with an action stays at least 15 seconds, and hovering or focusing a toast holds it. Undo move to Trash is now a button on its toast instead of staying on screen.
 - Evidence-preserving search previews with bounded presentation and explicit ambiguous-context fallbacks.
 - Notebook API/MCP aliases using the same authorization and revision checks.
 - Fast PR verification, manual full and release checks, advisory scans on pushes to main and next and weekly, pinned actions and reproducible Debian snapshots.

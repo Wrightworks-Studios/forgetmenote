@@ -1,5 +1,5 @@
 import {initSettingsPages,closeSettingsPage} from './settings-pages.mjs';
-import {feedback,confirmAction,dismissConfirmation} from './feedback.mjs';
+import {toast,confirmAction,dismissConfirmation} from './feedback.mjs';
 import {createApplicationState,requestSequence,moduleOn} from './state.mjs';
 import {icon,setLabel} from './icons.mjs';
 import {initSearch,searchToURL} from './search.mjs';
@@ -166,7 +166,7 @@ async function startLive(target,recovered=null) {
     // its projection and local input together until installation retires it.
     const ownsView=()=>id===liveStarting && target.active();
     const abort=new AbortController(),active=()=>ownsView() && live===session && !session.closed;
-    let connectionNotice=0,metadataRequest=null,shownPending;
+    let connectionNotice=null,metadataRequest=null,shownPending;
     function refreshCommittedMetadata(value) {
       if(current.metadataVersion===value.version || metadataRequest===value.version)return;
       const {revision,version,content}=value;
@@ -253,8 +253,8 @@ async function startLive(target,recovered=null) {
           if(live?.closed){live=null;delete $("document").dataset.live}
           return;
         }
-        if(connectionNotice && connectionNotice===noticeVersion)notice('');
-        connectionNotice=0;
+        connectionNotice?.();
+        connectionNotice=null;
         // The text compared is the whole note: only when the revision, the
         // checkpoint or the committed text it settles would change.
         const settles=value && !unsent && (value.revision!==current.revision || value.version!==current.version || !value.pending && original!==noteEditor.value);
@@ -329,9 +329,12 @@ function updateCreationControls() {
 }
 new MutationObserver(syncMobileNavigation).observe($("sidebar"),{subtree:true,attributes:true,attributeFilter:["disabled","hidden"]});
 function canManage(p = project) { return !!p && (user?.admin || p.role === "owner"); }
-function notice(message, success = false) {
-  feedback($('notice'),message,{level:success?'success':'error',duration:success?5000:0});
-  return ++noticeVersion;
+// Shows `message` as the page's toast, or clears it when empty. An `action`
+// ({label, run}) adds a button that runs it. Returns a function that dismisses
+// this toast if it is still shown.
+function notice(message, success = false, action) {
+  noticeVersion++;
+  return toast($('notice'),message,{level:success?'success':'error',action});
 }
 let stateMessage="",stateShown="";
 function state(message) {

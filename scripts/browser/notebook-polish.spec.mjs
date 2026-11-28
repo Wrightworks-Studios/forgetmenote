@@ -70,7 +70,7 @@ test('explicit reading preferences persist and touch navigation keeps generous t
   }
 });
 
-test('Trash undo keeps its own readable surface after the notice expires', async ({page}, info) => {
+test('Trash undo sits on a readable toast surface', async ({page}, info) => {
   const saved = await app.api('/p/default/api/note', {
     path: 'Undo surface.md',
     content: '# Restorable content\n',
@@ -81,14 +81,13 @@ test('Trash undo keeps its own readable surface after the notice expires', async
   await page.locator('#note-details-toggle').click();
   await page.locator('#properties-open').click();
   await page.locator('#note-trash').click();
-  await expect(page.locator('#trash-undo')).toBeVisible();
+  const undo = page.locator('#feedback-tray').getByRole('button', {name: 'Undo move to Trash'});
+  await expect(undo).toBeVisible();
   await expect(page.locator('#notice')).toHaveText('Moved to Trash.');
-  await expect(page.locator('#notice')).toBeHidden({timeout: 7000});
-  expect(await page.locator('#trash-undo').evaluate(n => getComputedStyle(n).backgroundColor)).not.toBe(
-    'rgba(0, 0, 0, 0)'
-  );
-  await page.screenshot({path: info.outputPath('undo-after-notice.png')});
-  await page.locator('#trash-undo').click();
+  for (const surface of [page.locator('#feedback-tray .toast'), undo])
+    expect(await surface.evaluate(n => getComputedStyle(n).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  await page.screenshot({path: info.outputPath('undo-toast.png')});
+  await undo.click();
   await expect(page.locator('#notice')).toContainText('Restored Undo surface.md.');
   expect((await app.api('/p/default/api/note?path=Undo%20surface.md')).content).toBe(saved.content);
 });
