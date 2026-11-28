@@ -255,7 +255,8 @@ In [managed mode](../../docs/managed-backups.md), `GET bindings` also lists the
 Google Drive and Dropbox destinations people connect in Notebook settings
 (`"kind": "gdrive"` or `"dropbox"`). A worker serves them when its configuration
 sets `rclone`; otherwise it logs each drive binding once, skips it, and keeps
-pushing to GitHub. Each binding takes the snapshots described above, with the
+pushing to GitHub. The application image's `forgetmenote-backup` has no rclone, so
+serve drive bindings from a worker host with the [pinned rclone](#rclone). Each binding takes the snapshots described above, with the
 worker configuration's `min_interval_seconds` and `retention`; **Back up now** takes
 one at once.
 
