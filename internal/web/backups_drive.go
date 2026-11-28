@@ -62,8 +62,12 @@ func (s *Server) driveBackups(kind string) (*backupService, error) {
 }
 
 // personalNotebook is the account a protected Inbox or assistant notebook
-// belongs to, or "" for a notebook that is not personal.
+// belongs to, or "" for a notebook that is not personal. Workers' polls check
+// every destination, so an ordinary notebook answers without a listing.
 func (s *Server) personalNotebook(project string) string {
+	if s.catalog.OrdinaryNotebook(project) {
+		return ""
+	}
 	for _, p := range s.catalog.List(catalog.Bootstrap) {
 		if p.ID == project {
 			return cmp.Or(p.ProtectedInbox, p.AssistantOwner)
